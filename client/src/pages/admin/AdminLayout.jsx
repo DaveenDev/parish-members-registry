@@ -1,7 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
-import { ThemeSwatches } from '../../components/ThemePicker.jsx';
+import { ThemePickerPopover } from '../../components/ThemePicker.jsx';
 
 const NAV_MAIN = [
   { to: '/admin', end: true, label: 'Dashboard', icon: (p) => <rect x="3" y="3" width="7" height="7" rx="1" {...p} /> },
@@ -69,9 +69,8 @@ export default function AdminLayout() {
           <div className="mx-3.5 mt-3.5 mb-1 font-bold text-[10.5px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70">Settings</div>
           {NAV_SETTINGS.map((n) => <NavItem key={n.to} {...n} />)}
         </nav>
-        <div className="px-4 py-2.5 flex items-center justify-between">
-          <span className="text-[10.5px] font-bold tracking-[.1em] uppercase text-white/40">Theme</span>
-          <ThemeSwatches />
+        <div className="px-4 py-2.5">
+          <ThemePickerPopover align="left" placement="up" dark />
         </div>
         <div className="px-4 py-3.5 border-t border-white/10 flex items-center gap-2.5">
           <div className="w-9 h-9 rounded-full bg-[var(--p-gold-light)] text-parish-navy flex items-center justify-center font-bold text-[14px] flex-none">{nameInitials}</div>

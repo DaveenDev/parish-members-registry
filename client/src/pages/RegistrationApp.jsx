@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { blankMember, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, fmtDate } from '../constants.js';
 import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
-import { ThemeSwatches } from '../components/ThemePicker.jsx';
+import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 
 const STEPS = ['Household', 'Members', 'Sacraments', 'Engagement', 'Review'];
 
@@ -200,8 +200,8 @@ export default function RegistrationApp() {
 function Landing({ onStart }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
-      <div className="fixed top-4 right-4 z-40 bg-white/70 backdrop-blur rounded-full px-2.5 py-1.5 shadow-cardSm">
-        <ThemeSwatches />
+      <div className="fixed top-4 right-4 z-40">
+        <ThemePickerPopover align="right" />
       </div>
       <div className="max-w-[560px] animate-fadeUp">
         <div className="text-parish-gold flex justify-center mb-1.5">
