@@ -13,7 +13,11 @@
     "db:setup": "node server/src/db/setup.js",
     "db:demo": "node server/src/db/seed-demo.js",
     "db:reset": "node server/src/db/reset.js",
-    "install:all": "npm install && npm install --prefix client"
+    "install:all": "npm install && npm install --prefix client",
+    "test": "node --test --test-concurrency=1 \"server/test/**/*.test.js\" \"client/test/**/*.test.js\"",
+    "test:unit": "node --test \"server/test/unit/*.test.js\" \"client/test/*.test.js\"",
+    "test:api": "node --test --test-concurrency=1 \"server/test/api/*.test.js\"",
+    "test:watch": "node --test --watch --test-concurrency=1 \"server/test/**/*.test.js\" \"client/test/**/*.test.js\""
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
