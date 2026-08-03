@@ -31,46 +31,45 @@ Built with **React + Tailwind CSS** on the frontend and **Express + PostgreSQL**
 ## Project structure
 
 ```
-client/   React + Tailwind frontend (Vite)
-server/   Express API + PostgreSQL schema
-project/  Original Claude Design source files this app was built from
+package.json   Root scripts — installs/runs the API server (and orchestrates the client dev server)
+server/         Express API + PostgreSQL schema
+client/         React + Tailwind frontend (Vite), its own package.json
+project/        Original Claude Design source files this app was built from
 ```
 
 ## Getting started
 
-### 1. Database
+### 1. Install dependencies
 
-Create a PostgreSQL database, then copy the server env file and fill in your connection string:
+Installs both the backend (root) and frontend (`client/`) dependencies:
+
+```bash
+npm run install:all
+```
+
+### 2. Database
+
+Create a PostgreSQL database, then copy the server env file and fill in your connection string and a random `JWT_SECRET`:
 
 ```bash
 cd server
 cp .env.example .env
+cd ..
 ```
 
 Run the schema + seed script (creates tables, default GKKs/ministries/organizations, and a demo admin account):
 
 ```bash
-npm install
 npm run db:setup
 ```
 
-### 2. API server
+### 3. Run the app
 
 ```bash
 npm run dev
 ```
 
-The API runs on `http://localhost:4000` by default.
-
-### 3. Client
-
-```bash
-cd ../client
-npm install
-npm run dev
-```
-
-The app runs on `http://localhost:5173` and proxies `/api` to the server.
+This starts the API server (`http://localhost:4000`) and the Vite dev server (`http://localhost:5173`) together, with `/api` proxied from the client to the server.
 
 - Registration portal: `http://localhost:5173/`
 - Admin panel: `http://localhost:5173/admin/login`
