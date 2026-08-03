@@ -22,16 +22,16 @@ export default function Exports() {
           <div className="grid gap-4 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(230px,1fr))' }}>
             <ExportCard
               icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>}
-              iconBg="#eef3fb" iconColor="#34589c" title="Members" desc="All member records with personal details, sacraments & ministries."
-              onExport={() => downloadWithAuth('/exports/members.csv', 'members.csv')} btnBg="#34589c"
+              iconBg="var(--p-blue-tint)" iconColor="var(--p-blue)" title="Members" desc="All member records with personal details, sacraments & ministries."
+              onExport={() => downloadWithAuth('/exports/members.csv', 'members.csv')} btnBg="var(--p-blue)"
             />
             <ExportCard
               icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>}
-              iconBg="#fbf1dd" iconColor="#c39b4e" title="Households" desc="Household directory with address, GKK, grouping & status."
-              onExport={() => downloadWithAuth('/exports/households.csv', 'households.csv')} btnBg="#c39b4e"
+              iconBg="#fbf1dd" iconColor="var(--p-gold)" title="Households" desc="Household directory with address, GKK, grouping & status."
+              onExport={() => downloadWithAuth('/exports/households.csv', 'households.csv')} btnBg="var(--p-gold)"
             />
           </div>
-          <div className="bg-[#eef3fb] border border-[#d4e0f2] rounded-xl px-[18px] py-4 text-[13.5px] text-[#2b466f] leading-relaxed">
+          <div className="bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl px-[18px] py-4 text-[13.5px] text-[#2b466f] leading-relaxed">
             CSV files open directly in Microsoft Excel and Google Sheets. Exported data is handled discreetly — share only with authorized parish personnel.
           </div>
         </div>

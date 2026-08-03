@@ -2,6 +2,106 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ===== Theme variants =====
+   Each theme sets the brand accent colors; warm parchment neutrals and
+   semantic status colors (verified/pending/error) stay constant so the
+   app reads consistently no matter which theme is active. */
+:root,
+[data-theme='classic'] {
+  --p-blue: #34589c;
+  --p-blue-deep: #26436f;
+  --p-blue-light: #4a71b8;
+  --p-navy: #1a2b4a;
+  --p-gold: #c39b4e;
+  --p-gold-light: #e4c06a;
+  --p-gold-deep: #a98a3f;
+  --p-sidebar-a: #20406b;
+  --p-sidebar-b: #152c4c;
+}
+[data-theme='emerald'] {
+  --p-blue: #1f6d4c;
+  --p-blue-deep: #155038;
+  --p-blue-light: #3f9c74;
+  --p-navy: #123726;
+  --p-gold: #c2a45a;
+  --p-gold-light: #e6c97e;
+  --p-gold-deep: #96793a;
+  --p-sidebar-a: #12432f;
+  --p-sidebar-b: #0c2e20;
+}
+[data-theme='burgundy'] {
+  --p-blue: #7a2e3a;
+  --p-blue-deep: #5c2029;
+  --p-blue-light: #a85361;
+  --p-navy: #3a151b;
+  --p-gold: #c9a45c;
+  --p-gold-light: #e8c886;
+  --p-gold-deep: #a17d3d;
+  --p-sidebar-a: #5c1d27;
+  --p-sidebar-b: #3a121a;
+}
+[data-theme='royal'] {
+  --p-blue: #5b3a8a;
+  --p-blue-deep: #402768;
+  --p-blue-light: #8163b3;
+  --p-navy: #2c1a4d;
+  --p-gold: #c9a24c;
+  --p-gold-light: #e8c977;
+  --p-gold-deep: #a17c34;
+  --p-sidebar-a: #3f2668;
+  --p-sidebar-b: #28174a;
+}
+[data-theme='ocean'] {
+  --p-blue: #14707a;
+  --p-blue-deep: #0d525a;
+  --p-blue-light: #3f97a1;
+  --p-navy: #0c3a40;
+  --p-gold: #c79a5a;
+  --p-gold-light: #e6c185;
+  --p-gold-deep: #9c7638;
+  --p-sidebar-a: #0d525a;
+  --p-sidebar-b: #083a40;
+}
+[data-theme='terracotta'] {
+  --p-blue: #b0563a;
+  --p-blue-deep: #8a3f28;
+  --p-blue-light: #cd7a5d;
+  --p-navy: #5c2c1c;
+  --p-gold: #8a9a5b;
+  --p-gold-light: #aebd7e;
+  --p-gold-deep: #657240;
+  --p-sidebar-a: #8a3f28;
+  --p-sidebar-b: #5c2c1c;
+}
+[data-theme='slate'] {
+  --p-blue: #3d5166;
+  --p-blue-deep: #2b3a4a;
+  --p-blue-light: #66809c;
+  --p-navy: #1e2833;
+  --p-gold: #b5651d;
+  --p-gold-light: #d98a44;
+  --p-gold-deep: #8a4c15;
+  --p-sidebar-a: #2b3a4a;
+  --p-sidebar-b: #1a232c;
+}
+[data-theme='rose'] {
+  --p-blue: #9c3f60;
+  --p-blue-deep: #742c47;
+  --p-blue-light: #c06e8b;
+  --p-navy: #3f1926;
+  --p-gold: #b99a6a;
+  --p-gold-light: #d9c093;
+  --p-gold-deep: #8f7449;
+  --p-sidebar-a: #742c47;
+  --p-sidebar-b: #4a1c2d;
+}
+:root {
+  --p-blue-tint: color-mix(in srgb, var(--p-blue) 9%, white);
+  --p-blue-tint-strong: color-mix(in srgb, var(--p-blue) 16%, white);
+  --p-blue-border: color-mix(in srgb, var(--p-blue) 40%, white);
+  --p-gold-tint: color-mix(in srgb, var(--p-gold) 14%, white);
+}
+
 * { box-sizing: border-box; }
 
 body {

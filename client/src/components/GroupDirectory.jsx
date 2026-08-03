@@ -44,8 +44,8 @@ export default function GroupDirectory({ title, subtitle, listFn, memberKey }) {
                   key={t.label} onClick={() => setActiveTab(t.label)}
                   className="appearance-none cursor-pointer px-3.5 py-2 rounded-full border-[1.5px] font-semibold text-[13px] flex items-center gap-1.5 whitespace-nowrap"
                   style={{
-                    borderColor: active === t.label ? '#34589c' : '#e6dcc7',
-                    background: active === t.label ? '#34589c' : '#fff',
+                    borderColor: active === t.label ? 'var(--p-blue)' : '#e6dcc7',
+                    background: active === t.label ? 'var(--p-blue)' : '#fff',
                     color: active === t.label ? '#fff' : '#3f3b2f',
                   }}
                 >

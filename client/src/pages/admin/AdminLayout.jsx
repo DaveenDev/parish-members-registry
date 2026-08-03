@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
+import { ThemeSwatches } from '../../components/ThemePicker.jsx';
 
 const NAV_MAIN = [
   { to: '/admin', end: true, label: 'Dashboard', icon: (p) => <rect x="3" y="3" width="7" height="7" rx="1" {...p} /> },
@@ -32,7 +33,7 @@ function NavItem({ to, end, label }) {
     >
       {({ isActive }) => (
         <>
-          <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded" style={{ background: isActive ? '#e4c06a' : 'transparent' }} />
+          <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded" style={{ background: isActive ? 'var(--p-gold-light)' : 'transparent' }} />
           {label}
         </>
       )}
@@ -53,23 +54,27 @@ export default function AdminLayout() {
 
   return (
     <div className="flex min-h-screen font-sans">
-      <aside className="flex-none w-[208px] text-white flex flex-col sticky top-0 h-screen" style={{ background: 'linear-gradient(180deg,#20406b,#152c4c)' }}>
+      <aside className="flex-none w-[208px] text-white flex flex-col sticky top-0 h-screen" style={{ background: 'linear-gradient(180deg,var(--p-sidebar-a),var(--p-sidebar-b))' }}>
         <div className="px-5 py-[22px] flex items-center gap-3 border-b border-white/10" style={{ padding: '22px 20px' }}>
-          <div className="w-[42px] h-[42px] rounded-xl bg-[#e4c06a]/[.16] flex items-center justify-center flex-none text-[#e4c06a]">
+          <div className="w-[42px] h-[42px] rounded-xl bg-[var(--p-gold-light)]/[.16] flex items-center justify-center flex-none text-[var(--p-gold-light)]">
             <svg viewBox="0 0 40 40" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round"><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z" /><path d="M20 24v9M15.5 28.5h9" /></svg>
           </div>
           <div className="min-w-0">
             <div className="font-serif text-[18px] font-semibold leading-tight">OLG Quasi-Parish</div>
-            <div className="text-[11px] tracking-[.1em] uppercase text-[#e4c06a]/85">Mua-an Registry</div>
+            <div className="text-[11px] tracking-[.1em] uppercase text-[var(--p-gold-light)]/85">Mua-an Registry</div>
           </div>
         </div>
         <nav className="px-3 py-3.5 flex flex-col gap-0.5 flex-1 overflow-auto">
           {NAV_MAIN.map((n) => <NavItem key={n.to} {...n} />)}
-          <div className="mx-3.5 mt-3.5 mb-1 font-bold text-[10.5px] tracking-[.15em] uppercase text-[#e4c06a]/70">Settings</div>
+          <div className="mx-3.5 mt-3.5 mb-1 font-bold text-[10.5px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70">Settings</div>
           {NAV_SETTINGS.map((n) => <NavItem key={n.to} {...n} />)}
         </nav>
+        <div className="px-4 py-2.5 flex items-center justify-between">
+          <span className="text-[10.5px] font-bold tracking-[.1em] uppercase text-white/40">Theme</span>
+          <ThemeSwatches />
+        </div>
         <div className="px-4 py-3.5 border-t border-white/10 flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-full bg-[#e4c06a] text-parish-navy flex items-center justify-center font-bold text-[14px] flex-none">{nameInitials}</div>
+          <div className="w-9 h-9 rounded-full bg-[var(--p-gold-light)] text-parish-navy flex items-center justify-center font-bold text-[14px] flex-none">{nameInitials}</div>
           <div className="min-w-0 flex-1">
             <div className="text-[13.5px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{user?.name}</div>
             <div className="text-[11.5px] text-white/60">{user?.role}</div>

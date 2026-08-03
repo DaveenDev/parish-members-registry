@@ -180,7 +180,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
 function SectionLabel({ children }) {
   return (
     <div className="flex items-center gap-2.5 mb-2.5">
-      <span className="font-bold text-[11.5px] text-[#a98a3f] tracking-[.1em] uppercase">{children}</span>
+      <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{children}</span>
       <span className="flex-1 h-px bg-[#f0e8d6]" />
     </div>
   );
@@ -204,7 +204,7 @@ function GroupChecks({ options, selected, onToggle }) {
       {options.map((name) => {
         const checked = selected.includes(name);
         return (
-          <label key={name} className="flex items-center gap-2 cursor-pointer border-[1.5px] rounded-lg px-2.5 py-2" style={{ borderColor: checked ? '#9db9e0' : '#e0d6c1', background: checked ? '#eef3fb' : '#fdfbf6' }}>
+          <label key={name} className="flex items-center gap-2 cursor-pointer border-[1.5px] rounded-lg px-2.5 py-2" style={{ borderColor: checked ? '#9db9e0' : '#e0d6c1', background: checked ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
             <Checkbox checked={checked} onChange={() => onToggle(name)} className="w-4 h-4" />
             <span className="font-medium text-[13.5px] text-parish-ink">{name}</span>
           </label>

@@ -88,7 +88,7 @@ export default function Households() {
                       <td className="px-4 py-3.5"><StatusPill status={h.status} /></td>
                       <td className="px-4 py-3.5">
                         <div className="flex gap-2 justify-end">
-                          <button onClick={() => toggleStatus(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[#eef3fb] rounded-lg whitespace-nowrap">
+                          <button onClick={() => toggleStatus(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
                             {h.status === 'Verified' ? 'Mark Pending' : 'Mark Verified'}
                           </button>
                           <button onClick={() => window.print()} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-[#f4efe3] rounded-lg">Print</button>
@@ -101,7 +101,7 @@ export default function Households() {
                           <div className="flex flex-col gap-2">
                             {(expandedMembers[h.id] || []).map((m) => (
                               <button key={m.id} onClick={() => setOpenMemberId(m.id)} className="flex items-center gap-3 px-3.5 py-2.5 bg-[#fffdf8] border border-[#f0e8d6] rounded-xl text-left hover:border-[#cdd7e8]">
-                                <div className="w-[34px] h-[34px] rounded-full bg-[#eef3fb] text-parish-blue flex items-center justify-center font-bold text-[12px] flex-none">
+                                <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12px] flex-none">
                                   {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
                                 </div>
                                 <div className="flex-none min-w-[160px]">

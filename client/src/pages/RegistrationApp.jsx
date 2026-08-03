@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { blankMember, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, fmtDate } from '../constants.js';
 import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
+import { ThemeSwatches } from '../components/ThemePicker.jsx';
 
 const STEPS = ['Household', 'Members', 'Sacraments', 'Engagement', 'Review'];
 
@@ -199,11 +200,14 @@ export default function RegistrationApp() {
 function Landing({ onStart }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
+      <div className="fixed top-4 right-4 z-40 bg-white/70 backdrop-blur rounded-full px-2.5 py-1.5 shadow-cardSm">
+        <ThemeSwatches />
+      </div>
       <div className="max-w-[560px] animate-fadeUp">
         <div className="text-parish-gold flex justify-center mb-1.5">
           <CrossLogo />
         </div>
-        <div className="font-semibold text-[13px] tracking-[.22em] uppercase text-[#a98a3f] mb-3.5">Parish Members Registry</div>
+        <div className="font-semibold text-[13px] tracking-[.22em] uppercase text-[var(--p-gold-deep)] mb-3.5">Parish Members Registry</div>
         <h1 className="font-serif font-semibold text-[clamp(38px,8vw,58px)] leading-[1.04] m-0 mb-1.5 text-parish-navy">Our Lady of Guadalupe</h1>
         <div className="font-serif text-[clamp(19px,4vw,24px)] text-parish-blue tracking-[.04em] mb-[22px]">Quasi&#8209;Parish · Mua&#8209;an</div>
         <p className="text-[clamp(16px,3.6vw,18px)] leading-relaxed text-parish-text2 max-w-[440px] mx-auto mb-8">
@@ -234,7 +238,7 @@ function Confirmation({ refNo, onRestart }) {
           Your household has been registered with <strong>Our Lady of Guadalupe Quasi-Parish, Mua-an</strong>. Our parish staff will review and verify your details shortly.
         </p>
         <Card className="p-[26px] mb-[26px]">
-          <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[#a98a3f] mb-2">Your reference number</div>
+          <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[var(--p-gold-deep)] mb-2">Your reference number</div>
           <div className="font-serif font-semibold text-[36px] tracking-[.06em] text-parish-blue">{refNo}</div>
           <div className="text-[13px] text-parish-muted mt-2">Please keep this for your records.</div>
         </Card>
@@ -259,14 +263,14 @@ function StepDots({ step }) {
             <div
               className="w-[29px] h-[29px] rounded-full flex items-center justify-center font-bold text-[13px] border-2 transition-all"
               style={{
-                borderColor: active ? '#34589c' : done ? '#c6d3ea' : '#e6dcc7',
-                background: active ? '#34589c' : done ? '#eef3fb' : '#fff',
-                color: active ? '#fff' : done ? '#34589c' : '#a79f8a',
+                borderColor: active ? 'var(--p-blue)' : done ? '#c6d3ea' : '#e6dcc7',
+                background: active ? 'var(--p-blue)' : done ? 'var(--p-blue-tint)' : '#fff',
+                color: active ? '#fff' : done ? 'var(--p-blue)' : '#a79f8a',
               }}
             >
               {n}
             </div>
-            <span className="font-semibold text-[12.5px]" style={{ color: active || done ? '#1a2b4a' : '#a79f8a' }}>{label}</span>
+            <span className="font-semibold text-[12.5px]" style={{ color: active || done ? 'var(--p-navy)' : '#a79f8a' }}>{label}</span>
           </div>
         );
       })}
@@ -287,7 +291,7 @@ function Wizard(props) {
           </div>
           <StepDots step={step} />
           <div className="h-[5px] bg-[#eaddc2] rounded-full mt-3.5 mx-auto max-w-[520px] overflow-hidden">
-            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg,#34589c,#c39b4e)' }} />
+            <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg,var(--p-blue),var(--p-gold))' }} />
           </div>
         </div>
       </div>
@@ -412,7 +416,7 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Household Members</h2>
       <p className="text-parish-text2 text-[15.5px] mb-[18px]">Add everyone living in your household — begin with the head of the family, then add the spouse and each child. They'll all be saved together.</p>
-      <div className="flex items-center gap-2.5 bg-[#eef3fb] border border-[#d4e0f2] rounded-xl px-4 py-3 mb-[22px] text-[#2b466f] text-[14px]">
+      <div className="flex items-center gap-2.5 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl px-4 py-3 mb-[22px] text-[#2b466f] text-[14px]">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="flex-none"><path d="M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 20v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11" /></svg>
         <span><strong>{memberViews.length}</strong> member(s) added so far. Use <strong>“Add Another Member”</strong> below for each person before you continue.</span>
       </div>
@@ -421,7 +425,7 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }
           <Card key={i} className="p-[clamp(18px,4vw,28px)]">
             <div className="flex items-center justify-between gap-3 mb-[18px]">
               <div className="flex items-center gap-2.5">
-                <div className="w-[34px] h-[34px] rounded-full bg-[#eef3fb] text-parish-blue flex items-center justify-center font-bold text-[15px]">{i + 1}</div>
+                <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[15px]">{i + 1}</div>
                 <span className="font-serif text-[22px] font-semibold text-parish-navy">{mv.displayName}</span>
               </div>
               {memberViews.length > 1 && (
@@ -469,7 +473,7 @@ function StepSacraments({ memberViews, onMemberField }) {
         {memberViews.map((mv, i) => (
           <Card key={i} className="p-[clamp(18px,4vw,28px)]">
             <div className="flex items-center gap-2.5 mb-4 pb-3.5 border-b border-[#f0e8d6]">
-              <div className="w-8 h-8 rounded-full bg-[#eef3fb] text-parish-blue flex items-center justify-center font-bold text-[14px]">{i + 1}</div>
+              <div className="w-8 h-8 rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[14px]">{i + 1}</div>
               <span className="font-serif text-[21px] font-semibold text-parish-navy">{mv.displayName}</span>
             </div>
             <div className="flex flex-col gap-3">
@@ -520,7 +524,7 @@ function StepEngagement({ volunteer, setVolunteer, notifyOptin, setNotifyOptin, 
           <Checkbox checked={notifyOptin} onChange={(e) => setNotifyOptin(e.target.checked)} className="mt-0.5" />
           <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">Add us to the parish email notification list for Mass schedules, feast days, and announcements.</span>
         </label>
-        <label className="flex items-start gap-3 cursor-pointer p-4 rounded-xl border-[1.5px] transition" style={{ borderColor: consent ? '#9db9e0' : '#e0d6c1', background: consent ? '#eef3fb' : '#fdfbf6' }}>
+        <label className="flex items-start gap-3 cursor-pointer p-4 rounded-xl border-[1.5px] transition" style={{ borderColor: consent ? '#9db9e0' : '#e0d6c1', background: consent ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
           <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
           <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">
             <strong className="text-parish-navy">Data privacy consent <span className="text-parish-gold">*</span></strong> — I consent to the parish collecting and storing this information. It is kept private and viewed only by authorized parish staff, in accordance with the Data Privacy Act.
@@ -590,7 +594,7 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
         {engReview.map(([label, value]) => <ReviewRow key={label} label={label} value={value} />)}
       </ReviewCard>
 
-      <div className="flex gap-2.5 items-start bg-[#eef3fb] border border-[#d4e0f2] rounded-2xl px-4 py-3.5 text-[#2b466f] text-[13.5px] leading-relaxed">
+      <div className="flex gap-2.5 items-start bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-2xl px-4 py-3.5 text-[#2b466f] text-[13.5px] leading-relaxed">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="flex-none mt-px"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
         <span>By submitting, this record is stored securely and made available only to authorized parish staff.</span>
       </div>

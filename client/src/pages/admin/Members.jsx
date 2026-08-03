@@ -92,7 +92,7 @@ export default function Members() {
               <tr key={m.id} onClick={() => setOpenMemberId(m.id)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6]">
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-[34px] h-[34px] rounded-full bg-[#eef3fb] text-parish-blue flex items-center justify-center font-bold text-[12.5px] flex-none">
+                    <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12.5px] flex-none">
                       {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
                     </div>
                     <span className="font-semibold text-[14.5px] text-parish-navy whitespace-nowrap">{m.first_name} {m.last_name}</span>

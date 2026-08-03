@@ -97,7 +97,7 @@ export function Pagination({ page, pageSize, total, onPage, onPageSize }) {
           <button
             key={n} onClick={() => onPage(n)}
             className="appearance-none cursor-pointer min-w-[34px] px-2.5 py-1.5 rounded-lg font-semibold text-[13px] border-[1.5px]"
-            style={{ borderColor: n === page ? '#34589c' : '#e0d6c1', background: n === page ? '#34589c' : '#fff', color: n === page ? '#fff' : '#17263f' }}
+            style={{ borderColor: n === page ? 'var(--p-blue)' : '#e0d6c1', background: n === page ? 'var(--p-blue)' : '#fff', color: n === page ? '#fff' : '#17263f' }}
           >
             {n}
           </button>

@@ -63,23 +63,23 @@ export default function Dashboard() {
           <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-5 shadow-cardSm">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-0.5">Registrations over time</div>
             <div className="text-[12.5px] text-parish-muted mb-5">Members enrolled per month</div>
-            <Bars data={stats.regMonths} color1="#4a71b8" color2="#34589c" />
+            <Bars data={stats.regMonths} color1="var(--p-blue-light)" color2="var(--p-blue)" />
           </div>
           <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-5 shadow-cardSm">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-0.5">Age distribution</div>
             <div className="text-[12.5px] text-parish-muted mb-5">All registered members</div>
-            <Bars data={stats.ageBuckets} color1="#e0bd6d" color2="#c39b4e" />
+            <Bars data={stats.ageBuckets} color1="#e0bd6d" color2="var(--p-gold)" />
           </div>
         </div>
 
         <div className="grid gap-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))' }}>
           <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-5 shadow-cardSm">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-[18px]">Members by GKK</div>
-            {stats.gkkBreak.length ? <BreakdownBars data={stats.gkkBreak} color1="#34589c" color2="#4a71b8" /> : <div className="text-parish-muted text-sm">No GKK data yet.</div>}
+            {stats.gkkBreak.length ? <BreakdownBars data={stats.gkkBreak} color1="var(--p-blue)" color2="var(--p-blue-light)" /> : <div className="text-parish-muted text-sm">No GKK data yet.</div>}
           </div>
           <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-5 shadow-cardSm">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-[18px]">Top ministries &amp; organizations</div>
-            {stats.ministryBreak.length ? <BreakdownBars data={stats.ministryBreak} color1="#c39b4e" color2="#e0bd6d" /> : <div className="text-parish-muted text-sm">No participation data yet.</div>}
+            {stats.ministryBreak.length ? <BreakdownBars data={stats.ministryBreak} color1="var(--p-gold)" color2="#e0bd6d" /> : <div className="text-parish-muted text-sm">No participation data yet.</div>}
           </div>
         </div>
 

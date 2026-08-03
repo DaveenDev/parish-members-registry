@@ -20,7 +20,7 @@ function SplitBar({ label, right, vw, pw }) {
       <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-[#3f3b2f] font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
       <div className="h-2.5 bg-[#f1e8d5] rounded-full overflow-hidden flex">
         <div className="h-full" style={{ width: vw, background: '#2f7a52' }} />
-        <div className="h-full" style={{ width: pw, background: '#c39b4e' }} />
+        <div className="h-full" style={{ width: pw, background: 'var(--p-gold)' }} />
       </div>
     </div>
   );
@@ -71,7 +71,7 @@ export default function Reports() {
               <button
                 key={k} onClick={() => setTab(k)}
                 className="appearance-none border-none bg-none cursor-pointer px-4 py-2.5 -mb-px font-semibold text-[15px]"
-                style={{ color: tab === k ? '#34589c' : '#8a836f', borderBottom: `2.5px solid ${tab === k ? '#34589c' : 'transparent'}` }}
+                style={{ color: tab === k ? 'var(--p-blue)' : '#8a836f', borderBottom: `2.5px solid ${tab === k ? 'var(--p-blue)' : 'transparent'}` }}
               >
                 {label}
               </button>
@@ -95,7 +95,7 @@ export default function Reports() {
                 <div className="font-serif text-[21px] font-semibold text-parish-navy mb-1">Sacramental Completion</div>
                 <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Share of all {stats.totalMembers} registered members who have received each sacrament.</p>
                 <div className="flex flex-col gap-3.5">
-                  {stats.sacCompletion.map((s) => <Bar key={s.label} label={s.label} right={`${s.n} received · ${s.missing} not yet recorded`} w={s.w} color="linear-gradient(90deg,#34589c,#4a71b8)" />)}
+                  {stats.sacCompletion.map((s) => <Bar key={s.label} label={s.label} right={`${s.n} received · ${s.missing} not yet recorded`} w={s.w} color="linear-gradient(90deg,var(--p-blue),var(--p-blue-light))" />)}
                 </div>
               </div>
 
@@ -133,7 +133,7 @@ export default function Reports() {
                           {bloodRows.map((b) => (
                             <tr key={b.mid} className="border-t border-[#f1e8d5]">
                               <td className="px-3.5 py-2.5">
-                                <div className="flex items-center gap-2.5"><div className="w-7 h-7 rounded-full bg-[#eef3fb] text-parish-blue flex items-center justify-center font-bold text-[11px] flex-none">{b.initials}</div>
+                                <div className="flex items-center gap-2.5"><div className="w-7 h-7 rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[11px] flex-none">{b.initials}</div>
                                   <div><div className="text-[13.5px] font-semibold text-parish-navy whitespace-nowrap">{b.name}</div><div className="text-[11.5px] text-parish-muted">{b.household}</div></div>
                                 </div>
                               </td>

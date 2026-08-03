@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { PageHeader, PageBody } from '../../components/admin.jsx';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
+import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
 
 function ProfileTab() {
   const [settings, setSettings] = useState(null);
@@ -35,9 +36,14 @@ function ProfileTab() {
         </div>
       </div>
       <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+        <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>
+        <div className="text-[13.5px] text-parish-muted mb-4">Choose a color theme for the registration portal and admin panel. Saved on this device.</div>
+        <ThemePickerGrid />
+      </div>
+      <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3.5">Data &amp; privacy</div>
         <div className="flex gap-2.5 items-start text-[13.5px] text-parish-text2 leading-relaxed">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34589c" strokeWidth="1.7" className="flex-none mt-px"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p-blue)" strokeWidth="1.7" className="flex-none mt-px"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
           <span>Member information is confidential and accessible only to authorized parish staff. All exports and printed sheets should be handled in accordance with the Data Privacy Act of 2012.</span>
         </div>
       </div>
@@ -58,7 +64,7 @@ export default function ParishConfig() {
               <button
                 key={k} onClick={() => setTab(k)}
                 className="appearance-none border-none bg-none cursor-pointer px-4 py-2.5 -mb-px font-semibold text-[15px]"
-                style={{ color: tab === k ? '#34589c' : '#8a836f', borderBottom: `2.5px solid ${tab === k ? '#34589c' : 'transparent'}` }}
+                style={{ color: tab === k ? 'var(--p-blue)' : '#8a836f', borderBottom: `2.5px solid ${tab === k ? 'var(--p-blue)' : 'transparent'}` }}
               >
                 {label}
               </button>
@@ -115,7 +121,7 @@ function GkkList() {
               <>
                 <span className="flex-1 font-semibold text-[14.5px] text-parish-navy">{r.name}</span>
                 <span className="font-semibold text-[12px] text-parish-muted">{r.count} household(s)</span>
-                <button onClick={() => { setEditing(r.name); setEditValue(r.name); }} className="appearance-none border-none bg-[#eef3fb] text-parish-blue cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Edit</button>
+                <button onClick={() => { setEditing(r.name); setEditValue(r.name); }} className="appearance-none border-none bg-[var(--p-blue-tint)] text-parish-blue cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Edit</button>
                 <button onClick={() => remove(r.name)} className="appearance-none border-none bg-parish-errorBg text-parish-error cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Delete</button>
               </>
             )}

@@ -58,7 +58,7 @@ export default function ManageList({ title, subtitle, itemNoun, listFn, addFn, r
                     <>
                       <span className="flex-1 font-semibold text-[14.5px] text-parish-navy">{r.name}</span>
                       <span className="font-semibold text-[12px] text-parish-muted">{r.count} member(s)</span>
-                      <button onClick={() => { setEditing(r.name); setEditValue(r.name); }} className="appearance-none border-none bg-[#eef3fb] text-parish-blue cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Edit</button>
+                      <button onClick={() => { setEditing(r.name); setEditValue(r.name); }} className="appearance-none border-none bg-[var(--p-blue-tint)] text-parish-blue cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Edit</button>
                       <button onClick={() => remove(r.name)} className="appearance-none border-none bg-parish-errorBg text-parish-error cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Delete</button>
                     </>
                   )}
