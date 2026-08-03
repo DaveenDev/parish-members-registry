@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../lib/http.js';
 import { ageFromDob, toCsv } from '../lib/util.js';
 
 const router = Router();
@@ -12,7 +13,7 @@ function send(res, filename, csv) {
   res.send(csv);
 }
 
-router.get('/members.csv', async (req, res) => {
+router.get('/members.csv', asyncHandler(async (req, res) => {
   const { rows } = await pool.query(
     `SELECT m.*, h.household_name, h.gkk AS household_gkk FROM members m JOIN households h ON h.id = m.household_id ORDER BY h.household_name, m.id`
   );
@@ -39,9 +40,9 @@ router.get('/members.csv', async (req, res) => {
     { label: 'Organizations', value: (r) => (r.organizations || []).join('; ') },
   ]);
   send(res, 'members.csv', csv);
-});
+}));
 
-router.get('/households.csv', async (req, res) => {
+router.get('/households.csv', asyncHandler(async (req, res) => {
   const { rows } = await pool.query(
     `SELECT h.*, (SELECT count(*)::int FROM members m WHERE m.household_id = h.id) AS member_count FROM households h ORDER BY h.household_name`
   );
@@ -62,9 +63,9 @@ router.get('/households.csv', async (req, res) => {
     { label: 'Registered', value: (r) => new Date(r.created_at).toISOString().slice(0, 10) },
   ]);
   send(res, 'households.csv', csv);
-});
+}));
 
-router.get('/blood.csv', async (req, res) => {
+router.get('/blood.csv', asyncHandler(async (req, res) => {
   const { rows } = await pool.query(
     `SELECT m.*, h.household_name, h.gkk AS household_gkk FROM members m JOIN households h ON h.id = m.household_id WHERE m.blood_type IS NOT NULL ORDER BY m.blood_type`
   );
@@ -77,9 +78,9 @@ router.get('/blood.csv', async (req, res) => {
     { label: 'Contact', value: 'contact' },
   ]);
   send(res, 'blood-directory.csv', csv);
-});
+}));
 
-router.post('/generated.csv', async (req, res) => {
+router.post('/generated.csv', asyncHandler(async (req, res) => {
   const { title, columns, rows } = req.body || {};
   if (!columns || !rows) return res.status(400).json({ error: 'Nothing to export' });
   const csv = toCsv(
@@ -87,6 +88,6 @@ router.post('/generated.csv', async (req, res) => {
     columns.map((label) => ({ label, value: label }))
   );
   send(res, `${(title || 'report').toLowerCase().replace(/\s+/g, '-')}.csv`, csv);
-});
+}));
 
 export default router;

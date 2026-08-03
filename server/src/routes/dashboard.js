@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../lib/http.js';
 import { ageFromDob } from '../lib/util.js';
 
 const router = Router();
 router.use(requireAuth);
 
-router.get('/stats', async (req, res) => {
+router.get('/stats', asyncHandler(async (req, res) => {
   const [households, members] = await Promise.all([
     pool.query('SELECT * FROM households'),
     pool.query('SELECT * FROM members'),
@@ -69,6 +70,6 @@ router.get('/stats', async (req, res) => {
     ],
     regMonths, ageBuckets, gkkBreak, ministryBreak, sacStats,
   });
-});
+}));
 
 export default router;

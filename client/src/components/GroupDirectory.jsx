@@ -1,31 +1,39 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { PageHeader, PageBody, FilterSelect, EmptyState } from './admin.jsx';
+import { PageHeader, PageBody, FilterSelect, EmptyState, Pagination } from './admin.jsx';
 import { ageFromDob } from '../constants.js';
 import MemberDetailModal from './MemberDetailModal.jsx';
 
-export default function GroupDirectory({ title, subtitle, listFn, memberKey }) {
-  const [names, setNames] = useState([]);
+export default function GroupDirectory({ title, subtitle, listFn }) {
+  const [tabs, setTabs] = useState([]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [gkk, setGkk] = useState('All');
   const [activeTab, setActiveTab] = useState('');
-  const [allMembers, setAllMembers] = useState([]);
+  const [rows, setRows] = useState([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [openMemberId, setOpenMemberId] = useState(null);
 
-  function reload() {
-    listFn().then((res) => setNames(res.rows.map((r) => r.name)));
-    api.listMembers({ status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All', search: '', sortKey: 'name', sortDir: 'asc', page: 1, pageSize: 1000 }).then((res) => setAllMembers(res.rows));
-  }
+  // Tab list + per-group counts, scoped to the selected GKK.
+  useEffect(() => {
+    listFn({ gkk }).then((res) => {
+      setTabs(res.rows);
+      setActiveTab((current) => (res.rows.some((r) => r.name === current) ? current : res.rows[0]?.name || ''));
+    });
+  }, [gkk]);
 
-  useEffect(() => { reload(); }, []);
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))); }, []);
+  useEffect(() => { setPage(1); }, [gkk, activeTab]);
 
-  const filteredMembers = gkk === 'All' ? allMembers : allMembers.filter((m) => m.household_gkk === gkk);
-  const tabs = names
-    .map((name) => ({ label: name, count: filteredMembers.filter((m) => (m[memberKey] || []).includes(name)).length }))
-    .filter((t) => t.count > 0 || gkk === 'All');
-  const active = activeTab || (tabs[0] && tabs[0].label) || '';
-  const tableRows = filteredMembers.filter((m) => (m[memberKey] || []).includes(active));
+  // Roster for the active group — filtered and paginated server-side, so this
+  // stays correct no matter how large the parish grows.
+  function reload() {
+    if (!activeTab) { setRows([]); setTotal(0); return; }
+    api.listMembers({ ministry: activeTab, gkk, page, pageSize, sortKey: 'name', sortDir: 'asc' })
+      .then((res) => { setRows(res.rows); setTotal(res.total); });
+  }
+  useEffect(() => { reload(); }, [activeTab, gkk, page, pageSize]);
 
   return (
     <>
@@ -38,23 +46,26 @@ export default function GroupDirectory({ title, subtitle, listFn, memberKey }) {
         {!tabs.length && <EmptyState title={`No ${title.toLowerCase()} match this filter`} />}
         {!!tabs.length && (
           <>
-            <div className="flex flex-wrap gap-2 mb-[18px]" style={{ marginBottom: '18px' }}>
+            <div className="flex flex-wrap gap-2 mb-[18px]">
               {tabs.map((t) => (
                 <button
-                  key={t.label} onClick={() => setActiveTab(t.label)}
+                  key={t.name} onClick={() => setActiveTab(t.name)}
                   className="appearance-none cursor-pointer px-3.5 py-2 rounded-full border-[1.5px] font-semibold text-[13px] flex items-center gap-1.5 whitespace-nowrap"
                   style={{
-                    borderColor: active === t.label ? 'var(--p-blue)' : '#e6dcc7',
-                    background: active === t.label ? 'var(--p-blue)' : '#fff',
-                    color: active === t.label ? '#fff' : '#3f3b2f',
+                    borderColor: activeTab === t.name ? 'var(--p-blue)' : '#e6dcc7',
+                    background: activeTab === t.name ? 'var(--p-blue)' : '#fff',
+                    color: activeTab === t.name ? '#fff' : '#3f3b2f',
                   }}
                 >
-                  {t.label}<span className="font-bold text-[11.5px] opacity-80">{t.count}</span>
+                  {t.name}<span className="font-bold text-[11.5px] opacity-80">{t.count}</span>
                 </button>
               ))}
             </div>
             <div className="bg-[#fffdf8] border border-parish-border rounded-2xl overflow-hidden shadow-cardSm">
-              <div className="px-[18px] py-3.5 border-b border-[#f1e8d5] font-serif text-[19px] font-semibold text-parish-navy" style={{ padding: '15px 18px' }}>{active}</div>
+              <div className="px-[18px] py-3.5 border-b border-[#f1e8d5] font-serif text-[19px] font-semibold text-parish-navy">
+                {activeTab}
+                <span className="font-sans text-[13px] font-semibold text-parish-muted"> · {total} member(s)</span>
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse" style={{ minWidth: 640 }}>
                   <thead>
@@ -65,7 +76,7 @@ export default function GroupDirectory({ title, subtitle, listFn, memberKey }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {tableRows.map((m) => (
+                    {rows.map((m) => (
                       <tr key={m.id} onClick={() => setOpenMemberId(m.id)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6]">
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2.5">
@@ -86,6 +97,8 @@ export default function GroupDirectory({ title, subtitle, listFn, memberKey }) {
                   </tbody>
                 </table>
               </div>
+              {!rows.length && <EmptyState title="No members in this group yet" />}
+              <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
             </div>
           </>
         )}

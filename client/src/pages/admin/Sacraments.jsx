@@ -24,16 +24,18 @@ export default function Sacraments() {
   useEffect(() => { setPage(1); }, [filters]);
 
   useEffect(() => {
+    // The sacrament filters are applied server-side; filtering a single page
+    // client-side would make both the row list and the total incorrect.
     api.listMembers({
-      gkk: filters.gkk, page, pageSize,
-      sortKey: 'name', sortDir: 'asc',
-      status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', search: '',
+      gkk: filters.gkk,
+      baptism: filters.baptism,
+      communion: filters.communion,
+      confirmation: filters.confirmation,
+      matrimony: filters.matrimony,
+      page, pageSize, sortKey: 'name', sortDir: 'asc',
     }).then((res) => {
-      let list = res.rows;
-      const match = (val, want) => want === 'All' || (want === 'Yes' ? val : !val);
-      list = list.filter((m) => match(m.has_baptism, filters.baptism) && match(m.has_communion, filters.communion) && match(m.has_confirmation, filters.confirmation) && match(m.has_matrimony, filters.matrimony));
-      setRows(list);
-      setTotal(list.length);
+      setRows(res.rows);
+      setTotal(res.total);
     });
   }, [filters, page, pageSize]);
 

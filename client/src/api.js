@@ -50,12 +50,12 @@ export const api = {
   renameGkk: (name, newName) => request(`/config/gkks/${encodeURIComponent(name)}`, { method: 'PATCH', body: { name: newName }, auth: true }),
   deleteGkk: (name) => request(`/config/gkks/${encodeURIComponent(name)}`, { method: 'DELETE', auth: true }),
 
-  listMinistries: () => request('/config/ministries', { auth: true }),
+  listMinistries: ({ gkk } = {}) => request(`/config/ministries${gkk ? `?${new URLSearchParams({ gkk })}` : ''}`, { auth: true }),
   addMinistry: (name) => request('/config/ministries', { method: 'POST', body: { name }, auth: true }),
   renameMinistry: (name, newName) => request(`/config/ministries/${encodeURIComponent(name)}`, { method: 'PATCH', body: { name: newName }, auth: true }),
   deleteMinistry: (name) => request(`/config/ministries/${encodeURIComponent(name)}`, { method: 'DELETE', auth: true }),
 
-  listOrganizations: () => request('/config/organizations', { auth: true }),
+  listOrganizations: ({ gkk } = {}) => request(`/config/organizations${gkk ? `?${new URLSearchParams({ gkk })}` : ''}`, { auth: true }),
   addOrganization: (name) => request('/config/organizations', { method: 'POST', body: { name }, auth: true }),
   renameOrganization: (name, newName) => request(`/config/organizations/${encodeURIComponent(name)}`, { method: 'PATCH', body: { name: newName }, auth: true }),
   deleteOrganization: (name) => request(`/config/organizations/${encodeURIComponent(name)}`, { method: 'DELETE', auth: true }),

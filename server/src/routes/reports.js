@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
+import { asyncHandler } from '../lib/http.js';
 import { ageFromDob, initials, memberFullName } from '../lib/util.js';
 
 const router = Router();
 router.use(requireAuth);
 
-router.get('/stats', async (req, res) => {
+router.get('/stats', asyncHandler(async (req, res) => {
   const [households, members] = await Promise.all([
     pool.query('SELECT * FROM households'),
     pool.query(
@@ -54,9 +55,9 @@ router.get('/stats', async (req, res) => {
     bloodCounts, unknownBlood: mem.length - bloodMem.length,
     gkkNames,
   });
-});
+}));
 
-router.get('/blood', async (req, res) => {
+router.get('/blood', asyncHandler(async (req, res) => {
   const { type = 'All' } = req.query;
   const { rows } = await pool.query(
     `SELECT m.*, h.household_name, h.gkk AS household_gkk FROM members m JOIN households h ON h.id = m.household_id WHERE m.blood_type IS NOT NULL`
@@ -68,7 +69,7 @@ router.get('/blood', async (req, res) => {
       household: m.household_name, bloodType: m.blood_type, age: ageFromDob(m.dob), gkk: m.household_gkk, contact: m.contact,
     })),
   });
-});
+}));
 
 const SOURCES = {
   Members: {
@@ -81,7 +82,7 @@ const SOURCES = {
 
 router.get('/sources', (req, res) => res.json({ sources: Object.keys(SOURCES), types: SOURCES }));
 
-router.post('/generate', async (req, res) => {
+router.post('/generate', asyncHandler(async (req, res) => {
   const { source, type, gkk = 'All', dateFrom, dateTo, sacrament, group } = req.body || {};
   if (!SOURCES[source] || !SOURCES[source].types.includes(type)) return res.status(400).json({ error: 'Unknown report' });
 
@@ -119,6 +120,6 @@ router.post('/generate', async (req, res) => {
   }
 
   res.status(400).json({ error: 'Unsupported source' });
-});
+}));
 
 export default router;

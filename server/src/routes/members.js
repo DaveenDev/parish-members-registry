@@ -1,14 +1,10 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
-import { ageFromDob } from '../lib/util.js';
+import { asyncHandler, parseId, parsePaging, oneOf, notFound, badRequest } from '../lib/http.js';
 
 const router = Router();
 router.use(requireAuth);
-
-function n(v) {
-  return v === '' || v === undefined ? null : v;
-}
 
 const AGE_RANGES = {
   '0-17': [0, 17],
@@ -17,73 +13,136 @@ const AGE_RANGES = {
   '60-200': [60, 200],
 };
 
-router.get('/', async (req, res) => {
+const SACRAMENT_COLUMNS = {
+  Baptism: 'has_baptism',
+  Communion: 'has_communion',
+  Confirmation: 'has_confirmation',
+  Matrimony: 'has_matrimony',
+};
+
+// Sort keys are interpolated into SQL, so they must come from this map only.
+const SORTS = {
+  name: 'm.first_name %DIR%, m.last_name %DIR%',
+  household: 'h.household_name %DIR%',
+  // Age ascending means youngest first, i.e. most recent date of birth first.
+  age: 'm.dob %INVDIR% NULLS LAST',
+  status: 'h.status %DIR%',
+};
+
+const SELECT_COLUMNS = `
+  m.*,
+  h.household_name,
+  h.status AS household_status,
+  h.gkk AS household_gkk,
+  h.street, h.barangay, h.city`;
+
+/** Build the shared WHERE clause + bound params from query filters. */
+function buildFilters(query) {
   const {
-    status = 'All', civil = 'All', sacrament = 'All', ministry = 'All', age = 'All', blood = 'All', gkk = 'All',
-    search = '', sortKey = 'name', sortDir = 'asc', page = '1', pageSize = '10',
-  } = req.query;
+    status = 'All', civil = 'All', sacrament = 'All', ministry = 'All',
+    age = 'All', blood = 'All', gkk = 'All', search = '',
+    baptism = 'All', communion = 'All', confirmation = 'All', matrimony = 'All',
+  } = query;
 
-  const { rows: all } = await pool.query(
-    `SELECT m.*, h.household_name, h.status AS household_status, h.gkk AS household_gkk, h.street, h.barangay, h.city
-     FROM members m JOIN households h ON h.id = m.household_id`
-  );
+  const where = [];
+  const params = [];
+  const add = (sql, value) => {
+    params.push(value);
+    where.push(sql.replace('$?', `$${params.length}`));
+  };
 
-  let list = all;
-  if (status !== 'All') list = list.filter((m) => m.household_status === status);
-  if (civil !== 'All') list = list.filter((m) => m.civil_status === civil);
+  if (status !== 'All') add('h.status = $?', status);
+  if (civil !== 'All') add('m.civil_status = $?', civil);
+  if (gkk !== 'All') add('h.gkk = $?', gkk);
+
   if (sacrament !== 'All') {
-    const key = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' }[sacrament];
-    if (key) list = list.filter((m) => m[key]);
+    const col = SACRAMENT_COLUMNS[sacrament];
+    if (col) where.push(`m.${col} = true`);
   }
-  if (ministry !== 'All') list = list.filter((m) => (m.ministries || []).includes(ministry) || (m.organizations || []).includes(ministry));
-  if (blood !== 'All') list = list.filter((m) => (blood === 'Unknown' ? !m.blood_type : m.blood_type === blood));
-  if (gkk !== 'All') list = list.filter((m) => m.household_gkk === gkk);
+
+  // Per-sacrament tri-state filters used by the Sacraments page.
+  for (const [key, value] of Object.entries({ baptism, communion, confirmation, matrimony })) {
+    if (value === 'All') continue;
+    if (value !== 'Yes' && value !== 'No') throw badRequest(`Invalid ${key} filter`);
+    const col = SACRAMENT_COLUMNS[key[0].toUpperCase() + key.slice(1)];
+    if (col) where.push(`m.${col} = ${value === 'Yes' ? 'true' : 'false'}`);
+  }
+
+  if (ministry !== 'All') {
+    params.push(ministry);
+    where.push(`($${params.length} = ANY(m.ministries) OR $${params.length} = ANY(m.organizations))`);
+  }
+
+  if (blood !== 'All') {
+    if (blood === 'Unknown') where.push('m.blood_type IS NULL');
+    else add('m.blood_type = $?', blood);
+  }
+
   if (age !== 'All' && AGE_RANGES[age]) {
     const [lo, hi] = AGE_RANGES[age];
-    list = list.filter((m) => {
-      const a = ageFromDob(m.dob);
-      return a !== null && a >= lo && a <= hi;
-    });
-  }
-  if (search) {
-    const s = search.toLowerCase();
-    list = list.filter((m) =>
-      `${m.first_name} ${m.last_name}`.toLowerCase().includes(s) ||
-      (m.household_name || '').toLowerCase().includes(s) ||
-      (m.contact || '').toLowerCase().includes(s)
+    params.push(lo, hi);
+    where.push(
+      `m.dob IS NOT NULL AND date_part('year', age(m.dob))::int BETWEEN $${params.length - 1} AND $${params.length}`
     );
   }
 
-  const dir = sortDir === 'desc' ? -1 : 1;
-  list = list.slice().sort((a, b) => {
-    let av, bv;
-    if (sortKey === 'name') { av = `${a.first_name} ${a.last_name}`; bv = `${b.first_name} ${b.last_name}`; }
-    else if (sortKey === 'household') { av = a.household_name; bv = b.household_name; }
-    else if (sortKey === 'age') { av = ageFromDob(a.dob) ?? -1; bv = ageFromDob(b.dob) ?? -1; }
-    else if (sortKey === 'status') { av = a.household_status; bv = b.household_status; }
-    else { av = a.id; bv = b.id; }
-    if (av < bv) return -1 * dir;
-    if (av > bv) return 1 * dir;
-    return 0;
-  });
+  if (typeof search === 'string' && search.trim()) {
+    params.push(`%${search.trim().toLowerCase()}%`);
+    const p = `$${params.length}`;
+    where.push(`(
+      lower(m.first_name || ' ' || m.last_name) LIKE ${p}
+      OR lower(h.household_name) LIKE ${p}
+      OR lower(coalesce(m.contact, '')) LIKE ${p}
+    )`);
+  }
 
-  const total = list.length;
-  const limit = Math.max(1, parseInt(pageSize, 10) || 10);
-  const p = Math.max(1, parseInt(page, 10) || 1);
-  const rows = list.slice((p - 1) * limit, (p - 1) * limit + limit);
+  return { whereSql: where.length ? `WHERE ${where.join(' AND ')}` : '', params };
+}
 
-  res.json({ rows, total, page: p, pageSize: limit });
-});
+router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const { whereSql, params } = buildFilters(req.query);
+    const { page, pageSize, offset } = parsePaging(req.query);
 
-router.get('/:id', async (req, res) => {
-  const { rows } = await pool.query(
-    `SELECT m.*, h.household_name, h.status AS household_status, h.gkk AS household_gkk, h.street, h.barangay, h.city, h.province, h.zip
-     FROM members m JOIN households h ON h.id = m.household_id WHERE m.id = $1`,
-    [req.params.id]
-  );
-  if (!rows[0]) return res.status(404).json({ error: 'Member not found' });
-  res.json({ member: rows[0] });
-});
+    const sortKey = oneOf(req.query.sortKey, Object.keys(SORTS), 'name');
+    const dir = oneOf(req.query.sortDir, ['asc', 'desc'], 'asc') === 'desc' ? 'DESC' : 'ASC';
+    const orderBy = SORTS[sortKey]
+      .replaceAll('%INVDIR%', dir === 'ASC' ? 'DESC' : 'ASC')
+      .replaceAll('%DIR%', dir);
+
+    const countRes = await pool.query(
+      `SELECT count(*)::int AS c FROM members m JOIN households h ON h.id = m.household_id ${whereSql}`,
+      params
+    );
+
+    const listRes = await pool.query(
+      `SELECT ${SELECT_COLUMNS}
+       FROM members m JOIN households h ON h.id = m.household_id
+       ${whereSql}
+       ORDER BY ${orderBy}, m.id
+       LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+      [...params, pageSize, offset]
+    );
+
+    res.json({ rows: listRes.rows, total: countRes.rows[0].c, page, pageSize });
+  })
+);
+
+router.get(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id, 'member id');
+    const { rows } = await pool.query(
+      `SELECT ${SELECT_COLUMNS}, h.province, h.zip
+       FROM members m JOIN households h ON h.id = m.household_id
+       WHERE m.id = $1`,
+      [id]
+    );
+    if (!rows[0]) throw notFound('Member not found');
+    res.json({ member: rows[0] });
+  })
+);
 
 const PATCHABLE = [
   'first_name', 'middle_name', 'last_name', 'relationship', 'sex', 'dob', 'place_of_birth', 'civil_status',
@@ -95,26 +154,39 @@ const PATCHABLE = [
   'ministries', 'organizations',
 ];
 
-router.patch('/:id', async (req, res) => {
-  const sets = [];
-  const params = [];
-  for (const key of PATCHABLE) {
-    if (key in (req.body || {})) {
-      params.push(req.body[key] === '' ? null : req.body[key]);
+router.patch(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id, 'member id');
+    const body = req.body || {};
+    const sets = [];
+    const params = [];
+
+    for (const key of PATCHABLE) {
+      if (!(key in body)) continue;
+      params.push(body[key] === '' ? null : body[key]);
       sets.push(`${key} = $${params.length}`);
     }
-  }
-  if (!sets.length) return res.status(400).json({ error: 'No fields to update' });
-  params.push(req.params.id);
-  const result = await pool.query(`UPDATE members SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`, params);
-  if (!result.rows[0]) return res.status(404).json({ error: 'Member not found' });
-  res.json({ member: result.rows[0] });
-});
+    if (!sets.length) throw badRequest('No fields to update');
 
-router.delete('/:id', async (req, res) => {
-  const result = await pool.query('DELETE FROM members WHERE id = $1 RETURNING id', [req.params.id]);
-  if (!result.rows[0]) return res.status(404).json({ error: 'Member not found' });
-  res.status(204).end();
-});
+    params.push(id);
+    const result = await pool.query(
+      `UPDATE members SET ${sets.join(', ')} WHERE id = $${params.length} RETURNING *`,
+      params
+    );
+    if (!result.rows[0]) throw notFound('Member not found');
+    res.json({ member: result.rows[0] });
+  })
+);
+
+router.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id, 'member id');
+    const result = await pool.query('DELETE FROM members WHERE id = $1 RETURNING id', [id]);
+    if (!result.rows[0]) throw notFound('Member not found');
+    res.status(204).end();
+  })
+);
 
 export default router;

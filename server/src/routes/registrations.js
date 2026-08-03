@@ -1,77 +1,102 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
-import { genRefNo } from '../lib/util.js';
+import { insertHouseholdWithRef } from '../lib/ref-no.js';
+import { asyncHandler, requireString, optionalString, badRequest } from '../lib/http.js';
+import { registrationLimiter } from '../middleware/rate-limit.js';
 
 const router = Router();
 
-function n(v) {
-  return v === '' || v === undefined ? null : v;
-}
+const MAX_MEMBERS = 30;
 
-router.post('/', async (req, res) => {
-  const { household, members, volunteer, notifyOptin, consent } = req.body || {};
+router.post(
+  '/',
+  registrationLimiter,
+  asyncHandler(async (req, res) => {
+    const { household, members, volunteer, notifyOptin, consent } = req.body || {};
 
-  if (!household || !household.householdName || !household.street || !household.barangay || !household.city || !household.province || !household.zip) {
-    return res.status(400).json({ error: 'Household address details are required' });
-  }
-  if (!Array.isArray(members) || members.length === 0) {
-    return res.status(400).json({ error: 'At least one household member is required' });
-  }
-  if (!consent) {
-    return res.status(400).json({ error: 'Data privacy consent is required' });
-  }
-  for (const m of members) {
-    if (!m.firstName || !m.lastName || !m.relationship || !m.sex || !m.dob || !m.civilStatus) {
-      return res.status(400).json({ error: 'Each member needs first name, last name, relationship, sex, date of birth and civil status' });
+    if (!household || typeof household !== 'object') throw badRequest('Household details are required');
+
+    const householdName = requireString(household.householdName, 'Family (household) name');
+    const street = requireString(household.street, 'Street');
+    const barangay = requireString(household.barangay, 'Barangay');
+    const city = requireString(household.city, 'City / Municipality');
+    const province = requireString(household.province, 'Province');
+    const zip = requireString(household.zip, 'ZIP code');
+
+    if (!Array.isArray(members) || members.length === 0) {
+      throw badRequest('At least one household member is required');
     }
-  }
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    const refNo = genRefNo();
-
-    const hh = await client.query(
-      `INSERT INTO households
-        (household_name, street, barangay, city, province, zip, contact, email, gkk, family_grouping, status, volunteer, notify_optin, consent, ref_no)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'Pending',$11,$12,$13,$14)
-       RETURNING id, ref_no`,
-      [
-        household.householdName, household.street, household.barangay, household.city, household.province, household.zip,
-        n(household.contact), n(household.email), n(household.gkk), n(household.familyGrouping),
-        n(volunteer), !!notifyOptin, !!consent, refNo,
-      ]
-    );
-    const householdId = hh.rows[0].id;
+    if (members.length > MAX_MEMBERS) {
+      throw badRequest(`A household can have at most ${MAX_MEMBERS} members`);
+    }
+    if (!consent) {
+      throw badRequest('Data privacy consent is required');
+    }
 
     for (const m of members) {
-      await client.query(
-        `INSERT INTO members
-          (household_id, first_name, middle_name, last_name, relationship, sex, dob, place_of_birth, civil_status, contact, email, occupation, religion, blood_type,
-           has_baptism, baptism_date, baptism_church,
-           has_communion, communion_date, communion_church,
-           has_confirmation, conf_date, conf_church, conf_name, conf_sponsor,
-           has_matrimony, mat_date, mat_church, mat_type, ministries)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)`,
-        [
-          householdId, m.firstName, n(m.middleName), m.lastName, m.relationship, m.sex, m.dob, n(m.placeOfBirth), m.civilStatus, n(m.contact), n(m.email), n(m.occupation), m.religion || 'Roman Catholic', n(m.bloodType),
-          !!m.hasBaptism, n(m.baptismDate), n(m.baptismChurch),
-          !!m.hasCommunion, n(m.communionDate), n(m.communionChurch),
-          !!m.hasConfirmation, n(m.confDate), n(m.confChurch), n(m.confName), n(m.confSponsor),
-          !!m.hasMatrimony, n(m.matDate), n(m.matChurch), n(m.matType), m.ministries || [],
-        ]
-      );
+      if (!m || typeof m !== 'object') throw badRequest('Invalid member entry');
+      requireString(m.firstName, 'Member first name');
+      requireString(m.lastName, 'Member last name');
+      requireString(m.relationship, 'Member relationship');
+      requireString(m.sex, 'Member sex');
+      requireString(m.dob, 'Member date of birth');
+      requireString(m.civilStatus, 'Member civil status');
     }
 
-    await client.query('COMMIT');
-    res.status(201).json({ refNo, householdId });
-  } catch (err) {
-    await client.query('ROLLBACK');
-    console.error(err);
-    res.status(500).json({ error: 'Could not save registration' });
-  } finally {
-    client.release();
-  }
-});
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+
+      let refNo;
+      const householdId = await insertHouseholdWithRef(client, (generated) => {
+        refNo = generated;
+        return {
+          text: `INSERT INTO households
+                  (household_name, street, barangay, city, province, zip, contact, email, gkk, family_grouping, status, volunteer, notify_optin, consent, ref_no)
+                 VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'Pending',$11,$12,$13,$14)
+                 RETURNING id`,
+          values: [
+            householdName, street, barangay, city, province, zip,
+            optionalString(household.contact), optionalString(household.email),
+            optionalString(household.gkk), optionalString(household.familyGrouping),
+            optionalString(volunteer), !!notifyOptin, !!consent, generated,
+          ],
+        };
+      });
+
+      for (const m of members) {
+        await client.query(
+          `INSERT INTO members
+            (household_id, first_name, middle_name, last_name, relationship, sex, dob, place_of_birth, civil_status, contact, email, occupation, religion, blood_type,
+             has_baptism, baptism_date, baptism_church,
+             has_communion, communion_date, communion_church,
+             has_confirmation, conf_date, conf_church, conf_name, conf_sponsor,
+             has_matrimony, mat_date, mat_church, mat_type, ministries)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)`,
+          [
+            householdId, optionalString(m.firstName), optionalString(m.middleName), optionalString(m.lastName),
+            optionalString(m.relationship), optionalString(m.sex), optionalString(m.dob), optionalString(m.placeOfBirth),
+            optionalString(m.civilStatus), optionalString(m.contact), optionalString(m.email), optionalString(m.occupation),
+            optionalString(m.religion) || 'Roman Catholic', optionalString(m.bloodType),
+            !!m.hasBaptism, optionalString(m.baptismDate), optionalString(m.baptismChurch),
+            !!m.hasCommunion, optionalString(m.communionDate), optionalString(m.communionChurch),
+            !!m.hasConfirmation, optionalString(m.confDate), optionalString(m.confChurch),
+            optionalString(m.confName), optionalString(m.confSponsor),
+            !!m.hasMatrimony, optionalString(m.matDate), optionalString(m.matChurch), optionalString(m.matType),
+            Array.isArray(m.ministries) ? m.ministries : [],
+          ]
+        );
+      }
+
+      await client.query('COMMIT');
+      res.status(201).json({ refNo, householdId });
+    } catch (err) {
+      await client.query('ROLLBACK');
+      throw err;
+    } finally {
+      client.release();
+    }
+  })
+);
 
 export default router;
