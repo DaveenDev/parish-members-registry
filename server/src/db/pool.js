@@ -1,7 +1,12 @@
 import pg from 'pg';
 import '../env.js';
 
-const { Pool } = pg;
+const { Pool, types } = pg;
+
+// DATE columns (oid 1082) default to JS Date objects parsed in local time, then
+// serialize to UTC ISO strings — shifting the date by a day in timezones ahead
+// of UTC. Keep them as plain "YYYY-MM-DD" strings instead.
+types.setTypeParser(1082, (val) => val);
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
