@@ -31,10 +31,10 @@ Built with **React + Tailwind CSS** on the frontend and **Express + PostgreSQL**
 ## Project structure
 
 ```
-package.json   Root scripts — installs/runs the API server (and orchestrates the client dev server)
-server/         Express API + PostgreSQL schema
-client/         React + Tailwind frontend (Vite), its own package.json
-project/        Original Claude Design source files this app was built from
+package.json   Root scripts — runs the API server and orchestrates the client dev server
+server/        Express API + PostgreSQL schema
+client/        React + Tailwind frontend (Vite), with its own package.json
+project/       Original Claude Design source files this app was built from
 ```
 
 ## Getting started
@@ -75,6 +75,24 @@ This starts the API server (`http://localhost:4000`) and the Vite dev server (`h
 - Admin panel: `http://localhost:5173/admin/login`
 
 Demo admin credentials are seeded from `server/.env` (`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`), defaulting to `admin@parishregistry.org` / `ParishAdmin123!`.
+
+## Available scripts
+
+Run from the project root:
+
+| Command | Description |
+|---|---|
+| `npm run install:all` | Install root (server) and `client/` dependencies |
+| `npm run db:setup` | Create schema tables and seed default GKKs/ministries/organizations + a demo admin |
+| `npm run dev` | Run the API server and the Vite client together, with hot reload |
+| `npm run dev:server` | Run only the API server (`--watch` mode) |
+| `npm run dev:client` | Run only the Vite dev server |
+| `npm run build` | Production build of the client |
+| `npm start` | Run the API server (production) |
+
+## License
+
+MIT
 
 ## Credit
 
