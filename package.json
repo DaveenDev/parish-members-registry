@@ -11,6 +11,8 @@
     "start": "node server/src/server.js",
     "build": "npm run build --prefix client",
     "db:setup": "node server/src/db/setup.js",
+    "db:demo": "node server/src/db/seed-demo.js",
+    "db:reset": "node server/src/db/reset.js",
     "install:all": "npm install && npm install --prefix client"
   },
   "dependencies": {

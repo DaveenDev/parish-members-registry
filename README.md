@@ -63,6 +63,30 @@ Run the schema + seed script (creates tables, default GKKs/ministries/organizati
 npm run db:setup
 ```
 
+This leaves you with an **empty register** — no households or members. That is
+the right starting point for a real parish.
+
+### 2a. Sample data (optional)
+
+To explore the admin panel with something to look at, load six fictional
+households (16 members, spread across every GKK, sacrament, ministry and age
+bracket so the dashboard charts are populated):
+
+```bash
+npm run db:demo
+```
+
+It refuses to run if the register already has records, so it can never mix
+sample data into real entries. To clear the register and start fresh:
+
+```bash
+npm run db:reset -- --yes
+```
+
+`db:reset` deletes households and members but keeps your staff accounts, parish
+profile, and pick-lists. See [Managing data](#managing-data) for the full set of
+options.
+
 ### 3. Run the app
 
 ```bash
@@ -84,11 +108,44 @@ Run from the project root:
 |---|---|
 | `npm run install:all` | Install root (server) and `client/` dependencies |
 | `npm run db:setup` | Create schema tables and seed default GKKs/ministries/organizations + a demo admin |
+| `npm run db:demo` | Load sample households and members so the admin panel has data to show |
+| `npm run db:reset -- --yes` | Delete all households and members, keeping staff accounts and pick-lists |
 | `npm run dev` | Run the API server and the Vite client together, with hot reload |
 | `npm run dev:server` | Run only the API server (`--watch` mode) |
 | `npm run dev:client` | Run only the Vite dev server |
 | `npm run build` | Production build of the client |
 | `npm start` | Run the API server (production) |
+
+## Managing data
+
+You can switch between sample data and a clean register at any time.
+
+| Goal | Command |
+|---|---|
+| Load sample households to explore the app | `npm run db:demo` |
+| Replace whatever is there with a fresh sample set | `npm run db:demo -- --replace --yes` |
+| Empty the register, keeping staff and pick-lists | `npm run db:reset -- --yes` |
+| Reset everything to a just-installed state | `npm run db:reset -- --all --yes` |
+
+Notes:
+
+- **Nothing destructive runs without `--yes`.** Without it, each command prints
+  what it *would* delete, along with the current record counts, and exits
+  without touching anything.
+- **`db:demo` will not append to a non-empty register.** It stops and points you
+  at `--replace` or `db:reset`, so sample records cannot end up mixed in with
+  real parishioner entries.
+- **`db:reset` keeps your staff accounts, parish profile, and GKK/ministry/
+  organization lists** — only households and members are removed. Add `--all` to
+  wipe those too and restore the stock defaults, which also recreates the seed
+  admin account from `server/.env`.
+- **Production is guarded.** When `NODE_ENV=production`, both commands refuse
+  outright and require an explicit `--i-know-this-is-production` on top of
+  `--yes`.
+
+Sample records are fictional and live in
+[`server/src/db/demo-data.js`](server/src/db/demo-data.js) — edit that file to
+tailor them to your parish.
 
 ## License
 

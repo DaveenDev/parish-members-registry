@@ -41,6 +41,10 @@ export default function Households() {
       .finally(() => setLoading(false));
   }
 
+  // An empty table means something different when no filters are applied:
+  // the register itself is empty, not the search.
+  const isFiltered = status !== 'All' || gkk !== 'All' || !!debouncedSearch;
+
   useEffect(() => { reload(); }, [status, gkk, debouncedSearch, page, pageSize]);
   useEffect(() => { api.listGkks().then((res) => setGkkOptions(res.rows.map((r) => r.name))).catch(() => {}); }, []);
   useEffect(() => { setPage(1); }, [status, gkk, debouncedSearch]);
@@ -187,7 +191,11 @@ export default function Households() {
           </div>
           {loading && <LoadingState label="Loading households…" />}
           {!loading && error && <ErrorState message={error} onRetry={reload} />}
-          {!loading && !error && !rows.length && <EmptyState title="No households found" subtitle="Try adjusting your search or filters." />}
+          {!loading && !error && !rows.length && (
+            isFiltered
+              ? <EmptyState title="No households found" subtitle="Try adjusting your search or filters." />
+              : <EmptyState title="No households registered yet" subtitle="Households appear here as families register, or add one with “New Household”." />
+          )}
           <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
         </div>
       </PageBody>

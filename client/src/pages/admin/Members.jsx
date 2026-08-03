@@ -35,6 +35,10 @@ export default function Members() {
       .finally(() => setLoading(false));
   }
 
+  // An empty table means something different when no filters are applied:
+  // the register itself is empty, not the search.
+  const isFiltered = !!debouncedSearch || Object.keys(DEFAULT_FILTERS).some((k) => filters[k] !== DEFAULT_FILTERS[k]);
+
   useEffect(() => { reload(); }, [filters, debouncedSearch, sortKey, sortDir, page, pageSize]);
   useEffect(() => { setPage(1); }, [filters, debouncedSearch, sortKey, sortDir]);
   useEffect(() => {
@@ -98,7 +102,11 @@ export default function Members() {
             <>
               {loading && <LoadingState label="Loading members…" />}
               {!loading && error && <ErrorState message={error} onRetry={reload} />}
-              {!loading && !error && !rows.length && <EmptyState title="No members found" subtitle="Try adjusting your search or filters." />}
+              {!loading && !error && !rows.length && (
+                isFiltered
+                  ? <EmptyState title="No members found" subtitle="Try adjusting your search or filters." />
+                  : <EmptyState title="No members registered yet" subtitle="Members appear here once households are registered." />
+              )}
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
             </>
           }
