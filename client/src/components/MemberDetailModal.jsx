@@ -2,8 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, ageFromDob } from '../constants.js';
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton } from './ui.jsx';
+import { useToast } from '../ToastContext.jsx';
+import { useConfirm } from './ConfirmDialog.jsx';
 
 export default function MemberDetailModal({ memberId, onClose, onChanged }) {
+  const toast = useToast();
+  const confirm = useConfirm();
   const [member, setMember] = useState(null);
   const [ministryList, setMinistryList] = useState([]);
   const [orgList, setOrgList] = useState([]);
@@ -47,6 +51,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
         ministries: member.ministries, organizations: member.organizations,
       };
       await api.updateMember(memberId, patch);
+      toast.success('Member updated');
       onChanged && onChanged();
       onClose();
     } catch (e) {
@@ -57,10 +62,19 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   }
 
   async function remove() {
-    if (!window.confirm('Remove this member from the household? This cannot be undone.')) return;
+    const name = [member?.first_name, member?.last_name].filter(Boolean).join(' ') || 'this member';
+    const ok = await confirm({
+      title: `Remove ${name}?`,
+      message: 'This permanently deletes the member record, including their sacramental details. This cannot be undone.',
+      confirmLabel: 'Remove member',
+      tone: 'danger',
+    });
+    if (!ok) return;
+
     setSaving(true);
     try {
       await api.deleteMember(memberId);
+      toast.success('Member removed');
       onChanged && onChanged();
       onClose();
     } catch (e) {

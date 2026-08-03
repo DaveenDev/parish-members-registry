@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { PageHeader, PageBody, FilterSelect, EmptyState, Pagination } from './admin.jsx';
+import { PageHeader, PageBody, FilterSelect, EmptyState, ErrorState, LoadingState, Pagination, rowActivationProps } from './admin.jsx';
 import { ageFromDob } from '../constants.js';
 import MemberDetailModal from './MemberDetailModal.jsx';
 
@@ -14,24 +14,32 @@ export default function GroupDirectory({ title, subtitle, listFn }) {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [openMemberId, setOpenMemberId] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   // Tab list + per-group counts, scoped to the selected GKK.
   useEffect(() => {
-    listFn({ gkk }).then((res) => {
-      setTabs(res.rows);
-      setActiveTab((current) => (res.rows.some((r) => r.name === current) ? current : res.rows[0]?.name || ''));
-    });
+    listFn({ gkk })
+      .then((res) => {
+        setTabs(res.rows);
+        setActiveTab((current) => (res.rows.some((r) => r.name === current) ? current : res.rows[0]?.name || ''));
+      })
+      .catch((e) => setError(e.message));
   }, [gkk]);
 
-  useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))); }, []);
+  useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, []);
   useEffect(() => { setPage(1); }, [gkk, activeTab]);
 
   // Roster for the active group — filtered and paginated server-side, so this
   // stays correct no matter how large the parish grows.
   function reload() {
-    if (!activeTab) { setRows([]); setTotal(0); return; }
+    if (!activeTab) { setRows([]); setTotal(0); setLoading(false); return; }
+    setLoading(true);
+    setError('');
     api.listMembers({ ministry: activeTab, gkk, page, pageSize, sortKey: 'name', sortDir: 'asc' })
-      .then((res) => { setRows(res.rows); setTotal(res.total); });
+      .then((res) => { setRows(res.rows); setTotal(res.total); })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }
   useEffect(() => { reload(); }, [activeTab, gkk, page, pageSize]);
 
@@ -77,7 +85,7 @@ export default function GroupDirectory({ title, subtitle, listFn }) {
                   </thead>
                   <tbody>
                     {rows.map((m) => (
-                      <tr key={m.id} onClick={() => setOpenMemberId(m.id)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6]">
+                      <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2.5">
                             <div className="w-[30px] h-[30px] rounded-full bg-[#f1e8d5] text-[#7a6a3e] flex items-center justify-center font-bold text-[11px] flex-none">
@@ -97,7 +105,9 @@ export default function GroupDirectory({ title, subtitle, listFn }) {
                   </tbody>
                 </table>
               </div>
-              {!rows.length && <EmptyState title="No members in this group yet" />}
+              {loading && <LoadingState label="Loading roster…" />}
+              {!loading && error && <ErrorState message={error} onRetry={reload} />}
+              {!loading && !error && !rows.length && <EmptyState title="No members in this group yet" />}
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
             </div>
           </>

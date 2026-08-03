@@ -1,17 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, DataTable, Pagination, EmptyState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import { StatusPill } from '../../components/ui.jsx';
 import { ageFromDob } from '../../constants.js';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
+import { useDebounced } from '../../hooks.js';
 
 const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
 const BLOOD_OPTS = ['All', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
+const DEFAULT_FILTERS = { status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All' };
 
 export default function Members() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
-  const [filters, setFilters] = useState({ status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All' });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search);
   const [sortKey, setSortKey] = useState('name');
   const [sortDir, setSortDir] = useState('asc');
   const [page, setPage] = useState(1);
@@ -21,14 +27,21 @@ export default function Members() {
   const [openMemberId, setOpenMemberId] = useState(null);
 
   function reload() {
-    api.listMembers({ ...filters, sortKey, sortDir, page, pageSize }).then((res) => { setRows(res.rows); setTotal(res.total); });
+    setLoading(true);
+    setError('');
+    api.listMembers({ ...filters, search: debouncedSearch, sortKey, sortDir, page, pageSize })
+      .then((res) => { setRows(res.rows); setTotal(res.total); })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
   }
 
-  useEffect(() => { reload(); }, [filters, sortKey, sortDir, page, pageSize]);
-  useEffect(() => { setPage(1); }, [filters, sortKey, sortDir]);
+  useEffect(() => { reload(); }, [filters, debouncedSearch, sortKey, sortDir, page, pageSize]);
+  useEffect(() => { setPage(1); }, [filters, debouncedSearch, sortKey, sortDir]);
   useEffect(() => {
-    api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name)));
-    Promise.all([api.listMinistries(), api.listOrganizations()]).then(([m, o]) => setGroupOptions([...m.rows.map((x) => x.name), ...o.rows.map((x) => x.name)]));
+    api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {});
+    Promise.all([api.listMinistries(), api.listOrganizations()])
+      .then(([m, o]) => setGroupOptions([...m.rows.map((x) => x.name), ...o.rows.map((x) => x.name)]))
+      .catch(() => {});
   }, []);
 
   function setFilter(key, value) { setFilters((f) => ({ ...f, [key]: value })); }
@@ -40,7 +53,9 @@ export default function Members() {
 
   return (
     <>
-      <PageHeader title="Members" subtitle="Every registered parishioner" />
+      <PageHeader title="Members" subtitle="Every registered parishioner">
+        <SearchInput placeholder="Search name, household, contact…" aria-label="Search members" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </PageHeader>
       <PageBody>
         <div className="flex flex-wrap gap-2.5 items-center mb-4">
           <FilterSelect value={filters.status} onChange={(e) => setFilter('status', e.target.value)}>
@@ -64,7 +79,7 @@ export default function Members() {
           <FilterSelect value={filters.gkk} onChange={(e) => setFilter('gkk', e.target.value)}>
             <option value="All">All GKKs</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </FilterSelect>
-          <button onClick={() => setFilters({ status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All' })} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>
+          <button onClick={() => { setFilters(DEFAULT_FILTERS); setSearch(''); }} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>
           <div className="ml-auto text-[13px] text-parish-muted">{total} member(s)</div>
         </div>
 
@@ -81,7 +96,9 @@ export default function Members() {
           ]}
           footer={
             <>
-              {!rows.length && <EmptyState title="No members found" subtitle="Try adjusting your search or filters." />}
+              {loading && <LoadingState label="Loading members…" />}
+              {!loading && error && <ErrorState message={error} onRetry={reload} />}
+              {!loading && !error && !rows.length && <EmptyState title="No members found" subtitle="Try adjusting your search or filters." />}
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
             </>
           }
@@ -89,7 +106,7 @@ export default function Members() {
           {rows.map((m) => {
             const groups = [...(m.ministries || []), ...(m.organizations || [])];
             return (
-              <tr key={m.id} onClick={() => setOpenMemberId(m.id)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6]">
+              <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
                 <td className="px-4 py-2.5">
                   <div className="flex items-center gap-2.5">
                     <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12.5px] flex-none">

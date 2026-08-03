@@ -124,8 +124,33 @@ select {
 ::-webkit-scrollbar { height: 10px; width: 10px; }
 ::-webkit-scrollbar-thumb { background: #d9cdb4; border-radius: 8px; border: 2px solid #f7f2e8; }
 
+/* The household record sheet is rendered off-screen and only revealed for
+   printing. Screen readers skip it via aria-hidden on the element itself. */
+#print-sheet {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  width: 210mm;
+  font-family: 'Source Sans 3', system-ui, sans-serif;
+  color: #17263f;
+  background: #fff;
+}
+
 @media print {
-  body * { visibility: hidden; }
-  #print-sheet, #print-sheet * { visibility: visible; }
-  #print-sheet { display: block !important; position: absolute; inset: 0; padding: 32px; }
+  @page { margin: 14mm; }
+
+  /* Hide the app chrome without unmounting it, so print state is preserved. */
+  body > #root { display: none !important; }
+
+  #print-sheet {
+    position: static !important;
+    left: auto !important;
+    width: auto !important;
+    padding: 0;
+  }
+
+  #print-sheet figure,
+  #print-sheet table { break-inside: avoid; }
+
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }

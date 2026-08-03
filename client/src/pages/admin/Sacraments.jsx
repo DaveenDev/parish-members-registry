@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, DataTable, Pagination, EmptyState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 
 const YN = [['All', 'All'], ['Yes', 'Yes'], ['No', 'No']];
@@ -14,18 +14,22 @@ function Tick({ yes }) {
 export default function Sacraments() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const [gkkOptions, setGkkOptions] = useState([]);
   const [filters, setFilters] = useState({ gkk: 'All', baptism: 'All', communion: 'All', confirmation: 'All', matrimony: 'All' });
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [openMemberId, setOpenMemberId] = useState(null);
 
-  useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))); }, []);
+  useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, []);
   useEffect(() => { setPage(1); }, [filters]);
 
-  useEffect(() => {
-    // The sacrament filters are applied server-side; filtering a single page
-    // client-side would make both the row list and the total incorrect.
+  // The sacrament filters are applied server-side; filtering a single page
+  // client-side would make both the row list and the total incorrect.
+  function reload() {
+    setLoading(true);
+    setError('');
     api.listMembers({
       gkk: filters.gkk,
       baptism: filters.baptism,
@@ -33,11 +37,13 @@ export default function Sacraments() {
       confirmation: filters.confirmation,
       matrimony: filters.matrimony,
       page, pageSize, sortKey: 'name', sortDir: 'asc',
-    }).then((res) => {
-      setRows(res.rows);
-      setTotal(res.total);
-    });
-  }, [filters, page, pageSize]);
+    })
+      .then((res) => { setRows(res.rows); setTotal(res.total); })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }
+
+  useEffect(() => { reload(); }, [filters, page, pageSize]);
 
   return (
     <>
@@ -69,13 +75,15 @@ export default function Sacraments() {
           ]}
           footer={
             <>
-              {!rows.length && <EmptyState title="No members match this filter" />}
+              {loading && <LoadingState label="Loading members…" />}
+              {!loading && error && <ErrorState message={error} onRetry={reload} />}
+              {!loading && !error && !rows.length && <EmptyState title="No members match this filter" />}
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
             </>
           }
         >
           {rows.map((m) => (
-            <tr key={m.id} onClick={() => setOpenMemberId(m.id)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6]">
+            <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
               <td className="px-4 py-2.5 font-semibold text-[14px] text-parish-navy whitespace-nowrap">{m.first_name} {m.last_name}</td>
               <td className="text-center px-2.5 py-2.5"><Tick yes={m.has_baptism} /></td>
               <td className="text-center px-2.5 py-2.5"><Tick yes={m.has_communion} /></td>
@@ -86,7 +94,7 @@ export default function Sacraments() {
         </DataTable>
       </PageBody>
 
-      {openMemberId && <MemberDetailModal memberId={openMemberId} onClose={() => setOpenMemberId(null)} onChanged={() => setFilters((f) => ({ ...f }))} />}
+      {openMemberId && <MemberDetailModal memberId={openMemberId} onClose={() => setOpenMemberId(null)} onChanged={reload} />}
     </>
   );
 }

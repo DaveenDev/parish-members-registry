@@ -55,16 +55,17 @@ export function GoldButton({ className = '', children, ...rest }) {
   );
 }
 
-export function GhostButton({ className = '', children, ...rest }) {
+export const GhostButton = React.forwardRef(function GhostButton({ className = '', children, ...rest }, ref) {
   return (
     <button
+      ref={ref}
       {...rest}
       className={`appearance-none cursor-pointer font-semibold text-parish-text2 bg-transparent border-[1.5px] border-[#dcd0b7] rounded-xl transition hover:bg-[#efe7d6] ${className}`}
     >
       {children}
     </button>
   );
-}
+});
 
 export function Spinner({ className = '' }) {
   return <span className={`inline-block w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spinSlow ${className}`} />;

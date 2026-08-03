@@ -155,6 +155,18 @@ router.patch(
   })
 );
 
+router.delete(
+  '/:id',
+  asyncHandler(async (req, res) => {
+    const id = parseId(req.params.id, 'household id');
+    // members.household_id is ON DELETE CASCADE, so this removes the family's
+    // member records in the same statement.
+    const result = await pool.query('DELETE FROM households WHERE id = $1 RETURNING id', [id]);
+    if (!result.rows[0]) throw notFound('Household not found');
+    res.status(204).end();
+  })
+);
+
 router.post(
   '/:id/members',
   asyncHandler(async (req, res) => {

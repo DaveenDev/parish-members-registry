@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { blankMember, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, fmtDate } from '../constants.js';
@@ -22,24 +22,53 @@ function top() {
   try { requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' })); } catch {}
 }
 
+const DRAFT_KEY = 'pmr_registration_draft';
+const EMPTY_HOUSEHOLD = {
+  householdName: '', street: '', barangay: '', city: '', province: '', zip: '',
+  contact: '', email: '', gkk: '', familyGrouping: '',
+};
+
+/** Restore an in-progress registration so a refresh doesn't discard everything. */
+function loadDraft() {
+  try {
+    const raw = localStorage.getItem(DRAFT_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw);
+    if (!draft || typeof draft !== 'object' || !Array.isArray(draft.members) || !draft.members.length) return null;
+    return draft;
+  } catch {
+    return null;
+  }
+}
+
 export default function RegistrationApp() {
-  const [screen, setScreen] = useState('landing');
-  const [step, setStep] = useState(1);
+  const draft = useRef(loadDraft()).current;
+
+  const [screen, setScreen] = useState(draft ? 'wizard' : 'landing');
+  const [step, setStep] = useState(draft?.step || 1);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [household, setHousehold] = useState({
-    householdName: '', street: '', barangay: '', city: '', province: '', zip: '',
-    contact: '', email: '', gkk: '', familyGrouping: '',
-  });
-  const [members, setMembers] = useState([blankMember()]);
-  const [volunteer, setVolunteer] = useState('');
-  const [notifyOptin, setNotifyOptin] = useState(false);
-  const [consent, setConsent] = useState(false);
+  const [household, setHousehold] = useState(draft?.household || EMPTY_HOUSEHOLD);
+  const [members, setMembers] = useState(draft?.members || [blankMember()]);
+  const [volunteer, setVolunteer] = useState(draft?.volunteer || '');
+  const [notifyOptin, setNotifyOptin] = useState(!!draft?.notifyOptin);
+  const [consent, setConsent] = useState(!!draft?.consent);
   const [err, setErr] = useState({});
   const [memberErr, setMemberErr] = useState([]);
   const [banner, setBanner] = useState('');
   const [refNo, setRefNo] = useState('');
   const [toast, setToast] = useState(null);
+
+  useEffect(() => {
+    if (screen !== 'wizard') return;
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, household, members, volunteer, notifyOptin, consent }));
+    } catch {}
+  }, [screen, step, household, members, volunteer, notifyOptin, consent]);
+
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch {}
+  }
 
   function showToast(msg, tone = 'ok') {
     if (!msg) return;
@@ -133,6 +162,7 @@ export default function RegistrationApp() {
     try {
       const res = await api.submitRegistration({ household, members, volunteer, notifyOptin, consent });
       setRefNo(res.refNo);
+      clearDraft();
       setScreen('done');
       top();
     } catch (e) {
@@ -143,8 +173,9 @@ export default function RegistrationApp() {
   }
 
   function restart() {
+    clearDraft();
     setScreen('landing'); setStep(1);
-    setHousehold({ householdName: '', street: '', barangay: '', city: '', province: '', zip: '', contact: '', email: '', gkk: '', familyGrouping: '' });
+    setHousehold(EMPTY_HOUSEHOLD);
     setMembers([blankMember()]); setVolunteer(''); setNotifyOptin(false); setConsent(false);
     setErr({}); setMemberErr([]); setBanner(''); setRefNo('');
     top();

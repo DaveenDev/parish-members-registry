@@ -2,7 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { pool } from '../db/pool.js';
 import { signToken, requireAuth } from '../middleware/auth.js';
-import { asyncHandler, requireString } from '../lib/http.js';
+import { asyncHandler, requireString, badRequest } from '../lib/http.js';
 import { loginLimiter } from '../middleware/rate-limit.js';
 
 const router = Router();
@@ -33,5 +33,35 @@ router.post(
 router.get('/me', requireAuth, (req, res) => {
   res.json({ user: req.user });
 });
+
+const MIN_PASSWORD_LENGTH = 10;
+
+router.post(
+  '/change-password',
+  requireAuth,
+  asyncHandler(async (req, res) => {
+    const currentPassword = requireString(req.body?.currentPassword, 'Current password');
+    const newPassword = requireString(req.body?.newPassword, 'New password');
+
+    if (newPassword.length < MIN_PASSWORD_LENGTH) {
+      throw badRequest(`New password must be at least ${MIN_PASSWORD_LENGTH} characters`);
+    }
+    if (newPassword === currentPassword) {
+      throw badRequest('New password must be different from the current one');
+    }
+
+    const { rows } = await pool.query('SELECT * FROM admin_users WHERE id = $1', [req.user.id]);
+    const user = rows[0];
+    if (!user) throw badRequest('Account not found');
+
+    const ok = await bcrypt.compare(currentPassword, user.password_hash);
+    if (!ok) return res.status(401).json({ error: 'Current password is incorrect' });
+
+    const hash = await bcrypt.hash(newPassword, 10);
+    await pool.query('UPDATE admin_users SET password_hash = $1 WHERE id = $2', [hash, user.id]);
+
+    res.json({ ok: true });
+  })
+);
 
 export default router;

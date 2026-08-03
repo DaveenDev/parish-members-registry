@@ -31,6 +31,8 @@ async function request(path, { method = 'GET', body, auth = false, raw = false }
 export const api = {
   login: (email, password) => request('/auth/login', { method: 'POST', body: { email, password } }),
   me: () => request('/auth/me', { auth: true }),
+  changePassword: (currentPassword, newPassword) =>
+    request('/auth/change-password', { method: 'POST', body: { currentPassword, newPassword }, auth: true }),
 
   submitRegistration: (payload) => request('/registrations', { method: 'POST', body: payload }),
 
@@ -39,6 +41,7 @@ export const api = {
   createHousehold: (payload) => request('/households', { method: 'POST', body: payload, auth: true }),
   updateHousehold: (id, patch) => request(`/households/${id}`, { method: 'PATCH', body: patch, auth: true }),
   addHouseholdMember: (id, member) => request(`/households/${id}/members`, { method: 'POST', body: member, auth: true }),
+  deleteHousehold: (id) => request(`/households/${id}`, { method: 'DELETE', auth: true }),
 
   listMembers: (params) => request(`/members?${new URLSearchParams(params)}`, { auth: true }),
   getMember: (id) => request(`/members/${id}`, { auth: true }),

@@ -2,18 +2,18 @@ import React from 'react';
 
 export function PageHeader({ title, subtitle, children }) {
   return (
-    <div className="sticky top-0 z-10 bg-parish-bg/90 backdrop-blur-md border-b border-parish-border px-[26px] py-[18px] flex items-center justify-between gap-4 flex-wrap" style={{ padding: '18px 26px' }}>
-      <div>
-        <h1 className="font-serif text-[clamp(24px,3vw,30px)] font-semibold m-0 text-parish-navy">{title}</h1>
+    <div className="lg:sticky lg:top-0 z-10 bg-parish-bg/90 backdrop-blur-md border-b border-parish-border px-4 py-4 sm:px-[26px] sm:py-[18px] flex items-start sm:items-center justify-between gap-3 sm:gap-4 flex-wrap">
+      <div className="min-w-0">
+        <h1 className="font-serif text-[clamp(22px,3vw,30px)] font-semibold m-0 text-parish-navy">{title}</h1>
         {subtitle && <div className="text-[13.5px] text-parish-muted mt-0.5">{subtitle}</div>}
       </div>
-      <div className="flex items-center gap-2.5 flex-wrap">{children}</div>
+      <div className="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">{children}</div>
     </div>
   );
 }
 
 export function PageBody({ children }) {
-  return <div className="p-[26px] flex-1" style={{ padding: '26px' }}>{children}</div>;
+  return <div className="p-4 sm:p-[26px] flex-1">{children}</div>;
 }
 
 export function FilterSelect(props) {
@@ -27,13 +27,13 @@ export function FilterSelect(props) {
 
 export function SearchInput(props) {
   return (
-    <div className="relative">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9a927f" strokeWidth="2" className="absolute left-3 top-1/2 -translate-y-1/2">
+    <div className="relative w-full sm:w-auto">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9a927f" strokeWidth="2" className="absolute left-3 top-1/2 -translate-y-1/2" aria-hidden>
         <circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" />
       </svg>
       <input
         {...props}
-        className="w-[min(320px,42vw)] pl-9 pr-3.5 py-2.5 text-[14.5px] text-parish-ink bg-[#fffdf8] border-[1.5px] border-parish-borderSoft rounded-xl outline-none focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15"
+        className="w-full sm:w-[min(320px,42vw)] pl-9 pr-3.5 py-2.5 text-[14.5px] text-parish-ink bg-[#fffdf8] border-[1.5px] border-parish-borderSoft rounded-xl outline-none focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15"
       />
     </div>
   );
@@ -63,6 +63,47 @@ export function DataTable({ columns, children, minWidth = 700, footer }) {
       {footer}
     </div>
   );
+}
+
+/**
+ * Props that make a clickable <tr> reachable and operable by keyboard.
+ * A row is not natively focusable, so it needs a role, a tab stop, and
+ * Enter/Space handling to match what mouse users get.
+ */
+export function rowActivationProps(onActivate, label) {
+  return {
+    onClick: onActivate,
+    onKeyDown: (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        onActivate();
+      }
+    },
+    tabIndex: 0,
+    role: 'button',
+    'aria-label': label,
+  };
+}
+
+/** Inline failure state for a list/panel whose data could not be loaded. */
+export function ErrorState({ message, onRetry }) {
+  return (
+    <div className="py-12 px-5 text-center">
+      <div className="w-11 h-11 rounded-full bg-parish-errorBg text-parish-error flex items-center justify-center mx-auto mb-3 text-xl font-bold" aria-hidden>!</div>
+      <div className="font-serif text-[20px] text-parish-navy mb-1">Couldn't load this</div>
+      <div className="text-[14px] text-parish-muted mb-4">{message || 'Something went wrong.'}</div>
+      {onRetry && (
+        <button onClick={onRetry} className="appearance-none cursor-pointer px-4 py-2 rounded-lg border-[1.5px] border-parish-borderSoft bg-white font-semibold text-[13px] text-parish-blue">
+          Try again
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Neutral placeholder while a list is loading, so tables don't flash "no results". */
+export function LoadingState({ label = 'Loading…' }) {
+  return <div className="py-12 px-5 text-center text-[14px] text-parish-muted" role="status" aria-live="polite">{label}</div>;
 }
 
 export function EmptyState({ title, subtitle }) {

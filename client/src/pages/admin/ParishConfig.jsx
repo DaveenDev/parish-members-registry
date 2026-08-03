@@ -3,25 +3,163 @@ import { api } from '../../api.js';
 import { PageHeader, PageBody } from '../../components/admin.jsx';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
+import { useToast } from '../../ToastContext.jsx';
 
-function ProfileTab() {
-  const [settings, setSettings] = useState(null);
-  const [saved, setSaved] = useState(false);
+const MAX_LOGO_BYTES = 500 * 1024;
 
-  useEffect(() => { api.getSettings().then((r) => setSettings(r.settings)); }, []);
-  if (!settings) return null;
+function LogoCard({ settings, onSaved }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
 
-  function set(field, value) { setSettings((s) => ({ ...s, [field]: value })); setSaved(false); }
-  async function save() {
-    const res = await api.updateSettings(settings);
-    setSettings(res.settings);
-    setSaved(true);
+  async function onFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please choose an image file (PNG or JPG).');
+      return;
+    }
+    if (file.size > MAX_LOGO_BYTES) {
+      toast.error('Logo must be under 500 KB.');
+      return;
+    }
+
+    setBusy(true);
+    try {
+      // Stored inline as a data URL — keeps deployment simple (no object
+      // storage or static file server needed) and logos are small.
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error('Could not read that file'));
+        reader.readAsDataURL(file);
+      });
+      const res = await api.updateSettings({ logo: dataUrl });
+      onSaved(res.settings);
+      toast.success('Logo updated');
+    } catch (err) {
+      toast.error(err.message || 'Could not upload the logo');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function removeLogo() {
+    setBusy(true);
+    try {
+      const res = await api.updateSettings({ logo: '' });
+      onSaved(res.settings);
+      toast.success('Logo removed');
+    } catch (err) {
+      toast.error(err.message || 'Could not remove the logo');
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <div className="flex flex-col gap-[18px]" style={{ gap: '18px' }}>
+    <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Parish logo</div>
+      <div className="text-[13.5px] text-parish-muted mb-4">
+        Shown on the sign-in screen, the sidebar, and printed household sheets. PNG or JPG, ideally square, under 500&nbsp;KB.
+      </div>
+      <div className="flex items-center gap-5 flex-wrap">
+        <div className="w-24 h-24 rounded-[18px] border-2 border-dashed border-[#d9cdb4] bg-[#fdfbf6] flex items-center justify-center overflow-hidden flex-none">
+          {settings.logo ? (
+            <img src={settings.logo} alt="Current parish logo" className="w-full h-full object-contain" />
+          ) : (
+            <span className="text-parish-gold" aria-hidden>
+              <svg viewBox="0 0 40 40" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z" /><path d="M20 24v9M15.5 28.5h9" /></svg>
+            </span>
+          )}
+        </div>
+        <div className="flex flex-col gap-2.5 items-start">
+          <label className={`cursor-pointer px-[18px] py-2.5 font-semibold text-[14px] text-white bg-parish-blue rounded-xl inline-block ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
+            {busy ? 'Uploading…' : settings.logo ? 'Replace logo' : 'Upload logo'}
+            <input type="file" accept="image/*" onChange={onFile} className="hidden" disabled={busy} />
+          </label>
+          {settings.logo && (
+            <button onClick={removeLogo} disabled={busy} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13px] text-parish-error p-0">
+              Remove logo
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChangePasswordCard() {
+  const toast = useToast();
+  const [form, setForm] = useState({ current: '', next: '', confirm: '' });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const set = (field) => (e) => { setForm((f) => ({ ...f, [field]: e.target.value })); setError(''); };
+
+  async function submit(e) {
+    e.preventDefault();
+    if (form.next !== form.confirm) { setError('The new passwords do not match.'); return; }
+    if (form.next.length < 10) { setError('New password must be at least 10 characters.'); return; }
+
+    setSaving(true);
+    try {
+      await api.changePassword(form.current, form.next);
+      setForm({ current: '', next: '', confirm: '' });
+      toast.success('Password changed');
+    } catch (err) {
+      setError(err.message || 'Could not change password');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Change password</div>
+      <div className="text-[13.5px] text-parish-muted mb-4">Use at least 10 characters. You stay signed in on this device.</div>
+      {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium">{error}</div>}
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
+        <Field label="Current password"><TextInput type="password" autoComplete="current-password" value={form.current} onChange={set('current')} /></Field>
+        <Field label="New password"><TextInput type="password" autoComplete="new-password" value={form.next} onChange={set('next')} /></Field>
+        <Field label="Confirm new password"><TextInput type="password" autoComplete="new-password" value={form.confirm} onChange={set('confirm')} /></Field>
+      </div>
+      <PrimaryButton type="submit" disabled={saving} className="mt-5 px-[26px] py-3 text-[14.5px]">
+        {saving ? 'Updating…' : 'Update password'}
+      </PrimaryButton>
+    </form>
+  );
+}
+
+function ProfileTab() {
+  const toast = useToast();
+  const [settings, setSettings] = useState(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => { api.getSettings().then((r) => setSettings(r.settings)).catch((e) => toast.error(e.message)); }, []);
+  if (!settings) return null;
+
+  function set(field, value) { setSettings((s) => ({ ...s, [field]: value })); }
+
+  async function save() {
+    setSaving(true);
+    try {
+      const { name, address, contact, email } = settings;
+      const res = await api.updateSettings({ name, address, contact, email });
+      setSettings(res.settings);
+      toast.success('Parish profile saved');
+    } catch (e) {
+      toast.error(e.message || 'Could not save changes');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-[18px]">
       <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
-        <div className="font-serif text-[22px] font-semibold text-parish-navy mb-[18px]" style={{ marginBottom: '18px' }}>Parish profile</div>
+        <div className="font-serif text-[22px] font-semibold text-parish-navy mb-[18px]">Parish profile</div>
         <div className="flex flex-col gap-4">
           <Field label="Parish name"><TextInput value={settings.name || ''} onChange={(e) => set('name', e.target.value)} /></Field>
           <Field label="Address"><TextInput value={settings.address || ''} onChange={(e) => set('address', e.target.value)} /></Field>
@@ -31,10 +169,16 @@ function ProfileTab() {
           </div>
         </div>
         <div className="flex items-center gap-3 mt-5">
-          <PrimaryButton onClick={save} className="px-[26px] py-3 text-[14.5px]" style={{ padding: '12px 26px' }}>Save changes</PrimaryButton>
-          {saved && <span className="text-[13px] text-[#2f7a52] font-semibold">Saved.</span>}
+          <PrimaryButton onClick={save} disabled={saving} className="px-[26px] py-3 text-[14.5px]">
+            {saving ? 'Saving…' : 'Save changes'}
+          </PrimaryButton>
         </div>
       </div>
+
+      <LogoCard settings={settings} onSaved={setSettings} />
+
+      <ChangePasswordCard />
+
       <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>
         <div className="text-[13.5px] text-parish-muted mb-4">Choose a color theme for the registration portal and admin panel. Saved on this device.</div>
