@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#f7f2e8;color:#17263f;font-family:'Source Sans 3',system-ui,sans-serif;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  a{color:#34589c;text-decoration:none}
+  a:hover{color:#26436f}
+  input,select,textarea{font-family:'Source Sans 3',system-ui,sans-serif}
+  select{-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%237a7360' stroke-width='1.6' d='M1 1.5 6 6l5-4.5'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 14px center;padding-right:36px}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes toastIn{from{opacity:0;transform:translate(-50%,16px)}to{opacity:1;transform:translate(-50%,0)}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;position:relative">
+
+<!-- ================= LANDING ================= -->
+<sc-if value="{{ isLanding }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Landing" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 24px;background:radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)">
+  <div style="max-width:560px;animation:fadeUp .6s ease both">
+    <div style="color:#c39b4e;display:flex;justify-content:center;margin-bottom:6px">
+      <svg viewBox="0 0 80 80" width="82" height="82" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round">
+        <circle cx="40" cy="38" r="30" stroke="#e4d3a8"></circle>
+        <path d="M40 14l3.2 9.6h10.1l-8.2 5.9 3.1 9.6-8.2-5.9-8.2 5.9 3.1-9.6-8.2-5.9h10.1z"></path>
+        <path d="M40 46v18M31 55h18"></path>
+      </svg>
+    </div>
+    <div style="font:600 13px 'Source Sans 3';letter-spacing:.22em;text-transform:uppercase;color:#a98a3f;margin-bottom:14px">Parish Members Registry</div>
+    <h1 style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(38px,8vw,58px);line-height:1.04;margin:0 0 6px;color:#1a2b4a">Our Lady of Guadalupe</h1>
+    <div style="font-family:'Cormorant Garamond',serif;font-size:clamp(19px,4vw,24px);color:#34589c;letter-spacing:.04em;margin-bottom:22px">Quasi&#8209;Parish · Mua&#8209;an</div>
+    <p style="font-size:clamp(16px,3.6vw,18px);line-height:1.6;color:#5b5647;max-width:440px;margin:0 auto 34px">Welcome home. Enroll your household in the parish family so we can keep in touch, celebrate the sacraments together, and serve one another in faith.</p>
+    <button onClick="{{ start }}" style="appearance:none;border:none;cursor:pointer;padding:17px 40px;font:700 17px 'Source Sans 3';color:#fff;background:#34589c;border-radius:14px;box-shadow:0 14px 30px -12px rgba(52,88,156,.65);transition:transform .12s,box-shadow .2s" style-hover="transform:translateY(-2px);box-shadow:0 18px 36px -12px rgba(52,88,156,.7)">Register Your Household</button>
+    <div style="margin-top:28px;display:inline-flex;align-items:center;gap:8px;font-size:13.5px;color:#8a836f">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+      <span>Your information is private — seen only by authorized parish staff.</span>
+    </div>
+    <div style="margin-top:30px;padding-top:22px;border-top:1px solid #e7dcc4">
+      <a href="Admin Panel.dc.html" style="font:600 14px 'Source Sans 3';color:#34589c">Parish staff? Sign in to the admin panel →</a>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= WIZARD ================= -->
+<sc-if value="{{ isWizard }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Registration Wizard">
+  <!-- header / progress -->
+  <div style="position:sticky;top:0;z-index:15;background:rgba(247,242,232,.92);backdrop-filter:blur(10px);border-bottom:1px solid #ece2cd;padding:16px 18px 18px">
+    <div style="max-width:880px;margin:0 auto">
+      <div style="display:flex;align-items:center;gap:10px;justify-content:center;margin-bottom:16px;color:#c39b4e">
+        <svg viewBox="0 0 40 40" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z"></path><path d="M20 24v9M15.5 28.5h9"></path></svg>
+        <span style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:#1a2b4a">OLG Quasi&#8209;Parish · Mua&#8209;an</span>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:9px 12px;justify-content:center">
+        <sc-for list="{{ stepDots }}" as="d" hint-placeholder-count="5">
+          <div style="display:flex;align-items:center;gap:7px">
+            <div style="width:29px;height:29px;border-radius:50%;display:flex;align-items:center;justify-content:center;font:700 13px 'Source Sans 3';border:2px solid {{ d.bc }};background:{{ d.bg }};color:{{ d.fg }};transition:all .25s">{{ d.n }}</div>
+            <span style="font:600 12.5px 'Source Sans 3';letter-spacing:.02em;color:{{ d.fg2 }}">{{ d.label }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="height:5px;background:#eaddc2;border-radius:99px;margin:14px auto 0;max-width:520px;overflow:hidden">
+        <div style="height:100%;background:linear-gradient(90deg,#34589c,#c39b4e);border-radius:99px;width:{{ progressPct }}%;transition:width .4s ease"></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:880px;margin:0 auto;padding:26px 18px 150px">
+
+    <!-- banner -->
+    <sc-if value="{{ banner }}">
+      <div style="display:flex;gap:10px;align-items:flex-start;background:#fbeeea;border:1px solid #f0cec3;color:#a13d29;border-radius:12px;padding:13px 15px;margin-bottom:20px;font-size:14.5px">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex:none;margin-top:1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 8v5M12 16.5v.01"></path></svg>
+        <span>{{ banner }}</span>
+      </div>
+    </sc-if>
+
+    <!-- STEP 1 -->
+    <sc-if value="{{ isStep1 }}">
+    <div style="animation:fadeUp .4s ease both">
+      <h2 style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(28px,6vw,38px);margin:0 0 4px;color:#1a2b4a">Household Information</h2>
+      <p style="color:#6b6552;font-size:15.5px;margin:0 0 26px">Let's start with your family's home and how the parish can reach you.</p>
+      <div style="background:#fff;border:1px solid #ece2cd;border-radius:20px;box-shadow:0 12px 34px -22px rgba(23,38,63,.35);padding:clamp(20px,4vw,32px)">
+        <div style="margin-bottom:18px">
+          <label style="display:block;font:600 12.5px 'Source Sans 3';color:#17263f;margin-bottom:6px;letter-spacing:.02em">Family (household) name <span style="color:#c39b4e">*</span></label>
+          <input type="text" data-field="householdName" value="{{ household.householdName }}" onChange="{{ onFieldChange }}" placeholder="e.g. Dela Cruz Family" style="width:100%;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+          <sc-if value="{{ err.householdName }}"><div style="color:#b4442f;font:500 12px 'Source Sans 3';margin-top:5px">{{ err.householdName }}</div></sc-if>
+        </div>
+        <div style="margin-bottom:18px">
+          <label style="display:block;font:600 12.5px 'Source Sans 3';color:#17263f;margin-bottom:6px;letter-spacing:.02em">Street / House No. / Purok <span style="color:#c39b4e">*</span></label>
+          <input type="text" data-field="street" value="{{ household.street }}" onChange="{{ onFieldChange }}" placeholder="e.g. 24 Rizal St." style="width:100%;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+          <sc-if value="{{ err.street }}"><div style="color:#b4442f;font:500 12px 'Source Sans 3';margin-top:5px">{{ err.street }}</div></sc-if>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:18px">
+          <div>
+            <label style="display:block;font:600 12.5px 'Source Sans 3';color:#17263f;margin-bottom:6px;letter-spacing:.02em">Barangay <span style="color:#c39b4e">*</span></label>
+            <input type="text" data-field="barangay" value="{{ household.barangay }}" onChange="{{ onFieldChange }}" placeholder="e.g. Purok 3, Mua-an" style="width:100%;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+            <sc-if value="{{ err.barangay }}"><div style="color:#b4442f;font:500 12px 'Source Sans 3';margin-top:5px">{{ err.barangay }}</div></sc-if>
+          </div>
+          <div>
+            <label style="display:block;font:600 12.5px 'Source Sans 3';color:#17263f;margin-bottom:6px;letter-spacing:.02em">City / Municipality <span style="color:#c39b4e">*</span></label>
+            <input type="text" data-field="city" value="{{ household.city }}" onChange="{{ onFieldChange }}" placeholder="e.g. Kabankalan City" style="width:100%;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+            <sc-if value="{{ err.city }}"><div style="color:#b4442f;font:500 12px 'Source Sans 3';margin-top:5px">{{ err.city }}</div></sc-if>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:18px">
+          <div>
+            <label style="display:block;font:600 12.5px 'Source Sans 3';color:#17263f;margin-bottom:6px;letter-spacing:.02em">Province <span style="color:#c39b4e">*</span></label>
+            <input type="text" data-field="province" value="{{ household.province }}" onChange="{{ onFieldChange }}" placeholder="e.g. Negros Occidental" style="width:100%;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+            <sc-if value="{{ err.province }}"><div style="color:#b4442f;font:500 12px 'Source Sans 3';margin-top:5px">{{ err.province }}</div></sc-if>
+          </div>
+          <div>
+            <label style="display:block;font:600 12.5px 'Source Sans 3';color:#17263f;margin-bottom:6px;letter-spacing:.02em">ZIP Code <span style="color:#c39b4e">*</span></label>
+            <input type="text" inputmode="numeric" data-field="zip" value="{{ household.zip }}" onChange="{{ onFieldChange }}" placeholder="e.g. 6111" style="width:100%;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+            <sc-if value="{{ err.zip }}"><div style="color:#b4442f;font:500 12px 'Source Sans 3';margin-top:5px">{{ err.zip }}</div></sc-if>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:18px">
+          <div>
+            <label style="display:block;font:600 12.5px 'Source Sans 3';color:#17263f;margin-bottom:6px;letter-spacing:.02em">Household contact no.</label>
+            <input type="tel" inputmode="tel" data-field="contact" value="{{ household.contact }}" onChange="{{ onFieldChange }}" placeholder="e.g. 0917 123 4567" style="width:100%;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+            <sc-if value="{{ err.contact }}"><div style="color:#b4442f;font:500 12px 'Source Sans 3';margin-top:5px">{{ err.contact }}</div></sc-if>
+          </div>
+          <div>
+            <label style="display:block;font:600 12.5px 'Source Sans 3';color:#17263f;margin-bottom:6px;letter-spacing:.02em">Household email</label>
+            <input type="email" inputmode="email" data-field="email" value="{{ household.email }}" onChange="{{ onFieldChange }}" placeholder="optional" style="width:100%;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+            <sc-if value="{{ err.email }}"><div style="color:#b4442f;font:500 12px 'Source Sans 3';margin-top:5px">{{ err.email }}</div></sc-if>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-top:18px">
+          <div>
+            <label style="display:block;font:600 12.5px 'Source Sans 3';color:#17263f;margin-bottom:6px;letter-spacing:.02em">Parish GKK</label>
+            <input type="text" data-field="gkk" value="{{ household.gkk }}" onChange="{{ onFieldChange }}" placeholder="e.g. GKK San Lorenzo Ruiz" style="width:100%;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+          </div>
+          <div>
+            <label style="display:block;font:600 12.5px 'Source Sans 3';color:#17263f;margin-bottom:6px;letter-spacing:.02em">Family Groupings</label>
+            <input type="text" data-field="familyGrouping" value="{{ household.familyGrouping }}" onChange="{{ onFieldChange }}" placeholder="e.g. Grouping 2" style="width:100%;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- STEP 2 : MEMBERS -->
+    <sc-if value="{{ isStep2 }}">
+    <div style="animation:fadeUp .4s ease both">
+      <h2 style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(28px,6vw,38px);margin:0 0 4px;color:#1a2b4a">Household Members</h2>
+      <p style="color:#6b6552;font-size:15.5px;margin:0 0 18px">Add everyone living in your household — begin with the head of the family, then add the spouse and each child. They'll all be saved together.</p>
+      <div style="display:flex;align-items:center;gap:10px;background:#eef3fb;border:1px solid #d4e0f2;border-radius:12px;padding:12px 15px;margin-bottom:22px;color:#2b466f;font-size:14px">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" style="flex:none"><path d="M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 20v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11"></path></svg>
+        <span><strong>{{ memberCount }}</strong> member(s) added so far. Use <strong>“Add Another Member”</strong> below for each person before you continue.</span>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <sc-for list="{{ memberViews }}" as="mv" hint-placeholder-count="1">
+          <div style="background:#fff;border:1px solid #ece2cd;border-radius:20px;box-shadow:0 12px 34px -22px rgba(23,38,63,.35);padding:clamp(18px,4vw,28px)">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px">
+              <div style="display:flex;align-items:center;gap:11px">
+                <div style="width:34px;height:34px;border-radius:50%;background:#eef3fb;color:#34589c;display:flex;align-items:center;justify-content:center;font:700 15px 'Source Sans 3'">{{ mv.num }}</div>
+                <span style="font-family:'Cormorant Garamond',serif;font-size:22px;font-weight:600;color:#1a2b4a">{{ mv.displayName }}</span>
+              </div>
+              <sc-if value="{{ mv.canRemove }}">
+                <button data-action="removeMember" data-mi="{{ mv.mi }}" onClick="{{ onAction }}" style="appearance:none;border:1px solid #e7d5cf;background:#fff;color:#b4442f;cursor:pointer;font:600 13px 'Source Sans 3';padding:8px 13px;border-radius:9px">Remove</button>
+              </sc-if>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:15px">
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">First name <span style="color:#c39b4e">*</span></label>
+                <input type="text" data-mi="{{ mv.mi }}" data-field="firstName" value="{{ mv.firstName }}" onChange="{{ onFieldChange }}" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+                <sc-if value="{{ mv.err.firstName }}"><div style="color:#b4442f;font:500 11.5px 'Source Sans 3';margin-top:4px">{{ mv.err.firstName }}</div></sc-if>
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Middle / mother's maiden</label>
+                <input type="text" data-mi="{{ mv.mi }}" data-field="middleName" value="{{ mv.middleName }}" onChange="{{ onFieldChange }}" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Last name <span style="color:#c39b4e">*</span></label>
+                <input type="text" data-mi="{{ mv.mi }}" data-field="lastName" value="{{ mv.lastName }}" onChange="{{ onFieldChange }}" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none;transition:border-color .2s,box-shadow .2s" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+                <sc-if value="{{ mv.err.lastName }}"><div style="color:#b4442f;font:500 11.5px 'Source Sans 3';margin-top:4px">{{ mv.err.lastName }}</div></sc-if>
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Relationship to head <span style="color:#c39b4e">*</span></label>
+                <select data-mi="{{ mv.mi }}" data-field="relationship" value="{{ mv.relationship }}" onChange="{{ onFieldChange }}" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none;cursor:pointer" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+                  <option value="">Select…</option>
+                  <option value="Head of Household">Head of Household</option>
+                  <option value="Spouse">Spouse</option>
+                  <option value="Son">Son</option>
+                  <option value="Daughter">Daughter</option>
+                  <option value="Father">Father</option>
+                  <option value="Mother">Mother</option>
+                  <option value="Grandfather">Grandfather</option>
+                  <option value="Grandmother">Grandmother</option>
+                  <option value="Grandchild">Grandchild</option>
+                  <option value="Sibling">Sibling</option>
+                  <option value="In-law">In-law</option>
+                  <option value="Household Helper">Household Helper</option>
+                  <option value="Other">Other</option>
+                </select>
+                <sc-if value="{{ mv.err.relationship }}"><div style="color:#b4442f;font:500 11.5px 'Source Sans 3';margin-top:4px">{{ mv.err.relationship }}</div></sc-if>
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Sex <span style="color:#c39b4e">*</span></label>
+                <select data-mi="{{ mv.mi }}" data-field="sex" value="{{ mv.sex }}" onChange="{{ onFieldChange }}" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none;cursor:pointer" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+                  <option value="">Select…</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                </select>
+                <sc-if value="{{ mv.err.sex }}"><div style="color:#b4442f;font:500 11.5px 'Source Sans 3';margin-top:4px">{{ mv.err.sex }}</div></sc-if>
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Date of birth <span style="color:#c39b4e">*</span></label>
+                <input type="date" data-mi="{{ mv.mi }}" data-field="dob" value="{{ mv.dob }}" onChange="{{ onFieldChange }}" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+                <sc-if value="{{ mv.err.dob }}"><div style="color:#b4442f;font:500 11.5px 'Source Sans 3';margin-top:4px">{{ mv.err.dob }}</div></sc-if>
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Place of birth</label>
+                <input type="text" data-mi="{{ mv.mi }}" data-field="placeOfBirth" value="{{ mv.placeOfBirth }}" onChange="{{ onFieldChange }}" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Civil status <span style="color:#c39b4e">*</span></label>
+                <select data-mi="{{ mv.mi }}" data-field="civilStatus" value="{{ mv.civilStatus }}" onChange="{{ onFieldChange }}" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none;cursor:pointer" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+                  <option value="">Select…</option>
+                  <option value="Single">Single</option>
+                  <option value="Married">Married</option>
+                  <option value="Widowed">Widowed</option>
+                  <option value="Separated">Separated</option>
+                </select>
+                <sc-if value="{{ mv.err.civilStatus }}"><div style="color:#b4442f;font:500 11.5px 'Source Sans 3';margin-top:4px">{{ mv.err.civilStatus }}</div></sc-if>
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Contact number</label>
+                <input type="tel" inputmode="tel" data-mi="{{ mv.mi }}" data-field="contact" value="{{ mv.contact }}" onChange="{{ onFieldChange }}" placeholder="0917…" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Email</label>
+                <input type="email" inputmode="email" data-mi="{{ mv.mi }}" data-field="email" value="{{ mv.email }}" onChange="{{ onFieldChange }}" placeholder="optional" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+                <sc-if value="{{ mv.err.email }}"><div style="color:#b4442f;font:500 11.5px 'Source Sans 3';margin-top:4px">{{ mv.err.email }}</div></sc-if>
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Occupation</label>
+                <input type="text" data-mi="{{ mv.mi }}" data-field="occupation" value="{{ mv.occupation }}" onChange="{{ onFieldChange }}" placeholder="optional" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Religion</label>
+                <select data-mi="{{ mv.mi }}" data-field="religion" value="{{ mv.religion }}" onChange="{{ onFieldChange }}" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none;cursor:pointer" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+                  <option value="Roman Catholic">Roman Catholic</option>
+                  <option value="Iglesia ni Cristo">Iglesia ni Cristo</option>
+                  <option value="Protestant">Protestant</option>
+                  <option value="Born Again">Born Again</option>
+                  <option value="Islam">Islam</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div>
+                <label style="display:block;font:600 12px 'Source Sans 3';color:#17263f;margin-bottom:5px">Blood type</label>
+                <select data-mi="{{ mv.mi }}" data-field="bloodType" value="{{ mv.bloodType }}" onChange="{{ onFieldChange }}" style="width:100%;padding:11px 13px;font-size:15.5px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:10px;outline:none;cursor:pointer" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+                  <option value="">Unknown / prefer not to say</option>
+                  <option value="A+">A+</option>
+                  <option value="A-">A-</option>
+                  <option value="B+">B+</option>
+                  <option value="B-">B-</option>
+                  <option value="AB+">AB+</option>
+                  <option value="AB-">AB-</option>
+                  <option value="O+">O+</option>
+                  <option value="O-">O-</option>
+                </select>
+                <div style="font-size:11.5px;color:#9a927f;margin-top:4px">Helps the parish reach blood donors in an emergency.</div>
+              </div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <button data-action="addMember" onClick="{{ onAction }}" style="margin-top:20px;width:100%;appearance:none;cursor:pointer;padding:15px;font:700 15.5px 'Source Sans 3';color:#34589c;background:#fff;border:1.5px dashed #b9c6de;border-radius:14px;display:flex;align-items:center;justify-content:center;gap:9px;transition:background .2s,border-color .2s" style-hover="background:#f4f7fc;border-color:#34589c">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"></path></svg>
+        Add Another Member
+      </button>
+    </div>
+    </sc-if>
+
+    <!-- STEP 3 : SACRAMENTS -->
+    <sc-if value="{{ isStep3 }}">
+    <div style="animation:fadeUp .4s ease both">
+      <h2 style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(28px,6vw,38px);margin:0 0 4px;color:#1a2b4a">Sacramental Records</h2>
+      <p style="color:#6b6552;font-size:15.5px;margin:0 0 26px">Tick the sacraments each member has received. Details are optional but help our records.</p>
+      <div style="display:flex;flex-direction:column;gap:20px">
+        <sc-for list="{{ memberViews }}" as="mv" hint-placeholder-count="1">
+          <div style="background:#fff;border:1px solid #ece2cd;border-radius:20px;box-shadow:0 12px 34px -22px rgba(23,38,63,.35);padding:clamp(18px,4vw,28px)">
+            <div style="display:flex;align-items:center;gap:11px;margin-bottom:16px;padding-bottom:14px;border-bottom:1px solid #f0e8d6">
+              <div style="width:32px;height:32px;border-radius:50%;background:#eef3fb;color:#34589c;display:flex;align-items:center;justify-content:center;font:700 14px 'Source Sans 3'">{{ mv.num }}</div>
+              <span style="font-family:'Cormorant Garamond',serif;font-size:21px;font-weight:600;color:#1a2b4a">{{ mv.displayName }}</span>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:12px">
+
+              <!-- Baptism -->
+              <div style="border:1px solid #eee3ce;border-radius:13px;padding:14px 15px;background:#fdfbf6">
+                <label style="display:flex;align-items:center;gap:11px;cursor:pointer">
+                  <input type="checkbox" data-mi="{{ mv.mi }}" data-field="hasBaptism" checked="{{ mv.hasBaptism }}" onChange="{{ onFieldChange }}" style="width:19px;height:19px;accent-color:#34589c;cursor:pointer">
+                  <span style="font:600 15px 'Source Sans 3';color:#1a2b4a">Baptism</span>
+                </label>
+                <sc-if value="{{ mv.hasBaptism }}">
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px;margin-top:13px">
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Date</label><input type="date" data-mi="{{ mv.mi }}" data-field="baptismDate" value="{{ mv.baptismDate }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c"></div>
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Parish / Church</label><input type="text" data-mi="{{ mv.mi }}" data-field="baptismChurch" value="{{ mv.baptismChurch }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c"></div>
+                  </div>
+                </sc-if>
+              </div>
+
+              <!-- First Communion -->
+              <div style="border:1px solid #eee3ce;border-radius:13px;padding:14px 15px;background:#fdfbf6">
+                <label style="display:flex;align-items:center;gap:11px;cursor:pointer">
+                  <input type="checkbox" data-mi="{{ mv.mi }}" data-field="hasCommunion" checked="{{ mv.hasCommunion }}" onChange="{{ onFieldChange }}" style="width:19px;height:19px;accent-color:#34589c;cursor:pointer">
+                  <span style="font:600 15px 'Source Sans 3';color:#1a2b4a">First Communion (Eucharist)</span>
+                </label>
+                <sc-if value="{{ mv.hasCommunion }}">
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px;margin-top:13px">
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Date</label><input type="date" data-mi="{{ mv.mi }}" data-field="communionDate" value="{{ mv.communionDate }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c"></div>
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Parish / Church</label><input type="text" data-mi="{{ mv.mi }}" data-field="communionChurch" value="{{ mv.communionChurch }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c"></div>
+                  </div>
+                </sc-if>
+              </div>
+
+              <!-- Confirmation -->
+              <div style="border:1px solid #eee3ce;border-radius:13px;padding:14px 15px;background:#fdfbf6">
+                <label style="display:flex;align-items:center;gap:11px;cursor:pointer">
+                  <input type="checkbox" data-mi="{{ mv.mi }}" data-field="hasConfirmation" checked="{{ mv.hasConfirmation }}" onChange="{{ onFieldChange }}" style="width:19px;height:19px;accent-color:#34589c;cursor:pointer">
+                  <span style="font:600 15px 'Source Sans 3';color:#1a2b4a">Confirmation</span>
+                </label>
+                <sc-if value="{{ mv.hasConfirmation }}">
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px;margin-top:13px">
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Date</label><input type="date" data-mi="{{ mv.mi }}" data-field="confDate" value="{{ mv.confDate }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c"></div>
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Parish / Church</label><input type="text" data-mi="{{ mv.mi }}" data-field="confChurch" value="{{ mv.confChurch }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c"></div>
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Confirmation name</label><input type="text" data-mi="{{ mv.mi }}" data-field="confName" value="{{ mv.confName }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c"></div>
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Sponsor</label><input type="text" data-mi="{{ mv.mi }}" data-field="confSponsor" value="{{ mv.confSponsor }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c"></div>
+                  </div>
+                </sc-if>
+              </div>
+
+              <!-- Matrimony -->
+              <div style="border:1px solid #eee3ce;border-radius:13px;padding:14px 15px;background:#fdfbf6">
+                <label style="display:flex;align-items:center;gap:11px;cursor:pointer">
+                  <input type="checkbox" data-mi="{{ mv.mi }}" data-field="hasMatrimony" checked="{{ mv.hasMatrimony }}" onChange="{{ onFieldChange }}" style="width:19px;height:19px;accent-color:#34589c;cursor:pointer">
+                  <span style="font:600 15px 'Source Sans 3';color:#1a2b4a">Matrimony</span>
+                </label>
+                <sc-if value="{{ mv.hasMatrimony }}">
+                  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:13px;margin-top:13px">
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Date</label><input type="date" data-mi="{{ mv.mi }}" data-field="matDate" value="{{ mv.matDate }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c"></div>
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Parish / Church</label><input type="text" data-mi="{{ mv.mi }}" data-field="matChurch" value="{{ mv.matChurch }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none" style-focus="border-color:#34589c"></div>
+                    <div><label style="display:block;font:600 11.5px 'Source Sans 3';color:#6b6552;margin-bottom:5px">Marriage type</label><select data-mi="{{ mv.mi }}" data-field="matType" value="{{ mv.matType }}" onChange="{{ onFieldChange }}" style="width:100%;padding:10px 12px;font-size:15px;color:#17263f;background:#fff;border:1.5px solid #e0d6c1;border-radius:10px;outline:none;cursor:pointer" style-focus="border-color:#34589c"><option value="">Select…</option><option value="Catholic">Catholic</option><option value="Convalidation">Convalidation</option></select></div>
+                  </div>
+                </sc-if>
+              </div>
+
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- STEP 4 : ENGAGEMENT -->
+    <sc-if value="{{ isStep4 }}">
+    <div style="animation:fadeUp .4s ease both">
+      <h2 style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(28px,6vw,38px);margin:0 0 4px;color:#1a2b4a">Church Engagement</h2>
+      <p style="color:#6b6552;font-size:15.5px;margin:0 0 22px">Ministry and organization assignments are handled by parish staff after your visit.</p>
+      <div style="background:#fff;border:1px solid #ece2cd;border-radius:20px;box-shadow:0 12px 34px -22px rgba(23,38,63,.35);padding:clamp(20px,4vw,32px)">
+        <div style="margin-bottom:22px">
+          <label style="display:block;font:600 13px 'Source Sans 3';color:#17263f;margin-bottom:8px;letter-spacing:.02em">Is anyone in the household willing to volunteer?</label>
+          <select data-field="volunteer" value="{{ volunteer }}" onChange="{{ onFieldChange }}" style="width:100%;max-width:280px;padding:12px 14px;font-size:16px;color:#17263f;background:#fdfbf6;border:1.5px solid #e0d6c1;border-radius:11px;outline:none;cursor:pointer" style-focus="border-color:#34589c;box-shadow:0 0 0 3px rgba(52,88,156,.15)">
+            <option value="">Select…</option>
+            <option value="Yes">Yes, gladly</option>
+            <option value="Maybe">Maybe, please reach out</option>
+            <option value="No">Not at this time</option>
+          </select>
+        </div>
+        <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:15px;border:1px solid #eee3ce;border-radius:13px;background:#fdfbf6;margin-bottom:14px">
+          <input type="checkbox" data-field="notifyOptin" checked="{{ notifyOptin }}" onChange="{{ onFieldChange }}" style="width:19px;height:19px;accent-color:#34589c;cursor:pointer;margin-top:1px">
+          <span style="font:500 14.5px/1.5 'Source Sans 3';color:#3f3b2f">Add us to the parish email notification list for Mass schedules, feast days, and announcements.</span>
+        </label>
+        <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer;padding:16px;border:1.5px solid {{ consentBorder }};border-radius:13px;background:{{ consentBg }};transition:all .2s">
+          <input type="checkbox" data-field="consent" checked="{{ consent }}" onChange="{{ onFieldChange }}" style="width:19px;height:19px;accent-color:#34589c;cursor:pointer;margin-top:1px">
+          <span style="font:500 14.5px/1.5 'Source Sans 3';color:#3f3b2f"><strong style="color:#1a2b4a">Data privacy consent <span style="color:#c39b4e">*</span></strong> — I consent to the parish collecting and storing this information. It is kept private and viewed only by authorized parish staff, in accordance with the Data Privacy Act.</span>
+        </label>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- STEP 5 : REVIEW -->
+    <sc-if value="{{ isStep5 }}">
+    <div style="animation:fadeUp .4s ease both">
+      <h2 style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(28px,6vw,38px);margin:0 0 4px;color:#1a2b4a">Review &amp; Submit</h2>
+      <p style="color:#6b6552;font-size:15.5px;margin:0 0 26px">Please review your household's details. You may edit any section before submitting.</p>
+
+      <div style="background:#fff;border:1px solid #ece2cd;border-radius:20px;box-shadow:0 12px 34px -22px rgba(23,38,63,.35);padding:clamp(20px,4vw,30px);margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h3 style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;margin:0;color:#1a2b4a">Household</h3>
+          <button data-action="edit" data-step="1" onClick="{{ onAction }}" style="appearance:none;border:none;background:none;cursor:pointer;font:600 13.5px 'Source Sans 3';color:#34589c">Edit</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <sc-for list="{{ householdReview }}" as="row" hint-placeholder-count="5">
+            <div style="display:flex;gap:14px;font-size:15px;border-bottom:1px solid #f4eddd;padding-bottom:11px">
+              <span style="flex:0 0 130px;color:#8a836f;font-weight:600">{{ row.label }}</span>
+              <span style="color:#17263f">{{ row.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #ece2cd;border-radius:20px;box-shadow:0 12px 34px -22px rgba(23,38,63,.35);padding:clamp(20px,4vw,30px);margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+          <h3 style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;margin:0;color:#1a2b4a">Members ({{ memberCount }})</h3>
+          <button data-action="edit" data-step="2" onClick="{{ onAction }}" style="appearance:none;border:none;background:none;cursor:pointer;font:600 13.5px 'Source Sans 3';color:#34589c">Edit</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:16px;margin-top:12px">
+          <sc-for list="{{ reviewMembers }}" as="rm" hint-placeholder-count="1">
+            <div style="border:1px solid #f0e8d6;border-radius:14px;padding:16px 17px;background:#fdfbf6">
+              <div style="font-family:'Cormorant Garamond',serif;font-size:20px;font-weight:600;color:#1a2b4a;margin-bottom:3px">{{ rm.name }}</div>
+              <div style="font-size:13.5px;color:#8a836f;margin-bottom:12px">{{ rm.meta }}</div>
+              <div style="display:flex;flex-direction:column;gap:7px">
+                <sc-for list="{{ rm.sacr }}" as="s" hint-placeholder-count="2">
+                  <div style="display:flex;gap:10px;font-size:14px;align-items:baseline">
+                    <span style="flex:none;color:#34589c;font-weight:600">{{ s.label }}</span>
+                    <span style="color:#6b6552">{{ s.detail }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="background:#fff;border:1px solid #ece2cd;border-radius:20px;box-shadow:0 12px 34px -22px rgba(23,38,63,.35);padding:clamp(20px,4vw,30px);margin-bottom:16px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+          <h3 style="font-family:'Cormorant Garamond',serif;font-size:24px;font-weight:600;margin:0;color:#1a2b4a">Engagement</h3>
+          <button data-action="edit" data-step="4" onClick="{{ onAction }}" style="appearance:none;border:none;background:none;cursor:pointer;font:600 13.5px 'Source Sans 3';color:#34589c">Edit</button>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:11px">
+          <sc-for list="{{ engReview }}" as="row" hint-placeholder-count="3">
+            <div style="display:flex;gap:14px;font-size:15px;border-bottom:1px solid #f4eddd;padding-bottom:11px">
+              <span style="flex:0 0 130px;color:#8a836f;font-weight:600">{{ row.label }}</span>
+              <span style="color:#17263f">{{ row.value }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:flex-start;background:#eef3fb;border:1px solid #d4e0f2;border-radius:13px;padding:15px;color:#2b466f;font-size:13.5px;line-height:1.5">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" style="flex:none;margin-top:1px"><rect x="4" y="10" width="16" height="10" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path></svg>
+        <span>By submitting, this record is stored securely and made available only to authorized parish staff.</span>
+      </div>
+    </div>
+    </sc-if>
+
+  </div>
+
+  <!-- footer nav -->
+  <div style="position:fixed;left:0;right:0;bottom:0;z-index:16;background:rgba(247,242,232,.94);backdrop-filter:blur(10px);border-top:1px solid #ece2cd;padding:14px 18px">
+    <div style="max-width:880px;margin:0 auto;display:flex;gap:12px;justify-content:space-between;align-items:center">
+      <button data-action="back" onClick="{{ onAction }}" style="appearance:none;cursor:pointer;padding:13px 20px;font:600 15px 'Source Sans 3';color:#5b5647;background:transparent;border:1.5px solid #dcd0b7;border-radius:12px;transition:background .2s" style-hover="background:#efe7d6">{{ backLabel }}</button>
+      <sc-if value="{{ notStep5 }}">
+        <button data-action="next" onClick="{{ onAction }}" style="appearance:none;border:none;cursor:pointer;padding:14px 30px;font:700 16px 'Source Sans 3';color:#fff;background:#34589c;border-radius:12px;box-shadow:0 10px 22px -10px rgba(52,88,156,.6);transition:transform .12s" style-hover="transform:translateY(-1px)">Continue →</button>
+      </sc-if>
+      <sc-if value="{{ isStep5 }}">
+        <button data-action="submit" onClick="{{ onAction }}" style="appearance:none;border:none;cursor:pointer;padding:14px 30px;font:700 16px 'Source Sans 3';color:#fff;background:#c39b4e;border-radius:12px;box-shadow:0 10px 22px -10px rgba(195,155,78,.6);display:flex;align-items:center;gap:10px;transition:transform .12s" style-hover="transform:translateY(-1px)">
+          <sc-if value="{{ submitting }}"><span style="width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite"></span>Submitting…</sc-if>
+          <sc-if value="{{ notSubmitting }}">Submit Registration</sc-if>
+        </button>
+      </sc-if>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= CONFIRMATION ================= -->
+<sc-if value="{{ isDone }}" hint-placeholder-val="{{ true }}">
+<div data-screen-label="Confirmation" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:48px 24px;background:radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)">
+  <div style="max-width:520px;animation:fadeUp .6s ease both">
+    <div style="width:82px;height:82px;border-radius:50%;background:#eaf4ee;display:flex;align-items:center;justify-content:center;margin:0 auto 22px;color:#3a8a5e">
+      <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6L9 17l-5-5"></path></svg>
+    </div>
+    <h1 style="font-family:'Cormorant Garamond',serif;font-weight:600;font-size:clamp(32px,7vw,46px);line-height:1.1;margin:0 0 10px;color:#1a2b4a">Welcome to the family</h1>
+    <p style="font-size:16.5px;line-height:1.6;color:#5b5647;margin:0 0 26px">Your household has been registered with <strong>Our Lady of Guadalupe Quasi-Parish, Mua-an</strong>. Our parish staff will review and verify your details shortly.</p>
+    <div style="background:#fff;border:1px solid #ece2cd;border-radius:18px;box-shadow:0 12px 34px -22px rgba(23,38,63,.35);padding:26px;margin-bottom:26px">
+      <div style="font:600 12px 'Source Sans 3';letter-spacing:.16em;text-transform:uppercase;color:#a98a3f;margin-bottom:8px">Your reference number</div>
+      <div style="font-family:'Cormorant Garamond',serif;font-size:36px;font-weight:600;letter-spacing:.06em;color:#34589c">{{ refNo }}</div>
+      <div style="font-size:13px;color:#8a836f;margin-top:8px">Please keep this for your records.</div>
+    </div>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <button onClick="{{ printPage }}" style="appearance:none;cursor:pointer;padding:13px 24px;font:600 15px 'Source Sans 3';color:#34589c;background:#fff;border:1.5px solid #cdd7e8;border-radius:12px">Print confirmation</button>
+      <button onClick="{{ restart }}" style="appearance:none;border:none;cursor:pointer;padding:13px 26px;font:700 15px 'Source Sans 3';color:#fff;background:#34589c;border-radius:12px;box-shadow:0 10px 22px -10px rgba(52,88,156,.6)">Register another household</button>
+    </div>
+  </div>
+</div>
+</sc-if>
+
+<!-- ================= CONFIRM MODAL ================= -->
+<sc-if value="{{ confirmOpen }}">
+  <div style="position:fixed;inset:0;z-index:50;background:rgba(26,43,74,.45);backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;animation:fadeUp .2s ease both">
+    <div style="background:#fff;border-radius:22px;max-width:460px;width:100%;box-shadow:0 30px 60px -20px rgba(23,38,63,.5);padding:clamp(24px,5vw,34px);max-height:88vh;overflow:auto">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:6px;color:#c39b4e">
+        <svg viewBox="0 0 40 40" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z"></path><path d="M20 24v9M15.5 28.5h9"></path></svg>
+      </div>
+      <h3 style="font-family:'Cormorant Garamond',serif;font-size:28px;font-weight:600;margin:0 0 6px;color:#1a2b4a">Ready to submit?</h3>
+      <p style="font-size:15px;line-height:1.55;color:#6b6552;margin:0 0 18px">You're registering <strong style="color:#34589c">{{ memberCount }}</strong> household member(s). Please make sure everyone is included before finishing — you can still go back and add more.</p>
+      <div style="background:#fdfbf6;border:1px solid #eee3ce;border-radius:14px;padding:8px 14px;margin-bottom:22px">
+        <sc-for list="{{ confirmNames }}" as="p" hint-placeholder-count="1">
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-bottom:1px solid #f4eddd">
+            <span style="font:600 15px 'Source Sans 3';color:#1a2b4a">{{ p.name }}</span>
+            <span style="font:500 13px 'Source Sans 3';color:#8a836f">{{ p.rel }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button data-action="confirmSubmit" onClick="{{ onAction }}" style="appearance:none;border:none;cursor:pointer;width:100%;padding:15px;font:700 16px 'Source Sans 3';color:#fff;background:#c39b4e;border-radius:13px;box-shadow:0 10px 22px -10px rgba(195,155,78,.6)">Yes, submit registration</button>
+        <button data-action="addFromConfirm" onClick="{{ onAction }}" style="appearance:none;cursor:pointer;width:100%;padding:14px;font:600 15px 'Source Sans 3';color:#34589c;background:#fff;border:1.5px solid #cdd7e8;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:8px"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"></path></svg>Wait — add another member</button>
+        <button data-action="closeConfirm" onClick="{{ onAction }}" style="appearance:none;border:none;background:none;cursor:pointer;width:100%;padding:8px;font:600 14px 'Source Sans 3';color:#8a836f">Keep reviewing</button>
+      </div>
+    </div>
+  </div>
+</sc-if>
+
+<!-- ================= TOAST ================= -->
+<sc-if value="{{ toast }}">
+  <div style="position:fixed;left:50%;bottom:96px;z-index:60;transform:translateX(-50%);animation:toastIn .3s ease both">
+    <div style="display:flex;align-items:center;gap:10px;background:{{ toast.bg }};color:{{ toast.fg }};border:1px solid {{ toast.bc }};padding:12px 18px;border-radius:12px;box-shadow:0 14px 30px -12px rgba(23,38,63,.4);font:600 14.5px 'Source Sans 3';max-width:88vw">
+      <span>{{ toast.icon }}</span><span>{{ toast.msg }}</span>
+    </div>
+  </div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:430,&quot;height&quot;:900},&quot;prefillSample&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:false,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Demo&quot;,&quot;label&quot;:&quot;Prefill sample household&quot;},&quot;startScreen&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;Landing&quot;,&quot;options&quot;:[&quot;Landing&quot;,&quot;Step 1 — Household&quot;,&quot;Step 2 — Members&quot;,&quot;Step 3 — Sacraments&quot;,&quot;Step 4 — Engagement&quot;,&quot;Review&quot;,&quot;Confirmation&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Demo&quot;,&quot;label&quot;:&quot;Jump to screen&quot;}}">
+class Component extends DCLogic {
+  constructor(props){ super(props); this.state = this.initialState(); }
+
+  initialState(){
+    return {
+      screen:'landing', step:1, submitting:false, confirmOpen:false,
+      household:{householdName:'',street:'',barangay:'',city:'Kidapawan City',province:'North Cotabato',zip:'9400',zone:'',contact:'',email:'',gkk:'',familyGrouping:''},
+      members:[this.blankMember()],
+      ministries:[], volunteer:'', notifyOptin:false, consent:false,
+      err:{}, memberErr:[], banner:'', refNo:'', toast:null,
+    };
+  }
+
+  blankMember(){
+    return {firstName:'',middleName:'',lastName:'',relationship:'',sex:'',dob:'',placeOfBirth:'',civilStatus:'',contact:'',email:'',occupation:'',religion:'Roman Catholic',bloodType:'',
+      hasBaptism:false,baptismDate:'',baptismChurch:'',
+      hasCommunion:false,communionDate:'',communionChurch:'',
+      hasConfirmation:false,confDate:'',confChurch:'',confName:'',confSponsor:'',
+      hasMatrimony:false,matDate:'',matChurch:'',matType:'',
+      ministries:[]};
+  }
+
+  componentDidMount(){
+    if(this.props.prefillSample) this.loadSample();
+    if(this.props.startScreen && this.props.startScreen!=='Landing') this.applyStart(this.props.startScreen);
+  }
+  componentDidUpdate(prev){
+    if(prev.prefillSample!==this.props.prefillSample && this.props.prefillSample) this.loadSample();
+    if(prev.startScreen!==this.props.startScreen) this.applyStart(this.props.startScreen);
+  }
+
+  applyStart(s){
+    const map={'Landing':['landing',1],'Step 1 — Household':['wizard',1],'Step 2 — Members':['wizard',2],'Step 3 — Sacraments':['wizard',3],'Step 4 — Engagement':['wizard',4],'Review':['wizard',5],'Confirmation':['done',1]};
+    const t=map[s]; if(!t) return;
+    const upd={screen:t[0],step:t[1]};
+    if(t[0]==='done' && !this.state.refNo) upd.refNo=this.genRef();
+    this.setState(upd);
+  }
+
+  loadSample(){
+    const m=this.blankMember();
+    Object.assign(m,{firstName:'Juan',middleName:'Reyes',lastName:'Dela Cruz',relationship:'Head of Household',sex:'Male',dob:'1982-05-14',placeOfBirth:'Kabankalan City',civilStatus:'Married',contact:'0917 555 0142',email:'juandc@email.com',occupation:'Farmer',bloodType:'O+',
+      hasBaptism:true,baptismDate:'1982-06-20',baptismChurch:'San Isidro Parish',
+      hasCommunion:true,communionDate:'1990-05-01',communionChurch:'San Isidro Parish',
+      hasConfirmation:true,confDate:'1994-03-12',confChurch:'San Isidro Parish',confName:'Joseph',confSponsor:'Pedro Santos',
+      hasMatrimony:true,matDate:'2008-12-27',matChurch:'OLG Quasi-Parish',matType:'Catholic', ministries:['Choir']});
+    const m2=this.blankMember();
+    Object.assign(m2,{firstName:'Maria',middleName:'Lopez',lastName:'Dela Cruz',relationship:'Spouse',sex:'Female',dob:'1985-09-02',placeOfBirth:'Ilog',civilStatus:'Married',contact:'0918 555 0199',occupation:'Teacher',bloodType:'A+',hasBaptism:true,hasCommunion:true,hasConfirmation:true,hasMatrimony:true,matType:'Catholic',penance:true, ministries:['Catechist']});
+    this.setState({
+      household:{householdName:'Dela Cruz Family',street:'24 Rizal St., Purok 3',barangay:'Mua-an',city:'Kidapawan City',province:'North Cotabato',zip:'9400',zone:'',contact:'0917 555 0142',email:'delacruz@email.com',gkk:'GKK San Lorenzo Ruiz',familyGrouping:'Grouping 2'},
+      members:[m,m2], volunteer:'Yes', notifyOptin:true, consent:true,
+    });
+  }
+
+  genRef(){ return 'OLG-'+new Date().getFullYear()+'-'+String(Math.floor(1000+Math.random()*9000)); }
+  top(){ try{ requestAnimationFrame(()=>window.scrollTo({top:0,behavior:'smooth'})); }catch(e){} }
+
+  showToast(msg,tone){ if(!msg) return; clearTimeout(this._t); this.setState({toast:{msg,tone:tone||'ok'}}); this._t=setTimeout(()=>this.setState({toast:null}),2800); }
+
+  updateHousehold(f,v){ this.setState(s=>({household:{...s.household,[f]:v}, err:{...s.err,[f]:''}, banner:''})); }
+  updateMember(i,f,v){ this.setState(s=>{ const members=s.members.slice(); members[i]={...members[i],[f]:v}; const memberErr=s.memberErr.slice(); if(memberErr[i]) memberErr[i]={...memberErr[i],[f]:''}; return {members,memberErr,banner:''}; }); }
+  updateTop(f,v){ this.setState({[f]:v}); }
+  toggleMemberMinistry(i,name){ this.setState(s=>{ const members=s.members.slice(); const cur=members[i].ministries||[]; const set=new Set(cur); set.has(name)?set.delete(name):set.add(name); members[i]={...members[i],ministries:[...set]}; return {members}; }); }
+
+  onFieldChange=(e)=>{
+    const t=e.target; const f=t.dataset.field; if(!f) return;
+    const mi=t.dataset.mi;
+    if(f==='ministry'){ this.toggleMemberMinistry(parseInt(mi,10),t.dataset.value); return; }
+    const val = t.type==='checkbox' ? t.checked : t.value;
+    if(mi!==undefined && mi!==''){ this.updateMember(parseInt(mi,10),f,val); }
+    else if(f==='volunteer'||f==='notifyOptin'||f==='consent'){ this.updateTop(f,val); }
+    else { this.updateHousehold(f,val); }
+  };
+
+  onAction=(e)=>{
+    const el=e.target.closest('[data-action]'); if(!el) return;
+    const a=el.dataset.action;
+    if(a==='next') this.next();
+    else if(a==='back') this.back();
+    else if(a==='addMember') this.addMember();
+    else if(a==='removeMember') this.removeMember(parseInt(el.dataset.mi,10));
+    else if(a==='edit') this.goStep(parseInt(el.dataset.step,10));
+    else if(a==='submit') this.openConfirm();
+    else if(a==='confirmSubmit') this.submit();
+    else if(a==='closeConfirm') this.setState({confirmOpen:false});
+    else if(a==='addFromConfirm'){ this.setState({confirmOpen:false,step:2}); this.top(); }
+  };
+
+  openConfirm(){
+    if(!this.state.consent){ this.showToast('Please give data privacy consent to submit','error'); this.setState({step:4}); this.top(); return; }
+    this.setState({confirmOpen:true});
+  }
+
+  start=()=>{ this.setState({screen:'wizard',step:1}); this.top(); };
+  restart=()=>{ this.setState(this.initialState()); this.top(); };
+  printPage=()=>{ try{ window.print(); }catch(e){} };
+  adminSoon=()=>{ this.showToast('Admin panel — coming in the next phase','ok'); };
+
+  validate(step){
+    const err={}; const memberErr=[]; let banner='';
+    if(step===1){
+      const h=this.state.household;
+      const req={householdName:'Household name is required',street:'Street is required',barangay:'Barangay is required',city:'City / Municipality is required',province:'Province is required',zip:'ZIP code is required'};
+      Object.keys(req).forEach(k=>{ if(!String(h[k]||'').trim()) err[k]=req[k]; });
+      if(h.email && !/.+@.+\..+/.test(h.email)) err.email='Enter a valid email';
+      const ok=Object.keys(err).length===0;
+      return {ok,err,memberErr,banner: ok?'':'Please complete the highlighted household fields.'};
+    }
+    if(step===2){
+      let ok=true;
+      this.state.members.forEach((m,i)=>{
+        const me={};
+        [['firstName','First name is required'],['lastName','Last name is required'],['relationship','Select a relationship'],['sex','Select sex'],['dob','Date of birth is required'],['civilStatus','Select civil status']].forEach(([k,msg])=>{ if(!String(m[k]||'').trim()) me[k]=msg; });
+        if(m.email && !/.+@.+\..+/.test(m.email)) me.email='Enter a valid email';
+        memberErr[i]=me; if(Object.keys(me).length) ok=false;
+      });
+      return {ok,err,memberErr,banner: ok?'':'Please complete the required member details.'};
+    }
+    if(step===4){
+      if(!this.state.consent) return {ok:false,err,memberErr,banner:'Data privacy consent is required to continue.'};
+      return {ok:true,err,memberErr,banner:''};
+    }
+    return {ok:true,err,memberErr,banner:''};
+  }
+
+  next(){
+    const v=this.validate(this.state.step);
+    if(!v.ok){ this.setState({err:v.err,memberErr:v.memberErr,banner:v.banner}); this.showToast(v.banner,'error'); this.top(); return; }
+    this.setState({err:{},memberErr:[],banner:''});
+    if(this.state.step<5){ this.setState(s=>({step:s.step+1})); this.top(); }
+  }
+  back(){ if(this.state.step===1){ this.setState({screen:'landing'}); this.top(); } else { this.setState(s=>({step:s.step-1})); this.top(); } }
+  goStep(n){ this.setState({step:n,screen:'wizard',banner:''}); this.top(); }
+  addMember(){ this.setState(s=>({members:[...s.members,this.blankMember()]})); this.showToast('Member added','ok'); }
+  removeMember(i){ this.setState(s=>({members:s.members.filter((_,idx)=>idx!==i)})); this.showToast('Member removed','ok'); }
+
+  submit(){
+    if(!this.state.consent){ this.showToast('Please give data privacy consent to submit','error'); this.setState({step:4,confirmOpen:false}); this.top(); return; }
+    this.setState({submitting:true,confirmOpen:false});
+    setTimeout(()=>{ this.setState({submitting:false,screen:'done',refNo:this.genRef()}); this.top(); }, 1050);
+  }
+
+  sacList(m){
+    const j=(arr)=>arr.filter(Boolean).join(' · ');
+    const s=[];
+    if(m.hasBaptism) s.push({label:'Baptism',detail:j([this.fmtDate(m.baptismDate),m.baptismChurch])||'Recorded'});
+    if(m.hasCommunion) s.push({label:'First Communion',detail:j([this.fmtDate(m.communionDate),m.communionChurch])||'Recorded'});
+    if(m.hasConfirmation) s.push({label:'Confirmation',detail:j([this.fmtDate(m.confDate),m.confChurch,m.confName&&('Name: '+m.confName),m.confSponsor&&('Sponsor: '+m.confSponsor)])||'Recorded'});
+    if(m.hasMatrimony) s.push({label:'Matrimony',detail:j([this.fmtDate(m.matDate),m.matChurch,m.matType])||'Recorded'});
+    if(!s.length) s.push({label:'—',detail:'No sacraments recorded'});
+    return s;
+  }
+  fmtDate(d){ if(!d) return ''; try{ return new Date(d+'T00:00').toLocaleDateString('en-US',{year:'numeric',month:'short',day:'numeric'}); }catch(e){ return d; } }
+
+  renderVals(){
+    const st=this.state;
+    const step=st.step;
+    const STEPS=['Household','Members','Sacraments','Engagement','Review'];
+
+    const stepDots=STEPS.map((label,i)=>{
+      const n=i+1; const active=n===step; const done=n<step;
+      return {
+        n, label,
+        bg: active?'#34589c':(done?'#eef3fb':'#fff'),
+        fg: active?'#fff':(done?'#34589c':'#a79f8a'),
+        bc: active?'#34589c':(done?'#c6d3ea':'#e6dcc7'),
+        fg2: (active||done)?'#1a2b4a':'#a79f8a',
+      };
+    });
+
+    const MIN_LIST=['Choir','Lector & Commentator','Catechist','Altar Servers','Ushers & Collectors','Sacristan / Money Counters','Kaabag'];
+    const ORG_LIST=['Youth Ministry','Knights of Columbus',"Catholic Women's League",'Legion of Mary','Parish Pastoral Council','Couples for Christ (CFC)'];
+
+    const memberViews=st.members.map((m,i)=>{
+      const mins=m.ministries||[];
+      const mk=(name)=>{ const checked=mins.includes(name); return {name,checked,bg:checked?'#eef3fb':'#fdfbf6',bc:checked?'#9db9e0':'#e0d6c1'}; };
+      return {
+        ...m, mi:i, num:i+1, canRemove:st.members.length>1,
+        displayName:[m.firstName,m.lastName].filter(Boolean).join(' ')||('Member '+(i+1)),
+        err: st.memberErr[i]||{},
+        ministryOptions: MIN_LIST.map(mk), orgOptions: ORG_LIST.map(mk),
+      };
+    });
+
+    const h=st.household;
+    const addr=[h.street,h.barangay,h.city,h.province,h.zip].filter(Boolean).join(', ')||'—';
+    const householdReview=[
+      {label:'Family name',value:h.householdName||'—'},
+      {label:'Address',value:addr},
+      {label:'Parish GKK',value:h.gkk||'—'},
+      {label:'Family grouping',value:h.familyGrouping||'—'},
+      {label:'Contact',value:h.contact||'—'},
+      {label:'Email',value:h.email||'—'},
+    ];
+
+    const reviewMembers=memberViews.map(m=>({
+      name:[m.firstName,m.middleName,m.lastName].filter(Boolean).join(' ')||('Member '+m.num),
+      meta:[m.relationship,m.sex,m.civilStatus,m.dob&&('b. '+this.fmtDate(m.dob)),m.bloodType&&('Blood: '+m.bloodType)].filter(Boolean).join('  ·  ')||'—',
+      sacr:this.sacList(m),
+      ministriesLabel: (m.ministries&&m.ministries.length) ? m.ministries.join(', ') : 'None selected',
+    }));
+
+    const engReview=[
+      {label:'Volunteer',value: st.volunteer||'—'},
+      {label:'Email list',value: st.notifyOptin?'Opted in':'Not opted in'},
+      {label:'Privacy consent',value: st.consent?'Granted':'Not yet granted'},
+    ];
+
+    const toneMap={ok:{bg:'#eaf4ee',fg:'#2f6b48',bc:'#bfe0cc',icon:'✓'},error:{bg:'#fbeeea',fg:'#a13d29',bc:'#f0cec3',icon:'!'}};
+    const toast = st.toast ? {...toneMap[st.toast.tone], msg:st.toast.msg} : null;
+
+    return {
+      isLanding: st.screen==='landing',
+      isWizard: st.screen==='wizard',
+      isDone: st.screen==='done',
+      submitting: st.submitting, notSubmitting: !st.submitting,
+      step, stepDots, progressPct: (step/5)*100,
+      isStep1: step===1, isStep2: step===2, isStep3: step===3, isStep4: step===4, isStep5: step===5,
+      notStep5: step!==5,
+      backLabel: step===1 ? '← Home' : '← Back',
+      household:h, err:st.err, banner:st.banner,
+      memberViews, memberCount: st.members.length,
+      volunteer:st.volunteer, notifyOptin:st.notifyOptin, consent:st.consent,
+      consentBorder: st.consent?'#9db9e0':'#e0d6c1', consentBg: st.consent?'#eef3fb':'#fdfbf6',
+      householdReview, reviewMembers, engReview,
+      refNo: st.refNo, toast,
+      confirmOpen: st.confirmOpen,
+      confirmNames: memberViews.map(m=>({name:m.displayName, rel:m.relationship||'—'})),
+      start:this.start, restart:this.restart, printPage:this.printPage, adminSoon:this.adminSoon,
+      onFieldChange:this.onFieldChange, onAction:this.onAction,
+    };
+  }
+}
+</script>
+</body>
+</html>
