@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { blankMember, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, fmtDate } from '../constants.js';
 import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
+import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 
 const STEPS = ['Household', 'Members', 'Sacraments', 'Engagement', 'Review'];
@@ -203,7 +204,7 @@ export default function RegistrationApp() {
           submitting={submitting} onOpenConfirm={openConfirm}
         />
       )}
-      {screen === 'done' && <Confirmation refNo={refNo} onRestart={restart} />}
+      {screen === 'done' && <Confirmation refNo={refNo} householdName={household.householdName} onRestart={restart} />}
 
       {confirmOpen && (
         <ConfirmModal
@@ -257,9 +258,10 @@ function Landing({ onStart }) {
   );
 }
 
-function Confirmation({ refNo, onRestart }) {
+function Confirmation({ refNo, householdName, onRestart }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
+      <ConfirmationPrintSheet refNo={refNo} householdName={householdName} />
       <div className="max-w-[520px] animate-fadeUp">
         <div className="w-[82px] h-[82px] rounded-full bg-[#eaf4ee] flex items-center justify-center mx-auto mb-[22px] text-[#3a8a5e]">
           <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>

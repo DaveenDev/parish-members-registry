@@ -6,6 +6,13 @@ import { asyncHandler, requireString, optionalString, conflict, notFound } from 
 const router = Router();
 router.use(requireAuth);
 
+const UNIQUE_VIOLATION = '23505';
+
+/** Map a duplicate-name rename to a 409 the UI can show; pass everything else through. */
+function renameError(err, itemLabel) {
+  return err.code === UNIQUE_VIOLATION ? conflict(`${itemLabel} already exists`) : err;
+}
+
 router.get(
   '/gkks',
   asyncHandler(async (req, res) => {
@@ -42,7 +49,7 @@ router.patch(
       res.json({ ok: true });
     } catch (err) {
       await client.query('ROLLBACK');
-      throw err;
+      throw renameError(err, 'A GKK with this name');
     } finally {
       client.release();
     }
@@ -114,7 +121,7 @@ function groupRoutes(table, column, path) {
         res.json({ ok: true });
       } catch (err) {
         await client.query('ROLLBACK');
-        throw err;
+        throw renameError(err, 'An item with this name');
       } finally {
         client.release();
       }

@@ -22,6 +22,13 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
     api.listOrganizations().then((res) => setOrgList(res.rows.map((r) => r.name))).catch(() => {});
   }, [memberId]);
 
+  useEffect(() => {
+    if (!memberId) return;
+    const onKey = (e) => e.key === 'Escape' && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [memberId, onClose]);
+
   if (!memberId) return null;
 
   function set(field, value) {

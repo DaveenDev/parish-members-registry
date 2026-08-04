@@ -7,9 +7,19 @@ import { ageFromDob, toCsv } from '../lib/util.js';
 const router = Router();
 router.use(requireAuth);
 
+/**
+ * HTTP header values must be Latin-1 — a filename built from user-editable
+ * text (a report title, say) can otherwise contain a character like an em
+ * dash that throws when Node tries to set the header at all.
+ */
+function asciiFilename(name) {
+  const safe = name.replace(/[^\x20-\x7e]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
+  return safe || 'download';
+}
+
 function send(res, filename, csv) {
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.setHeader('Content-Disposition', `attachment; filename="${asciiFilename(filename)}"`);
   res.send(csv);
 }
 

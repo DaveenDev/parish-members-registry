@@ -32,8 +32,9 @@ Built with **React + Tailwind CSS** on the frontend and **Express + PostgreSQL**
 
 ```
 package.json   Root scripts — runs the API server and orchestrates the client dev server
-server/        Express API + PostgreSQL schema
+server/        Express API + PostgreSQL schema, with its tests in server/test/
 client/        React + Tailwind frontend (Vite), with its own package.json
+docs/          Testing guide and browser beta-testing playbooks
 project/       Original Claude Design source files this app was built from
 ```
 
@@ -115,6 +116,9 @@ Run from the project root:
 | `npm run dev:client` | Run only the Vite dev server |
 | `npm run build` | Production build of the client |
 | `npm start` | Run the API server (production) |
+| `npm test` | Run the whole test suite |
+| `npm run test:unit` | Pure-function tests only — no database needed |
+| `npm run test:api` | HTTP + database tests only |
 
 ## Managing data
 
@@ -146,6 +150,36 @@ Notes:
 Sample records are fictional and live in
 [`server/src/db/demo-data.js`](server/src/db/demo-data.js) — edit that file to
 tailor them to your parish.
+
+## Testing
+
+Two halves, both needed before a release.
+
+**Automated** — Node's built-in test runner, no framework to install:
+
+```bash
+npm test
+```
+
+Unit tests for the validation, paging, reference-number, CSV and auth helpers
+run anywhere. The API suites drive the real Express app against a PostgreSQL
+database and skip themselves unless `TEST_DATABASE_URL` points at a database
+whose name contains `test`:
+
+```bash
+createdb parish_registry_test
+DATABASE_URL=postgres://…/parish_registry_test npm run db:setup
+TEST_DATABASE_URL=postgres://…/parish_registry_test npm test
+```
+
+Full details, layout and conventions: [`docs/testing.md`](docs/testing.md).
+
+**Manual** — scripted browser walkthroughs for beta testers, covering the public
+registration wizard, the admin panel, reports and exports, plus responsive,
+keyboard, printing and data-protection checks:
+[`docs/beta-testing/`](docs/beta-testing/README.md). Each check has an ID so bug
+reports can point at exactly what failed, and there are templates for bug
+reports and for the round's run log.
 
 ## License
 

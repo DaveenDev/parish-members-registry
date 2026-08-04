@@ -20,6 +20,48 @@ function sacramentLines(m) {
 }
 
 /**
+ * Off-screen confirmation slip for the public registration wizard, revealed by
+ * the same #print-sheet print rules. The public portal has no session, so this
+ * cannot call the settings API for the parish name/address — it uses the same
+ * literal text the on-screen confirmation shows.
+ */
+export function ConfirmationPrintSheet({ refNo, householdName }) {
+  if (!refNo) return null;
+
+  return createPortal(
+    <div id="print-sheet" aria-hidden style={{ textAlign: 'center', paddingTop: 40 }}>
+      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15, letterSpacing: '.16em', textTransform: 'uppercase', color: '#a98a3f', marginBottom: 8 }}>
+        Parish Members Registry
+      </div>
+      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 30, fontWeight: 600, color: '#1a2b4a', marginBottom: 2 }}>
+        Our Lady of Guadalupe
+      </div>
+      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 16, color: '#34589c', marginBottom: 28 }}>
+        Quasi-Parish · Mua-an
+      </div>
+
+      <div style={{ fontSize: 13, color: '#6b6552', marginBottom: 24 }}>
+        {householdName ? `${householdName} has been` : 'This household has been'} registered with the parish. Our
+        staff will review and verify the details shortly.
+      </div>
+
+      <div style={{ border: '1px solid #ddd', borderRadius: 10, padding: '20px 24px', display: 'inline-block', minWidth: 280 }}>
+        <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a98a3f', marginBottom: 6 }}>
+          Reference number
+        </div>
+        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 34, fontWeight: 600, letterSpacing: '.06em', color: '#34589c' }}>
+          {refNo}
+        </div>
+        <div style={{ fontSize: 11, color: '#8a836f', marginTop: 8 }}>Please keep this for your records.</div>
+      </div>
+
+      <div style={{ marginTop: 32, fontSize: 10, color: '#8a836f' }}>Printed {new Date().toLocaleDateString()}</div>
+    </div>,
+    document.body
+  );
+}
+
+/**
  * Off-screen household record, revealed only by the @media print rules in
  * index.css (which target #print-sheet). Rendering nothing when there is no
  * data keeps it out of the accessibility tree.
