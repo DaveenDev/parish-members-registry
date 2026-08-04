@@ -41,6 +41,7 @@ export default function Reports() {
   const [genType, setGenType] = useState('');
   const [scope, setScope] = useState({ gkk: 'All', dateFrom: '', dateTo: '', sacrament: 'Baptism', group: '' });
   const [ministryOptions, setMinistryOptions] = useState([]);
+  const [gkkOptions, setGkkOptions] = useState([]);
   const [report, setReport] = useState(null);
 
   useEffect(() => { api.reportStats().then(setStats); }, []);
@@ -48,6 +49,7 @@ export default function Reports() {
   useEffect(() => {
     Promise.all([api.listMinistries(), api.listOrganizations()]).then(([m, o]) => setMinistryOptions([...m.rows.map((x) => x.name), ...o.rows.map((x) => x.name)]));
   }, []);
+  useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((g) => g.name))); }, []);
 
   async function generate() {
     const res = await api.generateReport({ source: genSource, type: genType, ...scope });
@@ -185,7 +187,10 @@ export default function Reports() {
                       {meta.gkk && (
                         <div>
                           <div className="font-semibold text-[11px] text-parish-muted mb-1.5">GKK</div>
-                          <FilterSelect value={scope.gkk} onChange={(e) => setScope((s) => ({ ...s, gkk: e.target.value }))}><option value="All">All GKKs</option></FilterSelect>
+                          <FilterSelect value={scope.gkk} onChange={(e) => setScope((s) => ({ ...s, gkk: e.target.value }))}>
+                            <option value="All">All GKKs</option>
+                            {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+                          </FilterSelect>
                         </div>
                       )}
                       {meta.dateRange && (

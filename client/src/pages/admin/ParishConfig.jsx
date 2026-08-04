@@ -238,8 +238,16 @@ function GkkList() {
   function reload() { api.listGkks().then((r) => setRows(r.rows)); }
   useEffect(() => { reload(); }, []);
 
-  async function add() { if (!newName.trim()) return; await api.addGkk(newName.trim()); setNewName(''); reload(); }
-  async function save() { if (!editValue.trim()) return; await api.renameGkk(editing, editValue.trim()); setEditing(null); reload(); }
+  async function add() {
+    if (!newName.trim()) return;
+    setError('');
+    try { await api.addGkk(newName.trim()); setNewName(''); reload(); } catch (e) { setError(e.message || 'Could not add this GKK'); }
+  }
+  async function save() {
+    if (!editValue.trim()) return;
+    setError('');
+    try { await api.renameGkk(editing, editValue.trim()); setEditing(null); reload(); } catch (e) { setError(e.message || 'Could not rename this GKK'); }
+  }
   async function remove(name) {
     setError('');
     try { await api.deleteGkk(name); reload(); } catch (e) { setError(e.message || 'Could not delete this GKK'); }

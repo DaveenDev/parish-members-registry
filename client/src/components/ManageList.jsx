@@ -14,15 +14,25 @@ export default function ManageList({ title, subtitle, itemNoun, listFn, addFn, r
 
   async function add() {
     if (!newName.trim()) return;
-    await addFn(newName.trim());
-    setNewName('');
-    reload();
+    setError('');
+    try {
+      await addFn(newName.trim());
+      setNewName('');
+      reload();
+    } catch (e) {
+      setError(e.message || `Could not add this ${itemNoun}`);
+    }
   }
   async function save() {
     if (!editValue.trim()) return;
-    await renameFn(editing, editValue.trim());
-    setEditing(null);
-    reload();
+    setError('');
+    try {
+      await renameFn(editing, editValue.trim());
+      setEditing(null);
+      reload();
+    } catch (e) {
+      setError(e.message || `Could not rename this ${itemNoun}`);
+    }
   }
   async function remove(name) {
     setError('');

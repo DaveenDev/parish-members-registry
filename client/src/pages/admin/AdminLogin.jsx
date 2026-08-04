@@ -7,8 +7,8 @@ import CreditFooter from '../../components/CreditFooter.jsx';
 export default function AdminLogin() {
   const { user, ready, login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('admin@parishregistry.org');
-  const [password, setPassword] = useState('ParishAdmin123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -79,9 +79,6 @@ export default function AdminLogin() {
             <PrimaryButton type="submit" disabled={loading} className="w-full py-3.5 text-[16px]">
               {loading ? 'Signing in…' : 'Sign in'}
             </PrimaryButton>
-            <div className="mt-4 px-3.5 py-2.5 bg-[#f4f0e4] rounded-lg text-[12.5px] text-parish-muted text-center">
-              Demo — credentials are pre-filled. Just click Sign in.
-            </div>
           </form>
         </div>
       </div>

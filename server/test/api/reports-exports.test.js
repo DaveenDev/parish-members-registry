@@ -361,5 +361,19 @@ describe('reports and exports API', { skip: dbConfigured ? false : skipReason },
       assert.equal(res.status, 400);
       assert.equal(res.body.error, 'Nothing to export');
     });
+
+    test('generated.csv strips characters an HTTP header cannot carry, e.g. the em dash in a report title', async () => {
+      // HTTP header values are Latin-1 only; every built-in report title contains
+      // an em dash ("Members — By GKK"), so this is not a hypothetical input.
+      const res = await server.request('/api/exports/generated.csv', {
+        method: 'POST',
+        token,
+        body: { title: 'Members — By GKK', columns: ['Name'], rows: [{ cells: ['Ana Aquino'] }] },
+      });
+
+      assert.equal(res.status, 200);
+      assert.equal(res.headers.get('content-disposition'), 'attachment; filename="members-by-gkk.csv"');
+      assert.equal(res.body.trim(), 'Name\nAna Aquino');
+    });
   });
 });
