@@ -3,7 +3,9 @@ import { api } from '../../api.js';
 import { PageHeader, PageBody } from '../../components/admin.jsx';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
+import EmailSettingsCard from '../../components/EmailSettingsCard.jsx';
 import { useToast } from '../../ToastContext.jsx';
+import { useAuth } from '../../AuthContext.jsx';
 
 const MAX_LOGO_BYTES = 500 * 1024;
 
@@ -92,6 +94,7 @@ function LogoCard({ settings, onSaved }) {
 
 function ChangePasswordCard() {
   const toast = useToast();
+  const { changePassword } = useAuth();
   const [form, setForm] = useState({ current: '', next: '', confirm: '' });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -105,7 +108,7 @@ function ChangePasswordCard() {
 
     setSaving(true);
     try {
-      await api.changePassword(form.current, form.next);
+      await changePassword(form.current, form.next);
       setForm({ current: '', next: '', confirm: '' });
       toast.success('Password changed');
     } catch (err) {
@@ -178,6 +181,8 @@ function ProfileTab() {
       <LogoCard settings={settings} onSaved={setSettings} />
 
       <ChangePasswordCard />
+
+      <EmailSettingsCard />
 
       <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>

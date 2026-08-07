@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 import { Field, TextInput, Checkbox, PrimaryButton } from '../../components/ui.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
@@ -12,7 +12,6 @@ export default function AdminLogin() {
   const [remember, setRemember] = useState(true);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
 
   if (ready && user) return <Navigate to="/admin" replace />;
 
@@ -60,21 +59,10 @@ export default function AdminLogin() {
                 <Checkbox checked={remember} onChange={(e) => setRemember(e.target.checked)} className="w-4 h-4" />
                 Remember me
               </label>
-              <button
-                type="button"
-                onClick={() => setShowHelp((s) => !s)}
-                aria-expanded={showHelp}
-                className="appearance-none border-none bg-none cursor-pointer text-[13.5px] font-semibold text-parish-blue p-0"
-              >
+              <Link to="/admin/forgot-password" className="text-[13.5px] font-semibold text-parish-blue no-underline">
                 Forgot password?
-              </button>
+              </Link>
             </div>
-            {showHelp && (
-              <div className="mb-4 px-3.5 py-3 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl text-[13px] text-[#2b466f] leading-relaxed">
-                There's no automated reset yet. Ask another parish staff member with access to sign in and set a new
-                password for you from <strong>Parish Config → Change password</strong>, or contact your system administrator.
-              </div>
-            )}
             {error && <div className="mb-4 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
             <PrimaryButton type="submit" disabled={loading} className="w-full py-3.5 text-[16px]">
               {loading ? 'Signing in…' : 'Sign in'}

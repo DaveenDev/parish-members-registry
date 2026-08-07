@@ -11,6 +11,10 @@ let signToken;
 let requireAuth;
 
 before(async () => {
+  // requireAuth checks admin_users.password_changed_at; stub that lookup so
+  // these stay pure unit tests. Freshness itself is covered separately.
+  const freshness = await import('../../src/middleware/session-freshness.js');
+  freshness.setFreshnessLookup(async () => 0);
   ({ signToken, requireAuth } = await import('../../src/middleware/auth.js'));
 });
 
@@ -30,11 +34,11 @@ function fakeRes() {
   };
 }
 
-function run(authorization) {
+async function run(authorization) {
   const req = { headers: authorization === undefined ? {} : { authorization } };
   const res = fakeRes();
   let nextCalled = false;
-  requireAuth(req, res, () => {
+  await requireAuth(req, res, () => {
     nextCalled = true;
   });
   return { req, res, nextCalled };
@@ -64,8 +68,8 @@ describe('signToken', () => {
 });
 
 describe('requireAuth', () => {
-  test('accepts a valid Bearer token and puts the claims on req.user', () => {
-    const { req, res, nextCalled } = run(`Bearer ${signToken(user)}`);
+  test('accepts a valid Bearer token and puts the claims on req.user', async () => {
+    const { req, res, nextCalled } = await run(`Bearer ${signToken(user)}`);
 
     assert.equal(nextCalled, true);
     assert.equal(res.statusCode, null);
@@ -73,63 +77,63 @@ describe('requireAuth', () => {
     assert.equal(req.user.role, 'Parish Secretary');
   });
 
-  test('rejects a missing Authorization header', () => {
-    const { res, nextCalled } = run(undefined);
+  test('rejects a missing Authorization header', async () => {
+    const { res, nextCalled } = await run(undefined);
 
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 401);
     assert.deepEqual(res.payload, { error: 'Not authenticated' });
   });
 
-  test('rejects a header without the Bearer prefix', () => {
+  test('rejects a header without the Bearer prefix', async () => {
     for (const header of ['', signToken(user), `Basic ${signToken(user)}`, 'bearer lowercase']) {
-      const { res, nextCalled } = run(header);
+      const { res, nextCalled } = await run(header);
       assert.equal(nextCalled, false, `accepted ${JSON.stringify(header)}`);
       assert.equal(res.statusCode, 401);
       assert.deepEqual(res.payload, { error: 'Not authenticated' });
     }
   });
 
-  test('rejects a token signed with a different secret', () => {
+  test('rejects a token signed with a different secret', async () => {
     const forged = jwt.sign({ id: 1, role: 'Parish Secretary' }, 'not-the-secret');
-    const { res, nextCalled } = run(`Bearer ${forged}`);
+    const { res, nextCalled } = await run(`Bearer ${forged}`);
 
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 401);
     assert.deepEqual(res.payload, { error: 'Invalid or expired session' });
   });
 
-  test('rejects an expired token', () => {
+  test('rejects an expired token', async () => {
     const expired = jwt.sign({ id: 1 }, SECRET, { expiresIn: '-1s' });
-    const { res, nextCalled } = run(`Bearer ${expired}`);
+    const { res, nextCalled } = await run(`Bearer ${expired}`);
 
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 401);
     assert.deepEqual(res.payload, { error: 'Invalid or expired session' });
   });
 
-  test('rejects a token with a tampered payload', () => {
+  test('rejects a token with a tampered payload', async () => {
     const token = signToken(user);
     const [header, , signature] = token.split('.');
     const tampered = Buffer.from(JSON.stringify({ ...user, role: 'Superuser' })).toString('base64url');
-    const { res, nextCalled } = run(`Bearer ${header}.${tampered}.${signature}`);
+    const { res, nextCalled } = await run(`Bearer ${header}.${tampered}.${signature}`);
 
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 401);
   });
 
-  test('rejects an unsigned "alg: none" token', () => {
+  test('rejects an unsigned "alg: none" token', async () => {
     const none = `${Buffer.from(JSON.stringify({ alg: 'none', typ: 'JWT' })).toString('base64url')}.${Buffer.from(
       JSON.stringify({ id: 1, role: 'Parish Secretary' })
     ).toString('base64url')}.`;
-    const { res, nextCalled } = run(`Bearer ${none}`);
+    const { res, nextCalled } = await run(`Bearer ${none}`);
 
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 401);
   });
 
-  test('rejects junk that is not a JWT at all', () => {
-    const { res, nextCalled } = run('Bearer not.a.token');
+  test('rejects junk that is not a JWT at all', async () => {
+    const { res, nextCalled } = await run('Bearer not.a.token');
 
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 401);

@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "description": "Parish Members Online Registry — public registration wizard + admin panel",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "concurrently -n SERVER,CLIENT -c blue,green \"npm:dev:server\" \"npm:dev:client\"",
     "dev:server": "node --watch server/src/server.js",

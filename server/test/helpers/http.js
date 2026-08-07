@@ -72,11 +72,33 @@ export async function request(base, path, { method = 'GET', body, token, headers
   return { status: res.status, headers: res.headers, body: parsed };
 }
 
-/** A signed token for an imaginary staff account — routes only read the claims. */
+/**
+ * A signed token for a staff account.
+ *
+ * requireAuth checks the token against admin_users.password_changed_at, so the
+ * account has to exist — a token for an imaginary id is now rejected, which is
+ * the point of that check. Callers that pass an explicit `id` are arranging
+ * their own account and are taken at their word.
+ */
 export async function staffToken(overrides = {}) {
   const { signToken } = await import('../../src/middleware/auth.js');
+
+  let id = overrides.id;
+  if (id === undefined) {
+    const bcrypt = (await import('bcryptjs')).default;
+    const { pool } = await import('../../src/db/pool.js');
+    const { rows } = await pool.query(
+      `INSERT INTO admin_users (email, password_hash, name, role)
+       VALUES ($1, $2, 'Test Secretary', 'Parish Secretary')
+       ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name
+       RETURNING id`,
+      ['tester@parishregistry.test', await bcrypt.hash('unused-in-tests', 4)]
+    );
+    id = rows[0].id;
+  }
+
   return signToken({
-    id: 1,
+    id,
     email: 'tester@parishregistry.test',
     name: 'Test Secretary',
     role: 'Parish Secretary',
