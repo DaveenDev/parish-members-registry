@@ -40,7 +40,22 @@ app.use(
 
 app.use(express.json({ limit: '1mb' }));
 
+// Liveness. Deliberately registered before the rate limiter so an uptime
+// pinger can never exhaust the budget for real callers.
 app.get('/api/health', (req, res) => res.json({ ok: true }));
+
+// Readiness. Touches the database, which doubles as the keep-alive a free-tier
+// Postgres needs to avoid being paused for inactivity.
+app.get('/api/health/db', async (req, res) => {
+  try {
+    const { pool } = await import('./db/pool.js');
+    await pool.query('SELECT 1');
+    res.json({ ok: true, db: 'up' });
+  } catch (err) {
+    console.error('Health check failed to reach the database:', err.message);
+    res.status(503).json({ ok: false, db: 'down' });
+  }
+});
 
 app.use('/api', apiLimiter);
 

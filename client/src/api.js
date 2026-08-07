@@ -1,4 +1,10 @@
-const BASE = '/api';
+// Same-origin by default: the Vite dev server proxies /api, and a single-host
+// deployment serves both from the same origin. When the API lives elsewhere
+// (Render) and the client on Vercel, set VITE_API_BASE at build time, e.g.
+// VITE_API_BASE=https://parish-registry-api.onrender.com
+// `|| {}` because the unit tests import this module under plain Node, where
+// import.meta.env does not exist. Vite substitutes the whole object at build.
+const BASE = ((import.meta.env || {}).VITE_API_BASE || '').replace(/\/+$/, '') + '/api';
 
 function authHeaders() {
   const token = localStorage.getItem('pmr_token');

@@ -34,7 +34,7 @@ Built with **React + Tailwind CSS** on the frontend and **Express + PostgreSQL**
 package.json   Root scripts — runs the API server and orchestrates the client dev server
 server/        Express API + PostgreSQL schema, with its tests in server/test/
 client/        React + Tailwind frontend (Vite), with its own package.json
-docs/          Testing guide and browser beta-testing playbooks
+docs/          Deployment guide, testing guide, browser beta-testing playbooks
 project/       Original Claude Design source files this app was built from
 ```
 
@@ -150,6 +150,17 @@ Notes:
 Sample records are fictional and live in
 [`server/src/db/demo-data.js`](server/src/db/demo-data.js) — edit that file to
 tailor them to your parish.
+
+## Deploying
+
+To put this online on free plans — Supabase for PostgreSQL, Render for the API,
+Vercel for the client — follow [`docs/deployment.md`](docs/deployment.md). It
+covers the environment variables each host needs, the Supabase connection
+string that actually works from Render, and the free-tier limits (cold starts,
+project pausing, no backups) worth knowing before a parish depends on it.
+
+`render.yaml` and `vercel.json` in the repo root pre-configure the API service
+and the client build.
 
 ## Testing
 

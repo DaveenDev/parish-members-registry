@@ -36,6 +36,16 @@ export async function seedReferenceData(db) {
 export async function seedAdminUser(db) {
   const email = process.env.SEED_ADMIN_EMAIL || 'admin@parishregistry.org';
   const password = process.env.SEED_ADMIN_PASSWORD || 'ParishAdmin123!';
+
+  // The stock credentials are published in this repo's README. Seeding them
+  // into a live register would hand the parish's data to anyone who looked.
+  if (process.env.NODE_ENV === 'production' && !process.env.SEED_ADMIN_PASSWORD) {
+    throw new Error(
+      'SEED_ADMIN_PASSWORD must be set explicitly when seeding a production database — ' +
+        'the default password is public.'
+    );
+  }
+
   const hash = await bcrypt.hash(password, 10);
 
   const result = await db.query(
