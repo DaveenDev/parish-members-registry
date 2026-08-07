@@ -15,6 +15,19 @@ export const loginLimiter = rateLimit({
   handler: json,
 });
 
+/**
+ * Password reset request and completion. Unauthenticated and it sends email,
+ * so an unbounded endpoint is both an email-quota drain (300/day on the free
+ * provider tier) and a way to harass a staff member's inbox.
+ */
+export const passwordResetLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 5,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  handler: json,
+});
+
 /** Public registration submissions — stops automated spam of the open endpoint. */
 export const registrationLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,

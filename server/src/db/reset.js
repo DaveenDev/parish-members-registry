@@ -36,8 +36,11 @@ async function main() {
     await client.query('TRUNCATE households RESTART IDENTITY CASCADE');
 
     if (wipeEverything) {
+      // password_reset_tokens goes with admin_users via ON DELETE CASCADE.
       await client.query('TRUNCATE admin_users, gkks, ministries, organizations RESTART IDENTITY CASCADE');
       await client.query('DELETE FROM parish_settings');
+      // --all means "as if freshly installed", so the sending credential goes too.
+      await client.query('DELETE FROM email_settings');
       await seedReferenceData(client);
     }
 

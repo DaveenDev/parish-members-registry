@@ -29,3 +29,6 @@ services:
       # e.g. https://parish-members-registry.vercel.app
       - key: CORS_ORIGIN
         sync: false
+      # Where password reset links point — the Vercel URL, no trailing slash.
+      - key: PUBLIC_APP_URL
+        sync: false

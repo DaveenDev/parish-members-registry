@@ -18,6 +18,8 @@ export async function seedReferenceData(db) {
      ON CONFLICT (id) DO NOTHING`
   );
 
+  await db.query('INSERT INTO email_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING');
+
   for (const name of DEFAULT_GKKS) {
     await db.query('INSERT INTO gkks (name) VALUES ($1) ON CONFLICT (name) DO NOTHING', [name]);
   }

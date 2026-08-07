@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { isSessionCurrent } from './session-freshness.js';
 
 const DEV_SECRET = 'dev-secret-change-me';
 
@@ -27,14 +28,36 @@ export function signToken(user) {
   });
 }
 
-export function requireAuth(req, res, next) {
-  const header = req.headers.authorization || '';
+/** Verify the signature only. Split out so it can be tested without a database. */
+export function verifyToken(authorizationHeader) {
+  const header = authorizationHeader || '';
   const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ error: 'Not authenticated' });
+  if (!token) return { error: 'Not authenticated' };
   try {
-    req.user = jwt.verify(token, SECRET);
-    next();
+    return { claims: jwt.verify(token, SECRET) };
   } catch {
-    return res.status(401).json({ error: 'Invalid or expired session' });
+    return { error: 'Invalid or expired session' };
   }
+}
+
+export async function requireAuth(req, res, next) {
+  const { claims, error } = verifyToken(req.headers.authorization);
+  if (error) return res.status(401).json({ error });
+
+  // A valid signature is not enough: the password may have changed since this
+  // token was issued, which has to end the session. See session-freshness.js.
+  let current;
+  try {
+    current = await isSessionCurrent(claims.id, claims.iat);
+  } catch (err) {
+    console.error('Could not verify session freshness:', err.message);
+    return res.status(503).json({ error: 'Cannot verify your session right now — please try again' });
+  }
+
+  if (!current) {
+    return res.status(401).json({ error: 'Your session ended because the password was changed' });
+  }
+
+  req.user = claims;
+  next();
 }

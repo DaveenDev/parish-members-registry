@@ -11,7 +11,8 @@ Built with **React + Tailwind CSS** on the frontend and **Express + PostgreSQL**
 - Client-side validation, review-before-submit, printable confirmation with a reference number
 
 **Admin panel**
-- Staff sign-in (JWT-based auth)
+- Staff sign-in (JWT-based auth), with forgotten-password recovery by email
+- Parish-configurable email sending, so reset links come from the parish's own address
 - Dashboard with registration trends, age distribution, GKK and ministry breakdowns, sacrament stats
 - Households: search, filter, expand members, verify/unverify, add new households on a family's behalf, print
 - Members: sortable/filterable directory with a full editable detail view (personal info, sacraments, ministries, organizations)
@@ -19,7 +20,7 @@ Built with **React + Tailwind CSS** on the frontend and **Express + PostgreSQL**
 - Ministry & organization directories with per-group rosters
 - Reports: registration status by GKK, sacramental completion, ministry/org participation, blood type directory, and an ad-hoc report builder
 - CSV exports for members, households, and blood type directory
-- Parish configuration: profile details, GKK list, ministries, and organizations management
+- Parish configuration: profile details, email sending, GKK list, ministries, and organizations management
 
 ## Tech stack
 
@@ -161,6 +162,11 @@ project pausing, no backups) worth knowing before a parish depends on it.
 
 `render.yaml` and `vercel.json` in the repo root pre-configure the API service
 and the client build.
+
+Password reset emails need a sending service configured under **Parish Config →
+Email sending** — the deployment guide walks through it. Free hosting blocks
+outbound SMTP, so a Gmail app password will not work; the parish's Gmail address
+is used as a verified sender instead.
 
 ## Testing
 

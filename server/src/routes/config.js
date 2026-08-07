@@ -1,7 +1,9 @@
 import { Router } from 'express';
 import { pool } from '../db/pool.js';
 import { requireAuth } from '../middleware/auth.js';
-import { asyncHandler, requireString, optionalString, conflict, notFound } from '../lib/http.js';
+import { asyncHandler, requireString, optionalString, conflict, notFound, badRequest } from '../lib/http.js';
+import { encrypt } from '../lib/crypto.js';
+import { loadEmailSettings, publicEmailSettings, describeEmailGap, sendEmail, PROVIDER_NAMES } from '../lib/email.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -177,6 +179,89 @@ router.patch(
       params
     );
     res.json({ settings: rows[0] });
+  })
+);
+
+/* ------------------------------- Email ---------------------------------- */
+
+/** Never returns the API key — only whether one is stored. */
+router.get(
+  '/email',
+  asyncHandler(async (req, res) => {
+    const settings = await loadEmailSettings();
+    res.json({
+      settings: publicEmailSettings(settings),
+      providers: PROVIDER_NAMES,
+      problem: describeEmailGap(settings),
+    });
+  })
+);
+
+router.patch(
+  '/email',
+  asyncHandler(async (req, res) => {
+    const body = req.body || {};
+    await pool.query('INSERT INTO email_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING');
+
+    const sets = [];
+    const params = [];
+    const set = (column, value) => {
+      params.push(value);
+      sets.push(`${column} = $${params.length}`);
+    };
+
+    if ('provider' in body) {
+      const provider = requireString(body.provider, 'Provider');
+      if (!PROVIDER_NAMES.includes(provider)) throw badRequest(`Unknown email provider "${provider}"`);
+      set('provider', provider);
+    }
+    if ('senderEmail' in body) set('sender_email', optionalString(body.senderEmail) ?? '');
+    if ('senderName' in body) set('sender_name', optionalString(body.senderName) ?? '');
+    if ('replyTo' in body) set('reply_to', optionalString(body.replyTo) ?? '');
+    if ('enabled' in body) set('enabled', Boolean(body.enabled));
+
+    // An absent apiKey leaves the stored one alone — the UI cannot echo it back
+    // to us, so "unchanged" has to be expressible. An explicit empty string clears it.
+    if ('apiKey' in body) {
+      const raw = optionalString(body.apiKey);
+      set('api_key_enc', raw === null ? null : encrypt(raw));
+    }
+
+    if (sets.length) {
+      set('updated_at', new Date());
+      await pool.query(`UPDATE email_settings SET ${sets.join(', ')} WHERE id = 1`, params);
+    }
+
+    const settings = await loadEmailSettings();
+    res.json({ settings: publicEmailSettings(settings), problem: describeEmailGap(settings) });
+  })
+);
+
+/**
+ * Send a real message to the signed-in staff member. Configuration that is
+ * only checked when someone is locked out is configuration nobody can trust.
+ */
+router.post(
+  '/email/test',
+  asyncHandler(async (req, res) => {
+    const to = optionalString(req.body?.to) || req.user.email;
+    const parish = await pool.query('SELECT name FROM parish_settings WHERE id = 1');
+    const parishName = parish.rows[0]?.name || 'the parish registry';
+
+    try {
+      await sendEmail({
+        to,
+        subject: `Test email from ${parishName}`,
+        text: `This is a test message from the ${parishName} admin panel.\n\nIf you are reading it, password reset emails will reach staff accounts.`,
+        html: `<p>This is a test message from the <strong>${parishName}</strong> admin panel.</p><p>If you are reading it, password reset emails will reach staff accounts.</p>`,
+      });
+    } catch (err) {
+      // Unlike the reset flow, the caller is authenticated staff who need the
+      // provider's actual complaint in order to fix the settings.
+      return res.status(err.status || 502).json({ error: err.message });
+    }
+
+    res.json({ ok: true, sentTo: to });
   })
 );
 

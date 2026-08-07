@@ -39,6 +39,13 @@ export const api = {
   me: () => request('/auth/me', { auth: true }),
   changePassword: (currentPassword, newPassword) =>
     request('/auth/change-password', { method: 'POST', body: { currentPassword, newPassword }, auth: true }),
+  forgotPassword: (email) => request('/auth/forgot-password', { method: 'POST', body: { email } }),
+  resetPassword: (token, newPassword) =>
+    request('/auth/reset-password', { method: 'POST', body: { token, newPassword } }),
+
+  getEmailSettings: () => request('/config/email', { auth: true }),
+  updateEmailSettings: (patch) => request('/config/email', { method: 'PATCH', body: patch, auth: true }),
+  sendTestEmail: (to) => request('/config/email/test', { method: 'POST', body: { to }, auth: true }),
 
   submitRegistration: (payload) => request('/registrations', { method: 'POST', body: payload }),
 

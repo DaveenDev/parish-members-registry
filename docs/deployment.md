@@ -102,6 +102,7 @@ the service. It will prompt for the three secret values.
 | `DATABASE_URL` | the Supabase **session pooler** URI from step 1 |
 | `JWT_SECRET` | a long random string — see below |
 | `CORS_ORIGIN` | your Vercel URL, e.g. `https://your-parish.vercel.app` |
+| `PUBLIC_APP_URL` | the same Vercel URL — password reset links are built from it |
 
 Generate the secret:
 
@@ -165,16 +166,59 @@ survives casual testing and then breaks every bookmark and shared link.
 
 ---
 
-## 4. Post-deploy checklist
+## 4. Email — Brevo
+
+Password reset links are the only email this app sends, and without them a
+locked-out secretary needs you and a database connection string.
+
+**Why not Gmail's SMTP directly?** Render's free web services block outbound
+traffic to ports 25, 465 and 587, so `smtp.gmail.com` simply times out there.
+The Gmail API over HTTPS avoids the block but needs a Google Cloud project, and
+its refresh tokens expire every 7 days until Google verifies the app — a
+feature used twice a year would be broken almost every time it was needed.
+
+Sending through an HTTPS API sidesteps both problems, and the parish's own
+Gmail address is still what recipients see in the From line.
+
+1. Sign up at [brevo.com](https://www.brevo.com) — the free tier sends 300
+   emails a day, far beyond what password resets need.
+2. **Senders, Domains & Dedicated IPs → Senders → Add a sender.** Enter the
+   parish's Gmail address. Brevo emails it a confirmation link; click it. This
+   is single-sender verification — it does **not** require owning a domain.
+3. **SMTP & API → API Keys → Generate a new API key.** Copy it now; it is shown
+   once. (The key is for the HTTP API — you are not using Brevo's SMTP either.)
+4. In the admin panel: **Parish Config → Email sending.** Choose Brevo, paste
+   the API key, set the sender address to the address you just verified, tick
+   **Send password reset emails**, and save.
+5. Press **Send test email**. It goes to the address you are signed in as. If
+   it arrives, the reset flow works.
+
+The API key is encrypted (AES-256-GCM) before it is stored, and the server
+never sends it back to the browser — the settings page only learns whether one
+is set. The encryption key is derived from `CREDENTIALS_SECRET`, falling back
+to `JWT_SECRET`. **Rotating `JWT_SECRET` therefore makes a stored key
+unreadable**, and the settings page will tell you to re-enter it. Set
+`CREDENTIALS_SECRET` separately if you would rather the two not be linked.
+
+`PUBLIC_APP_URL` must be right or the emailed links point nowhere. The API
+refuses to guess it in production rather than trusting the request's `Origin`
+header, which anyone can forge.
+
+If you later buy a domain, Resend is the nicer service and is also supported —
+it needs the domain verified, which is why it is not the default.
+
+## 5. Post-deploy checklist
 
 - [ ] `GET /api/health` and `/api/health/db` both return `ok`
 - [ ] The registration wizard submits and shows a reference number
 - [ ] `/admin/login` loads **when typed directly into the address bar**
 - [ ] Sign in with the admin account you seeded, and the dashboard renders
-- [ ] Change the admin password from inside the app, if the panel supports it;
-      otherwise re-run `db:setup` semantics are not enough — the seeder never
-      overwrites an existing password, so create the account with the password
-      you want to keep
+- [ ] **Parish Config → Email sending** is configured and the test email arrives
+- [ ] "Forgot password?" on the sign-in page sends a link that actually works —
+      test this before you need it
+- [ ] Change the admin password from **Parish Config → Change password**. Note
+      the seeder never overwrites an existing password, so the account has to be
+      created with the password you intend to keep
 - [ ] A CSV export downloads
 - [ ] `CORS_ORIGIN` is set on Render to exactly your Vercel origin
 - [ ] Open the site from a phone — the wizard is the part parishioners use
@@ -228,9 +272,10 @@ Ranked by how much a live parish would actually miss them.
    A domain is ~£10/year and attaches free on Vercel (Settings → Domains).
    Point the API at a subdomain (`api.yourparish.org`) too, so a host change
    later does not mean rebuilding the client.
-3. **Password reset for staff.** There is no reset flow. If the secretary
-   forgets the password, someone re-runs a script against production. Worth
-   building before handing the app over.
+3. **A second staff account.** Password reset now works, but recovery still
+   depends on one person's inbox. Two accounts means a locked-out secretary has
+   someone in the office to turn to, rather than waiting on email. There is no
+   staff-management UI yet — accounts are created by the seed script.
 4. **Error visibility.** Errors go to `console.error` and into Render's log
    tail, which the free plan keeps briefly. Sentry's free tier takes ten minutes
    to wire in and tells you about breakage before a parishioner does.
@@ -264,3 +309,7 @@ Ranked by how much a live parish would actually miss them.
 | Login works, next request is 401 | `JWT_SECRET` changed between deploys, invalidating issued tokens. Expected after a rotation; sign in again. |
 | 404 on `/admin/login` typed directly | `vercel.json` rewrite missing or overridden by a dashboard setting. |
 | Server exits at boot with a `JWT_SECRET` error | Working as intended — set a real secret. |
+| Reset email never arrives | Sender address not verified with Brevo, or the parish Gmail filed it as spam. Check Brevo's Logs tab — it records rejections. |
+| Reset link 404s or points at localhost | `PUBLIC_APP_URL` unset or wrong on Render. |
+| Settings page says the API key could not be read | `JWT_SECRET` was rotated and `CREDENTIALS_SECRET` is not set. Re-enter the key. |
+| Everyone signed out at once | Expected after a password change — sessions issued before it are refused. |

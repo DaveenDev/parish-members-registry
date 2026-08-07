@@ -168,7 +168,10 @@ describe('auth API', { skip: dbConfigured ? false : skipReason }, () => {
         token: await token(),
       });
       assert.equal(changed.status, 200);
-      assert.deepEqual(changed.body, { ok: true });
+      assert.equal(changed.body.ok, true);
+      // A replacement token comes back because the change invalidates the one
+      // the caller sent — see the session-invalidation tests below.
+      assert.ok(changed.body.token, 'no replacement token was issued');
 
       const withNew = await server.request('/api/auth/login', {
         method: 'POST',

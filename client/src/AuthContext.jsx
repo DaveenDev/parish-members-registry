@@ -19,12 +19,23 @@ export function AuthProvider({ children }) {
     setUser(user);
   }
 
+  /**
+   * Changing a password invalidates every token issued before it, including the
+   * one this tab is holding. The server returns a replacement — store it, or
+   * the next request 401s and the user is bounced to the sign-in page.
+   */
+  async function changePassword(currentPassword, newPassword) {
+    const res = await api.changePassword(currentPassword, newPassword);
+    if (res?.token) localStorage.setItem('pmr_token', res.token);
+    return res;
+  }
+
   function logout() {
     localStorage.removeItem('pmr_token');
     setUser(null);
   }
 
-  return <AuthContext.Provider value={{ user, ready, login, logout }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, ready, login, logout, changePassword }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
