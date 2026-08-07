@@ -35,28 +35,44 @@ the API's URL baked in, so **changing the API URL means rebuilding the client**.
 
 1. Create a project at [supabase.com](https://supabase.com). Pick a region near
    your parish. Save the database password it shows you — it appears once.
-2. **Project Settings → Database → Connection string → URI.** You will see
-   several options. Take the **Session pooler** one:
+2. Click **Connect** in the top bar of the project dashboard. This is where the
+   connection strings live — there is no longer a Database page under Project
+   Settings, so if you are hunting through that menu you will not find it.
+
+   The dialog offers several connection types. Take **Session pooler**:
 
    ```
-   postgresql://postgres.abcdefgh:YOUR-PASSWORD@aws-0-<region>.pooler.supabase.com:5432/postgres
+   postgresql://postgres.<project-ref>:YOUR-PASSWORD@aws-<n>-<region>.pooler.supabase.com:5432/postgres
    ```
 
-   > **Do not use the "Direct connection" string.** Supabase's direct host is
-   > IPv6-only, and Render's free tier has no IPv6 egress — the API will fail
-   > with `ENETUNREACH` and you will lose an hour to it. The pooler host is
-   > IPv4. The Transaction pooler (port 6543) also works with this app, but
-   > Session mode is the safer default.
+   How to recognise the right one: the host ends in `pooler.supabase.com`, the
+   port is `5432`, and the username is `postgres.<project-ref>` rather than
+   plain `postgres`. The `aws-0`/`aws-1` prefix varies by project age — copy
+   whatever the dialog gives you.
+
+   > **Do not use the "Direct connection" string** — the one on
+   > `db.<project-ref>.supabase.co`. That host is IPv6-only, and Render's free
+   > tier has no IPv6 egress, so the API fails with `ENETUNREACH`. The pooler
+   > host is reachable over IPv4.
+   >
+   > **Transaction pooler** (port `6543`) also works with this app and is a
+   > reasonable alternative — nothing here uses prepared statements or
+   > session-scoped state. Session mode is simply the closer match to a normal
+   > Postgres connection, so it is the safer default.
 
 3. Replace `YOUR-PASSWORD` in the URI with your actual password, URL-encoding
    any special characters (`@` → `%40`, `#` → `%23`, and so on).
+
+   If you did not save the password when the project was created, reset it from
+   **Project Settings → General → Database password**. Resetting it invalidates
+   the old one, so update `DATABASE_URL` on Render at the same time.
 
 ### Create the schema
 
 Run the setup script from your own machine, pointed at Supabase:
 
 ```bash
-DATABASE_URL='postgresql://postgres.abc:pw@aws-0-eu-west-2.pooler.supabase.com:5432/postgres' \
+DATABASE_URL='postgresql://postgres.abcdefgh:pw@aws-1-eu-west-2.pooler.supabase.com:5432/postgres' \
 NODE_ENV=production \
 SEED_ADMIN_EMAIL='secretary@yourparish.org' \
 SEED_ADMIN_PASSWORD='<a strong password you choose>' \
@@ -302,7 +318,8 @@ Ranked by how much a live parish would actually miss them.
 | Symptom | Cause |
 |---|---|
 | First page load takes ~50s | Render free instance was asleep. Expected. |
-| `ENETUNREACH` in Render logs | Using Supabase's direct (IPv6) connection string — switch to the pooler. |
+| `ENETUNREACH` in Render logs | Using Supabase's direct (IPv6) connection string — switch to the pooler (host ends `pooler.supabase.com`). |
+| Cannot find the connection string in Supabase | It is behind the **Connect** button in the dashboard's top bar, not in Project Settings. |
 | `self-signed certificate` from Postgres | `PGSSLMODE=disable` set by mistake, or a provider needing a CA bundle. |
 | API up, `/api/health/db` returns 503 | Wrong `DATABASE_URL`, unescaped password character, or the Supabase project is paused. |
 | Browser console: blocked by CORS | `CORS_ORIGIN` on Render does not exactly match the Vercel origin — scheme and host must match, no trailing slash. |
