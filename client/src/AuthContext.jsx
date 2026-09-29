@@ -1,26 +1,39 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { api } from './api.js';
+import { supabase } from './lib/supabaseClient.js';
 
 const AuthContext = createContext(null);
+
+async function loadProfile(session) {
+  if (!session?.user) return null;
+  const { data } = await supabase.from('profiles').select('name, role').eq('id', session.user.id).single();
+  return { id: session.user.id, email: session.user.email, name: data?.name || session.user.email, role: data?.role || '' };
+}
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem('pmr_token');
-    if (!token) { setReady(true); return; }
-    api.me().then((res) => setUser(res.user)).catch(() => localStorage.removeItem('pmr_token')).finally(() => setReady(true));
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setUser(await loadProfile(session));
+      setReady(true);
+    });
+
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setUser(await loadProfile(session));
+    });
+
+    return () => sub.subscription.unsubscribe();
   }, []);
 
   async function login(email, password) {
-    const { token, user } = await api.login(email, password);
-    localStorage.setItem('pmr_token', token);
-    setUser(user);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw new Error(error.message || 'Invalid email or password');
+    setUser(await loadProfile(data.session));
   }
 
-  function logout() {
-    localStorage.removeItem('pmr_token');
+  async function logout() {
+    await supabase.auth.signOut();
     setUser(null);
   }
 

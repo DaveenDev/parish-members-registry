@@ -2,7 +2,7 @@
 
 A full-stack parish membership registry: a public household registration wizard for parishioners, and an admin panel for parish staff to manage households, members, sacraments, ministries, organizations, and reports.
 
-Built with **React + Tailwind CSS** on the frontend and **Express + PostgreSQL** on the backend.
+Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres + Auth) — no separate backend server. Row Level Security policies and Postgres functions (in `supabase/migrations/`) enforce who can read/write what.
 
 ## Features
 
@@ -11,7 +11,7 @@ Built with **React + Tailwind CSS** on the frontend and **Express + PostgreSQL**
 - Client-side validation, review-before-submit, printable confirmation with a reference number
 
 **Admin panel**
-- Staff sign-in (JWT-based auth)
+- Staff sign-in (Supabase Auth)
 - Dashboard with registration trends, age distribution, GKK and ministry breakdowns, sacrament stats
 - Households: search, filter, expand members, verify/unverify, add new households on a family's behalf, print
 - Members: sortable/filterable directory with a full editable detail view (personal info, sacraments, ministries, organizations)
@@ -26,80 +26,64 @@ Built with **React + Tailwind CSS** on the frontend and **Express + PostgreSQL**
 | Layer    | Tech |
 |----------|------|
 | Frontend | React 18, React Router, Tailwind CSS, Vite |
-| Backend  | Node.js, Express, PostgreSQL (`pg`), JWT auth, bcrypt |
+| Backend  | Supabase (Postgres, Row Level Security, Auth, Postgres functions) |
+| Hosting  | Vercel (frontend) + Supabase (database), both free-tier |
 
 ## Project structure
 
 ```
-package.json   Root scripts — runs the API server and orchestrates the client dev server
-server/        Express API + PostgreSQL schema, with its tests in server/test/
-client/        React + Tailwind frontend (Vite), with its own package.json
-docs/          Testing guide and browser beta-testing playbooks
-project/       Original Claude Design source files this app was built from
+supabase/migrations/  Schema, RLS policies, and Postgres functions (ref numbers,
+                       rename/delete-guard, public registration RPC)
+scripts/               Local demo/reset seeding against a Supabase project
+client/                React + Tailwind frontend (Vite), with its own package.json
+docs/                  Testing guide and browser beta-testing playbooks
+project/               Original Claude Design source files this app was built from
 ```
 
 ## Getting started
 
-### 1. Install dependencies
+### 1. Create a Supabase project
 
-Installs both the backend (root) and frontend (`client/`) dependencies:
+Follow [`guadalupe-registry-deployment-guide.md`](guadalupe-registry-deployment-guide.md) Part 1, or in short:
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations.
+3. Create your first admin: **Authentication → Users → Add user**, then run the `insert into profiles (...)` statement at the bottom of the migration file with that user's UUID.
+4. **Authentication → Providers → Email → turn off "Allow new users to sign up."**
+5. Copy your **Project URL** and **anon/publishable key** from **Project Settings → API**.
+
+### 2. Install dependencies
 
 ```bash
 npm run install:all
 ```
 
-### 2. Database
-
-Create a PostgreSQL database, then copy the server env file and fill in your connection string and a random `JWT_SECRET`:
+### 3. Configure the client
 
 ```bash
-cd server
-cp .env.example .env
+cd client
+cp .env.example .env.local
+# fill in VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
 cd ..
 ```
 
-Run the schema + seed script (creates tables, default GKKs/ministries/organizations, and a demo admin account):
-
-```bash
-npm run db:setup
-```
-
-This leaves you with an **empty register** — no households or members. That is
-the right starting point for a real parish.
-
-### 2a. Sample data (optional)
-
-To explore the admin panel with something to look at, load six fictional
-households (16 members, spread across every GKK, sacrament, ministry and age
-bracket so the dashboard charts are populated):
-
-```bash
-npm run db:demo
-```
-
-It refuses to run if the register already has records, so it can never mix
-sample data into real entries. To clear the register and start fresh:
-
-```bash
-npm run db:reset -- --yes
-```
-
-`db:reset` deletes households and members but keeps your staff accounts, parish
-profile, and pick-lists. See [Managing data](#managing-data) for the full set of
-options.
-
-### 3. Run the app
+### 4. Run the app
 
 ```bash
 npm run dev
 ```
 
-This starts the API server (`http://localhost:4000`) and the Vite dev server (`http://localhost:5173`) together, with `/api` proxied from the client to the server.
-
 - Registration portal: `http://localhost:5173/`
-- Admin panel: `http://localhost:5173/admin/login`
+- Admin panel: `http://localhost:5173/admin/login` (sign in with the admin account from step 1)
 
-Demo admin credentials are seeded from `server/.env` (`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`), defaulting to `admin@parishregistry.org` / `ParishAdmin123!`.
+### 5. Sample data (optional)
+
+`scripts/supabase-seed.mjs` inserts/clears demo households directly against your Supabase project using the **service-role key** — keep it out of the client and out of Vercel's env vars. Set it in a root, gitignored `.env` (see `.env.example`):
+
+```bash
+npm run db:demo    # insert six fictional sample households
+npm run db:reset   # delete every household (and, via cascade, every member)
+```
 
 ## Available scripts
 
@@ -107,49 +91,21 @@ Run from the project root:
 
 | Command | Description |
 |---|---|
-| `npm run install:all` | Install root (server) and `client/` dependencies |
-| `npm run db:setup` | Create schema tables and seed default GKKs/ministries/organizations + a demo admin |
-| `npm run db:demo` | Load sample households and members so the admin panel has data to show |
-| `npm run db:reset -- --yes` | Delete all households and members, keeping staff accounts and pick-lists |
-| `npm run dev` | Run the API server and the Vite client together, with hot reload |
-| `npm run dev:server` | Run only the API server (`--watch` mode) |
-| `npm run dev:client` | Run only the Vite dev server |
+| `npm run install:all` | Install root and `client/` dependencies |
+| `npm run dev` | Run the Vite client with hot reload |
 | `npm run build` | Production build of the client |
-| `npm start` | Run the API server (production) |
-| `npm test` | Run the whole test suite |
-| `npm run test:unit` | Pure-function tests only — no database needed |
-| `npm run test:api` | HTTP + database tests only |
-
-## Managing data
-
-You can switch between sample data and a clean register at any time.
-
-| Goal | Command |
-|---|---|
-| Load sample households to explore the app | `npm run db:demo` |
-| Replace whatever is there with a fresh sample set | `npm run db:demo -- --replace --yes` |
-| Empty the register, keeping staff and pick-lists | `npm run db:reset -- --yes` |
-| Reset everything to a just-installed state | `npm run db:reset -- --all --yes` |
-
-Notes:
-
-- **Nothing destructive runs without `--yes`.** Without it, each command prints
-  what it *would* delete, along with the current record counts, and exits
-  without touching anything.
-- **`db:demo` will not append to a non-empty register.** It stops and points you
-  at `--replace` or `db:reset`, so sample records cannot end up mixed in with
-  real parishioner entries.
-- **`db:reset` keeps your staff accounts, parish profile, and GKK/ministry/
-  organization lists** — only households and members are removed. Add `--all` to
-  wipe those too and restore the stock defaults, which also recreates the seed
-  admin account from `server/.env`.
-- **Production is guarded.** When `NODE_ENV=production`, both commands refuse
-  outright and require an explicit `--i-know-this-is-production` on top of
-  `--yes`.
+| `npm run db:demo` | Load sample households and members (see above) |
+| `npm run db:reset` | Delete all households and members |
+| `npm test` | Run the client test suite |
+| `npm run test:watch` | Client tests, watch mode |
 
 Sample records are fictional and live in
-[`server/src/db/demo-data.js`](server/src/db/demo-data.js) — edit that file to
-tailor them to your parish.
+[`scripts/demo-data.mjs`](scripts/demo-data.mjs) — edit that file to tailor them
+to your parish.
+
+## Deploying
+
+See [`guadalupe-registry-deployment-guide.md`](guadalupe-registry-deployment-guide.md) for the full Vercel + Supabase walkthrough. In short: push to GitHub, import the repo into Vercel with **Root Directory set to `client`**, add `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` as Vercel env vars, and deploy — `client/vercel.json` handles the SPA routing rewrite.
 
 ## Testing
 
@@ -161,18 +117,10 @@ Two halves, both needed before a release.
 npm test
 ```
 
-Unit tests for the validation, paging, reference-number, CSV and auth helpers
-run anywhere. The API suites drive the real Express app against a PostgreSQL
-database and skip themselves unless `TEST_DATABASE_URL` points at a database
-whose name contains `test`:
-
-```bash
-createdb parish_registry_test
-DATABASE_URL=postgres://…/parish_registry_test npm run db:setup
-TEST_DATABASE_URL=postgres://…/parish_registry_test npm test
-```
-
-Full details, layout and conventions: [`docs/testing.md`](docs/testing.md).
+Covers pure browser-side logic (CSV building, shared constants/helpers). The
+RLS policies and Postgres functions in `supabase/migrations/0001_init.sql` are
+the source of truth for server-side behavior and aren't covered by this suite —
+verify them against a real Supabase project (see [`docs/testing.md`](docs/testing.md)).
 
 **Manual** — scripted browser walkthroughs for beta testers, covering the public
 registration wizard, the admin panel, reports and exports, plus responsive,
@@ -180,6 +128,10 @@ keyboard, printing and data-protection checks:
 [`docs/beta-testing/`](docs/beta-testing/README.md). Each check has an ID so bug
 reports can point at exactly what failed, and there are templates for bug
 reports and for the round's run log.
+
+> Note: both testing docs still describe the retired Express/PostgreSQL setup
+> in places (e.g. `TEST_DATABASE_URL`, `db:setup`) — treat those specific
+> mentions as stale pending a follow-up pass.
 
 ## License
 
