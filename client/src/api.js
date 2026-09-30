@@ -3,7 +3,7 @@
 // the admin pages and the public registration wizard already call, so this
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
-import { ageFromDob } from './constants.js';
+import { ageFromDob, PARTICIPATION_ITEMS, HELP_WAYS } from './constants.js';
 import { initials, memberFullName } from './lib/util.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
 
@@ -37,6 +37,12 @@ export const api = {
     return data; // { refNo, householdId }
   },
 
+  async listPublicGkks() {
+    const { data, error } = await supabase.rpc('list_public_gkks');
+    if (error) throw mapError(error);
+    return data || [];
+  },
+
   // ---- account (used by ParishConfig's "Change password" card) --------
   async changePassword(_currentPassword, newPassword) {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -54,7 +60,7 @@ export const api = {
     if (gkk !== 'All') q = q.eq('gkk', gkk);
     if (search && search.trim()) {
       const s = `%${search.trim()}%`;
-      q = q.or(`household_name.ilike.${s},street.ilike.${s},barangay.ilike.${s},city.ilike.${s},contact.ilike.${s}`);
+      q = q.or(`household_name.ilike.${s},head_name.ilike.${s},street.ilike.${s},barangay.ilike.${s},city.ilike.${s},contact.ilike.${s}`);
     }
     q = q.order('created_at', { ascending: false }).order('id', { ascending: false }).range(from, to);
 
@@ -477,11 +483,14 @@ export async function downloadWithAuth(path, filename) {
         { label: 'First Name', value: 'first_name' },
         { label: 'Middle Name', value: 'middle_name' },
         { label: 'Last Name', value: 'last_name' },
+        { label: 'Suffix', value: 'suffix' },
         { label: 'Household', value: 'household_name' },
         { label: 'Relationship', value: 'relationship' },
         { label: 'Sex', value: 'sex' },
         { label: 'Date of Birth', value: 'dob' },
         { label: 'Age', value: (r) => r.age ?? '' },
+        { label: 'Place of Birth', value: 'place_of_birth' },
+        { label: 'Tribe', value: 'tribe' },
         { label: 'Civil Status', value: 'civil_status' },
         { label: 'Contact', value: 'contact' },
         { label: 'Email', value: 'email' },
@@ -492,6 +501,8 @@ export async function downloadWithAuth(path, filename) {
         { label: 'First Communion', value: (r) => (r.has_communion ? 'Yes' : 'No') },
         { label: 'Confirmation', value: (r) => (r.has_confirmation ? 'Yes' : 'No') },
         { label: 'Matrimony', value: (r) => (r.has_matrimony ? 'Yes' : 'No') },
+        { label: 'Wedding Type', value: 'mat_type' },
+        { label: 'GKK Responsibility', value: 'gkk_role' },
         { label: 'Ministries', value: (r) => (r.ministries || []).join('; ') },
         { label: 'Organizations', value: (r) => (r.organizations || []).join('; ') },
       ]);
@@ -500,6 +511,7 @@ export async function downloadWithAuth(path, filename) {
       if (error) throw mapError(error);
       downloadCsv(filename, data, [
         { label: 'Household Name', value: 'household_name' },
+        { label: 'Head', value: 'head_name' },
         { label: 'Street', value: 'street' },
         { label: 'Barangay', value: 'barangay' },
         { label: 'City', value: 'city' },
@@ -512,6 +524,8 @@ export async function downloadWithAuth(path, filename) {
         { label: 'Members', value: 'member_count' },
         { label: 'Status', value: 'status' },
         { label: 'Reference No.', value: 'ref_no' },
+        ...PARTICIPATION_ITEMS.map(([key, label]) => ({ label, value: (r) => (r.participation || {})[key] || '' })),
+        { label: 'Ways to Help', value: (r) => (r.help_ways || []).map((k) => (HELP_WAYS.find(([hk]) => hk === k) || [k, k])[1]).join('; ') },
         { label: 'Registered', value: (r) => new Date(r.created_at).toISOString().slice(0, 10) },
       ]);
     } else if (path === '/exports/blood.csv') {

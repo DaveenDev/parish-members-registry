@@ -6,6 +6,12 @@ import {
   CIVIL_STATUSES,
   RELIGIONS,
   BLOOD_TYPES,
+  HEAD,
+  WEDDING_TYPES,
+  PARTICIPATION_ITEMS,
+  PARTICIPATION_LEVELS,
+  HELP_WAYS,
+  DEFAULT_ADDRESS,
   blankMember,
   fmtDate,
   ageFromDob,
@@ -26,6 +32,34 @@ describe('pick-lists', () => {
     assert.deepEqual(CIVIL_STATUSES, ['Single', 'Married', 'Widowed', 'Separated']);
     assert.equal(RELIGIONS[0], 'Roman Catholic', 'the default religion must be first in the list');
     assert.deepEqual(BLOOD_TYPES, ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
+    assert.ok(RELATIONSHIPS.includes(HEAD), 'the wizard pins members[0] to HEAD, which must be a real relationship');
+  });
+
+  test('wedding types include the one that counts as the sacrament', () => {
+    assert.ok(WEDDING_TYPES.includes('Catholic Marriage'));
+    assert.equal(new Set(WEDDING_TYPES).size, WEDDING_TYPES.length);
+  });
+});
+
+describe('participation survey', () => {
+  // These keys are whitelisted in submit_registration (0002 migration) — a
+  // rename here without the SQL would silently drop the answer.
+  test('uses the keys the registration RPC accepts', () => {
+    assert.deepEqual(PARTICIPATION_ITEMS.map(([k]) => k), ['mass', 'bible_service', 'devotions', 'meetings', 'pintakasi', 'financial']);
+    assert.deepEqual(HELP_WAYS.map(([k]) => k), ['sunday_mass', 'bible_service', 'devotions', 'meetings', 'pintakasi', 'financial']);
+    assert.deepEqual(PARTICIPATION_LEVELS, ['Aktibo', 'Panagsa', 'Wala']);
+  });
+
+  test('has a label for every entry', () => {
+    for (const [key, label] of [...PARTICIPATION_ITEMS, ...HELP_WAYS]) {
+      assert.ok(typeof label === 'string' && label.trim(), `${key} has no label`);
+    }
+  });
+});
+
+describe('DEFAULT_ADDRESS', () => {
+  test('prefills Kidapawan', () => {
+    assert.deepEqual(DEFAULT_ADDRESS, { city: 'Kidapawan City', province: 'North Cotabato', zip: '9400' });
   });
 });
 
@@ -62,7 +96,7 @@ describe('blankMember', () => {
 
   test('carries every field the API expects for a member', () => {
     const keys = Object.keys(blankMember());
-    for (const required of ['firstName', 'lastName', 'relationship', 'sex', 'dob', 'civilStatus']) {
+    for (const required of ['firstName', 'lastName', 'suffix', 'relationship', 'sex', 'dob', 'tribe', 'civilStatus', 'gkkRole']) {
       assert.ok(keys.includes(required), `blankMember is missing ${required}`);
     }
   });

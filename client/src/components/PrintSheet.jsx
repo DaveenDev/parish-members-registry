@@ -15,6 +15,7 @@ function sacramentLines(m) {
   if (m.has_communion) out.push(['First Communion', join([fmtDate(m.communion_date), m.communion_church]) || 'Recorded']);
   if (m.has_confirmation) out.push(['Confirmation', join([fmtDate(m.conf_date), m.conf_church, m.conf_name && `Name: ${m.conf_name}`, m.conf_sponsor && `Sponsor: ${m.conf_sponsor}`]) || 'Recorded']);
   if (m.has_matrimony) out.push(['Matrimony', join([fmtDate(m.mat_date), m.mat_church, m.mat_type]) || 'Recorded']);
+  else if (m.mat_type) out.push(['Married', m.mat_type]);
   if (!out.length) out.push(['—', 'No sacraments recorded']);
   return out;
 }
@@ -126,12 +127,14 @@ export default function PrintSheet({ data }) {
       {members.map((m, i) => (
         <figure key={m.id} style={{ margin: '0 0 14px', border: '1px solid #ddd', borderRadius: 6, padding: '10px 12px' }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: '#1a2b4a' }}>
-            {i + 1}. {[m.first_name, m.middle_name, m.last_name].filter(Boolean).join(' ')}
+            {i + 1}. {[m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ')}
           </div>
           <div style={{ fontSize: 11, color: '#6b6552', margin: '3px 0 7px' }}>
             {[
               m.relationship, m.sex, m.civil_status,
               m.dob && `b. ${fmtDate(m.dob)} (${ageFromDob(m.dob)} yrs)`,
+              m.tribe && `Tribe: ${m.tribe}`,
+              m.gkk_role && `GKK: ${m.gkk_role}`,
               m.blood_type && `Blood: ${m.blood_type}`,
               m.contact,
             ].filter(Boolean).join('  ·  ')}

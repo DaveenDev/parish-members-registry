@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, ageFromDob } from '../constants.js';
+import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, ageFromDob } from '../constants.js';
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -47,10 +47,10 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
     setError('');
     try {
       const patch = {
-        first_name: member.first_name, middle_name: member.middle_name, last_name: member.last_name,
-        relationship: member.relationship, sex: member.sex, dob: member.dob, place_of_birth: member.place_of_birth,
+        first_name: member.first_name, middle_name: member.middle_name, last_name: member.last_name, suffix: member.suffix,
+        relationship: member.relationship, sex: member.sex, dob: member.dob, place_of_birth: member.place_of_birth, tribe: member.tribe,
         civil_status: member.civil_status, contact: member.contact, email: member.email, occupation: member.occupation,
-        blood_type: member.blood_type,
+        blood_type: member.blood_type, gkk_role: member.gkk_role,
         has_baptism: member.has_baptism, baptism_date: member.baptism_date, baptism_church: member.baptism_church,
         has_communion: member.has_communion, communion_date: member.communion_date, communion_church: member.communion_church,
         has_confirmation: member.has_confirmation, conf_date: member.conf_date, conf_church: member.conf_church, conf_name: member.conf_name, conf_sponsor: member.conf_sponsor,
@@ -110,6 +110,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               <Field label="First name"><TextInput value={member.first_name || ''} onChange={(e) => set('first_name', e.target.value)} /></Field>
               <Field label="Middle name"><TextInput value={member.middle_name || ''} onChange={(e) => set('middle_name', e.target.value)} /></Field>
               <Field label="Last name"><TextInput value={member.last_name || ''} onChange={(e) => set('last_name', e.target.value)} /></Field>
+              <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={member.suffix || ''} onChange={(e) => set('suffix', e.target.value)} /></Field>
               <Field label="Relationship">
                 <Select value={member.relationship || ''} onChange={(e) => set('relationship', e.target.value)}>
                   <option value="">Select…</option>{RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -122,6 +123,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               </Field>
               <Field label="Date of birth"><TextInput type="date" value={member.dob ? String(member.dob).slice(0, 10) : ''} onChange={(e) => set('dob', e.target.value)} /></Field>
               <Field label="Place of birth"><TextInput value={member.place_of_birth || ''} onChange={(e) => set('place_of_birth', e.target.value)} /></Field>
+              <Field label="Tribe"><TextInput value={member.tribe || ''} onChange={(e) => set('tribe', e.target.value)} /></Field>
               <Field label="Civil status">
                 <Select value={member.civil_status || ''} onChange={(e) => set('civil_status', e.target.value)}>
                   <option value="">Select…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -135,6 +137,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                   <option value="">Unknown</option>{BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
                 </Select>
               </Field>
+              <Field label="Responsibility in GKK"><TextInput placeholder="Katungdanan sa GKK" value={member.gkk_role || ''} onChange={(e) => set('gkk_role', e.target.value)} /></Field>
             </div>
 
             <SectionLabel>Sacraments received</SectionLabel>
@@ -171,7 +174,8 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                     <TextInput type="date" value={member.mat_date ? String(member.mat_date).slice(0, 10) : ''} onChange={(e) => set('mat_date', e.target.value)} />
                     <TextInput placeholder="Parish / Church" value={member.mat_church || ''} onChange={(e) => set('mat_church', e.target.value)} />
                     <Select value={member.mat_type || ''} onChange={(e) => set('mat_type', e.target.value)}>
-                      <option value="">Marriage type…</option><option value="Catholic">Catholic</option><option value="Convalidation">Convalidation</option>
+                      <option value="">Marriage type…</option>
+                      {[...WEDDING_TYPES, ...LEGACY_MAT_TYPES].map((t) => <option key={t} value={t}>{t}</option>)}
                     </Select>
                   </>
                 )}

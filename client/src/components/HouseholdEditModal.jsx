@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { api } from '../api.js';
 import { Field, TextInput, Select, PrimaryButton, GhostButton } from './ui.jsx';
+import ParticipationSurvey from './ParticipationSurvey.jsx';
+import { HELP_WAYS } from '../constants.js';
 import { useToast } from '../ToastContext.jsx';
 
 export default function HouseholdEditModal({ household, gkkOptions = [], onClose, onSaved }) {
@@ -17,11 +19,19 @@ export default function HouseholdEditModal({ household, gkkOptions = [], onClose
     contact: household.contact || '',
     email: household.email || '',
     status: household.status || 'Pending',
+    participation: household.participation || {},
+    help_ways: household.help_ways || [],
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
+  const setParticipation = (key, level) => setForm((f) => ({ ...f, participation: { ...f.participation, [key]: level } }));
+  const toggleHelpWay = (key) => setForm((f) => {
+    const on = new Set(f.help_ways);
+    on.has(key) ? on.delete(key) : on.add(key);
+    return { ...f, help_ways: HELP_WAYS.map(([k]) => k).filter((k) => on.has(k)) };
+  });
 
   const REQUIRED = [
     ['household_name', 'Family (household) name'],
@@ -96,6 +106,10 @@ export default function HouseholdEditModal({ household, gkkOptions = [], onClose
               </Select>
             </Field>
           </div>
+        </div>
+
+        <div className="mt-6 pt-5 border-t border-[#f0e8d6]">
+          <ParticipationSurvey participation={form.participation} helpWays={form.help_ways} onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay} compact />
         </div>
 
         <div className="flex gap-2.5 justify-end mt-6">

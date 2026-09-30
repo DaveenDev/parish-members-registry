@@ -1,13 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
-import { blankMember, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, fmtDate } from '../constants.js';
+import {
+  blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
+  PARTICIPATION_ITEMS, HELP_WAYS, DEFAULT_ADDRESS, fmtDate,
+} from '../constants.js';
 import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
+import ParticipationSurvey from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 
-const STEPS = ['Household', 'Members', 'Sacraments', 'Engagement', 'Review'];
+const STEPS = ['Household & Head', 'Members', 'Sacraments', 'Engagement', 'Review'];
+const MEMBER_RELATIONSHIPS = RELATIONSHIPS.filter((r) => r !== HEAD);
 
 function CrossLogo({ size = 82, className = '' }) {
   return (
@@ -23,11 +28,28 @@ function top() {
   try { requestAnimationFrame(() => window.scrollTo({ top: 0, behavior: 'smooth' })); } catch {}
 }
 
-const DRAFT_KEY = 'pmr_registration_draft';
+// v2: members[0] is now always the Household Head, entered on Step 1. Older
+// drafts don't follow that shape, so they're ignored rather than migrated.
+const DRAFT_KEY = 'pmr_registration_draft_v2';
 const EMPTY_HOUSEHOLD = {
-  householdName: '', street: '', barangay: '', city: '', province: '', zip: '',
+  householdName: '', street: '', barangay: '', ...DEFAULT_ADDRESS,
   contact: '', email: '', gkk: '', familyGrouping: '',
+  participation: {}, helpWays: [],
 };
+
+function blankHead() {
+  return { ...blankMember(), relationship: HEAD };
+}
+
+function fullName(m) {
+  return [m.firstName, m.middleName, m.lastName, m.suffix].filter(Boolean).join(' ');
+}
+
+/** What actually gets sent for a member: the wedding type only applies while Married. */
+function toPayloadMember(m) {
+  if (m.civilStatus === 'Married') return { ...m, hasMatrimony: m.matType === 'Catholic Marriage' };
+  return { ...m, matType: WEDDING_TYPES.includes(m.matType) ? '' : m.matType };
+}
 
 /** Restore an in-progress registration so a refresh doesn't discard everything. */
 function loadDraft() {
@@ -36,6 +58,7 @@ function loadDraft() {
     if (!raw) return null;
     const draft = JSON.parse(raw);
     if (!draft || typeof draft !== 'object' || !Array.isArray(draft.members) || !draft.members.length) return null;
+    if (draft.members[0].relationship !== HEAD) return null;
     return draft;
   } catch {
     return null;
@@ -49,8 +72,10 @@ export default function RegistrationApp() {
   const [step, setStep] = useState(draft?.step || 1);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [household, setHousehold] = useState(draft?.household || EMPTY_HOUSEHOLD);
-  const [members, setMembers] = useState(draft?.members || [blankMember()]);
+  const [household, setHousehold] = useState(draft?.household ? { ...EMPTY_HOUSEHOLD, ...draft.household } : EMPTY_HOUSEHOLD);
+  const [householdNameTouched, setHouseholdNameTouched] = useState(!!draft?.householdNameTouched);
+  const [members, setMembers] = useState(draft?.members || [blankHead()]);
+  const [gkkOptions, setGkkOptions] = useState([]);
   const [volunteer, setVolunteer] = useState(draft?.volunteer || '');
   const [notifyOptin, setNotifyOptin] = useState(!!draft?.notifyOptin);
   const [consent, setConsent] = useState(!!draft?.consent);
@@ -63,9 +88,13 @@ export default function RegistrationApp() {
   useEffect(() => {
     if (screen !== 'wizard') return;
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, household, members, volunteer, notifyOptin, consent }));
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, household, householdNameTouched, members, volunteer, notifyOptin, consent }));
     } catch {}
-  }, [screen, step, household, members, volunteer, notifyOptin, consent]);
+  }, [screen, step, household, householdNameTouched, members, volunteer, notifyOptin, consent]);
+
+  useEffect(() => {
+    api.listPublicGkks().then(setGkkOptions).catch(() => {});
+  }, []);
 
   function clearDraft() {
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
@@ -79,13 +108,30 @@ export default function RegistrationApp() {
 
   function updateHousehold(field, value) {
     setHousehold((h) => ({ ...h, [field]: value }));
+    // Clearing the name hands it back to the "{Lastname} Family" auto-fill.
+    if (field === 'householdName') setHouseholdNameTouched(!!value);
     setErr((e) => ({ ...e, [field]: '' }));
     setBanner('');
+  }
+  function setParticipation(key, level) {
+    setHousehold((h) => ({ ...h, participation: { ...(h.participation || {}), [key]: level } }));
+  }
+  function toggleHelpWay(key) {
+    setHousehold((h) => {
+      const set = new Set(h.helpWays || []);
+      set.has(key) ? set.delete(key) : set.add(key);
+      return { ...h, helpWays: HELP_WAYS.map(([k]) => k).filter((k) => set.has(k)) };
+    });
   }
   function updateMember(i, field, value) {
     setMembers((ms) => ms.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)));
     setMemberErr((me) => me.map((e, idx) => (idx === i && e ? { ...e, [field]: '' } : e)));
     setBanner('');
+    if (i === 0 && field === 'lastName' && !householdNameTouched) {
+      const last = String(value).trim();
+      setHousehold((h) => ({ ...h, householdName: last ? `${last} Family` : '' }));
+      setErr((e) => ({ ...e, householdName: '' }));
+    }
   }
   function toggleMinistry(i, name) {
     setMembers((ms) =>
@@ -102,31 +148,38 @@ export default function RegistrationApp() {
     showToast('Member added', 'ok');
   }
   function removeMember(i) {
+    if (i === 0) return; // the Household Head is required
     setMembers((ms) => ms.filter((_, idx) => idx !== i));
+    setMemberErr((me) => me.filter((_, idx) => idx !== i));
     showToast('Member removed', 'ok');
+  }
+
+  function memberErrors(m, { head = false } = {}) {
+    const fe = {};
+    const req = [['lastName', 'Last name is required'], ['firstName', 'First name is required'], ['sex', 'Select sex'], ['dob', 'Date of birth is required'], ['civilStatus', 'Select civil status']];
+    if (!head) req.push(['relationship', 'Select a relationship']);
+    req.forEach(([k, msg]) => { if (!String(m[k] || '').trim()) fe[k] = msg; });
+    if (m.email && !/.+@.+\..+/.test(m.email)) fe.email = 'Enter a valid email';
+    return fe;
   }
 
   function validate(currentStep) {
     const e = {};
     const me = [];
-    let ban = '';
     if (currentStep === 1) {
       const req = { householdName: 'Household name is required', street: 'Street is required', barangay: 'Barangay is required', city: 'City / Municipality is required', province: 'Province is required', zip: 'ZIP code is required' };
       Object.keys(req).forEach((k) => { if (!String(household[k] || '').trim()) e[k] = req[k]; });
       if (household.email && !/.+@.+\..+/.test(household.email)) e.email = 'Enter a valid email';
-      const ok = Object.keys(e).length === 0;
-      return { ok, err: e, memberErr: me, banner: ok ? '' : 'Please complete the highlighted household fields.' };
+      me[0] = memberErrors(members[0], { head: true });
+      const ok = Object.keys(e).length === 0 && Object.keys(me[0]).length === 0;
+      return { ok, err: e, memberErr: me, banner: ok ? '' : 'Please complete the highlighted Household Head and household fields.' };
     }
     if (currentStep === 2) {
       let ok = true;
       members.forEach((m, i) => {
-        const fe = {};
-        [['firstName', 'First name is required'], ['lastName', 'Last name is required'], ['relationship', 'Select a relationship'], ['sex', 'Select sex'], ['dob', 'Date of birth is required'], ['civilStatus', 'Select civil status']].forEach(([k, msg]) => {
-          if (!String(m[k] || '').trim()) fe[k] = msg;
-        });
-        if (m.email && !/.+@.+\..+/.test(m.email)) fe.email = 'Enter a valid email';
-        me[i] = fe;
-        if (Object.keys(fe).length) ok = false;
+        if (i === 0) return;
+        me[i] = memberErrors(m);
+        if (Object.keys(me[i]).length) ok = false;
       });
       return { ok, err: e, memberErr: me, banner: ok ? '' : 'Please complete the required member details.' };
     }
@@ -161,7 +214,7 @@ export default function RegistrationApp() {
   async function submit() {
     setSubmitting(true); setConfirmOpen(false);
     try {
-      const res = await api.submitRegistration({ household, members, volunteer, notifyOptin, consent });
+      const res = await api.submitRegistration({ household, members: members.map(toPayloadMember), volunteer, notifyOptin, consent });
       setRefNo(res.refNo);
       clearDraft();
       setScreen('done');
@@ -176,15 +229,15 @@ export default function RegistrationApp() {
   function restart() {
     clearDraft();
     setScreen('landing'); setStep(1);
-    setHousehold(EMPTY_HOUSEHOLD);
-    setMembers([blankMember()]); setVolunteer(''); setNotifyOptin(false); setConsent(false);
+    setHousehold(EMPTY_HOUSEHOLD); setHouseholdNameTouched(false);
+    setMembers([blankHead()]); setVolunteer(''); setNotifyOptin(false); setConsent(false);
     setErr({}); setMemberErr([]); setBanner(''); setRefNo('');
     top();
   }
 
   const memberViews = members.map((m, i) => ({
     ...m, mi: i,
-    displayName: [m.firstName, m.lastName].filter(Boolean).join(' ') || `Member ${i + 1}`,
+    displayName: [m.firstName, m.lastName, m.suffix].filter(Boolean).join(' ') || (i === 0 ? 'Household Head' : `Member ${i + 1}`),
     err: memberErr[i] || {},
   }));
 
@@ -194,7 +247,8 @@ export default function RegistrationApp() {
       {screen === 'wizard' && (
         <Wizard
           step={step} banner={banner}
-          household={household} err={err} onHouseholdField={updateHousehold}
+          household={household} err={err} onHouseholdField={updateHousehold} gkkOptions={gkkOptions}
+          onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay}
           memberViews={memberViews} onMemberField={updateMember} onToggleMinistry={toggleMinistry}
           onAddMember={addMember} onRemoveMember={removeMember}
           volunteer={volunteer} setVolunteer={(v) => { setVolunteer(v); setBanner(''); }}
@@ -359,64 +413,111 @@ function Wizard(props) {
   );
 }
 
-function StepHousehold({ household, err, onHouseholdField }) {
+const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' };
+
+function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, onParticipation, onToggleHelpWay }) {
   const f = (field) => ({ value: household[field], onChange: (e) => onHouseholdField(field, e.target.value) });
+  const head = memberViews[0];
+  // Keep a GKK saved in an older draft selectable even if it's no longer in the list.
+  const gkks = household.gkk && !gkkOptions.includes(household.gkk) ? [household.gkk, ...gkkOptions] : gkkOptions;
   return (
     <div className="animate-fadeUp">
-      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Household Information</h2>
-      <p className="text-parish-text2 text-[15.5px] mb-[26px]">Let's start with your family's home and how the parish can reach you.</p>
-      <Card className="p-[clamp(20px,4vw,32px)]">
-        <div className="mb-[18px]">
-          <Field label="Family (household) name" required error={err.householdName}>
+      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Household &amp; Head</h2>
+      <p className="text-parish-text2 text-[15.5px] mb-[26px]">Let's start with the head of your household, your home, and how the parish can reach you.</p>
+
+      <Card className="p-[clamp(20px,4vw,32px)] mb-5">
+        <SectionTitle>Household Head</SectionTitle>
+        <MemberNameFields mv={head} onField={onMemberField} />
+        <div className="mt-[18px]">
+          <Field label="Household Name / Pamilya" required error={err.householdName}>
             <TextInput placeholder="e.g. Dela Cruz Family" {...f('householdName')} />
           </Field>
         </div>
+        <div className="mt-[18px]">
+          <MemberFieldsGrid mv={head} onField={onMemberField} head />
+        </div>
+      </Card>
+
+      <Card className="p-[clamp(20px,4vw,32px)] mb-5">
+        <SectionTitle>Home Address &amp; Contact</SectionTitle>
         <div className="mb-[18px]">
           <Field label="Street / House No. / Purok" required error={err.street}>
             <TextInput placeholder="e.g. 24 Rizal St." {...f('street')} />
           </Field>
         </div>
-        <div className="grid gap-4 mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-          <Field label="Barangay" required error={err.barangay}><TextInput placeholder="e.g. Purok 3, Mua-an" {...f('barangay')} /></Field>
-          <Field label="City / Municipality" required error={err.city}><TextInput placeholder="e.g. Kabankalan City" {...f('city')} /></Field>
+        <div className="grid gap-4 mb-[18px]" style={GRID}>
+          <Field label="Barangay" required error={err.barangay}><TextInput placeholder="e.g. Mua-an" {...f('barangay')} /></Field>
+          <Field label="City / Municipality" required error={err.city}><TextInput {...f('city')} /></Field>
         </div>
-        <div className="grid gap-4 mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-          <Field label="Province" required error={err.province}><TextInput placeholder="e.g. Negros Occidental" {...f('province')} /></Field>
-          <Field label="ZIP Code" required error={err.zip}><TextInput inputMode="numeric" placeholder="e.g. 6111" {...f('zip')} /></Field>
+        <div className="grid gap-4 mb-[18px]" style={GRID}>
+          <Field label="Province" required error={err.province}><TextInput {...f('province')} /></Field>
+          <Field label="ZIP Code" required error={err.zip}><TextInput inputMode="numeric" {...f('zip')} /></Field>
         </div>
         <div className="grid gap-4 mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
           <Field label="Household contact no." error={err.contact}><TextInput type="tel" placeholder="e.g. 0917 123 4567" {...f('contact')} /></Field>
           <Field label="Household email" error={err.email}><TextInput type="email" placeholder="optional" {...f('email')} /></Field>
         </div>
         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
-          <Field label="Parish GKK"><TextInput placeholder="e.g. GKK San Lorenzo Ruiz" {...f('gkk')} /></Field>
+          <Field label="Parish GKK">
+            <Select {...f('gkk')}>
+              <option value="">Select your GKK…</option>
+              {gkks.map((g) => <option key={g} value={g}>{g}</option>)}
+            </Select>
+          </Field>
           <Field label="Family Groupings"><TextInput placeholder="e.g. Grouping 2" {...f('familyGrouping')} /></Field>
         </div>
+      </Card>
+
+      <Card className="p-[clamp(20px,4vw,32px)]">
+        <SectionTitle>Partisipasyon sa Parokya / GKK</SectionTitle>
+        <ParticipationSurvey
+          participation={household.participation}
+          helpWays={household.helpWays}
+          onParticipation={onParticipation}
+          onToggleHelpWay={onToggleHelpWay}
+        />
       </Card>
     </div>
   );
 }
 
-function MemberFieldsGrid({ mv, onField }) {
+function SectionTitle({ children }) {
+  return <h3 className="font-serif text-[22px] font-semibold text-parish-navy m-0 mb-4">{children}</h3>;
+}
+
+function MemberNameFields({ mv, onField }) {
+  const set = (field) => (e) => onField(mv.mi, field, e.target.value);
+  return (
+    <div className="grid gap-4" style={GRID}>
+      <Field label="Last name" required error={mv.err.lastName}><TextInput value={mv.lastName} onChange={set('lastName')} /></Field>
+      <Field label="First name" required error={mv.err.firstName}><TextInput value={mv.firstName} onChange={set('firstName')} /></Field>
+      <Field label="Middle name"><TextInput placeholder="mother's maiden name" value={mv.middleName} onChange={set('middleName')} /></Field>
+      <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={mv.suffix || ''} onChange={set('suffix')} /></Field>
+    </div>
+  );
+}
+
+/** Personal details for one member. `head` hides Relationship (the head's is fixed). */
+function MemberFieldsGrid({ mv, onField, head = false }) {
   const set = (field) => (e) => onField(mv.mi, field, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-      <Field label="First name" required error={mv.err.firstName}><TextInput value={mv.firstName} onChange={set('firstName')} /></Field>
-      <Field label="Middle / mother's maiden"><TextInput value={mv.middleName} onChange={set('middleName')} /></Field>
-      <Field label="Last name" required error={mv.err.lastName}><TextInput value={mv.lastName} onChange={set('lastName')} /></Field>
-      <Field label="Relationship to head" required error={mv.err.relationship}>
-        <Select value={mv.relationship} onChange={set('relationship')}>
-          <option value="">Select…</option>
-          {RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
-        </Select>
-      </Field>
+    <div className="grid gap-4" style={GRID}>
+      {!head && (
+        <Field label="Relationship to head" required error={mv.err.relationship}>
+          <Select value={mv.relationship} onChange={set('relationship')}>
+            <option value="">Select…</option>
+            {MEMBER_RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
+          </Select>
+        </Field>
+      )}
       <Field label="Sex" required error={mv.err.sex}>
         <Select value={mv.sex} onChange={set('sex')}>
-          <option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option>
+          <option value="">Kasarian</option><option value="Male">Male</option><option value="Female">Female</option>
         </Select>
       </Field>
-      <Field label="Date of birth" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
-      <Field label="Place of birth"><TextInput value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
+      <Field label="Date of birth (Birthday)" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
+      <Field label="Place of birth"><TextInput placeholder="Asa gipanganak" value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
+      <Field label="Tribe"><TextInput placeholder="Tribu" value={mv.tribe || ''} onChange={set('tribe')} /></Field>
       <Field label="Civil status" required error={mv.err.civilStatus}>
         <Select value={mv.civilStatus} onChange={set('civilStatus')}>
           <option value="">Select…</option>
@@ -445,27 +546,34 @@ function MemberFieldsGrid({ mv, onField }) {
 }
 
 function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }) {
+  const head = memberViews[0];
+  const others = memberViews.slice(1);
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Household Members</h2>
-      <p className="text-parish-text2 text-[15.5px] mb-[18px]">Add everyone living in your household — begin with the head of the family, then add the spouse and each child. They'll all be saved together.</p>
+      <p className="text-parish-text2 text-[15.5px] mb-[18px]">Add everyone else living with <strong>{head.displayName}</strong>: the spouse, each child, and any other relatives. They'll all be saved together.</p>
       <div className="flex items-center gap-2.5 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl px-4 py-3 mb-[22px] text-[#2b466f] text-[14px]">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="flex-none"><path d="M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 20v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11" /></svg>
-        <span><strong>{memberViews.length}</strong> member(s) added so far. Use <strong>“Add Another Member”</strong> below for each person before you continue.</span>
+        <span>
+          {others.length
+            ? <><strong>{memberViews.length}</strong> people in the household so far, including the head. Use <strong>“Add Another Member”</strong> for each person before you continue.</>
+            : <>Only the Household Head so far. Use <strong>“Add Another Member”</strong> for each person living with them, or continue if the head lives alone.</>}
+        </span>
       </div>
       <div className="flex flex-col gap-5">
-        {memberViews.map((mv, i) => (
-          <Card key={i} className="p-[clamp(18px,4vw,28px)]">
+        {others.map((mv) => (
+          <Card key={mv.mi} className="p-[clamp(18px,4vw,28px)]">
             <div className="flex items-center justify-between gap-3 mb-[18px]">
               <div className="flex items-center gap-2.5">
-                <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[15px]">{i + 1}</div>
+                <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[15px]">{mv.mi + 1}</div>
                 <span className="font-serif text-[22px] font-semibold text-parish-navy">{mv.displayName}</span>
               </div>
-              {memberViews.length > 1 && (
-                <button onClick={() => onRemoveMember(i)} className="border border-[#e7d5cf] bg-white text-parish-error cursor-pointer font-semibold text-[13px] px-3.5 py-2 rounded-lg">Remove</button>
-              )}
+              <button onClick={() => onRemoveMember(mv.mi)} className="border border-[#e7d5cf] bg-white text-parish-error cursor-pointer font-semibold text-[13px] px-3.5 py-2 rounded-lg">Remove</button>
             </div>
-            <MemberFieldsGrid mv={mv} onField={onMemberField} />
+            <MemberNameFields mv={mv} onField={onMemberField} />
+            <div className="mt-4">
+              <MemberFieldsGrid mv={mv} onField={onMemberField} />
+            </div>
           </Card>
         ))}
       </div>
@@ -521,14 +629,9 @@ function StepSacraments({ memberViews, onMemberField }) {
                   </>
                 )}
               />
-              <SacramentBlock
-                mv={mv} field="hasMatrimony" dateField="matDate" churchField="matChurch" label="Matrimony" onField={onMemberField}
-                extra={(set) => (
-                  <select value={mv.matType} onChange={set('matType')} className="px-3 py-2.5 text-[15px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none cursor-pointer">
-                    <option value="">Select…</option><option value="Catholic">Catholic</option><option value="Convalidation">Convalidation</option>
-                  </select>
-                )}
-              />
+              {mv.civilStatus === 'Married'
+                ? <WeddingBlock mv={mv} onField={onMemberField} />
+                : <SacramentBlock mv={mv} field="hasMatrimony" dateField="matDate" churchField="matChurch" label="Matrimony" onField={onMemberField} />}
             </div>
           </Card>
         ))}
@@ -537,11 +640,64 @@ function StepSacraments({ memberViews, onMemberField }) {
   );
 }
 
-function StepEngagement({ volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent }) {
+/** Married members say how they were wed; only a Catholic marriage counts as the sacrament. */
+function WeddingBlock({ mv, onField }) {
+  const set = (f) => (e) => onField(mv.mi, f, e.target.value);
+  function choose(type) {
+    onField(mv.mi, 'matType', type);
+    onField(mv.mi, 'hasMatrimony', type === 'Catholic Marriage');
+  }
+  const catholic = mv.matType === 'Catholic Marriage';
+  return (
+    <div className="border border-[#eee3ce] rounded-xl px-4 py-3.5 bg-[#fdfbf6]">
+      <div className="font-semibold text-[15px] text-parish-navy">Matrimony / Kasal</div>
+      <div className="text-[13px] text-parish-muted mb-3">Unsang klase sa kasal?</div>
+      <div role="radiogroup" aria-label={`Wedding type for ${mv.displayName}`} className="flex flex-wrap gap-2">
+        {WEDDING_TYPES.map((type) => {
+          const checked = mv.matType === type;
+          return (
+            <label
+              key={type}
+              className={`cursor-pointer select-none px-3.5 py-2 rounded-full border-[1.5px] text-[13.5px] font-semibold transition focus-within:ring-2 focus-within:ring-parish-blue/30 ${
+                checked ? 'bg-parish-blue border-parish-blue text-white' : 'bg-white border-parish-borderSoft text-parish-text2 hover:border-parish-blue'
+              }`}
+            >
+              <input type="radio" name={`wedding-${mv.mi}`} value={type} checked={checked} onChange={() => choose(type)} className="sr-only" />
+              {type}
+            </label>
+          );
+        })}
+      </div>
+      {catholic && (
+        <div className="grid gap-3 mt-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
+          <input type="date" aria-label="Wedding date" value={mv.matDate} onChange={set('matDate')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+          <input type="text" placeholder="Parish / Church" value={mv.matChurch} onChange={set('matChurch')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function StepEngagement({ memberViews, onMemberField, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent }) {
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Church Engagement</h2>
       <p className="text-parish-text2 text-[15.5px] mb-[22px]">Ministry and organization assignments are handled by parish staff after your visit.</p>
+      <Card className="p-[clamp(20px,4vw,32px)] mb-5">
+        <SectionTitle>Responsibility in GKK</SectionTitle>
+        <p className="text-[13.5px] text-parish-muted -mt-2 mb-4">Leave blank for anyone who has no role in the GKK.</p>
+        <div className="flex flex-col gap-3">
+          {memberViews.map((mv) => (
+            <div key={mv.mi} className="grid gap-x-4 gap-y-1.5 items-center" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+              <label htmlFor={`gkk-role-${mv.mi}`} className="font-semibold text-[15px] text-parish-navy">
+                {mv.displayName}
+                <span className="block text-[12.5px] font-medium text-parish-muted">{mv.relationship || '—'}</span>
+              </label>
+              <TextInput id={`gkk-role-${mv.mi}`} placeholder="Katungdanan sa GKK" value={mv.gkkRole || ''} onChange={(e) => onMemberField(mv.mi, 'gkkRole', e.target.value)} />
+            </div>
+          ))}
+        </div>
+      </Card>
       <Card className="p-[clamp(20px,4vw,32px)]">
         <div className="mb-[22px]">
           <Field label="Is anyone in the household willing to volunteer?">
@@ -570,13 +726,17 @@ function StepEngagement({ volunteer, setVolunteer, notifyOptin, setNotifyOptin, 
 
 function StepReview({ household, memberViews, volunteer, notifyOptin, consent, onGoStep }) {
   const addr = [household.street, household.barangay, household.city, household.province, household.zip].filter(Boolean).join(', ') || '—';
+  const participation = household.participation || {};
   const householdReview = [
+    ['Household head', fullName(memberViews[0]) || '—'],
     ['Family name', household.householdName || '—'],
     ['Address', addr],
     ['Parish GKK', household.gkk || '—'],
     ['Family grouping', household.familyGrouping || '—'],
     ['Contact', household.contact || '—'],
     ['Email', household.email || '—'],
+    ['Participation', PARTICIPATION_ITEMS.filter(([k]) => participation[k]).map(([k, label]) => `${label}: ${participation[k]}`).join('  ·  ') || '—'],
+    ['Ways to help', HELP_WAYS.filter(([k]) => (household.helpWays || []).includes(k)).map(([, label]) => label).join(' ') || '—'],
   ];
   const engReview = [
     ['Volunteer', volunteer || '—'],
@@ -590,7 +750,9 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
     if (m.hasBaptism) s.push(['Baptism', j([fmtDate(m.baptismDate), m.baptismChurch]) || 'Recorded']);
     if (m.hasCommunion) s.push(['First Communion', j([fmtDate(m.communionDate), m.communionChurch]) || 'Recorded']);
     if (m.hasConfirmation) s.push(['Confirmation', j([fmtDate(m.confDate), m.confChurch, m.confName && `Name: ${m.confName}`, m.confSponsor && `Sponsor: ${m.confSponsor}`]) || 'Recorded']);
-    if (m.hasMatrimony) s.push(['Matrimony', j([fmtDate(m.matDate), m.matChurch, m.matType]) || 'Recorded']);
+    const p = toPayloadMember(m);
+    if (p.hasMatrimony) s.push(['Matrimony', j([p.matType, fmtDate(p.matDate), p.matChurch]) || 'Recorded']);
+    else if (p.matType) s.push(['Married', p.matType]);
     if (!s.length) s.push(['—', 'No sacraments recorded']);
     return s;
   }
@@ -608,8 +770,8 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
         <div className="flex flex-col gap-4 mt-3">
           {memberViews.map((m, i) => (
             <div key={i} className="border border-[#f0e8d6] rounded-2xl px-[18px] py-4 bg-[#fdfbf6]">
-              <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{[m.firstName, m.middleName, m.lastName].filter(Boolean).join(' ') || `Member ${i + 1}`}</div>
-              <div className="text-[13.5px] text-parish-muted mb-3">{[m.relationship, m.sex, m.civilStatus, m.dob && `b. ${fmtDate(m.dob)}`, m.bloodType && `Blood: ${m.bloodType}`].filter(Boolean).join('  ·  ') || '—'}</div>
+              <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{fullName(m) || m.displayName}</div>
+              <div className="text-[13.5px] text-parish-muted mb-3">{[m.relationship, m.sex, m.civilStatus, m.dob && `b. ${fmtDate(m.dob)}`, m.tribe && `Tribe: ${m.tribe}`, m.bloodType && `Blood: ${m.bloodType}`, m.gkkRole && `GKK: ${m.gkkRole}`].filter(Boolean).join('  ·  ') || '—'}</div>
               <div className="flex flex-col gap-1.5">
                 {sacList(m).map(([label, detail]) => (
                   <div key={label} className="flex gap-2.5 text-[14px] items-baseline">

@@ -84,3 +84,17 @@ export function StatusPill({ status }) {
     </span>
   );
 }
+
+const BADGE_TONES = {
+  gold: 'bg-[var(--p-gold-tint)] text-[var(--p-gold-deep)]',
+  blue: 'bg-[var(--p-blue-tint)] text-parish-blue',
+  green: 'bg-parish-okBg text-parish-ok',
+};
+
+export function Badge({ tone = 'blue', title, children }) {
+  return (
+    <span title={title} className={`inline-flex items-center text-[11.5px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${BADGE_TONES[tone] || BADGE_TONES.blue}`}>
+      {children}
+    </span>
+  );
+}

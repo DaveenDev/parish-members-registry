@@ -47,7 +47,7 @@ project/               Original Claude Design source files this app was built fr
 Follow [`guadalupe-registry-deployment-guide.md`](guadalupe-registry-deployment-guide.md) Part 1, or in short:
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations.
+2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations. Then run each later migration in order ([`0002_head_first_registration.sql`](supabase/migrations/0002_head_first_registration.sql) adds the Household Head fields, the participation survey, and the public GKK list). Existing projects only need the migrations they haven't run yet.
 3. Create your first admin: **Authentication → Users → Add user**, then run the `insert into profiles (...)` statement at the bottom of the migration file with that user's UUID.
 4. **Authentication → Providers → Email → turn off "Allow new users to sign up."**
 5. Copy your **Project URL** and **anon/publishable key** from **Project Settings → API**.

@@ -3,11 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody } from '../../components/admin.jsx';
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton } from '../../components/ui.jsx';
-import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, blankMember } from '../../constants.js';
+import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, DEFAULT_ADDRESS, blankMember } from '../../constants.js';
 
 function blankNhMember() {
   const b = blankMember();
-  return { first: '', middle: '', last: '', rel: '', sex: '', dob: '', pob: '', civil: '', contact: '', email: '', occupation: '', bloodType: '', organizations: [], ...pickSac(b) };
+  return { first: '', middle: '', last: '', suffix: '', rel: '', sex: '', dob: '', pob: '', tribe: '', civil: '', gkkRole: '', contact: '', email: '', occupation: '', bloodType: '', organizations: [], ...pickSac(b) };
 }
 function pickSac(b) {
   const { hasBaptism, baptismDate, baptismChurch, hasCommunion, communionDate, communionChurch, hasConfirmation, confDate, confChurch, confName, confSponsor, hasMatrimony, matDate, matChurch, matType, ministries } = b;
@@ -16,7 +16,7 @@ function pickSac(b) {
 
 export default function NewHousehold() {
   const navigate = useNavigate();
-  const [nh, setNh] = useState({ name: '', street: '', barangay: '', city: '', province: '', zip: '', gkk: '', grouping: '', contact: '', email: '', status: 'Pending' });
+  const [nh, setNh] = useState({ name: '', street: '', barangay: '', ...DEFAULT_ADDRESS, gkk: '', grouping: '', contact: '', email: '', status: 'Pending' });
   const [members, setMembers] = useState([blankNhMember()]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [ministryOptions, setMinistryOptions] = useState([]);
@@ -121,6 +121,7 @@ export default function NewHousehold() {
                   <Field label="First name" required><TextInput value={mv.first} onChange={(e) => setMemberField(i, 'first', e.target.value)} /></Field>
                   <Field label="Middle name"><TextInput value={mv.middle} onChange={(e) => setMemberField(i, 'middle', e.target.value)} /></Field>
                   <Field label="Last name" required><TextInput value={mv.last} onChange={(e) => setMemberField(i, 'last', e.target.value)} /></Field>
+                  <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={mv.suffix} onChange={(e) => setMemberField(i, 'suffix', e.target.value)} /></Field>
                   <Field label="Relationship" required>
                     <Select value={mv.rel} onChange={(e) => setMemberField(i, 'rel', e.target.value)}>
                       <option value="">Select…</option>{RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
@@ -133,6 +134,7 @@ export default function NewHousehold() {
                   </Field>
                   <Field label="Date of birth" required><TextInput type="date" value={mv.dob} onChange={(e) => setMemberField(i, 'dob', e.target.value)} /></Field>
                   <Field label="Place of birth"><TextInput value={mv.pob} onChange={(e) => setMemberField(i, 'pob', e.target.value)} /></Field>
+                  <Field label="Tribe"><TextInput value={mv.tribe} onChange={(e) => setMemberField(i, 'tribe', e.target.value)} /></Field>
                   <Field label="Civil status" required>
                     <Select value={mv.civil} onChange={(e) => setMemberField(i, 'civil', e.target.value)}>
                       <option value="">Select…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -146,6 +148,7 @@ export default function NewHousehold() {
                       <option value="">Unknown</option>{BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
                     </Select>
                   </Field>
+                  <Field label="Responsibility in GKK"><TextInput placeholder="Katungdanan sa GKK" value={mv.gkkRole} onChange={(e) => setMemberField(i, 'gkkRole', e.target.value)} /></Field>
                 </div>
 
                 <SectionLabel>Sacraments received</SectionLabel>
@@ -191,7 +194,7 @@ export default function NewHousehold() {
                         <TextInput type="date" value={mv.matDate} onChange={(e) => setMemberField(i, 'matDate', e.target.value)} />
                         <TextInput placeholder="Parish / Church" value={mv.matChurch} onChange={(e) => setMemberField(i, 'matChurch', e.target.value)} />
                         <Select value={mv.matType} onChange={(e) => setMemberField(i, 'matType', e.target.value)}>
-                          <option value="">Marriage type…</option><option value="Catholic">Catholic</option><option value="Convalidation">Convalidation</option>
+                          <option value="">Marriage type…</option>{WEDDING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
                         </Select>
                       </div>
                     )}

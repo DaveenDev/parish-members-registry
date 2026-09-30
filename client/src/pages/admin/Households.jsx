@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState } from '../../components/admin.jsx';
-import { StatusPill, PrimaryButton } from '../../components/ui.jsx';
+import { StatusPill, PrimaryButton, Badge } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import HouseholdEditModal from '../../components/HouseholdEditModal.jsx';
 import PrintSheet, { printHouseholdSheet } from '../../components/PrintSheet.jsx';
@@ -146,6 +146,7 @@ export default function Households() {
                           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9a927f" strokeWidth="2.6" className="flex-none transition-transform" style={{ transform: expanded[h.id] ? 'rotate(90deg)' : 'none' }} aria-hidden><path d="M9 6l6 6-6 6" /></svg>
                           <span>
                             <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
+                            {h.head_name && <span className="block text-[12.5px] text-parish-text2 mt-0.5">Head: {h.head_name}</span>}
                             <span className="block text-[12px] text-parish-muted mt-0.5">{[h.street, h.barangay, h.city].filter(Boolean).join(', ')}</span>
                           </span>
                         </button>
@@ -174,9 +175,10 @@ export default function Households() {
                                   {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
                                 </div>
                                 <div className="flex-none min-w-[160px]">
-                                  <div className="text-[14px] font-semibold text-parish-navy">{m.first_name} {m.last_name}</div>
+                                  <div className="text-[14px] font-semibold text-parish-navy">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
                                   <div className="text-[12px] text-parish-muted">{m.relationship || '—'}</div>
                                 </div>
+                                <MemberBadges member={m} />
                               </button>
                             ))}
                             {!(expandedMembers[h.id] || []).length && <div className="text-[13px] text-parish-muted">No members yet.</div>}
@@ -217,5 +219,21 @@ export default function Households() {
       )}
       <PrintSheet data={printData} />
     </>
+  );
+}
+
+/** At-a-glance GKK role, ministries and organizations, right of the member's name. */
+function MemberBadges({ member }) {
+  const ministries = member.ministries || [];
+  const organizations = member.organizations || [];
+  if (!member.gkk_role && !ministries.length && !organizations.length) {
+    return <span className="ml-auto text-[12px] text-parish-muted">No roles or groups</span>;
+  }
+  return (
+    <div className="ml-auto flex flex-wrap gap-1.5 justify-end">
+      {member.gkk_role && <Badge tone="gold" title="Responsibility in GKK">GKK: {member.gkk_role}</Badge>}
+      {ministries.map((name) => <Badge key={`m-${name}`} tone="blue" title="Ministry">{name}</Badge>)}
+      {organizations.map((name) => <Badge key={`o-${name}`} tone="green" title="Organization">{name}</Badge>)}
+    </div>
   );
 }
