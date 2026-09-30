@@ -7,7 +7,7 @@ import {
   blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
   PARTICIPATION_ITEMS, HELP_WAYS, DEFAULT_ADDRESS, fmtDate,
 } from '../constants.js';
-import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner } from '../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, TribeSelect } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
 import ParticipationSurvey from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
@@ -679,7 +679,7 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
       </Field>
       <Field label="Date of birth (Birthday)" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
       <Field label="Place of birth"><TextInput placeholder="Asa gipanganak" value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
-      <Field label="Tribe"><TextInput placeholder="Tribu" value={mv.tribe || ''} onChange={set('tribe')} /></Field>
+      <Field label="Tribe"><TribeSelect value={mv.tribe} onChange={(v) => onField(mv.mi, 'tribe', v)} /></Field>
       <Field label="Civil status" required error={mv.err.civilStatus}>
         <Select value={mv.civilStatus} onChange={set('civilStatus')}>
           <option value="">Select…</option>

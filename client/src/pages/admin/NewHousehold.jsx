@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody } from '../../components/admin.jsx';
-import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, HouseholdNameTakenNote } from '../../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, HouseholdNameTakenNote, TribeSelect } from '../../components/ui.jsx';
 import { useHouseholdNameTaken } from '../../hooks.js';
 import { toNameCase, toSuffixCase } from '../../lib/util.js';
 import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, DEFAULT_ADDRESS, blankMember } from '../../constants.js';
@@ -147,7 +147,7 @@ export default function NewHousehold() {
                   </Field>
                   <Field label="Date of birth" required><TextInput type="date" value={mv.dob} onChange={(e) => setMemberField(i, 'dob', e.target.value)} /></Field>
                   <Field label="Place of birth"><TextInput value={mv.pob} onChange={(e) => setMemberField(i, 'pob', e.target.value)} /></Field>
-                  <Field label="Tribe"><TextInput value={mv.tribe} onChange={(e) => setMemberField(i, 'tribe', e.target.value)} /></Field>
+                  <Field label="Tribe"><TribeSelect placeholder="Select…" value={mv.tribe} onChange={(v) => setMemberField(i, 'tribe', v)} /></Field>
                   <Field label="Civil status" required>
                     <Select value={mv.civil} onChange={(e) => setMemberField(i, 'civil', e.target.value)}>
                       <option value="">Select…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{c}</option>)}

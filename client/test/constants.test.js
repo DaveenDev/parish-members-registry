@@ -7,6 +7,7 @@ import {
   RELIGIONS,
   BLOOD_TYPES,
   HEAD,
+  TRIBES,
   WEDDING_TYPES,
   PARTICIPATION_ITEMS,
   PARTICIPATION_LEVELS,
@@ -19,7 +20,7 @@ import {
 
 describe('pick-lists', () => {
   test('have no blanks or duplicates', () => {
-    for (const [label, list] of Object.entries({ RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES })) {
+    for (const [label, list] of Object.entries({ RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, TRIBES })) {
       assert.ok(list.length > 0, `${label} is empty`);
       assert.equal(new Set(list).size, list.length, `${label} has duplicates`);
       assert.ok(list.every((v) => typeof v === 'string' && v.trim()), `${label} has a blank entry`);

@@ -11,6 +11,12 @@ export const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export const HEAD = 'Head of Household';
 
+// Tribe pick-list (members.tribe stays free text, so "Other…" can hold anything else).
+export const TRIBES = [
+  'Bisaya', 'Illongo', 'Bol-anon', 'Waray', 'Karay-a', 'Bagobo', "T'boli", "B'laan", 'Manobo', 'Subanon',
+  'Mandaya', 'Higaonon', 'Teduray', 'Maranao', 'Maguindanaon', 'Tausug', 'Yakan', 'Badjao',
+];
+
 // Head / spouse marriage type. Only a Catholic marriage counts as the
 // sacrament of Matrimony (has_matrimony). 'Catholic' and 'Convalidation' are
 // the older values admins may still see on existing records.

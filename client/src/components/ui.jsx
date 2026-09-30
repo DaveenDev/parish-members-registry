@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { TRIBES } from '../constants.js';
 
 export function Field({ label, required, error, children }) {
   return (
@@ -82,6 +83,51 @@ export function StatusPill({ status }) {
       <span className={`w-1.5 h-1.5 rounded-full ${verified ? 'bg-[#2f7a52]' : 'bg-[#a1762b]'}`} />
       {status}
     </span>
+  );
+}
+
+const OTHER_TRIBE = '__other__';
+
+/**
+ * Tribe picker: the TRIBES list plus "Other…", which reveals a text box.
+ * `onChange` receives the tribe string. A saved value that isn't on the list
+ * opens straight into "Other…" so older free-text entries still show.
+ */
+export function TribeSelect({ value, onChange, placeholder = 'Tribu' }) {
+  const current = value || '';
+  const known = TRIBES.includes(current);
+  const [otherChosen, setOtherChosen] = useState(false);
+  const showOther = otherChosen || (!!current && !known);
+
+  function pick(e) {
+    const v = e.target.value;
+    if (v === OTHER_TRIBE) {
+      setOtherChosen(true);
+      if (known) onChange('');
+    } else {
+      setOtherChosen(false);
+      onChange(v);
+    }
+  }
+
+  return (
+    <>
+      <Select value={showOther ? OTHER_TRIBE : current} onChange={pick}>
+        <option value="">{placeholder}</option>
+        {TRIBES.map((t) => <option key={t} value={t}>{t}</option>)}
+        <option value={OTHER_TRIBE}>Other…</option>
+      </Select>
+      {showOther && (
+        <TextInput
+          className="mt-2"
+          placeholder="Isulat ang tribu"
+          aria-label="Other tribe"
+          value={current}
+          autoFocus={otherChosen}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      )}
+    </>
   );
 }
 

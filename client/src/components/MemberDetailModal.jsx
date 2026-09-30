@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, ageFromDob } from '../constants.js';
-import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton } from './ui.jsx';
+import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
@@ -131,7 +131,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               </Field>
               <Field label="Date of birth"><TextInput type="date" value={member.dob ? String(member.dob).slice(0, 10) : ''} onChange={(e) => set('dob', e.target.value)} /></Field>
               <Field label="Place of birth"><TextInput value={member.place_of_birth || ''} onChange={(e) => set('place_of_birth', e.target.value)} /></Field>
-              <Field label="Tribe"><TextInput value={member.tribe || ''} onChange={(e) => set('tribe', e.target.value)} /></Field>
+              <Field label="Tribe"><TribeSelect placeholder="Select…" value={member.tribe} onChange={(v) => set('tribe', v)} /></Field>
               <Field label="Civil status">
                 <Select value={member.civil_status || ''} onChange={(e) => set('civil_status', e.target.value)}>
                   <option value="">Select…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{c}</option>)}
