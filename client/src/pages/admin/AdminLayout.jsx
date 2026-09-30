@@ -72,9 +72,9 @@ export default function AdminLayout() {
   const sidebar = (
     <>
       <div className="px-5 py-[22px] flex items-center gap-3 border-b border-white/10">
-        <div className="w-[42px] h-[42px] rounded-xl bg-[var(--p-gold-light)]/[.16] flex items-center justify-center flex-none text-[var(--p-gold-light)] overflow-hidden">
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-none text-[var(--p-gold-light)] overflow-hidden ${parish?.logo ? 'bg-white p-1' : 'bg-[var(--p-gold-light)]/[.16]'}`}>
           {parish?.logo ? (
-            <img src={parish.logo} alt="" className="w-full h-full object-cover" />
+            <img src={parish.logo} alt={`${parish.name || 'Parish'} logo`} className="w-full h-full object-contain" />
           ) : (
             <svg viewBox="0 0 40 40" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" aria-hidden><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z" /><path d="M20 24v9M15.5 28.5h9" /></svg>
           )}
@@ -147,10 +147,14 @@ export default function AdminLayout() {
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M3 6h18M3 12h18M3 18h18" /></svg>
           </button>
+          {parish?.logo && (
+            <img src={parish.logo} alt="" className="w-[30px] h-[30px] object-contain rounded-md bg-white flex-none" />
+          )}
           <span className="font-serif text-[19px] font-semibold text-parish-navy truncate">{parish?.name || 'Parish Registry'}</span>
         </div>
 
-        <Outlet />
+        {/* Pages that change parish settings (logo, name) push them back here so the sidebar updates without a reload. */}
+        <Outlet context={{ parish, setParish }} />
       </main>
     </div>
   );

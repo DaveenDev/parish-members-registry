@@ -76,6 +76,7 @@ describe('blankMember', () => {
     assert.equal(m.hasConfirmation, false);
     assert.equal(m.hasMatrimony, false);
     assert.deepEqual(m.ministries, []);
+    assert.deepEqual(m.organizations, []);
   });
 
   test('defaults religion to Roman Catholic', () => {

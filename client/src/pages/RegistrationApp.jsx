@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
+import { useDebounced } from '../hooks.js';
+import { toNameCase, toSuffixCase } from '../lib/util.js';
 import {
   blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
   PARTICIPATION_ITEMS, HELP_WAYS, DEFAULT_ADDRESS, fmtDate,
@@ -45,10 +47,31 @@ function fullName(m) {
   return [m.firstName, m.middleName, m.lastName, m.suffix].filter(Boolean).join(' ');
 }
 
-/** What actually gets sent for a member: the wedding type only applies while Married. */
+/**
+ * What actually gets sent for a member: names in Capitalized case, and the
+ * wedding type only while Married.
+ */
 function toPayloadMember(m) {
-  if (m.civilStatus === 'Married') return { ...m, hasMatrimony: m.matType === 'Catholic Marriage' };
-  return { ...m, matType: WEDDING_TYPES.includes(m.matType) ? '' : m.matType };
+  const named = {
+    ...m,
+    firstName: toNameCase(m.firstName), middleName: toNameCase(m.middleName),
+    lastName: toNameCase(m.lastName), suffix: toSuffixCase(m.suffix),
+  };
+  if (m.civilStatus === 'Married') return { ...named, hasMatrimony: m.matType === 'Catholic Marriage' };
+  return { ...named, matType: WEDDING_TYPES.includes(m.matType) ? '' : m.matType };
+}
+
+/** Alternatives offered when the household name is already taken. */
+function householdNameCandidates(household, head) {
+  const last = toNameCase(head.lastName);
+  if (!last) return [];
+  const first = toNameCase(head.firstName);
+  const barangay = String(household.barangay || '').trim();
+  return [
+    first && `${first} ${last} Family`,
+    barangay && `${last} Family (${barangay})`,
+    first && barangay && `${first} ${last} Family (${barangay})`,
+  ].filter(Boolean);
 }
 
 /** Restore an in-progress registration so a refresh doesn't discard everything. */
@@ -76,6 +99,9 @@ export default function RegistrationApp() {
   const [householdNameTouched, setHouseholdNameTouched] = useState(!!draft?.householdNameTouched);
   const [members, setMembers] = useState(draft?.members || [blankHead()]);
   const [gkkOptions, setGkkOptions] = useState([]);
+  const [orgOptions, setOrgOptions] = useState([]);
+  const [nameCheck, setNameCheck] = useState({ name: '', status: 'idle' }); // idle | available | taken | error
+  const [nameSuggestion, setNameSuggestion] = useState('');
   const [volunteer, setVolunteer] = useState(draft?.volunteer || '');
   const [notifyOptin, setNotifyOptin] = useState(!!draft?.notifyOptin);
   const [consent, setConsent] = useState(!!draft?.consent);
@@ -94,7 +120,57 @@ export default function RegistrationApp() {
 
   useEffect(() => {
     api.listPublicGkks().then(setGkkOptions).catch(() => {});
+    api.listPublicOrganizations().then(setOrgOptions).catch(() => {});
   }, []);
+
+  // Household names are unique parish-wide. Check as the name settles, and if
+  // it's taken, find the first free alternative to offer as a one-tap fix.
+  const trimmedName = household.householdName.trim();
+  const debouncedName = useDebounced(trimmedName, 400);
+  useEffect(() => {
+    if (!debouncedName) { setNameCheck({ name: '', status: 'idle' }); return; }
+    let cancelled = false;
+    api.householdNameAvailable(debouncedName)
+      .then((ok) => { if (!cancelled) setNameCheck({ name: debouncedName, status: ok ? 'available' : 'taken' }); })
+      .catch(() => { if (!cancelled) setNameCheck({ name: debouncedName, status: 'error' }); });
+    return () => { cancelled = true; };
+  }, [debouncedName]);
+
+  const nameStatus = !trimmedName ? 'idle' : nameCheck.name === trimmedName ? nameCheck.status : 'checking';
+
+  useEffect(() => {
+    setNameSuggestion('');
+    if (nameStatus !== 'taken') return;
+    let cancelled = false;
+    (async () => {
+      for (const candidate of householdNameCandidates(household, members[0])) {
+        if (candidate.toLowerCase() === trimmedName.toLowerCase()) continue;
+        try {
+          if (await api.householdNameAvailable(candidate)) {
+            if (!cancelled) setNameSuggestion(candidate);
+            return;
+          }
+        } catch {
+          return;
+        }
+      }
+    })();
+    return () => { cancelled = true; };
+    // Only re-run when the name's verdict changes, not on every keystroke elsewhere.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nameStatus, trimmedName]);
+
+  /** The name's availability, asking the server directly if the debounced check hasn't caught up. */
+  async function confirmNameStatus() {
+    if (nameStatus === 'available' || nameStatus === 'taken') return nameStatus;
+    try {
+      const ok = await api.householdNameAvailable(trimmedName);
+      setNameCheck({ name: trimmedName, status: ok ? 'available' : 'taken' });
+      return ok ? 'available' : 'taken';
+    } catch {
+      return 'error'; // don't block on a network hiccup; submit_registration re-checks
+    }
+  }
 
   function clearDraft() {
     try { localStorage.removeItem(DRAFT_KEY); } catch {}
@@ -128,18 +204,18 @@ export default function RegistrationApp() {
     setMemberErr((me) => me.map((e, idx) => (idx === i && e ? { ...e, [field]: '' } : e)));
     setBanner('');
     if (i === 0 && field === 'lastName' && !householdNameTouched) {
-      const last = String(value).trim();
+      const last = toNameCase(value);
       setHousehold((h) => ({ ...h, householdName: last ? `${last} Family` : '' }));
       setErr((e) => ({ ...e, householdName: '' }));
     }
   }
-  function toggleMinistry(i, name) {
+  function toggleOrganization(i, name) {
     setMembers((ms) =>
       ms.map((m, idx) => {
         if (idx !== i) return m;
-        const set = new Set(m.ministries || []);
+        const set = new Set(m.organizations || []);
         set.has(name) ? set.delete(name) : set.add(name);
-        return { ...m, ministries: [...set] };
+        return { ...m, organizations: [...set] };
       })
     );
   }
@@ -190,8 +266,12 @@ export default function RegistrationApp() {
     return { ok: true, err: e, memberErr: me, banner: '' };
   }
 
-  function next() {
-    const v = validate(step);
+  async function next() {
+    let v = validate(step);
+    if (v.ok && step === 1 && (await confirmNameStatus()) === 'taken') {
+      const banner = 'That household name is already registered. Tap Edit to choose another.';
+      v = { ok: false, err: { householdName: `“${trimmedName}” is already registered` }, memberErr: [], banner };
+    }
     if (!v.ok) {
       setErr(v.err); setMemberErr(v.memberErr); setBanner(v.banner);
       showToast(v.banner, 'error'); top();
@@ -248,8 +328,10 @@ export default function RegistrationApp() {
         <Wizard
           step={step} banner={banner}
           household={household} err={err} onHouseholdField={updateHousehold} gkkOptions={gkkOptions}
+          nameStatus={nameStatus} nameSuggestion={nameSuggestion}
           onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay}
-          memberViews={memberViews} onMemberField={updateMember} onToggleMinistry={toggleMinistry}
+          memberViews={memberViews} onMemberField={updateMember}
+          orgOptions={orgOptions} onToggleOrganization={toggleOrganization}
           onAddMember={addMember} onRemoveMember={removeMember}
           volunteer={volunteer} setVolunteer={(v) => { setVolunteer(v); setBanner(''); }}
           notifyOptin={notifyOptin} setNotifyOptin={setNotifyOptin}
@@ -284,6 +366,8 @@ export default function RegistrationApp() {
 }
 
 function Landing({ onStart }) {
+  const [stats, setStats] = useState(null);
+  useEffect(() => { api.publicStats().then(setStats).catch(() => {}); }, []);
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
       <div className="fixed top-4 right-4 z-40">
@@ -299,6 +383,12 @@ function Landing({ onStart }) {
         <p className="text-[clamp(16px,3.6vw,18px)] leading-relaxed text-parish-text2 max-w-[440px] mx-auto mb-8">
           Welcome home. Enroll your household in the parish family so we can keep in touch, celebrate the sacraments together, and serve one another in faith.
         </p>
+        {stats && (
+          <div className="grid grid-cols-2 gap-3 max-w-[400px] mx-auto mb-8">
+            <LandingStat value={stats.gkks} label="GKKs in the parish" />
+            <LandingStat value={stats.households} label="Households registered" />
+          </div>
+        )}
         <PrimaryButton onClick={onStart} className="px-10 py-[18px] text-[17px]">Register Your Household</PrimaryButton>
         <div className="mt-7 inline-flex items-center gap-2 text-[13.5px] text-parish-muted">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
@@ -308,6 +398,15 @@ function Landing({ onStart }) {
           <Link to="/admin/login" className="font-semibold text-[14px] text-parish-blue">Parish staff? Sign in to the admin panel →</Link>
         </div>
       </div>
+    </div>
+  );
+}
+
+function LandingStat({ value, label }) {
+  return (
+    <div className="bg-white/70 border border-[#e7dcc4] rounded-2xl px-4 py-3.5 animate-fadeUp">
+      <div className="font-serif font-semibold text-[34px] leading-none text-parish-blue">{Number(value || 0).toLocaleString()}</div>
+      <div className="font-semibold text-[12px] tracking-[.08em] uppercase text-parish-muted mt-1.5">{label}</div>
     </div>
   );
 }
@@ -415,7 +514,61 @@ function Wizard(props) {
 
 const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' };
 
-function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, onParticipation, onToggleHelpWay }) {
+/**
+ * Household name: filled in automatically from the head's last name and
+ * locked until "Edit" is pressed. Shows whether the name is still free.
+ */
+function HouseholdNameField({ value, error, status, suggestion, onChange }) {
+  const [editing, setEditing] = useState(false);
+  const inputRef = useRef(null);
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
+
+  function toggle() {
+    if (editing) onChange(value.trim());
+    setEditing((e) => !e);
+  }
+
+  const statusLine = {
+    checking: <span className="text-parish-muted">Checking if this name is available…</span>,
+    available: <span className="text-parish-ok font-semibold">✓ Available</span>,
+    taken: <span className="text-parish-error font-semibold">✗ “{value.trim()}” is already registered. Please use a different name.</span>,
+  }[status];
+
+  return (
+    <Field label="Household Name / Pamilya" required error={error}>
+      <div className="flex gap-2">
+        <TextInput
+          ref={inputRef}
+          placeholder={editing ? 'e.g. Dela Cruz Family' : 'Filled in from the last name'}
+          value={value}
+          readOnly={!editing}
+          aria-readonly={!editing}
+          onChange={(e) => onChange(e.target.value)}
+          onKeyDown={(e) => { if (editing && e.key === 'Enter') toggle(); }}
+          className={`flex-1 ${editing ? '' : '!bg-[#f4efe3] !text-parish-text2 cursor-default'}`}
+        />
+        <GhostButton type="button" onClick={toggle} className="px-4 text-[14px] flex-none !border-[#cdd7e8] !text-parish-blue bg-white">
+          {editing ? 'Done' : 'Edit'}
+        </GhostButton>
+      </div>
+      {!error && statusLine && <div className="text-[12.5px] mt-1.5">{statusLine}</div>}
+      {status === 'taken' && suggestion && (
+        <button
+          type="button"
+          onClick={() => { onChange(suggestion); setEditing(false); }}
+          className="mt-2 appearance-none cursor-pointer border-[1.5px] border-[#9db9e0] bg-[var(--p-blue-tint)] text-parish-blue font-semibold text-[13px] px-3 py-1.5 rounded-lg"
+        >
+          Use “{suggestion}”
+        </button>
+      )}
+    </Field>
+  );
+}
+
+function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, onParticipation, onToggleHelpWay, nameStatus, nameSuggestion }) {
   const f = (field) => ({ value: household[field], onChange: (e) => onHouseholdField(field, e.target.value) });
   const head = memberViews[0];
   // Keep a GKK saved in an older draft selectable even if it's no longer in the list.
@@ -429,9 +582,13 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
         <SectionTitle>Household Head</SectionTitle>
         <MemberNameFields mv={head} onField={onMemberField} />
         <div className="mt-[18px]">
-          <Field label="Household Name / Pamilya" required error={err.householdName}>
-            <TextInput placeholder="e.g. Dela Cruz Family" {...f('householdName')} />
-          </Field>
+          <HouseholdNameField
+            value={household.householdName}
+            error={err.householdName}
+            status={nameStatus}
+            suggestion={nameSuggestion}
+            onChange={(v) => onHouseholdField('householdName', v)}
+          />
         </div>
         <div className="mt-[18px]">
           <MemberFieldsGrid mv={head} onField={onMemberField} head />
@@ -487,12 +644,17 @@ function SectionTitle({ children }) {
 
 function MemberNameFields({ mv, onField }) {
   const set = (field) => (e) => onField(mv.mi, field, e.target.value);
+  // Tidy to "Dela Cruz" style when the field is left, not while typing.
+  const tidy = (field, format = toNameCase) => (e) => {
+    const formatted = format(e.target.value);
+    if (formatted !== e.target.value) onField(mv.mi, field, formatted);
+  };
   return (
     <div className="grid gap-4" style={GRID}>
-      <Field label="Last name" required error={mv.err.lastName}><TextInput value={mv.lastName} onChange={set('lastName')} /></Field>
-      <Field label="First name" required error={mv.err.firstName}><TextInput value={mv.firstName} onChange={set('firstName')} /></Field>
-      <Field label="Middle name"><TextInput placeholder="mother's maiden name" value={mv.middleName} onChange={set('middleName')} /></Field>
-      <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={mv.suffix || ''} onChange={set('suffix')} /></Field>
+      <Field label="Last name" required error={mv.err.lastName}><TextInput value={mv.lastName} onChange={set('lastName')} onBlur={tidy('lastName')} autoCapitalize="words" /></Field>
+      <Field label="First name" required error={mv.err.firstName}><TextInput value={mv.firstName} onChange={set('firstName')} onBlur={tidy('firstName')} autoCapitalize="words" /></Field>
+      <Field label="Middle name"><TextInput placeholder="mother's maiden name" value={mv.middleName} onChange={set('middleName')} onBlur={tidy('middleName')} autoCapitalize="words" /></Field>
+      <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={mv.suffix || ''} onChange={set('suffix')} onBlur={tidy('suffix', toSuffixCase)} /></Field>
     </div>
   );
 }
@@ -678,11 +840,37 @@ function WeddingBlock({ mv, onField }) {
   );
 }
 
-function StepEngagement({ memberViews, onMemberField, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent }) {
+function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrganization, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent }) {
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Church Engagement</h2>
-      <p className="text-parish-text2 text-[15.5px] mb-[22px]">Ministry and organization assignments are handled by parish staff after your visit.</p>
+      <p className="text-parish-text2 text-[15.5px] mb-[22px]">Ministry assignments are handled by parish staff after your visit.</p>
+      {orgOptions.length > 0 && (
+        <Card className="p-[clamp(20px,4vw,32px)] mb-5">
+          <SectionTitle>Organizations</SectionTitle>
+          <p className="text-[13.5px] text-parish-muted -mt-2 mb-4">Tick every parish organization each member already belongs to.</p>
+          <div className="flex flex-col gap-5">
+            {memberViews.map((mv) => (
+              <fieldset key={mv.mi} className="border-none p-0 m-0 min-w-0">
+                <legend className="font-semibold text-[15px] text-parish-navy mb-2">
+                  {mv.displayName} <span className="font-medium text-[12.5px] text-parish-muted">· {mv.relationship || '—'}</span>
+                </legend>
+                <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+                  {orgOptions.map((name) => {
+                    const checked = (mv.organizations || []).includes(name);
+                    return (
+                      <label key={name} className="flex items-center gap-2.5 cursor-pointer border-[1.5px] rounded-xl px-3 py-2.5" style={{ borderColor: checked ? '#9db9e0' : '#e0d6c1', background: checked ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
+                        <Checkbox checked={checked} onChange={() => onToggleOrganization(mv.mi, name)} className="flex-none" />
+                        <span className="text-[14px] text-parish-ink">{name}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
+            ))}
+          </div>
+        </Card>
+      )}
       <Card className="p-[clamp(20px,4vw,32px)] mb-5">
         <SectionTitle>Responsibility in GKK</SectionTitle>
         <p className="text-[13.5px] text-parish-muted -mt-2 mb-4">Leave blank for anyone who has no role in the GKK.</p>
@@ -772,6 +960,9 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
             <div key={i} className="border border-[#f0e8d6] rounded-2xl px-[18px] py-4 bg-[#fdfbf6]">
               <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{fullName(m) || m.displayName}</div>
               <div className="text-[13.5px] text-parish-muted mb-3">{[m.relationship, m.sex, m.civilStatus, m.dob && `b. ${fmtDate(m.dob)}`, m.tribe && `Tribe: ${m.tribe}`, m.bloodType && `Blood: ${m.bloodType}`, m.gkkRole && `GKK: ${m.gkkRole}`].filter(Boolean).join('  ·  ') || '—'}</div>
+              {!!(m.organizations || []).length && (
+                <div className="text-[13.5px] mb-3"><span className="text-parish-blue font-semibold">Organizations</span> <span className="text-parish-text2">{m.organizations.join(' · ')}</span></div>
+              )}
               <div className="flex flex-col gap-1.5">
                 {sacList(m).map(([label, detail]) => (
                   <div key={label} className="flex gap-2.5 text-[14px] items-baseline">

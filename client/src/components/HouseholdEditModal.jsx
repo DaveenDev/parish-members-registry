@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { api } from '../api.js';
-import { Field, TextInput, Select, PrimaryButton, GhostButton } from './ui.jsx';
+import { Field, TextInput, Select, PrimaryButton, GhostButton, HouseholdNameTakenNote } from './ui.jsx';
+import { useHouseholdNameTaken } from '../hooks.js';
 import ParticipationSurvey from './ParticipationSurvey.jsx';
 import { HELP_WAYS } from '../constants.js';
 import { useToast } from '../ToastContext.jsx';
@@ -24,6 +25,7 @@ export default function HouseholdEditModal({ household, gkkOptions = [], onClose
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const nameTaken = useHouseholdNameTaken(form.household_name, household.household_name);
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
   const setParticipation = (key, level) => setForm((f) => ({ ...f, participation: { ...f.participation, [key]: level } }));
@@ -79,7 +81,10 @@ export default function HouseholdEditModal({ household, gkkOptions = [], onClose
         {error && <div className="mb-4 text-parish-error text-[13.5px] font-medium">{error}</div>}
 
         <div className="flex flex-col gap-4">
-          <Field label="Family (household) name" required><TextInput value={form.household_name} onChange={set('household_name')} /></Field>
+          <Field label="Family (household) name" required>
+            <TextInput value={form.household_name} onChange={set('household_name')} />
+            <HouseholdNameTakenNote show={nameTaken} />
+          </Field>
           <Field label="Street / House No. / Purok" required><TextInput value={form.street} onChange={set('street')} /></Field>
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
             <Field label="Barangay" required><TextInput value={form.barangay} onChange={set('barangay')} /></Field>

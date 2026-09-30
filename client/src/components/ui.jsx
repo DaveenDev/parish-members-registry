@@ -17,9 +17,9 @@ export function Field({ label, required, error, children }) {
 const inputBase =
   'w-full px-3.5 py-3 text-[16px] text-parish-ink bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15';
 
-export function TextInput(props) {
-  return <input {...props} className={`${inputBase} ${props.className || ''}`} />;
-}
+export const TextInput = React.forwardRef(function TextInput(props, ref) {
+  return <input ref={ref} {...props} className={`${inputBase} ${props.className || ''}`} />;
+});
 
 export function Select(props) {
   return <select {...props} className={`${inputBase} cursor-pointer ${props.className || ''}`} />;
@@ -82,6 +82,16 @@ export function StatusPill({ status }) {
       <span className={`w-1.5 h-1.5 rounded-full ${verified ? 'bg-[#2f7a52]' : 'bg-[#a1762b]'}`} />
       {status}
     </span>
+  );
+}
+
+/** Non-blocking note under the admin household-name fields. */
+export function HouseholdNameTakenNote({ show }) {
+  if (!show) return null;
+  return (
+    <div className="text-[12.5px] font-semibold text-[#a1762b] mt-1.5">
+      ⚠ Another household already uses this name. You can still save, but consider making it distinct.
+    </div>
   );
 }
 

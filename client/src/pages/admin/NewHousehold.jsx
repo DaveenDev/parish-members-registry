@@ -2,7 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody } from '../../components/admin.jsx';
-import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton } from '../../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, HouseholdNameTakenNote } from '../../components/ui.jsx';
+import { useHouseholdNameTaken } from '../../hooks.js';
+import { toNameCase, toSuffixCase } from '../../lib/util.js';
 import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, DEFAULT_ADDRESS, blankMember } from '../../constants.js';
 
 function blankNhMember() {
@@ -23,6 +25,7 @@ export default function NewHousehold() {
   const [orgOptions, setOrgOptions] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+  const nameTaken = useHouseholdNameTaken(nh.name);
 
   useEffect(() => {
     api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name)));
@@ -33,6 +36,13 @@ export default function NewHousehold() {
   function setField(field, value) { setNh((h) => ({ ...h, [field]: value })); }
   function setMemberField(mi, field, value) {
     setMembers((ms) => ms.map((m, i) => (i === mi ? { ...m, [field]: value } : m)));
+  }
+  /** onBlur handler: tidy a name field to "Dela Cruz" style. */
+  function tidyMember(mi, field, format = toNameCase) {
+    return (e) => {
+      const formatted = format(e.target.value);
+      if (formatted !== e.target.value) setMemberField(mi, field, formatted);
+    };
   }
   function toggleGroup(mi, listKey, name) {
     setMembers((ms) => ms.map((m, i) => {
@@ -75,7 +85,10 @@ export default function NewHousehold() {
             <h2 className="font-serif text-[23px] font-semibold text-parish-navy m-0 mb-1">Household Information</h2>
             <p className="text-[13px] text-parish-muted m-0 mb-4">Register the family's home address and contact details on their behalf.</p>
             <div className="flex flex-col gap-4">
-              <Field label="Family (household) name" required><TextInput value={nh.name} onChange={(e) => setField('name', e.target.value)} /></Field>
+              <Field label="Family (household) name" required>
+                <TextInput value={nh.name} onChange={(e) => setField('name', e.target.value)} />
+                <HouseholdNameTakenNote show={nameTaken} />
+              </Field>
               <Field label="Street / House No. / Purok" required><TextInput value={nh.street} onChange={(e) => setField('street', e.target.value)} /></Field>
               <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
                 <Field label="Barangay" required><TextInput value={nh.barangay} onChange={(e) => setField('barangay', e.target.value)} /></Field>
@@ -118,10 +131,10 @@ export default function NewHousehold() {
                   )}
                 </div>
                 <div className="grid gap-3.5 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-                  <Field label="First name" required><TextInput value={mv.first} onChange={(e) => setMemberField(i, 'first', e.target.value)} /></Field>
-                  <Field label="Middle name"><TextInput value={mv.middle} onChange={(e) => setMemberField(i, 'middle', e.target.value)} /></Field>
-                  <Field label="Last name" required><TextInput value={mv.last} onChange={(e) => setMemberField(i, 'last', e.target.value)} /></Field>
-                  <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={mv.suffix} onChange={(e) => setMemberField(i, 'suffix', e.target.value)} /></Field>
+                  <Field label="First name" required><TextInput value={mv.first} onChange={(e) => setMemberField(i, 'first', e.target.value)} onBlur={tidyMember(i, 'first')} /></Field>
+                  <Field label="Middle name"><TextInput value={mv.middle} onChange={(e) => setMemberField(i, 'middle', e.target.value)} onBlur={tidyMember(i, 'middle')} /></Field>
+                  <Field label="Last name" required><TextInput value={mv.last} onChange={(e) => setMemberField(i, 'last', e.target.value)} onBlur={tidyMember(i, 'last')} /></Field>
+                  <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={mv.suffix} onChange={(e) => setMemberField(i, 'suffix', e.target.value)} onBlur={tidyMember(i, 'suffix', toSuffixCase)} /></Field>
                   <Field label="Relationship" required>
                     <Select value={mv.rel} onChange={(e) => setMemberField(i, 'rel', e.target.value)}>
                       <option value="">Select…</option>{RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}

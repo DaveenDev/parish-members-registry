@@ -48,7 +48,7 @@ export function blankMember() {
     hasCommunion: false, communionDate: '', communionChurch: '',
     hasConfirmation: false, confDate: '', confChurch: '', confName: '', confSponsor: '',
     hasMatrimony: false, matDate: '', matChurch: '', matType: '',
-    ministries: [],
+    ministries: [], organizations: [],
   };
 }
 

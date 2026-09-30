@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { api } from './api.js';
 
 /** Debounce a rapidly-changing value — used so typing in search doesn't fire a request per keystroke. */
 export function useDebounced(value, delay = 350) {
@@ -41,4 +42,28 @@ export function useAsyncData(loader, deps) {
   }, [...deps, nonce]);
 
   return { data, loading, error, reload: () => setNonce((n) => n + 1) };
+}
+
+/**
+ * Admin-side check: true when another household already uses `name`
+ * (ignoring case). `ownName` is the household's current name when editing,
+ * so keeping it unchanged never warns. Errors resolve to "not taken", since
+ * this only drives a warning, never a block.
+ */
+export function useHouseholdNameTaken(name, ownName = '') {
+  const trimmed = String(name || '').trim();
+  const debounced = useDebounced(trimmed, 400);
+  const [taken, setTaken] = useState(false);
+  useEffect(() => {
+    if (!debounced || debounced.toLowerCase() === String(ownName || '').trim().toLowerCase()) {
+      setTaken(false);
+      return;
+    }
+    let cancelled = false;
+    api.householdNameAvailable(debounced)
+      .then((ok) => { if (!cancelled) setTaken(!ok); })
+      .catch(() => { if (!cancelled) setTaken(false); });
+    return () => { cancelled = true; };
+  }, [debounced, ownName]);
+  return taken && debounced === trimmed;
 }

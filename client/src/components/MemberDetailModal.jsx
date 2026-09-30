@@ -4,6 +4,7 @@ import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_T
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
+import { toNameCase, toSuffixCase } from '../lib/util.js';
 
 export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   const toast = useToast();
@@ -33,6 +34,13 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
 
   function set(field, value) {
     setMember((m) => ({ ...m, [field]: value }));
+  }
+  /** onBlur handler: tidy a name field to "Dela Cruz" style. */
+  function tidy(field, format = toNameCase) {
+    return (e) => {
+      const formatted = format(e.target.value);
+      if (formatted !== e.target.value) set(field, formatted);
+    };
   }
   function toggleGroup(listKey, name) {
     setMember((m) => {
@@ -107,10 +115,10 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
             {error && <div className="mb-4 text-parish-error text-[13.5px] font-medium">{error}</div>}
 
             <div className="grid gap-3.5 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
-              <Field label="First name"><TextInput value={member.first_name || ''} onChange={(e) => set('first_name', e.target.value)} /></Field>
-              <Field label="Middle name"><TextInput value={member.middle_name || ''} onChange={(e) => set('middle_name', e.target.value)} /></Field>
-              <Field label="Last name"><TextInput value={member.last_name || ''} onChange={(e) => set('last_name', e.target.value)} /></Field>
-              <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={member.suffix || ''} onChange={(e) => set('suffix', e.target.value)} /></Field>
+              <Field label="First name"><TextInput value={member.first_name || ''} onChange={(e) => set('first_name', e.target.value)} onBlur={tidy('first_name')} /></Field>
+              <Field label="Middle name"><TextInput value={member.middle_name || ''} onChange={(e) => set('middle_name', e.target.value)} onBlur={tidy('middle_name')} /></Field>
+              <Field label="Last name"><TextInput value={member.last_name || ''} onChange={(e) => set('last_name', e.target.value)} onBlur={tidy('last_name')} /></Field>
+              <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={member.suffix || ''} onChange={(e) => set('suffix', e.target.value)} onBlur={tidy('suffix', toSuffixCase)} /></Field>
               <Field label="Relationship">
                 <Select value={member.relationship || ''} onChange={(e) => set('relationship', e.target.value)}>
                   <option value="">Select…</option>{RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}

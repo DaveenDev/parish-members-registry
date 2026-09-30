@@ -43,6 +43,25 @@ export const api = {
     return data || [];
   },
 
+  async listPublicOrganizations() {
+    const { data, error } = await supabase.rpc('list_public_organizations');
+    if (error) throw mapError(error);
+    return data || [];
+  },
+
+  async publicStats() {
+    const { data, error } = await supabase.rpc('public_parish_stats');
+    if (error) throw mapError(error);
+    return data; // { gkks, households }
+  },
+
+  /** True when no household (any status) already uses this name, ignoring case. */
+  async householdNameAvailable(name) {
+    const { data, error } = await supabase.rpc('household_name_available', { candidate: name });
+    if (error) throw mapError(error);
+    return data === true;
+  },
+
   // ---- account (used by ParishConfig's "Change password" card) --------
   async changePassword(_currentPassword, newPassword) {
     const { error } = await supabase.auth.updateUser({ password: newPassword });
@@ -120,7 +139,7 @@ export const api = {
       status = 'All', civil = 'All', sacrament = 'All', ministry = 'All',
       age = 'All', blood = 'All', gkk = 'All', search = '',
       baptism = 'All', communion = 'All', confirmation = 'All', matrimony = 'All',
-      sortKey = 'name', sortDir = 'asc',
+      sortKey = 'name', sortDir = 'asc', groupColumn,
     } = params;
     const { page, pageSize, from, to } = clampPaging(params);
 
@@ -140,7 +159,9 @@ export const api = {
       if (col) q = q.eq(col, value === 'Yes');
     }
 
-    if (ministry !== 'All') {
+    if (ministry !== 'All' && GROUP_COLUMNS.includes(groupColumn)) {
+      q = q.contains(groupColumn, [ministry]);
+    } else if (ministry !== 'All') {
       const escaped = String(ministry).replace(/"/g, '\\"');
       q = q.or(`ministries.cs.{"${escaped}"},organizations.cs.{"${escaped}"}`);
     }
@@ -187,6 +208,10 @@ export const api = {
     if (error) throw mapError(error);
     return null;
   },
+
+  // ---- ministry / organization membership (admin) -------------------
+  addMemberToGroup: (memberId, column, name) => changeGroupMembership(memberId, column, name, true),
+  removeMemberFromGroup: (memberId, column, name) => changeGroupMembership(memberId, column, name, false),
 
   // ---- GKKs ------------------------------------------------------------
   async listGkks() {
@@ -434,6 +459,18 @@ export const api = {
     return new Blob([csv], { type: 'text/csv;charset=utf-8' });
   },
 };
+
+const GROUP_COLUMNS = ['ministries', 'organizations'];
+
+async function changeGroupMembership(memberId, column, name, join) {
+  if (!GROUP_COLUMNS.includes(column)) throw new Error(`Unknown group column: ${column}`);
+  const { data, error } = await supabase.from('members').select(column).eq('id', memberId).single();
+  if (error) throw mapError(error, { fallback: 'Member not found' });
+  const current = data[column] || [];
+  const next = join ? [...new Set([...current, name])] : current.filter((n) => n !== name);
+  if (next.length === current.length && next.every((n, i) => n === current[i])) return { unchanged: true };
+  return api.updateMember(memberId, { [column]: next });
+}
 
 async function listGroup(table, column, opts) {
   const gkk = opts && typeof opts === 'object' ? opts.gkk : undefined;

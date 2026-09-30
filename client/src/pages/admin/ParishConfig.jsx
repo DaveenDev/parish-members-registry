@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody } from '../../components/admin.jsx';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
@@ -134,6 +135,7 @@ function ChangePasswordCard() {
 
 function ProfileTab() {
   const toast = useToast();
+  const layout = useOutletContext();
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -142,12 +144,18 @@ function ProfileTab() {
 
   function set(field, value) { setSettings((s) => ({ ...s, [field]: value })); }
 
+  /** Keep this form and the admin sidebar (logo + parish name) in step after a save. */
+  function applySaved(saved) {
+    setSettings(saved);
+    layout?.setParish?.(saved);
+  }
+
   async function save() {
     setSaving(true);
     try {
       const { name, address, contact, email } = settings;
       const res = await api.updateSettings({ name, address, contact, email });
-      setSettings(res.settings);
+      applySaved(res.settings);
       toast.success('Parish profile saved');
     } catch (e) {
       toast.error(e.message || 'Could not save changes');
@@ -175,7 +183,7 @@ function ProfileTab() {
         </div>
       </div>
 
-      <LogoCard settings={settings} onSaved={setSettings} />
+      <LogoCard settings={settings} onSaved={applySaved} />
 
       <ChangePasswordCard />
 
