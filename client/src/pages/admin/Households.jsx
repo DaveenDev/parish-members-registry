@@ -5,6 +5,7 @@ import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState
 import { StatusPill, PrimaryButton, Badge } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import HouseholdEditDrawer from '../../components/HouseholdEditDrawer.jsx';
+import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 import PrintSheet, { printHouseholdSheet } from '../../components/PrintSheet.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
@@ -199,7 +200,7 @@ export default function Households() {
                                 </div>
                                 <div className="flex-none min-w-[160px]">
                                   <div className="text-[14px] font-semibold text-parish-navy">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
-                                  <div className="text-[12px] text-parish-muted">{m.relationship || '—'}</div>
+                                  <div className="text-[12px] text-parish-muted">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</div>
                                 </div>
                                 <MemberBadges member={m} />
                               </button>

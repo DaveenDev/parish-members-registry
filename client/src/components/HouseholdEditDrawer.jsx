@@ -6,6 +6,7 @@ import ParticipationSurvey from './ParticipationSurvey.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import { HELP_WAYS, HEAD, RELATIONSHIPS, CIVIL_STATUSES, ageFromDob } from '../constants.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
+import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 
@@ -206,7 +207,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
           </div>
 
           <div className="mt-6 pt-5 border-t border-[#f0e8d6]">
-            <ParticipationSurvey participation={form.participation} helpWays={form.help_ways} onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay} compact />
+            <ParticipationSurvey participation={form.participation} helpWays={form.help_ways} onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay} compact english />
           </div>
 
           <div className="mt-7">
@@ -226,7 +227,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
                     <div className="min-w-0 flex-1">
                       <div className="text-[14px] font-semibold text-parish-navy truncate">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
                       <div className="text-[12px] text-parish-muted truncate">
-                        {[m.relationship, ageFromDob(m.dob) !== null && `${ageFromDob(m.dob)} yrs`, m.civil_status].filter(Boolean).join(' · ') || '—'}
+                        {[bis(RELATIONSHIP_LABELS, m.relationship), ageFromDob(m.dob) !== null && `${ageFromDob(m.dob)} yrs`, bis(CIVIL_STATUS_LABELS, m.civil_status)].filter(Boolean).join(' · ') || '—'}
                       </div>
                     </div>
                     <button onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">Edit</button>
@@ -329,18 +330,18 @@ function AddMemberForm({ householdId, defaultLastName, hasHead, onCancel, onAdde
         <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={m.suffix} onChange={set('suffix')} onBlur={tidy('suffix', toSuffixCase)} /></Field>
         <Field label="Relationship" required error={errors.relationship}>
           <Select value={m.relationship} onChange={set('relationship')}>
-            <option value="">Select…</option>{relationships.map((r) => <option key={r} value={r}>{r}</option>)}
+            <option value="">Select…</option>{relationships.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
           </Select>
         </Field>
         <Field label="Sex">
           <Select value={m.sex} onChange={set('sex')}>
-            <option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option>
+            <option value="">Select…</option>{Object.entries(SEX_LABELS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
           </Select>
         </Field>
         <Field label="Date of birth"><TextInput type="date" value={m.dob} onChange={set('dob')} /></Field>
         <Field label="Civil status">
           <Select value={m.civilStatus} onChange={set('civilStatus')}>
-            <option value="">Select…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{c}</option>)}
+            <option value="">Select…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
           </Select>
         </Field>
       </div>

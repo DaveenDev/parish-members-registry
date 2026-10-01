@@ -5,6 +5,7 @@ import { PageHeader, PageBody } from '../../components/admin.jsx';
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, HouseholdNameTakenNote, TribeSelect, FamilyGroupingSelect } from '../../components/ui.jsx';
 import { useHouseholdNameTaken } from '../../hooks.js';
 import { toNameCase, toSuffixCase } from '../../lib/util.js';
+import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../../lib/bisaya.js';
 import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, DEFAULT_ADDRESS, blankMember } from '../../constants.js';
 
 function blankNhMember() {
@@ -137,12 +138,12 @@ export default function NewHousehold() {
                   <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={mv.suffix} onChange={(e) => setMemberField(i, 'suffix', e.target.value)} onBlur={tidyMember(i, 'suffix', toSuffixCase)} /></Field>
                   <Field label="Relationship" required>
                     <Select value={mv.rel} onChange={(e) => setMemberField(i, 'rel', e.target.value)}>
-                      <option value="">Select…</option>{RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
+                      <option value="">Select…</option>{RELATIONSHIPS.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
                     </Select>
                   </Field>
                   <Field label="Sex" required>
                     <Select value={mv.sex} onChange={(e) => setMemberField(i, 'sex', e.target.value)}>
-                      <option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option>
+                      <option value="">Select…</option>{Object.entries(SEX_LABELS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
                     </Select>
                   </Field>
                   <Field label="Date of birth" required><TextInput type="date" value={mv.dob} onChange={(e) => setMemberField(i, 'dob', e.target.value)} /></Field>
@@ -150,7 +151,7 @@ export default function NewHousehold() {
                   <Field label="Tribe"><TribeSelect placeholder="Select…" value={mv.tribe} onChange={(v) => setMemberField(i, 'tribe', v)} /></Field>
                   <Field label="Civil status" required>
                     <Select value={mv.civil} onChange={(e) => setMemberField(i, 'civil', e.target.value)}>
-                      <option value="">Select…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{c}</option>)}
+                      <option value="">Select…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
                     </Select>
                   </Field>
                   <Field label="Contact number"><TextInput value={mv.contact} onChange={(e) => setMemberField(i, 'contact', e.target.value)} /></Field>
@@ -207,7 +208,7 @@ export default function NewHousehold() {
                         <TextInput type="date" value={mv.matDate} onChange={(e) => setMemberField(i, 'matDate', e.target.value)} />
                         <TextInput placeholder="Parish / Church" value={mv.matChurch} onChange={(e) => setMemberField(i, 'matChurch', e.target.value)} />
                         <Select value={mv.matType} onChange={(e) => setMemberField(i, 'matType', e.target.value)}>
-                          <option value="">Marriage type…</option>{WEDDING_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                          <option value="">Marriage type…</option>{WEDDING_TYPES.map((t) => <option key={t} value={t}>{bis(WEDDING_TYPE_LABELS, t)}</option>)}
                         </Select>
                       </div>
                     )}

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api.js';
 import { fmtDate, ageFromDob } from '../constants.js';
+import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
 
 /** Trigger the browser print dialog for the currently rendered sheet. */
 export function printHouseholdSheet() {
@@ -16,8 +17,8 @@ function sacramentLines(m) {
   if (m.has_baptism) out.push(['Baptism', (join([fmtDate(m.baptism_date), m.baptism_church]) || 'Recorded') + v('baptism')]);
   if (m.has_communion) out.push(['First Communion', (join([fmtDate(m.communion_date), m.communion_church]) || 'Recorded') + v('communion')]);
   if (m.has_confirmation) out.push(['Confirmation', (join([fmtDate(m.conf_date), m.conf_church, m.conf_name && `Name: ${m.conf_name}`, m.conf_sponsor && `Sponsor: ${m.conf_sponsor}`]) || 'Recorded') + v('confirmation')]);
-  if (m.has_matrimony) out.push(['Matrimony', (join([fmtDate(m.mat_date), m.mat_church, m.mat_type]) || 'Recorded') + v('matrimony')]);
-  else if (m.mat_type) out.push(['Married', m.mat_type]);
+  if (m.has_matrimony) out.push(['Matrimony', (join([fmtDate(m.mat_date), m.mat_church, bis(WEDDING_TYPE_LABELS, m.mat_type)]) || 'Recorded') + v('matrimony')]);
+  else if (m.mat_type) out.push(['Married', bis(WEDDING_TYPE_LABELS, m.mat_type)]);
   if (!out.length) out.push(['—', 'No sacraments recorded']);
   return out;
 }
@@ -133,7 +134,7 @@ export default function PrintSheet({ data }) {
           </div>
           <div style={{ fontSize: 11, color: '#6b6552', margin: '3px 0 7px' }}>
             {[
-              m.relationship, m.sex, m.civil_status,
+              bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), bis(CIVIL_STATUS_LABELS, m.civil_status),
               m.dob && `b. ${fmtDate(m.dob)} (${ageFromDob(m.dob)} yrs)`,
               m.tribe && `Tribe: ${m.tribe}`,
               m.gkk_role && `GKK: ${m.gkk_role}`,

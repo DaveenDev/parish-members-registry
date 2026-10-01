@@ -6,6 +6,7 @@ import { ageFromDob, CIVIL_STATUSES } from '../../constants.js';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useDebounced } from '../../hooks.js';
 import { groupByGkk } from '../../lib/household.js';
+import { bis, RELATIONSHIP_LABELS, CIVIL_STATUS_LABELS } from '../../lib/bisaya.js';
 
 const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
 const BLOOD_OPTS = ['All', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
@@ -69,7 +70,7 @@ export default function Members() {
             <option value="All">All statuses</option><option value="Verified">Verified</option><option value="Pending">Pending</option>
           </FilterSelect>
           <FilterSelect value={filters.civil} onChange={(e) => setFilter('civil', e.target.value)}>
-            <option value="All">All civil status</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{c}</option>)}
+            <option value="All">All civil status</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
           </FilterSelect>
           <FilterSelect value={filters.sacrament} onChange={(e) => setFilter('sacrament', e.target.value)}>
             <option value="All">Any sacrament</option><option value="Baptism">Baptized</option><option value="Communion">First Communion</option><option value="Confirmation">Confirmed</option><option value="Matrimony">Married in Church</option>
@@ -134,9 +135,9 @@ export default function Members() {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-[14px] text-[#3f3b2f] whitespace-nowrap">{m.household_name}</td>
-                <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{m.relationship || '—'}</td>
+                <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</td>
                 <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{ageFromDob(m.dob) ?? '—'}</td>
-                <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{m.civil_status || '—'}</td>
+                <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{bis(CIVIL_STATUS_LABELS, m.civil_status) || '—'}</td>
                 <td className="px-4 py-3">
                   <div className="flex flex-wrap gap-1.5 items-center">
                     {groups.slice(0, 2).map((g) => <span key={g} className="font-semibold text-[11.5px] bg-[#f1e8d5] text-[#7a6a3e] px-2.5 py-1 rounded-full whitespace-nowrap">{g}</span>)}

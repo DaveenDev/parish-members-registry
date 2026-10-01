@@ -7,14 +7,16 @@ import { Checkbox } from './ui.jsx';
  * the admin household edit modal. `participation` is { [itemKey]: level },
  * `helpWays` is an array of HELP_WAYS keys.
  */
-export default function ParticipationSurvey({ participation = {}, helpWays = [], onParticipation, onToggleHelpWay, compact = false }) {
+export default function ParticipationSurvey({ participation = {}, helpWays = [], onParticipation, onToggleHelpWay, compact = false, english = false }) {
   const legendSize = compact ? 'text-[14px]' : 'text-[15.5px]';
+  // Admin shows the questions in English; the answer choices stay Bisaya everywhere.
+  const t = english
+    ? { active: 'Is the household active in the parish or GKK in the following?', help: 'How can the household help develop the church / GKK?', all: 'Check all that apply.' }
+    : { active: 'Aktibo ba kamo nagapartisipar sa inyong Parokya o GKK sa mga musunod?', help: 'Sa unsang paagi kamo makatabang sa pagpalambo pa gayud sa simbahan / GKK?', all: 'I-tsek ang tanan nga angay.' };
   return (
     <div className="flex flex-col gap-6">
       <fieldset className="border-none p-0 m-0 min-w-0">
-        <legend className={`font-semibold text-parish-navy mb-3 ${legendSize}`}>
-          Aktibo ba kamo nagapartisipar sa inyong Parokya o GKK sa mga musunod?
-        </legend>
+        <legend className={`font-semibold text-parish-navy mb-3 ${legendSize}`}>{t.active}</legend>
         <div className="flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-[#fdfbf6]">
           {PARTICIPATION_ITEMS.map(([key, label]) => (
             <div key={key} role="radiogroup" aria-label={label} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
@@ -48,10 +50,8 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
       </fieldset>
 
       <fieldset className="border-none p-0 m-0 min-w-0">
-        <legend className={`font-semibold text-parish-navy mb-1 ${legendSize}`}>
-          Sa unsang paagi kamo makatabang sa pagpalambo pa gayud sa simbahan / GKK?
-        </legend>
-        <div className="text-[12.5px] text-parish-muted mb-3">I-tsek ang tanan nga angay.</div>
+        <legend className={`font-semibold text-parish-navy mb-1 ${legendSize}`}>{t.help}</legend>
+        <div className="text-[12.5px] text-parish-muted mb-3">{t.all}</div>
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
           {HELP_WAYS.map(([key, label]) => {
             const checked = helpWays.includes(key);

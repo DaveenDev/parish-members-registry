@@ -6,6 +6,7 @@ import SacramentVerifyDialog, { SacramentChip } from '../../components/Sacrament
 import { SACRAMENTS } from '../../constants.js';
 import { useDebounced } from '../../hooks.js';
 import { groupByHousehold } from '../../lib/household.js';
+import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 
 // Filter values understood by api.listMembers for each sacrament.
 const STATUS_OPTIONS = [
@@ -153,7 +154,7 @@ export default function Sacraments() {
             <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
               <td className="pl-7 pr-4 py-2.5">
                 <div className="font-semibold text-[14px] text-parish-navy whitespace-nowrap">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
-                <div className="text-[12px] text-parish-muted whitespace-nowrap">{m.relationship || '—'}</div>
+                <div className="text-[12px] text-parish-muted whitespace-nowrap">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</div>
               </td>
               {SACRAMENTS.map((s) => (
                 <td key={s.key} className="text-center px-2.5 py-2.5">

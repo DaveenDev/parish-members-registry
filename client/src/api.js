@@ -5,6 +5,7 @@
 import { supabase } from './lib/supabaseClient.js';
 import { ageFromDob, PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES } from './constants.js';
 import { memberFullName } from './lib/util.js';
+import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
 
 const MAX_PAGE_SIZE = 100;
@@ -477,7 +478,7 @@ export const api = {
       }
       const columns = ['Name', 'Household', 'GKK', 'Age', 'Relationship', 'Contact'];
       const rowsOut = list.map((m) => ({
-        cells: [memberFullName(m), m.household_name, m.household_gkk || '—', m.age ?? '—', m.relationship || '—', m.contact || '—'],
+        cells: [memberFullName(m), m.household_name, m.household_gkk || '—', m.age ?? '—', bis(RELATIONSHIP_LABELS, m.relationship) || '—', m.contact || '—'],
       }));
       return { title: `Members — ${type}`, meta: `${rowsOut.length} member(s)`, columns, rows: rowsOut, empty: rowsOut.length === 0, csvColumns: columns };
     }
@@ -630,13 +631,13 @@ export async function downloadWithAuth(path, filename) {
         { label: 'Last Name', value: 'last_name' },
         { label: 'Suffix', value: 'suffix' },
         { label: 'Household', value: 'household_name' },
-        { label: 'Relationship', value: 'relationship' },
-        { label: 'Sex', value: 'sex' },
+        { label: 'Relationship', value: (r) => bis(RELATIONSHIP_LABELS, r.relationship) },
+        { label: 'Sex', value: (r) => bis(SEX_LABELS, r.sex) },
         { label: 'Date of Birth', value: 'dob' },
         { label: 'Age', value: (r) => r.age ?? '' },
         { label: 'Place of Birth', value: 'place_of_birth' },
         { label: 'Tribe', value: 'tribe' },
-        { label: 'Civil Status', value: 'civil_status' },
+        { label: 'Civil Status', value: (r) => bis(CIVIL_STATUS_LABELS, r.civil_status) },
         { label: 'Contact', value: 'contact' },
         { label: 'Email', value: 'email' },
         { label: 'Occupation', value: 'occupation' },
@@ -646,7 +647,7 @@ export async function downloadWithAuth(path, filename) {
         { label: 'First Communion', value: (r) => (r.has_communion ? 'Yes' : 'No') },
         { label: 'Confirmation', value: (r) => (r.has_confirmation ? 'Yes' : 'No') },
         { label: 'Matrimony', value: (r) => (r.has_matrimony ? 'Yes' : 'No') },
-        { label: 'Wedding Type', value: 'mat_type' },
+        { label: 'Wedding Type', value: (r) => bis(WEDDING_TYPE_LABELS, r.mat_type) },
         ...SACRAMENTS.map((s) => ({ label: `${s.label} Verified`, value: (r) => (r[`${s.key}_verified`] ? 'Yes' : 'No') })),
         { label: 'GKK Responsibility', value: 'gkk_role' },
         { label: 'Ministries', value: (r) => (r.ministries || []).join('; ') },

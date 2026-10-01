@@ -6,6 +6,7 @@ import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSe
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
+import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
 
 export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   const toast = useToast();
@@ -149,12 +150,12 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={member.suffix || ''} onChange={(e) => set('suffix', e.target.value)} onBlur={tidy('suffix', toSuffixCase)} /></Field>
               <Field label="Relationship">
                 <Select value={member.relationship || ''} onChange={(e) => set('relationship', e.target.value)}>
-                  <option value="">Select…</option>{RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
+                  <option value="">Select…</option>{RELATIONSHIPS.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
                 </Select>
               </Field>
               <Field label="Sex">
                 <Select value={member.sex || ''} onChange={(e) => set('sex', e.target.value)}>
-                  <option value="">Select…</option><option value="Male">Male</option><option value="Female">Female</option>
+                  <option value="">Select…</option>{Object.entries(SEX_LABELS).map(([v, label]) => <option key={v} value={v}>{label}</option>)}
                 </Select>
               </Field>
               <Field label="Date of birth"><TextInput type="date" value={member.dob ? String(member.dob).slice(0, 10) : ''} onChange={(e) => set('dob', e.target.value)} /></Field>
@@ -162,7 +163,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               <Field label="Tribe"><TribeSelect placeholder="Select…" value={member.tribe} onChange={(v) => set('tribe', v)} /></Field>
               <Field label="Civil status">
                 <Select value={member.civil_status || ''} onChange={(e) => set('civil_status', e.target.value)}>
-                  <option value="">Select…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  <option value="">Select…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
                 </Select>
               </Field>
               <Field label="Contact"><TextInput value={member.contact || ''} onChange={(e) => set('contact', e.target.value)} /></Field>
@@ -211,7 +212,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                     <TextInput placeholder="Parish / Church" value={member.mat_church || ''} onChange={(e) => set('mat_church', e.target.value)} />
                     <Select value={member.mat_type || ''} onChange={(e) => set('mat_type', e.target.value)}>
                       <option value="">Marriage type…</option>
-                      {[...WEDDING_TYPES, ...LEGACY_MAT_TYPES].map((t) => <option key={t} value={t}>{t}</option>)}
+                      {[...WEDDING_TYPES, ...LEGACY_MAT_TYPES].map((t) => <option key={t} value={t}>{bis(WEDDING_TYPE_LABELS, t)}</option>)}
                     </Select>
                   </>
                 )}
