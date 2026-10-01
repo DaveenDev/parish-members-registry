@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { IDLE_LIMIT_MINUTES } from '../../lib/idle.js';
 import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
@@ -8,6 +9,8 @@ import CreditFooter from '../../components/CreditFooter.jsx';
 export default function AdminLogin() {
   const { user, ready, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const signedOutIdle = location.state?.reason === 'idle';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -59,6 +62,11 @@ export default function AdminLogin() {
         <div className="bg-parish-card rounded-[20px] shadow-2xl px-7 py-[30px]" style={{ padding: '30px 28px' }}>
           <h1 className="font-serif text-[26px] font-semibold m-0 mb-1 text-parish-navy">Staff sign in</h1>
           <p className="text-[14px] text-parish-muted m-0 mb-[22px]" style={{ marginBottom: '22px' }}>Authorized parish personnel only.</p>
+          {signedOutIdle && !error && (
+            <div className="mb-4 px-3.5 py-3 bg-parish-warnBg border border-parish-warnBorder rounded-xl text-[13px] text-parish-warnStrong leading-relaxed" role="status">
+              You were signed out after {IDLE_LIMIT_MINUTES} minutes without activity. Sign in again to continue.
+            </div>
+          )}
           <form onSubmit={onSubmit}>
             <div className="mb-4">
               <Field label="Email"><TextInput type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>

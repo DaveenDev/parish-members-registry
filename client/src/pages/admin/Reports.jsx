@@ -6,6 +6,8 @@ import { useAsyncData, useClientList } from '../../hooks.js';
 import { PrimaryButton, GhostButton } from '../../components/ui.jsx';
 import { ReportPrintSheet } from '../../components/PrintSheet.jsx';
 import { useToast } from '../../ToastContext.jsx';
+import { useAuth } from '../../AuthContext.jsx';
+import { can } from '../../lib/access.js';
 
 function Bar({ label, right, w, color }) {
   return (
@@ -32,10 +34,24 @@ function SplitBar({ label, right, vw, pw }) {
 
 const REPORT_TABS = [['stats', 'Report Stats'], ['gen', 'Generate Report']];
 
-const SOURCE_META = {
-  Members: { gkk: true, group: true, sacrament: true },
-  Households: { gkk: true, dateRange: true, status: true },
+// Each data source, its reports, and which scope controls a report shows.
+const REPORTS = {
+  Members: { types: ['By GKK', 'By Sacrament', 'By Ministry / Organization'] },
+  Households: { types: ['By Status', 'By GKK', 'By registration month'] },
+  Sacraments: { types: ['Verification progress by GKK'] },
+  Census: { types: ['Results by GKK', 'Members not confirmed'], need: 'census' },
+  Requests: { types: ['Certificate turnaround'], need: 'requests' },
 };
+function scopeFor(source, type) {
+  return {
+    gkk: ['Members', 'Households', 'Sacraments'].includes(source) || type === 'Members not confirmed',
+    status: type === 'By Status',
+    dateRange: source === 'Households' || source === 'Requests',
+    sacrament: type === 'By Sacrament',
+    group: type === 'By Ministry / Organization',
+    cycle: source === 'Census',
+  };
+}
 
 export default function Reports() {
   const toast = useToast();
@@ -47,7 +63,9 @@ export default function Reports() {
 
   const [genSource, setGenSource] = useState('');
   const [genType, setGenType] = useState('');
-  const [scope, setScope] = useState({ gkk: 'All', status: 'All', dateFrom: '', dateTo: '', sacrament: 'Baptism', group: '' });
+  const [scope, setScope] = useState({ gkk: 'All', status: 'All', dateFrom: '', dateTo: '', sacrament: 'Baptism', group: '', cycleId: '' });
+  const [cycles, setCycles] = useState([]);
+  const { user } = useAuth();
   const [ministryOptions, setMinistryOptions] = useState([]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [report, setReport] = useState(null);
@@ -60,6 +78,12 @@ export default function Reports() {
       .catch(() => {});
   }, []);
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((g) => g.name))).catch(() => {}); }, []);
+  useEffect(() => {
+    if (genSource !== 'Census' || cycles.length) return;
+    api.listCensusCycles()
+      .then((list) => { setCycles(list); if (list[0]) setScope((s) => ({ ...s, cycleId: s.cycleId || String(list[0].id) })); })
+      .catch(() => {});
+  }, [genSource]);
 
   async function generate() {
     setGenerating(true);
@@ -81,7 +105,8 @@ export default function Reports() {
     }
   }
 
-  const meta = SOURCE_META[genSource] || {};
+  const meta = scopeFor(genSource, genType);
+  const sources = Object.keys(REPORTS).filter((k) => !REPORTS[k].need || can(user, REPORTS[k].need));
 
   return (
     <>
@@ -152,7 +177,7 @@ export default function Reports() {
                     <div className="font-semibold text-[12px] text-parish-ink mb-1.5">1. Data source</div>
                     <FilterSelect value={genSource} onChange={(e) => { setGenSource(e.target.value); setGenType(''); setReport(null); }} className="w-full">
                       <option value="">Select a data source…</option>
-                      <option value="Members">Members</option><option value="Households">Households</option>
+                      {sources.map((k) => <option key={k} value={k}>{k}</option>)}
                     </FilterSelect>
                   </div>
                   {genSource && (
@@ -160,8 +185,7 @@ export default function Reports() {
                       <div className="font-semibold text-[12px] text-parish-ink mb-1.5">2. Report</div>
                       <FilterSelect value={genType} onChange={(e) => { setGenType(e.target.value); setReport(null); }} className="w-full">
                         <option value="">Select a report…</option>
-                        {genSource === 'Members' && ['By GKK', 'By Sacrament', 'By Ministry / Organization'].map((t) => <option key={t} value={t}>{t}</option>)}
-                        {genSource === 'Households' && ['By Status', 'By GKK'].map((t) => <option key={t} value={t}>{t}</option>)}
+                        {(REPORTS[genSource]?.types || []).map((t) => <option key={t} value={t}>{t}</option>)}
                       </FilterSelect>
                     </div>
                   )}
@@ -180,7 +204,16 @@ export default function Reports() {
                           </FilterSelect>
                         </div>
                       )}
-                      {meta.status && genType === 'By Status' && (
+                      {meta.cycle && (
+                        <div>
+                          <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Census</div>
+                          <FilterSelect value={scope.cycleId} onChange={(e) => setScope((s) => ({ ...s, cycleId: e.target.value }))}>
+                            {!cycles.length && <option value="">No census yet</option>}
+                            {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
+                          </FilterSelect>
+                        </div>
+                      )}
+                      {meta.status && (
                         <div>
                           <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Status</div>
                           <FilterSelect value={scope.status} onChange={(e) => setScope((s) => ({ ...s, status: e.target.value }))}>
@@ -190,11 +223,11 @@ export default function Reports() {
                       )}
                       {meta.dateRange && (
                         <>
-                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">Registered from</div><input type="date" value={scope.dateFrom} onChange={(e) => setScope((s) => ({ ...s, dateFrom: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
-                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">Registered to</div><input type="date" value={scope.dateTo} onChange={(e) => setScope((s) => ({ ...s, dateTo: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
+                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">{genSource === 'Requests' ? 'Received from' : 'Registered from'}</div><input type="date" value={scope.dateFrom} onChange={(e) => setScope((s) => ({ ...s, dateFrom: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
+                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">{genSource === 'Requests' ? 'Received to' : 'Registered to'}</div><input type="date" value={scope.dateTo} onChange={(e) => setScope((s) => ({ ...s, dateTo: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
                         </>
                       )}
-                      {meta.sacrament && genType === 'By Sacrament' && (
+                      {meta.sacrament && (
                         <div>
                           <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Sacrament</div>
                           <FilterSelect value={scope.sacrament} onChange={(e) => setScope((s) => ({ ...s, sacrament: e.target.value }))}>
@@ -202,7 +235,7 @@ export default function Reports() {
                           </FilterSelect>
                         </div>
                       )}
-                      {meta.group && genType === 'By Ministry / Organization' && (
+                      {meta.group && (
                         <div>
                           <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Ministry / Organization</div>
                           <FilterSelect value={scope.group} onChange={(e) => setScope((s) => ({ ...s, group: e.target.value }))}>

@@ -9,7 +9,9 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
-import { MEMBERSHIP_STATUSES, censusResponsesPayload } from './lib/census.js';
+import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus } from './lib/census.js';
+import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName } from './lib/reports.js';
+import { certTypeLabel } from './lib/requests.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -928,12 +930,64 @@ export const api = {
   async reportSources() {
     const types = {
       Members: { types: ['By GKK', 'By Sacrament', 'By Ministry / Organization'] },
-      Households: { types: ['By Status', 'By GKK'] },
+      Households: { types: ['By Status', 'By GKK', 'By registration month'] },
+      Sacraments: { types: ['Verification progress by GKK'] },
+      Census: { types: ['Results by GKK', 'Members not confirmed'] },
+      Requests: { types: ['Certificate turnaround'] },
     };
     return { sources: Object.keys(types), types };
   },
 
-  async generateReport({ source, type, gkk = 'All', status = 'All', dateFrom, dateTo, sacrament, group }) {
+  async generateReport({ source, type, gkk = 'All', status = 'All', dateFrom, dateTo, sacrament, group, cycleId }) {
+    const table = (title, meta, columns, rows) => ({ title, meta, columns, rows: rows.map((cells) => ({ cells })), empty: rows.length === 0, csvColumns: columns });
+    const range = [dateFrom && `from ${dateFrom}`, dateTo && `to ${dateTo}`].filter(Boolean).join(' ');
+
+    if (source === 'Households' && type === 'By registration month') {
+      const list = await fetchAll(() => householdQuery(supabase.from('households_with_count').select('id, created_at, status, member_count, gkk'), { gkk, sortKey: 'registered', sortDir: 'asc' }));
+      const rows = registrationsByMonth(list, { dateFrom, dateTo });
+      return table('Registrations by month', `${rows.reduce((n, r) => n + r.households, 0)} household(s) ${range}`.trim(),
+        ['Month', 'Households registered', 'Members', 'Verified so far'],
+        rows.map((r) => [monthName(r.month), r.households, r.members, r.verified]));
+    }
+
+    if (source === 'Sacraments') {
+      let list = await fetchAll(() => supabase.from('members_with_household')
+        .select('id, household_gkk, has_baptism, has_communion, has_confirmation, has_matrimony, baptism_verified, communion_verified, confirmation_verified, matrimony_verified')
+        .eq('is_current', true).order('id'));
+      if (gkk !== 'All') list = list.filter((m) => m.household_gkk === gkk);
+      const rows = sacramentProgressRows(list);
+      const cell = (x) => `${x.verified} of ${x.claimed}`;
+      return table('Sacrament verification progress', `Verified of claimed, for ${list.length} current member(s)`,
+        ['GKK', 'Members', ...SACRAMENTS.map((x) => x.label), 'Waiting'],
+        rows.map((r) => [r.label, r.members, ...SACRAMENTS.map((x) => cell(r[x.key])), r.waiting]));
+    }
+
+    if (source === 'Census') {
+      if (!cycleId) throw new Error('Choose a census');
+      const cycle = (await api.listCensusCycles()).find((c) => c.id === Number(cycleId));
+      if (type === 'Results by GKK') {
+        const sum = summarizeCensus(await api.censusSummary(cycleId));
+        const row = (r) => [r.label, ...sum.columns.map((c) => r.counts[c]), r.total, `${r.pct}%`];
+        return table(`${cycle?.label || 'Census'} — results by GKK`, `${sum.total.total} member(s)`,
+          ['GKK', ...sum.columns, 'Total', 'Confirmed %'], sum.rows.length ? [...sum.rows.map(row), row(sum.total)] : []);
+      }
+      let q = supabase.from('members_with_household').select('*').eq('is_current', true).eq('census_confirmed', false);
+      if (gkk !== 'All') q = q.eq('household_gkk', gkk);
+      const list = await fetchAll(() => q.order('household_gkk').order('household_name').order('id'));
+      return table(`${cycle?.label || 'Census'} — not confirmed yet`, `${list.length} current member(s) not confirmed in the latest census`,
+        ['Name', 'Household', 'GKK', 'Age', 'Contact'],
+        list.map((m) => [memberFullName(m), m.household_name, m.household_gkk || '—', m.age ?? '—', m.contact || '—']));
+    }
+
+    if (source === 'Requests') {
+      const list = await fetchAll(() => supabase.from('certificate_requests').select('id, cert_type, status, created_at, released_at').order('id'));
+      const rows = turnaroundRows(list, { dateFrom, dateTo, typeLabel: certTypeLabel });
+      const days = (n) => (n === null ? '—' : `${n} day(s)`);
+      return table('Certificate turnaround', `Requests received ${range || 'so far'}`.trim(),
+        ['Certificate', 'Received', 'Released', 'Average to release', 'Longest', 'Still open', 'Oldest open'],
+        rows.map((r) => [r.label, r.received, r.released, days(r.avgDays), days(r.maxDays), r.open, r.open ? days(r.oldestOpen) : '—']));
+    }
+
     if (source === 'Members') {
       let list = await fetchAll(() => supabase.from('members_with_household').select('*').eq('is_current', true).order('household_name').order('id'));
       if (gkk && gkk !== 'All') list = list.filter((m) => m.household_gkk === gkk);
@@ -1288,6 +1342,53 @@ export async function downloadWithAuth(path, filename) {
   } else if (path === '/exports/blood.csv') {
     const data = await fetchAll(() => supabase.from('members_with_household').select('*').not('blood_type', 'is', null).eq('is_current', true).order('blood_type').order('id'));
     downloadCsv(filename, data, BLOOD_CSV_COLUMNS);
+  } else if (path === '/exports/rosters.csv') {
+    // One row per member per ministry or organization.
+    const data = await fetchAll(() => supabase.from('members_with_household')
+      .select('id, first_name, last_name, suffix, household_name, household_gkk, contact, ministries, organizations, gkk_role, parish_role')
+      .eq('is_current', true).order('id'));
+    const rows = data.flatMap((m) => [
+      ...(m.ministries || []).map((g) => ({ ...m, group: g, kind: 'Ministry' })),
+      ...(m.organizations || []).map((g) => ({ ...m, group: g, kind: 'Organization' })),
+    ]).sort((a, b) => a.group.localeCompare(b.group) || memberFullName(a).localeCompare(memberFullName(b)));
+    downloadCsv(filename, rows, [
+      { label: 'Group', value: 'group' }, { label: 'Kind', value: 'kind' },
+      { label: 'Name', value: (r) => memberFullName(r) }, { label: 'Household', value: 'household_name' },
+      { label: 'GKK', value: 'household_gkk' }, { label: 'Contact', value: 'contact' },
+    ]);
+  } else if (path === '/exports/certificates.csv') {
+    const data = await fetchAll(() => supabase.from('certificate_requests').select('*').order('created_at').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Reference No.', value: 'ref_no' }, { label: 'Certificate', value: (r) => certTypeLabel(r.cert_type) },
+      { label: 'Status', value: 'status' }, { label: 'Source', value: 'source' },
+      { label: 'Name on certificate', value: (r) => [r.subject_first_name, r.subject_middle_name, r.subject_last_name].filter(Boolean).join(' ') },
+      { label: 'Requested by', value: 'requester_name' }, { label: 'Mobile', value: 'requester_mobile' },
+      { label: 'Purpose', value: 'purpose' }, { label: 'Copies', value: 'copies' }, { label: 'Fee', value: 'fee' }, { label: 'OR No.', value: 'or_number' },
+      { label: 'Received', value: (r) => r.created_at?.slice(0, 10) }, { label: 'Released', value: (r) => r.released_at?.slice(0, 10) || '' },
+      { label: 'Released to', value: 'released_to' }, { label: 'Handled by', value: 'handled_by_name' },
+    ]);
+  } else if (path === '/exports/prayers.csv') {
+    const data = await fetchAll(() => supabase.from('prayer_requests').select('*').order('created_at').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Reference No.', value: 'ref_no' }, { label: 'Type', value: 'intention_type' }, { label: 'For', value: 'for_name' },
+      { label: 'Intention', value: 'intention' }, { label: 'Requested by', value: 'requester_name' }, { label: 'Status', value: 'status' },
+      { label: 'Offered on', value: 'offered_on' }, { label: 'Received', value: (r) => r.created_at?.slice(0, 10) },
+    ]);
+  } else if (path === '/exports/donors.csv') {
+    const data = await fetchAll(() => supabase.from('blood_donors').select('*').order('full_name').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Name', value: 'full_name' }, { label: 'Mobile', value: 'mobile' }, { label: 'Blood type', value: 'blood_type' },
+      { label: 'GKK', value: 'gkk' }, { label: 'Last donated', value: 'last_donated_on' },
+      { label: 'Opted out', value: (r) => (r.opted_out_at ? 'Yes' : 'No') }, { label: 'Notes', value: 'notes' },
+    ]);
+  } else if (path === '/exports/activity.csv') {
+    const data = await fetchAll(() => supabase.from('activity_log').select('*').order('at', { ascending: false }).order('id', { ascending: false }));
+    downloadCsv(filename, data, [
+      { label: 'When', value: (r) => new Date(r.at).toISOString().replace('T', ' ').slice(0, 19) },
+      { label: 'Who', value: (r) => r.actor_name || 'The family (online)' }, { label: 'Action', value: 'action' },
+      { label: 'Record', value: 'table_name' }, { label: 'Name', value: 'label' },
+      { label: 'Changes', value: (r) => (r.changes ? JSON.stringify(r.changes) : '') },
+    ]);
   } else {
     throw new Error(`Unknown export: ${path}`);
   }

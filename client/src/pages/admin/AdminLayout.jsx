@@ -6,6 +6,7 @@ import { ThemePickerPopover } from '../../components/ThemePicker.jsx';
 import { useAdminColorMode } from '../../ThemeContext.jsx';
 import { PageHeader, PageBody, EmptyState } from '../../components/admin.jsx';
 import CommandPalette, { useCommandPaletteShortcut } from '../../components/CommandPalette.jsx';
+import IdleSignOut from '../../components/IdleSignOut.jsx';
 import { NAV_GROUPS, navAllowed, navItemFor, navBadges } from '../../components/adminNav.js';
 import { accessLabel } from '../../lib/access.js';
 
@@ -77,6 +78,10 @@ export default function AdminLayout() {
     logout();
     navigate('/admin/login', { replace: true });
   }
+  const onIdle = useCallback(() => {
+    logout();
+    navigate('/admin/login', { replace: true, state: { reason: 'idle' } });
+  }, [logout, navigate]);
 
   const nameInitials = (user?.name || '?').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase();
 
@@ -197,6 +202,7 @@ export default function AdminLayout() {
         )}
       </main>
       {searchOpen && <CommandPalette onClose={() => setSearchOpen(false)} />}
+      <IdleSignOut onSignOut={onIdle} />
     </div>
   );
 }
