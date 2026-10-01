@@ -44,6 +44,7 @@ export const NAV_GROUPS = [
   },
   {
     label: 'Settings',
+    collapsible: true,
     items: [
       { to: '/admin/settings', end: true, label: 'Parish Config' },
       { to: '/admin/settings/ministries', label: 'Manage ministries', need: 'manageLists' },

@@ -47,6 +47,7 @@ export default function AdminLayout() {
 
   const [navCounts, setNavCounts] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState({});
   const openSearch = useCallback(() => { setDrawerOpen(false); setSearchOpen(true); }, []);
   useCommandPaletteShortcut(openSearch);
 
@@ -116,6 +117,27 @@ export default function AdminLayout() {
         {NAV_GROUPS.map((g) => {
           const items = g.items.filter((n) => navAllowed(n, user));
           if (!items.length) return null;
+          if (g.collapsible) {
+            // Collapsed by default; opens on its own while one of its pages is showing.
+            const hasCurrent = items.some((n) => n === current || n.to === current?.to);
+            const open = openGroups[g.label] ?? hasCurrent;
+            const groupBadge = items.reduce((s, n) => s + (n.badge ? badges[n.badge] || 0 : 0), 0);
+            return (
+              <div key={g.label} role="group" aria-label={g.label} className="flex flex-col">
+                <button
+                  type="button"
+                  aria-expanded={open}
+                  onClick={() => setOpenGroups((o) => ({ ...o, [g.label]: !open }))}
+                  className="appearance-none border-none bg-transparent cursor-pointer mx-3.5 mt-2 mb-px flex items-center gap-1.5 text-left font-bold text-[10px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70 hover:text-[var(--p-gold-light)]"
+                >
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}><path d="M9 5l7 7-7 7" /></svg>
+                  {g.label}
+                  {!open && groupBadge > 0 && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[var(--p-gold-light)]" aria-label={`${groupBadge} waiting`} />}
+                </button>
+                {open && items.map((n) => <NavItem key={n.to} {...n} count={n.badge ? badges[n.badge] : 0} />)}
+              </div>
+            );
+          }
           return (
             <div key={g.label} role="group" aria-label={g.label} className="flex flex-col">
               <div className="mx-3.5 mt-2 mb-px font-bold text-[10px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70" aria-hidden>{g.label}</div>
