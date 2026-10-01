@@ -1,6 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
-import { api } from './api.js';
-import { searchAndPage } from './lib/paging.js';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { api, downloadWithAuth } from './api.js';
+import { useToast } from './ToastContext.jsx';
+import { searchAndPage, readUrlState, writeUrlState } from './lib/paging.js';
 
 /**
  * Search + pagination state for a list that's already loaded in the page
@@ -80,4 +82,45 @@ export function useHouseholdNameTaken(name, ownName = '') {
     return () => { cancelled = true; };
   }, [debounced, ownName]);
   return taken && debounced === trimmed;
+}
+
+/**
+ * Run one of the CSV exports with a busy flag and an error toast, so a
+ * failed or slow export doesn't look like a dead button. `busy` is the path
+ * of the export in progress, or ''.
+ */
+export function useCsvExport() {
+  const toast = useToast();
+  const [busy, setBusy] = useState('');
+  async function run(path, filename) {
+    setBusy(path);
+    try {
+      await downloadWithAuth(path, filename);
+    } catch (e) {
+      toast.error(e?.message || 'Could not export this data');
+    } finally {
+      setBusy('');
+    }
+  }
+  return { busy, run };
+}
+
+/**
+ * A list page's filters, search, sort and page kept in the address bar, so
+ * a refresh, the Back button or a shared link brings back the same view.
+ * `set(patch)` merges the patch and goes back to page 1 unless the patch
+ * itself sets `page`. It replaces the history entry, so Back leaves the page
+ * rather than undoing one filter at a time. See readUrlState for `allowed`.
+ */
+export function useUrlState(defaults, allowed) {
+  const [params, setParams] = useSearchParams();
+  const state = useMemo(() => readUrlState(params, defaults, allowed), [params]); // eslint-disable-line react-hooks/exhaustive-deps
+  const set = useCallback((patch) => {
+    setParams((prev) => {
+      const next = { ...readUrlState(prev, defaults, allowed), ...patch };
+      if (!('page' in patch) && 'page' in defaults) next.page = defaults.page;
+      return writeUrlState(next, defaults);
+    }, { replace: true });
+  }, [setParams]); // eslint-disable-line react-hooks/exhaustive-deps
+  return [state, set];
 }

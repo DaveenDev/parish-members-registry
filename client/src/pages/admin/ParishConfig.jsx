@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, SearchInput, Pagination, Tabs } from '../../components/admin.jsx';
 import { useClientList } from '../../hooks.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
 import { useToast } from '../../ToastContext.jsx';
+import { useConfirm } from '../../components/ConfirmDialog.jsx';
 
 const MAX_LOGO_BYTES = 500 * 1024;
 
@@ -204,15 +205,19 @@ function ProfileTab() {
   );
 }
 
+const CONFIG_TABS = [['config', 'Parish Config'], ['gkk', 'Parish GKK']];
+
 export default function ParishConfig() {
-  const [tab, setTab] = useState('config');
+  const [params, setParams] = useSearchParams();
+  const tab = CONFIG_TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : CONFIG_TABS[0][0];
+  const setTab = (k) => setParams(k === CONFIG_TABS[0][0] ? {} : { tab: k }, { replace: true });
 
   return (
     <>
       <PageHeader title="Parish Config" subtitle="Profile, privacy & GKK settings" />
       <PageBody>
         <div className="max-w-[720px]">
-          <Tabs tabs={[['config', 'Parish Config'], ['gkk', 'Parish GKK']]} value={tab} onChange={setTab} />
+          <Tabs tabs={CONFIG_TABS} value={tab} onChange={setTab} />
           {tab === 'config' && <ProfileTab />}
           {tab === 'gkk' && (
             <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
@@ -233,6 +238,7 @@ function GkkList() {
   const [editing, setEditing] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [error, setError] = useState('');
+  const confirm = useConfirm();
   const list = useClientList(rows, (r) => r.name);
 
   function reload() { api.listGkks().then((r) => setRows(r.rows)); }
@@ -249,6 +255,13 @@ function GkkList() {
     try { await api.renameGkk(editing, editValue.trim()); setEditing(null); reload(); } catch (e) { setError(e.message || 'Could not rename this GKK'); }
   }
   async function remove(name) {
+    const ok = await confirm({
+      title: `Delete “${name}”?`,
+      message: "This removes the GKK from the list. It can't be undone, but you can add it again later.",
+      confirmLabel: 'Delete GKK',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setError('');
     try { await api.deleteGkk(name); reload(); } catch (e) { setError(e.message || 'Could not delete this GKK'); }
   }

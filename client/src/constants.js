@@ -91,6 +91,27 @@ export function fmtDate(d) {
   }
 }
 
+/** A timestamp (created_at, verified_at, …) as "Oct 1, 2026, 9:30 PM", or the date alone with `time: false`. */
+export function fmtDateTime(ts, { time = true } = {}) {
+  const d = ts ? new Date(ts) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  return d.toLocaleString('en-US', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    ...(time ? { hour: 'numeric', minute: '2-digit' } : {}),
+  });
+}
+
+/** "today", "yesterday", "3 days ago" — calendar days in local time. */
+export function daysAgo(ts, now = new Date()) {
+  const d = ts ? new Date(ts) : null;
+  if (!d || Number.isNaN(d.getTime())) return '';
+  const startOf = (x) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
+  const days = Math.round((startOf(now) - startOf(d)) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  return `${days} days ago`;
+}
+
 export function ageFromDob(dob) {
   if (!dob) return null;
   const d = new Date(dob);

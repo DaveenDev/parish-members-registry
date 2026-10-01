@@ -40,3 +40,51 @@ export function searchAndPage(items, { query = '', toText = String, page = 1, pa
     page: current,
   };
 }
+
+/**
+ * Read every row of a query that the server caps per request (Supabase
+ * returns at most 1,000 rows by default). `fetchPage(from, to)` resolves to
+ * `{ data, error }` for the inclusive row range; pages are requested until
+ * one comes back short. The query must have a stable order, or rows can be
+ * skipped or repeated between pages.
+ */
+export async function fetchAllPages(fetchPage, chunkSize = 1000) {
+  const rows = [];
+  for (let from = 0; ; from += chunkSize) {
+    const { data, error } = await fetchPage(from, from + chunkSize - 1);
+    if (error) return { data: null, error };
+    rows.push(...(data || []));
+    if (!data || data.length < chunkSize) return { data: rows, error: null };
+  }
+}
+
+/**
+ * Page state (filters, search, sort, page) read from the address bar.
+ * `defaults` lists every key and its default; a number default means the
+ * value must be a positive whole number. `allowed` optionally lists the
+ * valid values for a key. Unknown keys and invalid values fall back to the
+ * default, so a hand-edited or stale link never breaks the page.
+ */
+export function readUrlState(params, defaults, allowed = {}) {
+  const out = { ...defaults };
+  for (const [key, def] of Object.entries(defaults)) {
+    const raw = params.get(key);
+    if (raw === null) continue;
+    const value = typeof def === 'number' ? Number(raw) : raw;
+    if (typeof def === 'number' && !(Number.isInteger(value) && value > 0)) continue;
+    if (allowed[key] && !allowed[key].includes(value)) continue;
+    out[key] = value;
+  }
+  return out;
+}
+
+/** The query-string entries for `values`, leaving out defaults so a clean page has a clean address. */
+export function writeUrlState(values, defaults) {
+  const out = {};
+  for (const [key, def] of Object.entries(defaults)) {
+    const value = values[key];
+    if (value === undefined || value === null || String(value) === String(def)) continue;
+    out[key] = String(value);
+  }
+  return out;
+}

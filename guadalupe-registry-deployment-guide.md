@@ -159,7 +159,18 @@ create policy "admins full access ministries"
 
 1. In the dashboard go to **Authentication → Users → Add user**.
 2. Enter the parish admin's email and a strong temporary password.
-3. Create one account per staff member who needs access. Keep this list short.
+3. In the SQL editor, give that account a profile and make it a staff admin (after running every migration in `supabase/migrations/`, including `0010_admin_tools.sql`):
+   ```sql
+   insert into profiles (id, name, role, is_admin)
+   values ('<the new user''s UUID>', 'Ma. Assumpta R.', 'Parish Secretary', true);
+   ```
+4. Deploy the staff-accounts Edge Function so admins can manage everyone else from the admin panel (**Settings → Staff**) instead of this dashboard:
+   ```bash
+   npx supabase login
+   npx supabase functions deploy manage-staff --project-ref <your-project-ref>
+   ```
+   (Or **Edge Functions → Deploy a new function** in the dashboard, named `manage-staff`, with the two files from `supabase/functions/manage-staff/`.) The function holds the service-role key on Supabase's side; it never reaches the browser.
+5. Sign in as the admin and add the other staff from **Settings → Staff**. Each new account gets a temporary password for you to pass on. Keep this list short, and disable accounts when people leave.
 
 ### 1.5 Grab your API keys
 

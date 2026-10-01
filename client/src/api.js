@@ -3,11 +3,13 @@
 // the admin pages and the public registration wizard already call, so this
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
-import { ageFromDob, PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES } from './constants.js';
-import { memberFullName } from './lib/util.js';
+import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES } from './constants.js';
+import { memberFullName, inDateRange } from './lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
-import { MEMBERSHIP_STATUSES, FORMER_STATUSES, censusResponsesPayload } from './lib/census.js';
+import { fetchAllPages } from './lib/paging.js';
+import { shapeDashboard, shapeReport } from './lib/stats.js';
+import { MEMBERSHIP_STATUSES, censusResponsesPayload } from './lib/census.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -21,6 +23,19 @@ function mapError(error, { fallback = 'Request failed', dupLabel } = {}) {
   if (!error) return new Error(fallback);
   if (error.code === '23505' && dupLabel) return new Error(`${dupLabel} already exists`);
   return new Error(error.message || fallback);
+}
+
+/**
+ * Every row of a query, however many there are. Supabase caps a single
+ * request at 1,000 rows, so the report builder and CSV exports would
+ * otherwise come up short in a large parish. (Totals and counts don't need
+ * this: they're computed in the database.) `build` returns a
+ * fresh, stably ordered query each time it's called.
+ */
+async function fetchAll(build) {
+  const { data, error } = await fetchAllPages((from, to) => build().range(from, to));
+  if (error) throw mapError(error);
+  return data;
 }
 
 function cleanPatch(patch) {
@@ -99,7 +114,13 @@ export const api = {
   },
 
   // ---- account (used by ParishConfig's "Change password" card) --------
-  async changePassword(_currentPassword, newPassword) {
+  async changePassword(currentPassword, newPassword) {
+    // Re-check the current password first, so an unattended signed-in
+    // browser can't be used to take over the account.
+    const { data: { user }, error: uErr } = await supabase.auth.getUser();
+    if (uErr || !user?.email) throw mapError(uErr, { fallback: 'Please sign in again' });
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword || '' });
+    if (authErr) throw new Error('Current password is incorrect');
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw mapError(error);
     return { ok: true };
@@ -316,21 +337,38 @@ export const api = {
     return Object.fromEntries(entries);
   },
 
+  // ---- staff accounts (Settings → Staff; staff admins only) -----------
+  // Runs in the manage-staff Edge Function, which holds the service-role key.
+  staff: {
+    list: () => callStaffFunction({ action: 'list' }).then((r) => r.staff || []),
+    create: ({ name, email, role, isAdmin, password }) => callStaffFunction({ action: 'create', name, email, role, is_admin: !!isAdmin, password }),
+    update: (id, { name, role, isAdmin }) => callStaffFunction({ action: 'update', id, name, role, is_admin: !!isAdmin }),
+    resetPassword: (id, password) => callStaffFunction({ action: 'reset_password', id, password }),
+    setDisabled: (id, disabled) => callStaffFunction({ action: disabled ? 'disable' : 'enable', id }),
+  },
+
+  // ---- possible duplicate members (admin) ------------------------------
+  /** Groups of members who share a first name, last name and date of birth (find_duplicate_members). */
+  async findDuplicateMembers() {
+    const { data, error } = await supabase.rpc('find_duplicate_members');
+    if (error) throw mapError(error);
+    return data || [];
+  },
+
+  /** Hide a group as "not duplicates" until another matching member turns up. */
+  async dismissDuplicateGroup(memberIds) {
+    const { error } = await supabase.rpc('dismiss_duplicate_group', { p_member_ids: memberIds });
+    if (error) throw mapError(error);
+    return null;
+  },
+
   // ---- ministry / organization membership (admin) -------------------
   addMemberToGroup: (memberId, column, name) => changeGroupMembership(memberId, column, name, true),
   removeMemberFromGroup: (memberId, column, name) => changeGroupMembership(memberId, column, name, false),
 
   // ---- GKKs ------------------------------------------------------------
   async listGkks() {
-    const [{ data: names, error }, { data: hhRows, error: hErr }] = await Promise.all([
-      supabase.from('gkks').select('name').order('name'),
-      supabase.from('households').select('gkk'),
-    ]);
-    if (error) throw mapError(error);
-    if (hErr) throw mapError(hErr);
-    const counts = {};
-    for (const r of hhRows) if (r.gkk) counts[r.gkk] = (counts[r.gkk] || 0) + 1;
-    return { rows: names.map((g) => ({ name: g.name, count: counts[g.name] || 0 })) };
+    return { rows: await listCounts('gkks') };
   },
 
   async addGkk(name) {
@@ -352,12 +390,12 @@ export const api = {
   },
 
   // ---- ministries / organizations (identical shape, different table) --
-  listMinistries: (opts) => listGroup('ministries', 'ministries', opts),
+  listMinistries: (opts) => listGroup('ministries', opts),
   addMinistry: (name) => addGroup('ministries', name),
   renameMinistry: (oldName, newName) => renameGroup('rename_ministry', oldName, newName, 'An item with this name'),
   deleteMinistry: (name) => deleteGroup('delete_ministry', name),
 
-  listOrganizations: (opts) => listGroup('organizations', 'organizations', opts),
+  listOrganizations: (opts) => listGroup('organizations', opts),
   addOrganization: (name) => addGroup('organizations', name),
   renameOrganization: (oldName, newName) => renameGroup('rename_organization', oldName, newName, 'An item with this name'),
   deleteOrganization: (name) => deleteGroup('delete_organization', name),
@@ -365,15 +403,7 @@ export const api = {
   // ---- parish positions (Parish Organization Structure) ----------------
   // One position per member (members.parish_role), not an array like the above.
   async listParishPositions() {
-    const [{ data: names, error }, { data: mem, error: mErr }] = await Promise.all([
-      supabase.from('parish_positions').select('name').order('name'),
-      supabase.from('members').select('parish_role').not('parish_role', 'is', null),
-    ]);
-    if (error) throw mapError(error);
-    if (mErr) throw mapError(mErr);
-    const counts = {};
-    for (const r of mem) counts[r.parish_role] = (counts[r.parish_role] || 0) + 1;
-    return { rows: names.map((r) => ({ name: r.name, count: counts[r.name] || 0 })) };
+    return { rows: await listCounts('parish_positions') };
   },
   addParishPosition: (name) => addGroup('parish_positions', name),
   renameParishPosition: (oldName, newName) => renameGroup('rename_parish_position', oldName, newName, 'A position with this name'),
@@ -586,124 +616,17 @@ export const api = {
 
   // ---- dashboard ---------------------------------------------------------
   async dashboardStats() {
-    const [{ data: hh, error: hErr }, { data: allMem, error: mErr }] = await Promise.all([
-      supabase.from('households').select('*'),
-      supabase.from('members').select('*'),
-    ]);
-    if (hErr) throw mapError(hErr);
-    if (mErr) throw mapError(mErr);
-    // Members who moved away or died stay on record but not in the figures.
-    const mem = allMem.filter((m) => !FORMER_STATUSES.includes(m.membership_status));
-
-    const verified = hh.filter((h) => h.status === 'Verified').length;
-    const pending = hh.filter((h) => h.status === 'Pending').length;
-
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const now = new Date();
-    const monthCounts = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const count = mem.filter((m) => {
-        const c = new Date(m.created_at);
-        return c.getFullYear() === d.getFullYear() && c.getMonth() === d.getMonth();
-      }).length;
-      monthCounts.push({ label: monthNames[d.getMonth()], n: count });
-    }
-    const maxMonth = Math.max(1, ...monthCounts.map((m) => m.n));
-    const regMonths = monthCounts.map((m) => ({ ...m, h: `${Math.max(6, Math.round((m.n / maxMonth) * 100))}%` }));
-
-    const ageBucketDefs = [['0-9', 0, 9], ['10-19', 10, 19], ['20-34', 20, 34], ['35-49', 35, 49], ['50-64', 50, 64], ['65+', 65, 200]];
-    const ageBucketCounts = ageBucketDefs.map(([label, lo, hi]) => ({
-      label,
-      n: mem.filter((m) => { const a = ageFromDob(m.dob); return a !== null && a >= lo && a <= hi; }).length,
-    }));
-    const maxAge = Math.max(1, ...ageBucketCounts.map((b) => b.n));
-    const ageBuckets = ageBucketCounts.map((b) => ({ ...b, h: `${Math.max(6, Math.round((b.n / maxAge) * 100))}%` }));
-
-    const gkkMap = {};
-    hh.forEach((h) => { if (h.gkk) gkkMap[h.gkk] = (gkkMap[h.gkk] || 0) + 1; });
-    const maxGkk = Math.max(1, ...Object.values(gkkMap), 1);
-    const gkkBreak = Object.entries(gkkMap).map(([label, n]) => ({ label, n, w: `${Math.round((n / maxGkk) * 100)}%` }));
-
-    const minMap = {};
-    mem.forEach((m) => [...(m.ministries || []), ...(m.organizations || [])].forEach((g) => { minMap[g] = (minMap[g] || 0) + 1; }));
-    const maxMin = Math.max(1, ...Object.values(minMap), 1);
-    const ministryBreak = Object.entries(minMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-      .map(([label, n]) => ({ label, n, w: `${Math.round((n / maxMin) * 100)}%` }));
-
-    const sacStats = [
-      { label: 'Baptism', n: mem.filter((m) => m.has_baptism).length },
-      { label: 'First Communion', n: mem.filter((m) => m.has_communion).length },
-      { label: 'Confirmation', n: mem.filter((m) => m.has_confirmation).length },
-      { label: 'Matrimony', n: mem.filter((m) => m.has_matrimony).length },
-    ];
-
-    return {
-      statCards: [
-        { label: 'Households', value: hh.length, note: `${verified} verified · ${pending} pending`, accent: '#34589c' },
-        { label: 'Members', value: mem.length, note: 'across all households', accent: '#c39b4e' },
-        {
-          label: 'Active Catholics',
-          value: mem.filter((m) => m.membership_status === 'Active').length,
-          note: `${mem.filter((m) => m.membership_status === 'Inactive').length} inactive · ${mem.filter((m) => !m.membership_status).length} not yet assessed`,
-          accent: '#2f7a52',
-        },
-        { label: 'Verified', value: verified, note: 'households confirmed', accent: '#2f7a52' },
-        { label: 'Pending', value: pending, note: 'awaiting verification', accent: '#a13d29' },
-        { label: 'GKKs', value: Object.keys(gkkMap).length, note: 'basic ecclesial communities', accent: '#7a6a3e' },
-      ],
-      regMonths, ageBuckets, gkkBreak, ministryBreak, sacStats,
-    };
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    const { data, error } = await supabase.rpc('admin_dashboard_stats', { p_tz: tz });
+    if (error) throw mapError(error);
+    return shapeDashboard(data);
   },
 
   // ---- reports -------------------------------------------------------
   async reportStats() {
-    const [{ data: hh, error: hErr }, { data: mem, error: mErr }] = await Promise.all([
-      supabase.from('households').select('*'),
-      supabase.from('members_with_household').select('*').eq('is_current', true),
-    ]);
-    if (hErr) throw mapError(hErr);
-    if (mErr) throw mapError(mErr);
-
-    const gkkNames = [...new Set(hh.map((h) => h.gkk).filter(Boolean))];
-    const regByGkk = gkkNames.map((label) => {
-      const inGkk = hh.filter((h) => h.gkk === label);
-      const verified = inGkk.filter((h) => h.status === 'Verified').length;
-      const pending = inGkk.filter((h) => h.status === 'Pending').length;
-      const total = Math.max(1, inGkk.length);
-      return { label, verified, pending, vw: `${Math.round((verified / total) * 100)}%`, pw: `${Math.round((pending / total) * 100)}%` };
-    });
-
-    const sacDefs = [['Baptism', 'has_baptism'], ['First Communion', 'has_communion'], ['Confirmation', 'has_confirmation'], ['Matrimony', 'has_matrimony']];
-    const totalMembers = Math.max(1, mem.length);
-    const sacCompletion = sacDefs.map(([label, key]) => {
-      const n = mem.filter((m) => m[key]).length;
-      return { label, n, missing: mem.length - n, w: `${Math.round((n / totalMembers) * 100)}%` };
-    });
-
-    const groupNames = [...new Set(mem.flatMap((m) => [...(m.ministries || []), ...(m.organizations || [])]))];
-    const colors = ['#34589c', '#c39b4e', '#2f7a52', '#a13d29', '#7a6a3e', '#8a5fb0'];
-    const participation = groupNames.map((label, i) => {
-      const n = mem.filter((m) => (m.ministries || []).includes(label) || (m.organizations || []).includes(label)).length;
-      return { label, n, w: `${Math.round((n / totalMembers) * 100)}%`, color: colors[i % colors.length] };
-    });
-    const anyVolunteer = Math.round((mem.filter((m) => (m.ministries || []).length || (m.organizations || []).length).length / totalMembers) * 100);
-
-    const bloodMem = mem.filter((m) => m.blood_type);
-    const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-    const bloodCounts = bloodTypes.map((label) => ({ label, n: bloodMem.filter((m) => m.blood_type === label).length })).filter((b) => b.n > 0);
-
-    return {
-      totalHH: hh.length,
-      totalVerified: hh.filter((h) => h.status === 'Verified').length,
-      totalPending: hh.filter((h) => h.status === 'Pending').length,
-      totalMembers: mem.length,
-      regByGkk, sacCompletion, participation, anyVolunteer: Number.isFinite(anyVolunteer) ? anyVolunteer : 0,
-      bloodCounts, unknownBlood: mem.length - bloodMem.length,
-      gkkNames,
-    };
+    const { data, error } = await supabase.rpc('admin_report_stats');
+    if (error) throw mapError(error);
+    return shapeReport(data);
   },
 
   async reportSources() {
@@ -714,11 +637,9 @@ export const api = {
     return { sources: Object.keys(types), types };
   },
 
-  async generateReport({ source, type, gkk = 'All', dateFrom, dateTo, sacrament, group }) {
+  async generateReport({ source, type, gkk = 'All', status = 'All', dateFrom, dateTo, sacrament, group }) {
     if (source === 'Members') {
-      const { data, error } = await supabase.from('members_with_household').select('*').eq('is_current', true);
-      if (error) throw mapError(error);
-      let list = data;
+      let list = await fetchAll(() => supabase.from('members_with_household').select('*').eq('is_current', true).order('household_name').order('id'));
       if (gkk && gkk !== 'All') list = list.filter((m) => m.household_gkk === gkk);
       if (type === 'By Sacrament' && sacrament) {
         const key = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' }[sacrament];
@@ -735,12 +656,10 @@ export const api = {
     }
 
     if (source === 'Households') {
-      const { data, error } = await supabase.from('households').select('*');
-      if (error) throw mapError(error);
-      let list = data;
+      let list = await fetchAll(() => supabase.from('households').select('*').order('household_name').order('id'));
       if (gkk && gkk !== 'All') list = list.filter((h) => h.gkk === gkk);
-      if (dateFrom) list = list.filter((h) => new Date(h.created_at) >= new Date(dateFrom));
-      if (dateTo) list = list.filter((h) => new Date(h.created_at) <= new Date(dateTo));
+      if (type === 'By Status' && status && status !== 'All') list = list.filter((h) => h.status === status);
+      if (dateFrom || dateTo) list = list.filter((h) => inDateRange(h.created_at, dateFrom, dateTo));
       const columns = ['Household', 'GKK', 'Grouping', 'Status', 'Registered'];
       const rowsOut = list.map((h) => ({
         cells: [h.household_name, h.gkk || '—', h.family_grouping || '—', h.status, new Date(h.created_at).toLocaleDateString()],
@@ -839,22 +758,34 @@ async function changeGroupMembership(memberId, column, name, join) {
   return api.updateMember(memberId, { [column]: next });
 }
 
-async function listGroup(table, column, opts) {
+/**
+ * Call the manage-staff Edge Function and turn its failures into readable
+ * messages: the function's own `{ error }` text, or a setup hint when it
+ * hasn't been deployed yet.
+ */
+async function callStaffFunction(body) {
+  const { data, error } = await supabase.functions.invoke('manage-staff', { body });
+  if (!error) return data;
+  const res = error.context;
+  const payload = res && typeof res.json === 'function' ? await res.json().catch(() => null) : null;
+  if (payload?.error) throw new Error(payload.error);
+  if (res?.status === 404 || error.name === 'FunctionsFetchError') {
+    throw new Error('Staff management isn’t set up yet: deploy the manage-staff Edge Function (see the README).');
+  }
+  throw new Error(error.message || 'Request failed');
+}
+
+async function listGroup(table, opts) {
   const gkk = opts && typeof opts === 'object' ? opts.gkk : undefined;
   const scoped = typeof gkk === 'string' && gkk && gkk !== 'All';
+  return { rows: await listCounts(table, scoped ? gkk : null) };
+}
 
-  const { data: names, error } = await supabase.from(table).select('name').order('name');
+/** [{ name, count }] for one staff-managed list, counted in the database (admin_list_counts). */
+async function listCounts(list, gkk = null) {
+  const { data, error } = await supabase.rpc('admin_list_counts', { p_list: list, p_gkk: gkk });
   if (error) throw mapError(error);
-
-  // Counts match the rosters, which leave out members who moved away or died.
-  const counts = {};
-  let q = supabase.from('members_with_household').select(column).eq('is_current', true);
-  if (scoped) q = q.eq('household_gkk', gkk);
-  const { data, error: e2 } = await q;
-  if (e2) throw mapError(e2);
-  data.forEach((r) => (r[column] || []).forEach((n) => { counts[n] = (counts[n] || 0) + 1; }));
-
-  return { rows: names.map((r) => ({ name: r.name, count: counts[r.name] || 0 })) };
+  return (data || []).map((r) => ({ name: r.name, count: r.n }));
 }
 
 async function addGroup(table, name) {
@@ -875,82 +806,74 @@ async function deleteGroup(rpcName, name) {
   return null;
 }
 
+/** Build and download one of the CSV exports. Rejects if the data can't be read. */
 export async function downloadWithAuth(path, filename) {
-  try {
-    if (path === '/exports/members.csv') {
-      const { data, error } = await supabase.from('members_with_household').select('*').order('household_name').order('id');
-      if (error) throw mapError(error);
-      downloadCsv(filename, data, [
-        { label: 'First Name', value: 'first_name' },
-        { label: 'Middle Name', value: 'middle_name' },
-        { label: 'Last Name', value: 'last_name' },
-        { label: 'Suffix', value: 'suffix' },
-        { label: 'Household', value: 'household_name' },
-        { label: 'Relationship', value: (r) => bis(RELATIONSHIP_LABELS, r.relationship) },
-        { label: 'Sex', value: (r) => bis(SEX_LABELS, r.sex) },
-        { label: 'Date of Birth', value: 'dob' },
-        { label: 'Age', value: (r) => r.age ?? '' },
-        { label: 'Place of Birth', value: 'place_of_birth' },
-        { label: 'Tribe', value: 'tribe' },
-        { label: 'Civil Status', value: (r) => bis(CIVIL_STATUS_LABELS, r.civil_status) },
-        { label: 'Contact', value: 'contact' },
-        { label: 'Email', value: 'email' },
-        { label: 'Occupation', value: 'occupation' },
-        { label: 'Blood Type', value: 'blood_type' },
-        { label: 'GKK', value: 'household_gkk' },
-        { label: 'Baptism', value: (r) => (r.has_baptism ? 'Yes' : 'No') },
-        { label: 'First Communion', value: (r) => (r.has_communion ? 'Yes' : 'No') },
-        { label: 'Confirmation', value: (r) => (r.has_confirmation ? 'Yes' : 'No') },
-        { label: 'Matrimony', value: (r) => (r.has_matrimony ? 'Yes' : 'No') },
-        { label: 'Wedding Type', value: (r) => bis(WEDDING_TYPE_LABELS, r.mat_type) },
-        ...SACRAMENTS.map((s) => ({ label: `${s.label} Verified`, value: (r) => (r[`${s.key}_verified`] ? 'Yes' : 'No') })),
-        { label: 'GKK Responsibility', value: 'gkk_role' },
-        { label: 'Parish Responsibility', value: 'parish_role' },
-        { label: 'Ministries', value: (r) => (r.ministries || []).join('; ') },
-        { label: 'Organizations', value: (r) => (r.organizations || []).join('; ') },
-        { label: 'Membership Status', value: (r) => r.membership_status || 'Not assessed' },
-        { label: 'Last Census', value: 'last_census_label' },
-      ]);
-    } else if (path === '/exports/households.csv') {
-      const { data, error } = await supabase.from('households_with_count').select('*').order('household_name');
-      if (error) throw mapError(error);
-      downloadCsv(filename, data, [
-        { label: 'Household Name', value: 'household_name' },
-        { label: 'Head', value: 'head_name' },
-        { label: 'Street', value: 'street' },
-        { label: 'Barangay', value: 'barangay' },
-        { label: 'City', value: 'city' },
-        { label: 'Province', value: 'province' },
-        { label: 'ZIP', value: 'zip' },
-        { label: 'GKK', value: 'gkk' },
-        { label: 'Family Grouping', value: 'family_grouping' },
-        { label: 'Contact', value: 'contact' },
-        { label: 'Email', value: 'email' },
-        { label: 'Members', value: 'member_count' },
-        { label: 'Status', value: 'status' },
-        { label: 'Reference No.', value: 'ref_no' },
-        ...PARTICIPATION_ITEMS.map(([key, label]) => ({ label, value: (r) => (r.participation || {})[key] || '' })),
-        { label: 'Ways to Help', value: (r) => (r.help_ways || []).map((k) => (HELP_WAYS.find(([hk]) => hk === k) || [k, k])[1]).join('; ') },
-        { label: 'Registered', value: (r) => new Date(r.created_at).toISOString().slice(0, 10) },
-      ]);
-    } else if (path === '/exports/blood.csv') {
-      const { data, error } = await supabase.from('members_with_household').select('*').not('blood_type', 'is', null).eq('is_current', true).order('blood_type');
-      if (error) throw mapError(error);
-      downloadCsv(filename, data, [
-        { label: 'Name', value: (r) => `${r.first_name} ${r.last_name}` },
-        { label: 'Blood Type', value: 'blood_type' },
-        { label: 'Age', value: (r) => r.age ?? '' },
-        { label: 'GKK', value: 'household_gkk' },
-        { label: 'Household', value: 'household_name' },
-        { label: 'Contact', value: 'contact' },
-      ]);
-    } else {
-      throw new Error(`Unknown export: ${path}`);
-    }
-  } catch (err) {
-    // Matches the old fetch-based downloadWithAuth, which never surfaced
-    // errors to the caller either (Exports.jsx doesn't await/catch it).
-    console.error(err);
+  if (path === '/exports/members.csv') {
+    const data = await fetchAll(() => supabase.from('members_with_household').select('*').order('household_name').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'First Name', value: 'first_name' },
+      { label: 'Middle Name', value: 'middle_name' },
+      { label: 'Last Name', value: 'last_name' },
+      { label: 'Suffix', value: 'suffix' },
+      { label: 'Household', value: 'household_name' },
+      { label: 'Relationship', value: (r) => bis(RELATIONSHIP_LABELS, r.relationship) },
+      { label: 'Sex', value: (r) => bis(SEX_LABELS, r.sex) },
+      { label: 'Date of Birth', value: 'dob' },
+      { label: 'Age', value: (r) => r.age ?? '' },
+      { label: 'Place of Birth', value: 'place_of_birth' },
+      { label: 'Tribe', value: 'tribe' },
+      { label: 'Civil Status', value: (r) => bis(CIVIL_STATUS_LABELS, r.civil_status) },
+      { label: 'Contact', value: 'contact' },
+      { label: 'Email', value: 'email' },
+      { label: 'Occupation', value: 'occupation' },
+      { label: 'Blood Type', value: 'blood_type' },
+      { label: 'GKK', value: 'household_gkk' },
+      { label: 'Baptism', value: (r) => (r.has_baptism ? 'Yes' : 'No') },
+      { label: 'First Communion', value: (r) => (r.has_communion ? 'Yes' : 'No') },
+      { label: 'Confirmation', value: (r) => (r.has_confirmation ? 'Yes' : 'No') },
+      { label: 'Matrimony', value: (r) => (r.has_matrimony ? 'Yes' : 'No') },
+      { label: 'Wedding Type', value: (r) => bis(WEDDING_TYPE_LABELS, r.mat_type) },
+      ...SACRAMENTS.map((s) => ({ label: `${s.label} Verified`, value: (r) => (r[`${s.key}_verified`] ? 'Yes' : 'No') })),
+      { label: 'GKK Responsibility', value: 'gkk_role' },
+      { label: 'Parish Responsibility', value: 'parish_role' },
+      { label: 'Ministries', value: (r) => (r.ministries || []).join('; ') },
+      { label: 'Organizations', value: (r) => (r.organizations || []).join('; ') },
+      { label: 'Membership Status', value: (r) => r.membership_status || 'Not assessed' },
+      { label: 'Last Census', value: 'last_census_label' },
+    ]);
+  } else if (path === '/exports/households.csv') {
+    const data = await fetchAll(() => supabase.from('households_with_count').select('*').order('household_name').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Household Name', value: 'household_name' },
+      { label: 'Head', value: 'head_name' },
+      { label: 'Street', value: 'street' },
+      { label: 'Barangay', value: 'barangay' },
+      { label: 'City', value: 'city' },
+      { label: 'Province', value: 'province' },
+      { label: 'ZIP', value: 'zip' },
+      { label: 'GKK', value: 'gkk' },
+      { label: 'Family Grouping', value: 'family_grouping' },
+      { label: 'Contact', value: 'contact' },
+      { label: 'Email', value: 'email' },
+      { label: 'Members', value: 'member_count' },
+      { label: 'Status', value: 'status' },
+      { label: 'Reference No.', value: 'ref_no' },
+      ...PARTICIPATION_ITEMS.map(([key, label]) => ({ label, value: (r) => (r.participation || {})[key] || '' })),
+      { label: 'Ways to Help', value: (r) => (r.help_ways || []).map((k) => (HELP_WAYS.find(([hk]) => hk === k) || [k, k])[1]).join('; ') },
+      { label: 'Registered', value: (r) => new Date(r.created_at).toISOString().slice(0, 10) },
+    ]);
+  } else if (path === '/exports/blood.csv') {
+    const data = await fetchAll(() => supabase.from('members_with_household').select('*').not('blood_type', 'is', null).eq('is_current', true).order('blood_type').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Name', value: (r) => `${r.first_name} ${r.last_name}` },
+      { label: 'Blood Type', value: 'blood_type' },
+      { label: 'Age', value: (r) => r.age ?? '' },
+      { label: 'GKK', value: 'household_gkk' },
+      { label: 'Household', value: 'household_name' },
+      { label: 'Contact', value: 'contact' },
+    ]);
+  } else {
+    throw new Error(`Unknown export: ${path}`);
   }
 }
 

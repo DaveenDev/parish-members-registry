@@ -8,6 +8,7 @@ const NAV_MAIN = [
   { to: '/admin', end: true, label: 'Dashboard' },
   { to: '/admin/households', label: 'Households' },
   { to: '/admin/members', label: 'Members' },
+  { to: '/admin/duplicates', label: 'Duplicates' },
   { to: '/admin/sacraments', label: 'Sacraments' },
   { to: '/admin/blood', label: 'Blood Types' },
   { to: '/admin/organizations', label: 'Organizations' },
@@ -21,6 +22,7 @@ const NAV_SETTINGS = [
   { to: '/admin/settings', end: true, label: 'Parish Config' },
   { to: '/admin/settings/ministries', label: 'Ministries' },
   { to: '/admin/settings/organizations', label: 'Organizations' },
+  { to: '/admin/settings/staff', label: 'Staff', adminOnly: true },
 ];
 
 function NavItem({ to, end, label, onNavigate }) {
@@ -90,7 +92,7 @@ export default function AdminLayout() {
       <nav className="px-3 py-3.5 flex flex-col gap-0.5 flex-1 overflow-auto" aria-label="Admin sections">
         {NAV_MAIN.map((n) => <NavItem key={n.to} {...n} />)}
         <div className="mx-3.5 mt-3.5 mb-1 font-bold text-[10.5px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70">Settings</div>
-        {NAV_SETTINGS.map((n) => <NavItem key={n.to} {...n} />)}
+        {NAV_SETTINGS.filter((n) => !n.adminOnly || user?.isAdmin).map((n) => <NavItem key={n.to} {...n} />)}
       </nav>
 
       <div className="px-4 py-2.5">

@@ -10,7 +10,11 @@ import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 import PrintSheet, { printHouseholdSheet } from '../../components/PrintSheet.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
-import { useDebounced } from '../../hooks.js';
+import { useDebounced, useUrlState } from '../../hooks.js';
+import { VerifiedLine } from '../../components/VerifiedLine.jsx';
+
+const URL_DEFAULTS = { status: 'All', gkk: 'All', q: '', page: 1, size: 10 };
+const URL_ALLOWED = { status: ['All', 'Verified', 'Pending'], size: [10, 20, 50] };
 
 export default function Households() {
   const location = useLocation();
@@ -21,12 +25,16 @@ export default function Households() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [status, setStatus] = useState('All');
-  const [gkk, setGkk] = useState('All');
-  const [search, setSearch] = useState('');
+  // Filters, search and page live in the address bar (see useUrlState), so
+  // dashboard links like ?status=Pending land on the filtered list.
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { status, gkk, q: search, page, size: pageSize } = url;
+  const setStatus = (v) => setUrl({ status: v });
+  const setGkk = (v) => setUrl({ gkk: v });
+  const setSearch = (v) => setUrl({ q: v });
+  const setPage = (p) => setUrl({ page: p });
+  const setPageSize = (size) => setUrl({ size });
   const debouncedSearch = useDebounced(search);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [expanded, setExpanded] = useState({});
   const [expandedMembers, setExpandedMembers] = useState({});
@@ -51,7 +59,6 @@ export default function Households() {
 
   useEffect(() => { reload(); }, [status, gkk, debouncedSearch, page, pageSize]);
   useEffect(() => { api.listGkks().then((res) => setGkkOptions(res.rows.map((r) => r.name))).catch(() => {}); }, []);
-  useEffect(() => { setPage(1); }, [status, gkk, debouncedSearch]);
 
   async function toggleExpand(id) {
     const isOpening = !expanded[id];
@@ -180,7 +187,10 @@ export default function Households() {
                       </td>
                       <td className="px-4 py-3.5 text-[13.5px] text-[#3f3b2f] whitespace-nowrap">{h.gkk || '—'}<div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div></td>
                       <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.member_count} member(s)</td>
-                      <td className="px-4 py-3.5"><StatusPill status={h.status} /></td>
+                      <td className="px-4 py-3.5">
+                        <StatusPill status={h.status} />
+                        <VerifiedLine household={h} className="mt-1 text-[11.5px] text-parish-muted max-w-[180px]" />
+                      </td>
                       <td className="px-4 py-3.5">
                         <div className="flex gap-2 justify-end flex-wrap">
                           <button onClick={() => toggleStatus(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">

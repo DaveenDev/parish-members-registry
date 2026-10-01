@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { PageHeader, PageBody, SearchInput, Pagination } from './admin.jsx';
 import { useClientList } from '../hooks.js';
 import { TextInput, PrimaryButton } from './ui.jsx';
+import { useConfirm } from './ConfirmDialog.jsx';
 
 export default function ManageList({ title, subtitle, ...listProps }) {
   return (
@@ -23,6 +24,7 @@ export function ManageListCard({ heading, description, itemNoun, placeholder, li
   const [editing, setEditing] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [error, setError] = useState('');
+  const confirm = useConfirm();
   const list = useClientList(rows, (r) => r.name);
 
   function reload() { listFn().then((res) => setRows(res.rows)); }
@@ -51,6 +53,13 @@ export function ManageListCard({ heading, description, itemNoun, placeholder, li
     }
   }
   async function remove(name) {
+    const ok = await confirm({
+      title: `Delete “${name}”?`,
+      message: `This removes the ${itemNoun} from the list. It can't be undone, but you can add it again later.`,
+      confirmLabel: `Delete ${itemNoun}`,
+      tone: 'danger',
+    });
+    if (!ok) return;
     setError('');
     try {
       await deleteFn(name);

@@ -2,6 +2,8 @@ import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
+  fmtDateTime,
+  daysAgo,
   RELATIONSHIPS,
   CIVIL_STATUSES,
   RELIGIONS,
@@ -172,5 +174,26 @@ describe('ageFromDob', () => {
     for (const value of [null, undefined, '', 'not-a-date']) {
       assert.equal(ageFromDob(value), null);
     }
+  });
+});
+
+describe('fmtDateTime / daysAgo', () => {
+  test('formats a timestamp, with or without the time', () => {
+    const ts = new Date(2026, 9, 1, 21, 30).toISOString();
+    assert.match(fmtDateTime(ts), /^Oct 1, 2026, 9:30\sPM$/);
+    assert.equal(fmtDateTime(ts, { time: false }), 'Oct 1, 2026');
+  });
+
+  test('blank or bad timestamps format as empty', () => {
+    assert.equal(fmtDateTime(null), '');
+    assert.equal(fmtDateTime('nope'), '');
+    assert.equal(daysAgo(''), '');
+  });
+
+  test('counts calendar days, not 24-hour periods', () => {
+    const now = new Date(2026, 9, 3, 8, 0);
+    assert.equal(daysAgo(new Date(2026, 9, 3, 7, 0), now), 'today');
+    assert.equal(daysAgo(new Date(2026, 9, 2, 23, 0), now), 'yesterday');
+    assert.equal(daysAgo(new Date(2026, 8, 30, 12, 0), now), '3 days ago');
   });
 });

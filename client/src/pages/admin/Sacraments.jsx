@@ -4,7 +4,7 @@ import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination,
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import SacramentVerifyDialog, { SacramentChip } from '../../components/SacramentVerifyDialog.jsx';
 import { SACRAMENTS } from '../../constants.js';
-import { useDebounced } from '../../hooks.js';
+import { useDebounced, useUrlState } from '../../hooks.js';
 import { groupByHousehold } from '../../lib/household.js';
 import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 
@@ -17,6 +17,10 @@ const STATUS_OPTIONS = [
   ['No', 'Not claimed'],
 ];
 const DEFAULT_FILTERS = { gkk: 'All', baptism: 'All', communion: 'All', confirmation: 'All', matrimony: 'All' };
+// Rows are grouped by household, so a bigger page keeps families together more often.
+const URL_DEFAULTS = { ...DEFAULT_FILTERS, q: '', page: 1, size: 20 };
+const STATUS_VALUES = STATUS_OPTIONS.map(([v]) => v);
+const URL_ALLOWED = { baptism: STATUS_VALUES, communion: STATUS_VALUES, confirmation: STATUS_VALUES, matrimony: STATUS_VALUES, size: [10, 20, 50] };
 
 export default function Sacraments() {
   const [rows, setRows] = useState([]);
@@ -24,18 +28,20 @@ export default function Sacraments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [gkkOptions, setGkkOptions] = useState([]);
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
-  const [search, setSearch] = useState('');
+  // Filters, search and page live in the address bar (see useUrlState).
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { q: search, page, size: pageSize } = url;
+  const filters = Object.fromEntries(Object.keys(DEFAULT_FILTERS).map((k) => [k, url[k]]));
+  const filterKey = JSON.stringify(filters);
+  const setSearch = (q) => setUrl({ q });
+  const setPage = (p) => setUrl({ page: p });
+  const setPageSize = (size) => setUrl({ size });
   const debouncedSearch = useDebounced(search);
-  const [page, setPage] = useState(1);
-  // Rows are grouped by household, so a bigger page keeps families together more often.
-  const [pageSize, setPageSize] = useState(20);
   const [openMemberId, setOpenMemberId] = useState(null);
   const [verifying, setVerifying] = useState(null); // { member, sacrament, verification }
   const [counts, setCounts] = useState(null);
 
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, []);
-  useEffect(() => { setPage(1); }, [filters, debouncedSearch]);
 
   // The sacrament filters are applied server-side; filtering a single page
   // client-side would make both the row list and the total incorrect.
@@ -52,10 +58,10 @@ export default function Sacraments() {
   }
   function refreshAll() { reload(); reloadCounts(); }
 
-  useEffect(() => { reload(); }, [filters, debouncedSearch, page, pageSize]);
+  useEffect(() => { reload(); }, [filterKey, debouncedSearch, page, pageSize]);
   useEffect(() => { reloadCounts(); }, [filters.gkk]);
 
-  const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
+  const setFilter = (key, value) => setUrl({ [key]: value });
   const isFiltered = !!debouncedSearch || Object.keys(DEFAULT_FILTERS).some((k) => filters[k] !== DEFAULT_FILTERS[k]);
 
   async function openVerify(member, sacrament) {
@@ -70,8 +76,7 @@ export default function Sacraments() {
 
   /** Show only the claims still waiting on staff for one sacrament. */
   function showQueue(key) {
-    setFilters({ ...DEFAULT_FILTERS, gkk: filters.gkk, [key]: 'Unverified' });
-    setSearch('');
+    setUrl({ ...DEFAULT_FILTERS, gkk: filters.gkk, [key]: 'Unverified', q: '' });
   }
 
   return (
@@ -115,7 +120,7 @@ export default function Sacraments() {
             </FilterSelect>
           ))}
           {isFiltered && (
-            <button onClick={() => { setFilters(DEFAULT_FILTERS); setSearch(''); }} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>
+            <button onClick={() => setUrl({ ...DEFAULT_FILTERS, q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>
           )}
           <div className="ml-auto text-[13px] text-parish-muted">{total} member(s)</div>
         </div>
