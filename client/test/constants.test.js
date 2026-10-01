@@ -4,6 +4,9 @@ import assert from 'node:assert/strict';
 import {
   fmtDateTime,
   daysAgo,
+  parseAgeRange,
+  AGE_OPTS,
+  DASHBOARD_AGE_OPTS,
   RELATIONSHIPS,
   CIVIL_STATUSES,
   RELIGIONS,
@@ -195,5 +198,20 @@ describe('fmtDateTime / daysAgo', () => {
     assert.equal(daysAgo(new Date(2026, 9, 3, 7, 0), now), 'today');
     assert.equal(daysAgo(new Date(2026, 9, 2, 23, 0), now), 'yesterday');
     assert.equal(daysAgo(new Date(2026, 8, 30, 12, 0), now), '3 days ago');
+  });
+});
+
+describe('parseAgeRange', () => {
+  test('reads "lo-hi" ranges', () => {
+    assert.deepEqual(parseAgeRange('18-30'), [18, 30]);
+    assert.deepEqual(parseAgeRange('65-200'), [65, 200]);
+  });
+
+  test('rejects anything else', () => {
+    for (const v of ['All', '', null, '30-18', '1-2-3', 'a-b', '-5']) assert.equal(parseAgeRange(v), null, String(v));
+  });
+
+  test('every age filter option parses', () => {
+    for (const [v] of [...AGE_OPTS, ...DASHBOARD_AGE_OPTS]) if (v !== 'All') assert.ok(parseAgeRange(v), v);
   });
 });

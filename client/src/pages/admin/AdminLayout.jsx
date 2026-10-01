@@ -102,7 +102,7 @@ export default function AdminLayout() {
           )}
         </div>
         <div className="min-w-0">
-          <div className="font-serif text-[18px] font-semibold leading-tight truncate">{parish?.name || 'OLG Quasi-Parish'}</div>
+          <div className="font-serif text-[18px] font-semibold leading-tight truncate">{parish?.name || 'Parish Registry'}</div>
           <div className="text-[11px] tracking-[.1em] uppercase text-[var(--p-gold-light)]/85">Members Registry</div>
         </div>
       </div>

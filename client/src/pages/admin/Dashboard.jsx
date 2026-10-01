@@ -28,16 +28,22 @@ function StatCard({ label, value, note, accent, to }) {
   );
 }
 
-function Bars({ data, color1, color2 }) {
+function Bars({ data, color1, color2, linkLabel }) {
   return (
     <div className="flex items-end gap-3.5 h-[150px]">
-      {data.map((b) => (
-        <div key={b.label} className="flex-1 flex flex-col items-center gap-2 h-full justify-end">
-          <div className="font-bold text-[13px]" style={{ color: color2 }}>{b.n}</div>
-          <div className="w-full max-w-[38px] rounded-t-lg transition-all duration-500" style={{ height: b.h, minHeight: 4, background: `linear-gradient(180deg,${color1},${color2})` }} />
-          <div className="font-semibold text-[12px] text-parish-muted text-center">{b.label}</div>
-        </div>
-      ))}
+      {data.map((b) => {
+        const bar = (
+          <>
+            <div className="font-bold text-[13px]" style={{ color: color2 }}>{b.n}</div>
+            <div className="w-full max-w-[38px] rounded-t-lg transition-all duration-500" style={{ height: b.h, minHeight: 4, background: `linear-gradient(180deg,${color1},${color2})` }} />
+            <div className="font-semibold text-[12px] text-parish-muted text-center">{b.label}</div>
+          </>
+        );
+        const cls = 'flex-1 flex flex-col items-center gap-2 h-full justify-end';
+        return b.to
+          ? <Link key={b.label} to={b.to} aria-label={linkLabel ? linkLabel(b) : undefined} className={`${cls} rounded-lg hover:bg-[#f7f2e6] ${LINK_FOCUS}`}>{bar}</Link>
+          : <div key={b.label} className={cls}>{bar}</div>;
+      })}
     </div>
   );
 }
@@ -164,7 +170,7 @@ export default function Dashboard() {
           <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-5 shadow-cardSm">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-0.5">Age distribution</div>
             <div className="text-[12.5px] text-parish-muted mb-5">All registered members</div>
-            <Bars data={stats.ageBuckets} color1="#e0bd6d" color2="var(--p-gold)" />
+            <Bars data={stats.ageBuckets} color1="#e0bd6d" color2="var(--p-gold)" linkLabel={(b) => `Ages ${b.label}: ${b.n} members. Open the members list`} />
           </div>
         </div>
 

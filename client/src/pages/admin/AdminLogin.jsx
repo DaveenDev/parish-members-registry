@@ -14,9 +14,12 @@ export default function AdminLogin() {
   const [loading, setLoading] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [logo, setLogo] = useState(null);
+  const [parishName, setParishName] = useState('');
 
   // The logo uploaded in Parish Config; the star emblem stays if there isn't one.
   useEffect(() => { api.publicParishLogo().then(setLogo).catch(() => {}); }, []);
+  // The name from Parish Config. Before 0013 is run this fails quietly and the default shows.
+  useEffect(() => { api.publicOfficeDetails().then((d) => setParishName(d?.name || '')).catch(() => {}); }, []);
 
   if (ready && user) return <Navigate to="/admin" replace />;
 
@@ -42,7 +45,7 @@ export default function AdminLogin() {
       <div className="w-full max-w-[400px] animate-fadeUp">
         <div className="text-center mb-[26px] text-[var(--p-gold-light)]" style={{ marginBottom: '26px' }}>
           {logo ? (
-            <img src={logo} alt="Parish logo" className="w-[72px] h-[72px] object-contain mx-auto mb-2 bg-white rounded-2xl p-1.5" />
+            <img src={logo} alt={`${parishName || 'Parish'} logo`} className="w-[72px] h-[72px] object-contain mx-auto mb-2 bg-white rounded-2xl p-1.5" />
           ) : (
             <svg viewBox="0 0 80 80" width="66" height="66" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" className="mx-auto mb-2" aria-hidden>
               <circle cx="40" cy="38" r="30" stroke="rgba(228,192,106,.4)" />
@@ -50,7 +53,7 @@ export default function AdminLogin() {
               <path d="M40 46v18M31 55h18" />
             </svg>
           )}
-          <div className="font-serif text-[25px] font-semibold text-white leading-tight">Our Lady of Guadalupe</div>
+          <div className="font-serif text-[25px] font-semibold text-white leading-tight">{parishName || 'Our Lady of Guadalupe'}</div>
           <div className="text-[13px] tracking-[.14em] uppercase text-[var(--p-gold-light)]/90 mt-1.5">Members Registry · Admin</div>
         </div>
         <div className="bg-[#fffdf8] rounded-[20px] shadow-2xl px-7 py-[30px]" style={{ padding: '30px 28px' }}>

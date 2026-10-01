@@ -2,14 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import { StatusPill, Badge } from '../../components/ui.jsx';
-import { ageFromDob, CIVIL_STATUSES } from '../../constants.js';
+import { ageFromDob, CIVIL_STATUSES, AGE_OPTS, DASHBOARD_AGE_OPTS } from '../../constants.js';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useDebounced, useUrlState } from '../../hooks.js';
 import { groupByGkk } from '../../lib/household.js';
 import { bis, RELATIONSHIP_LABELS, CIVIL_STATUS_LABELS } from '../../lib/bisaya.js';
 import { MEMBERSHIP_STATUSES, STATUS_TONES } from '../../lib/census.js';
 
-const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
 const BLOOD_OPTS = ['All', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
 const DEFAULT_FILTERS = { status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All', membership: 'Current', census: 'All' };
 // Rows are grouped under GKK headings; inside each GKK the default order is
@@ -17,7 +16,8 @@ const DEFAULT_FILTERS = { status: 'All', civil: 'All', sacrament: 'All', ministr
 const URL_DEFAULTS = { ...DEFAULT_FILTERS, q: '', sort: 'household', dir: 'asc', page: 1, size: 10 };
 const URL_ALLOWED = {
   status: ['All', 'Verified', 'Pending'],
-  age: AGE_OPTS.map(([v]) => v),
+  // The Dashboard's age bars link here with their own ranges.
+  age: [...AGE_OPTS, ...DASHBOARD_AGE_OPTS].map(([v]) => v),
   blood: BLOOD_OPTS,
   membership: ['Current', 'All', ...MEMBERSHIP_STATUSES, 'Not assessed'],
   census: ['All', 'Confirmed', 'Not confirmed'],
@@ -79,25 +79,26 @@ export default function Members() {
       </PageHeader>
       <PageBody>
         <div className="flex flex-wrap gap-2.5 items-center mb-4">
-          <FilterSelect value={filters.status} onChange={(e) => setFilter('status', e.target.value)}>
+          <FilterSelect aria-label="Household status" value={filters.status} onChange={(e) => setFilter('status', e.target.value)}>
             <option value="All">All statuses</option><option value="Verified">Verified</option><option value="Pending">Pending</option>
           </FilterSelect>
-          <FilterSelect value={filters.civil} onChange={(e) => setFilter('civil', e.target.value)}>
+          <FilterSelect aria-label="Civil status" value={filters.civil} onChange={(e) => setFilter('civil', e.target.value)}>
             <option value="All">All civil status</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
           </FilterSelect>
-          <FilterSelect value={filters.sacrament} onChange={(e) => setFilter('sacrament', e.target.value)}>
+          <FilterSelect aria-label="Sacrament" value={filters.sacrament} onChange={(e) => setFilter('sacrament', e.target.value)}>
             <option value="All">Any sacrament</option><option value="Baptism">Baptized</option><option value="Communion">First Communion</option><option value="Confirmation">Confirmed</option><option value="Matrimony">Married in Church</option>
           </FilterSelect>
-          <FilterSelect value={filters.ministry} onChange={(e) => setFilter('ministry', e.target.value)}>
+          <FilterSelect aria-label="Ministry or organization" value={filters.ministry} onChange={(e) => setFilter('ministry', e.target.value)}>
             <option value="All">Any ministry / org</option>{groupOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </FilterSelect>
-          <FilterSelect value={filters.age} onChange={(e) => setFilter('age', e.target.value)}>
+          <FilterSelect aria-label="Age" value={filters.age} onChange={(e) => setFilter('age', e.target.value)}>
             {AGE_OPTS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+            {DASHBOARD_AGE_OPTS.filter(([v]) => v === filters.age).map(([v, t]) => <option key={v} value={v}>Age {t}</option>)}
           </FilterSelect>
-          <FilterSelect value={filters.blood} onChange={(e) => setFilter('blood', e.target.value)}>
+          <FilterSelect aria-label="Blood type" value={filters.blood} onChange={(e) => setFilter('blood', e.target.value)}>
             {BLOOD_OPTS.map((b) => <option key={b} value={b}>{b === 'All' ? 'All blood types' : b}</option>)}
           </FilterSelect>
-          <FilterSelect value={filters.gkk} onChange={(e) => setFilter('gkk', e.target.value)}>
+          <FilterSelect aria-label="GKK" value={filters.gkk} onChange={(e) => setFilter('gkk', e.target.value)}>
             <option value="All">All GKKs</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </FilterSelect>
           <FilterSelect aria-label="Membership status" value={filters.membership} onChange={(e) => setFilter('membership', e.target.value)}>

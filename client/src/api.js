@@ -3,7 +3,7 @@
 // the admin pages and the public registration wizard already call, so this
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
-import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES } from './constants.js';
+import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, parseAgeRange } from './constants.js';
 import { memberFullName, inDateRange } from './lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
@@ -567,9 +567,7 @@ export const api = {
   saveBloodRequest: (row) => saveRequestRow('blood_requests', row, BLOOD_REQUEST_FIELDS),
 
   async listBloodDonors() {
-    const { data, error } = await supabase.from('blood_donors').select('*').order('full_name');
-    if (error) throw requestsError(error);
-    return { rows: data || [] };
+    return listRequests('blood_donors', '*', (q) => q.order('full_name'));
   },
   saveBloodDonor: (row) => saveRequestRow('blood_donors', row, DONOR_FIELDS, 'A donor with this mobile number'),
 
@@ -926,8 +924,9 @@ async function publicRpc(name, args) {
   return data;
 }
 
-async function listRequests(table, select = '*') {
-  const { data, error } = await supabase.from(table).select(select).order('created_at', { ascending: false });
+/** Every row of a request table, paged past Supabase's 1,000-row cap. */
+async function listRequests(table, select = '*', order = (q) => q.order('created_at', { ascending: false })) {
+  const { data, error } = await fetchAllPages((from, to) => order(supabase.from(table).select(select)).order('id', { ascending: false }).range(from, to));
   if (error) throw requestsError(error);
   return { rows: data || [] };
 }
@@ -959,7 +958,6 @@ function applyMemberFilters(q, params = {}) {
     parishRole = 'All',
   } = params;
   const SACRAMENT_COLUMNS = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' };
-  const AGE_RANGES = { '0-17': [0, 17], '18-30': [18, 30], '31-59': [31, 59], '60-200': [60, 200] };
 
   if (status !== 'All') q = q.eq('household_status', status);
   if (membership === 'Current') q = q.eq('is_current', true);
@@ -999,8 +997,9 @@ function applyMemberFilters(q, params = {}) {
     else q = q.eq('blood_type', blood);
   }
 
-  if (age !== 'All' && AGE_RANGES[age]) {
-    const [lo, hi] = AGE_RANGES[age];
+  const ageRange = age !== 'All' && parseAgeRange(age);
+  if (ageRange) {
+    const [lo, hi] = ageRange;
     q = q.not('age', 'is', null).gte('age', lo).lte('age', hi);
   }
 

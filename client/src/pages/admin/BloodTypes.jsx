@@ -2,18 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
-import { BLOOD_TYPES } from '../../constants.js';
+import { BLOOD_TYPES, AGE_OPTS } from '../../constants.js';
 import { useDebounced, useCsvExport, useUrlState } from '../../hooks.js';
 
 const URL_DEFAULTS = { gkk: 'All', age: 'All', blood: 'Recorded', q: '', sort: 'blood', dir: 'asc', page: 1, size: 20 };
 const URL_ALLOWED = {
   blood: [...BLOOD_TYPES, 'Recorded', 'Unknown'],
+  age: AGE_OPTS.map(([v]) => v),
   sort: ['name', 'blood', 'age'],
   dir: ['asc', 'desc'],
   size: [10, 20, 50],
 };
 
-const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
 
 function BloodBadge({ type }) {
   return <span className="font-bold text-[12.5px] bg-parish-errorBg text-parish-error px-3 py-1 rounded-full whitespace-nowrap">{type}</span>;
