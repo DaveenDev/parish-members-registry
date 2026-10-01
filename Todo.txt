@@ -1,0 +1,25 @@
+
+3. In the Parishioner homepage, it's better to have an overview
+of how many GKKs in the Parish and the total household registered.
+
+4. in the Admin backend, allow the admin to add new member of the Ministries
+because we removed the ability of parisnioner to check if he/she a member of
+ministry like kaabag/lector etc...
+
+5. in the register member front, on step 4 Engagement. the member
+should be able to select the available Organizations he/she can check
+if he's a member of let's say CFC, Knights of Columnbus etc... ofcourse
+the list should be taken from the backend Parish Organizations List.
+
+6. Fix in the backend, there's error when updating a Parish Ministry entry.
+7. In the Backend, on the upper left corner of the page of the Dasbhoard
+add the uploaded Parish Logo.
+
+
+9. in the Admin backend, allow the admin to add new member of the Organization
+it's still good to have that feature for correction.
+
+10. in the Household Name / Pamilya - field, add "edit" button to the right, the edit button should allow
+the user to modify the Household Name as it see fit, but it should also check if it's available to use or not.
+
+11. Add to proper formatting of Lastname, Firstname and Middlename with Capital first only letter format.
