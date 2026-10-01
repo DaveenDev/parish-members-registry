@@ -2,15 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody } from '../../components/admin.jsx';
-import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, HouseholdNameTakenNote, TribeSelect, FamilyGroupingSelect } from '../../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, HouseholdNameTakenNote, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect } from '../../components/ui.jsx';
 import { useHouseholdNameTaken } from '../../hooks.js';
 import { toNameCase, toSuffixCase } from '../../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../../lib/bisaya.js';
-import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, DEFAULT_ADDRESS, blankMember } from '../../constants.js';
+import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, DEFAULT_ADDRESS, GKK_ROLES, blankMember } from '../../constants.js';
 
 function blankNhMember() {
   const b = blankMember();
-  return { first: '', middle: '', last: '', suffix: '', rel: '', sex: '', dob: '', pob: '', tribe: '', civil: '', gkkRole: '', contact: '', email: '', occupation: '', bloodType: '', organizations: [], ...pickSac(b) };
+  return { first: '', middle: '', last: '', suffix: '', rel: '', sex: '', dob: '', pob: '', tribe: '', civil: '', gkkRole: '', parishRole: '', contact: '', email: '', occupation: '', bloodType: '', organizations: [], ...pickSac(b) };
 }
 function pickSac(b) {
   const { hasBaptism, baptismDate, baptismChurch, hasCommunion, communionDate, communionChurch, hasConfirmation, confDate, confChurch, confName, confSponsor, hasMatrimony, matDate, matChurch, matType, ministries } = b;
@@ -24,6 +24,7 @@ export default function NewHousehold() {
   const [gkkOptions, setGkkOptions] = useState([]);
   const [ministryOptions, setMinistryOptions] = useState([]);
   const [orgOptions, setOrgOptions] = useState([]);
+  const [parishRoleOptions, setParishRoleOptions] = useState([]);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const nameTaken = useHouseholdNameTaken(nh.name);
@@ -32,6 +33,7 @@ export default function NewHousehold() {
     api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name)));
     api.listMinistries().then((r) => setMinistryOptions(r.rows.map((x) => x.name)));
     api.listOrganizations().then((r) => setOrgOptions(r.rows.map((x) => x.name)));
+    api.listParishPositions().then((r) => setParishRoleOptions(r.rows.map((x) => x.name))).catch(() => {});
   }, []);
 
   function setField(field, value) { setNh((h) => ({ ...h, [field]: value })); }
@@ -162,7 +164,8 @@ export default function NewHousehold() {
                       <option value="">Unknown</option>{BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
                     </Select>
                   </Field>
-                  <Field label="Responsibility in GKK"><TextInput placeholder="Katungdanan sa GKK" value={mv.gkkRole} onChange={(e) => setMemberField(i, 'gkkRole', e.target.value)} /></Field>
+                  <Field label="Responsibility in GKK"><ComboInput placeholder="Pick or type a role" options={GKK_ROLES} value={mv.gkkRole} onChange={(v) => setMemberField(i, 'gkkRole', v)} /></Field>
+                  <Field label="Responsibility in Parish"><OptionSelect placeholder="None" options={parishRoleOptions} value={mv.parishRole} onChange={(v) => setMemberField(i, 'parishRole', v)} /></Field>
                 </div>
 
                 <SectionLabel>Sacraments received</SectionLabel>

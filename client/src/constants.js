@@ -37,6 +37,10 @@ export const TRIBES = [
   'Mandaya', 'Higaonon', 'Teduray', 'Maranao', 'Maguindanaon', 'Tausug', 'Yakan', 'Badjao',
 ];
 
+// Suggestions for "Katungdanan sa GKK" (members.gkk_role stays free text, so
+// anything else can still be typed in).
+export const GKK_ROLES = ['GKK President', 'Vice-President', 'Secretary', 'Treasurer', 'Business Manager'];
+
 // Head / spouse marriage type. Only a Catholic marriage counts as the
 // sacrament of Matrimony (has_matrimony). 'Catholic' and 'Convalidation' are
 // the older values admins may still see on existing records.
@@ -69,7 +73,7 @@ export const DEFAULT_ADDRESS = { city: 'Kidapawan City', province: 'North Cotaba
 export function blankMember() {
   return {
     firstName: '', middleName: '', lastName: '', suffix: '', relationship: '', sex: '', dob: '', placeOfBirth: '', tribe: '',
-    civilStatus: '', contact: '', email: '', occupation: '', religion: 'Roman Catholic', bloodType: '', gkkRole: '',
+    civilStatus: '', contact: '', email: '', occupation: '', religion: 'Roman Catholic', bloodType: '', gkkRole: '', parishRole: '',
     hasBaptism: false, baptismDate: '', baptismChurch: '',
     hasCommunion: false, communionDate: '', communionChurch: '',
     hasConfirmation: false, confDate: '', confChurch: '', confName: '', confSponsor: '',

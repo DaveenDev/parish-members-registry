@@ -17,7 +17,7 @@ const NAV_MAIN = [
 ];
 
 const NAV_SETTINGS = [
-  { to: '/admin/settings', label: 'Parish Config' },
+  { to: '/admin/settings', end: true, label: 'Parish Config' },
   { to: '/admin/settings/ministries', label: 'Ministries' },
   { to: '/admin/settings/organizations', label: 'Organizations' },
 ];

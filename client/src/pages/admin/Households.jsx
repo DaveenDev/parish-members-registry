@@ -247,15 +247,16 @@ export default function Households() {
   );
 }
 
-/** At-a-glance GKK role, ministries and organizations, right of the member's name. */
+/** At-a-glance parish and GKK roles, ministries and organizations, right of the member's name. */
 function MemberBadges({ member }) {
   const ministries = member.ministries || [];
   const organizations = member.organizations || [];
-  if (!member.gkk_role && !ministries.length && !organizations.length) {
+  if (!member.gkk_role && !member.parish_role && !ministries.length && !organizations.length) {
     return <span className="ml-auto text-[12px] text-parish-muted">No roles or groups</span>;
   }
   return (
     <div className="ml-auto flex flex-wrap gap-1.5 justify-end">
+      {member.parish_role && <Badge tone="gold" title="Responsibility in Parish">Parish: {member.parish_role}</Badge>}
       {member.gkk_role && <Badge tone="gold" title="Responsibility in GKK">GKK: {member.gkk_role}</Badge>}
       {ministries.map((name) => <Badge key={`m-${name}`} tone="blue" title="Ministry">{name}</Badge>)}
       {organizations.map((name) => <Badge key={`o-${name}`} tone="green" title="Organization">{name}</Badge>)}

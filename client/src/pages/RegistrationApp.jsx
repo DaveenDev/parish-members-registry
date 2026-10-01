@@ -9,9 +9,9 @@ import {
 } from '../lib/bisaya.js';
 import {
   blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
-  PARTICIPATION_ITEMS, HELP_WAYS, DEFAULT_ADDRESS, fmtDate,
+  PARTICIPATION_ITEMS, HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate,
 } from '../constants.js';
-import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, TribeSelect, FamilyGroupingSelect } from '../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
 import ParticipationSurvey from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
@@ -104,6 +104,7 @@ export default function RegistrationApp() {
   const [members, setMembers] = useState(draft?.members || [blankHead()]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [orgOptions, setOrgOptions] = useState([]);
+  const [parishRoleOptions, setParishRoleOptions] = useState([]);
   const [nameCheck, setNameCheck] = useState({ name: '', status: 'idle' }); // idle | available | taken | error
   const [nameSuggestion, setNameSuggestion] = useState('');
   const [volunteer, setVolunteer] = useState(draft?.volunteer || '');
@@ -140,6 +141,7 @@ export default function RegistrationApp() {
   useEffect(() => {
     api.listPublicGkks().then(setGkkOptions).catch(() => {});
     api.listPublicOrganizations().then(setOrgOptions).catch(() => {});
+    api.listPublicParishPositions().then(setParishRoleOptions).catch(() => {});
   }, []);
 
   // Household names are unique parish-wide. Check as the name settles, and if
@@ -361,6 +363,7 @@ export default function RegistrationApp() {
           onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay}
           memberViews={memberViews} onMemberField={updateMember}
           orgOptions={orgOptions} onToggleOrganization={toggleOrganization}
+          parishRoleOptions={parishRoleOptions}
           onAddMember={addMember} onRemoveMember={removeMember}
           volunteer={volunteer} setVolunteer={(v) => { setVolunteer(v); setBanner(''); }}
           notifyOptin={notifyOptin} setNotifyOptin={setNotifyOptin}
@@ -890,7 +893,7 @@ function WeddingBlock({ mv, onField }) {
   );
 }
 
-function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrganization, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent }) {
+function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrganization, parishRoleOptions, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent }) {
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Pag-apil sa Simbahan</h2>
@@ -931,11 +934,34 @@ function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrgani
                 {mv.displayName}
                 <span className="block text-[12.5px] font-medium text-parish-muted">{bis(RELATIONSHIP_LABELS, mv.relationship) || '—'}</span>
               </label>
-              <TextInput id={`gkk-role-${mv.mi}`} placeholder="Katungdanan sa GKK" value={mv.gkkRole || ''} onChange={(e) => onMemberField(mv.mi, 'gkkRole', e.target.value)} />
+              <ComboInput
+                id={`gkk-role-${mv.mi}`} placeholder="Pili o isulat ang katungdanan" toggleLabel="Ipakita ang mga katungdanan"
+                options={GKK_ROLES} value={mv.gkkRole} onChange={(v) => onMemberField(mv.mi, 'gkkRole', v)}
+              />
             </div>
           ))}
         </div>
       </Card>
+      {parishRoleOptions.length > 0 && (
+        <Card className="p-[clamp(20px,4vw,32px)] mb-5">
+          <SectionTitle>Katungdanan sa Parish</SectionTitle>
+          <p className="text-[13.5px] text-parish-muted -mt-2 mb-4">Biyai nga blangko kung walay katungdanan sa parokya.</p>
+          <div className="flex flex-col gap-3">
+            {memberViews.map((mv) => (
+              <div key={mv.mi} className="grid gap-x-4 gap-y-1.5 items-center" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+                <label htmlFor={`parish-role-${mv.mi}`} className="font-semibold text-[15px] text-parish-navy">
+                  {mv.displayName}
+                  <span className="block text-[12.5px] font-medium text-parish-muted">{bis(RELATIONSHIP_LABELS, mv.relationship) || '—'}</span>
+                </label>
+                <OptionSelect
+                  id={`parish-role-${mv.mi}`} placeholder="Walay katungdanan"
+                  options={parishRoleOptions} value={mv.parishRole} onChange={(v) => onMemberField(mv.mi, 'parishRole', v)}
+                />
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
       <Card className="p-[clamp(20px,4vw,32px)]">
         <div className="mb-[22px]">
           <Field label="Aduna bay sa pamilya nga andam mo-boluntaryo?">
@@ -1007,7 +1033,7 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
           {memberViews.map((m, i) => (
             <div key={i} className="border border-[#f0e8d6] rounded-2xl px-[18px] py-4 bg-[#fdfbf6]">
               <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{fullName(m) || m.displayName}</div>
-              <div className="text-[13.5px] text-parish-muted mb-3">{[bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), bis(CIVIL_STATUS_LABELS, m.civilStatus), m.dob && `natawo ${fmtDate(m.dob)}`, m.tribe && `Tribu: ${m.tribe}`, m.bloodType && `Dugo: ${m.bloodType}`, m.gkkRole && `GKK: ${m.gkkRole}`].filter(Boolean).join('  ·  ') || '—'}</div>
+              <div className="text-[13.5px] text-parish-muted mb-3">{[bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), bis(CIVIL_STATUS_LABELS, m.civilStatus), m.dob && `natawo ${fmtDate(m.dob)}`, m.tribe && `Tribu: ${m.tribe}`, m.bloodType && `Dugo: ${m.bloodType}`, m.gkkRole && `GKK: ${m.gkkRole}`, m.parishRole && `Parish: ${m.parishRole}`].filter(Boolean).join('  ·  ') || '—'}</div>
               {!!(m.organizations || []).length && (
                 <div className="text-[13.5px] mb-3"><span className="text-parish-blue font-semibold">Mga Organisasyon</span> <span className="text-parish-text2">{m.organizations.join(' · ')}</span></div>
               )}
