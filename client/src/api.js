@@ -3,11 +3,12 @@
 // the admin pages and the public registration wizard already call, so this
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
-import { ageFromDob, PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES } from './constants.js';
+import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES } from './constants.js';
 import { memberFullName, inDateRange } from './lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
+import { shapeDashboard, shapeReport } from './lib/stats.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -25,8 +26,9 @@ function mapError(error, { fallback = 'Request failed', dupLabel } = {}) {
 
 /**
  * Every row of a query, however many there are. Supabase caps a single
- * request at 1,000 rows, so whole-table reads (dashboard, reports, exports,
- * counts) would otherwise come up short in a large parish. `build` returns a
+ * request at 1,000 rows, so the report builder and CSV exports would
+ * otherwise come up short in a large parish. (Totals and counts don't need
+ * this: they're computed in the database.) `build` returns a
  * fresh, stably ordered query each time it's called.
  */
 async function fetchAll(build) {
@@ -299,20 +301,38 @@ export const api = {
     return Object.fromEntries(entries);
   },
 
+  // ---- staff accounts (Settings → Staff; staff admins only) -----------
+  // Runs in the manage-staff Edge Function, which holds the service-role key.
+  staff: {
+    list: () => callStaffFunction({ action: 'list' }).then((r) => r.staff || []),
+    create: ({ name, email, role, isAdmin, password }) => callStaffFunction({ action: 'create', name, email, role, is_admin: !!isAdmin, password }),
+    update: (id, { name, role, isAdmin }) => callStaffFunction({ action: 'update', id, name, role, is_admin: !!isAdmin }),
+    resetPassword: (id, password) => callStaffFunction({ action: 'reset_password', id, password }),
+    setDisabled: (id, disabled) => callStaffFunction({ action: disabled ? 'disable' : 'enable', id }),
+  },
+
+  // ---- possible duplicate members (admin) ------------------------------
+  /** Groups of members who share a first name, last name and date of birth (find_duplicate_members). */
+  async findDuplicateMembers() {
+    const { data, error } = await supabase.rpc('find_duplicate_members');
+    if (error) throw mapError(error);
+    return data || [];
+  },
+
+  /** Hide a group as "not duplicates" until another matching member turns up. */
+  async dismissDuplicateGroup(memberIds) {
+    const { error } = await supabase.rpc('dismiss_duplicate_group', { p_member_ids: memberIds });
+    if (error) throw mapError(error);
+    return null;
+  },
+
   // ---- ministry / organization membership (admin) -------------------
   addMemberToGroup: (memberId, column, name) => changeGroupMembership(memberId, column, name, true),
   removeMemberFromGroup: (memberId, column, name) => changeGroupMembership(memberId, column, name, false),
 
   // ---- GKKs ------------------------------------------------------------
   async listGkks() {
-    const [{ data: names, error }, hhRows] = await Promise.all([
-      supabase.from('gkks').select('name').order('name'),
-      fetchAll(() => supabase.from('households').select('gkk').not('gkk', 'is', null).order('id')),
-    ]);
-    if (error) throw mapError(error);
-    const counts = {};
-    for (const r of hhRows) if (r.gkk) counts[r.gkk] = (counts[r.gkk] || 0) + 1;
-    return { rows: names.map((g) => ({ name: g.name, count: counts[g.name] || 0 })) };
+    return { rows: await listCounts('gkks') };
   },
 
   async addGkk(name) {
@@ -334,12 +354,12 @@ export const api = {
   },
 
   // ---- ministries / organizations (identical shape, different table) --
-  listMinistries: (opts) => listGroup('ministries', 'ministries', opts),
+  listMinistries: (opts) => listGroup('ministries', opts),
   addMinistry: (name) => addGroup('ministries', name),
   renameMinistry: (oldName, newName) => renameGroup('rename_ministry', oldName, newName, 'An item with this name'),
   deleteMinistry: (name) => deleteGroup('delete_ministry', name),
 
-  listOrganizations: (opts) => listGroup('organizations', 'organizations', opts),
+  listOrganizations: (opts) => listGroup('organizations', opts),
   addOrganization: (name) => addGroup('organizations', name),
   renameOrganization: (oldName, newName) => renameGroup('rename_organization', oldName, newName, 'An item with this name'),
   deleteOrganization: (name) => deleteGroup('delete_organization', name),
@@ -347,14 +367,7 @@ export const api = {
   // ---- parish positions (Parish Organization Structure) ----------------
   // One position per member (members.parish_role), not an array like the above.
   async listParishPositions() {
-    const [{ data: names, error }, mem] = await Promise.all([
-      supabase.from('parish_positions').select('name').order('name'),
-      fetchAll(() => supabase.from('members').select('parish_role').not('parish_role', 'is', null).order('id')),
-    ]);
-    if (error) throw mapError(error);
-    const counts = {};
-    for (const r of mem) counts[r.parish_role] = (counts[r.parish_role] || 0) + 1;
-    return { rows: names.map((r) => ({ name: r.name, count: counts[r.name] || 0 })) };
+    return { rows: await listCounts('parish_positions') };
   },
   addParishPosition: (name) => addGroup('parish_positions', name),
   renameParishPosition: (oldName, newName) => renameGroup('rename_parish_position', oldName, newName, 'A position with this name'),
@@ -383,116 +396,17 @@ export const api = {
 
   // ---- dashboard ---------------------------------------------------------
   async dashboardStats() {
-    const [hh, mem] = await Promise.all([
-      fetchAll(() => supabase.from('households').select('id, status, gkk').order('id')),
-      fetchAll(() => supabase.from('members')
-        .select('id, created_at, dob, ministries, organizations, has_baptism, has_communion, has_confirmation, has_matrimony')
-        .order('id')),
-    ]);
-
-    const verified = hh.filter((h) => h.status === 'Verified').length;
-    const pending = hh.filter((h) => h.status === 'Pending').length;
-
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const now = new Date();
-    const monthCounts = [];
-    for (let i = 5; i >= 0; i--) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const count = mem.filter((m) => {
-        const c = new Date(m.created_at);
-        return c.getFullYear() === d.getFullYear() && c.getMonth() === d.getMonth();
-      }).length;
-      monthCounts.push({ label: monthNames[d.getMonth()], n: count });
-    }
-    const maxMonth = Math.max(1, ...monthCounts.map((m) => m.n));
-    const regMonths = monthCounts.map((m) => ({ ...m, h: `${Math.max(6, Math.round((m.n / maxMonth) * 100))}%` }));
-
-    const ageBucketDefs = [['0-9', 0, 9], ['10-19', 10, 19], ['20-34', 20, 34], ['35-49', 35, 49], ['50-64', 50, 64], ['65+', 65, 200]];
-    const ageBucketCounts = ageBucketDefs.map(([label, lo, hi]) => ({
-      label,
-      n: mem.filter((m) => { const a = ageFromDob(m.dob); return a !== null && a >= lo && a <= hi; }).length,
-    }));
-    const maxAge = Math.max(1, ...ageBucketCounts.map((b) => b.n));
-    const ageBuckets = ageBucketCounts.map((b) => ({ ...b, h: `${Math.max(6, Math.round((b.n / maxAge) * 100))}%` }));
-
-    const gkkMap = {};
-    hh.forEach((h) => { if (h.gkk) gkkMap[h.gkk] = (gkkMap[h.gkk] || 0) + 1; });
-    const maxGkk = Math.max(1, ...Object.values(gkkMap), 1);
-    const gkkBreak = Object.entries(gkkMap).map(([label, n]) => ({ label, n, w: `${Math.round((n / maxGkk) * 100)}%` }));
-
-    const minMap = {};
-    mem.forEach((m) => [...(m.ministries || []), ...(m.organizations || [])].forEach((g) => { minMap[g] = (minMap[g] || 0) + 1; }));
-    const maxMin = Math.max(1, ...Object.values(minMap), 1);
-    const ministryBreak = Object.entries(minMap)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 6)
-      .map(([label, n]) => ({ label, n, w: `${Math.round((n / maxMin) * 100)}%` }));
-
-    const sacStats = [
-      { label: 'Baptism', n: mem.filter((m) => m.has_baptism).length },
-      { label: 'First Communion', n: mem.filter((m) => m.has_communion).length },
-      { label: 'Confirmation', n: mem.filter((m) => m.has_confirmation).length },
-      { label: 'Matrimony', n: mem.filter((m) => m.has_matrimony).length },
-    ];
-
-    return {
-      statCards: [
-        { label: 'Households', value: hh.length, note: `${verified} verified · ${pending} pending`, accent: '#34589c' },
-        { label: 'Members', value: mem.length, note: 'across all households', accent: '#c39b4e' },
-        { label: 'Verified', value: verified, note: 'households confirmed', accent: '#2f7a52' },
-        { label: 'Pending', value: pending, note: 'awaiting verification', accent: '#a13d29' },
-        { label: 'GKKs', value: Object.keys(gkkMap).length, note: 'basic ecclesial communities', accent: '#7a6a3e' },
-      ],
-      regMonths, ageBuckets, gkkBreak, ministryBreak, sacStats,
-    };
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+    const { data, error } = await supabase.rpc('admin_dashboard_stats', { p_tz: tz });
+    if (error) throw mapError(error);
+    return shapeDashboard(data);
   },
 
   // ---- reports -------------------------------------------------------
   async reportStats() {
-    const [hh, mem] = await Promise.all([
-      fetchAll(() => supabase.from('households').select('id, status, gkk').order('id')),
-      fetchAll(() => supabase.from('members')
-        .select('id, ministries, organizations, blood_type, has_baptism, has_communion, has_confirmation, has_matrimony')
-        .order('id')),
-    ]);
-
-    const gkkNames = [...new Set(hh.map((h) => h.gkk).filter(Boolean))];
-    const regByGkk = gkkNames.map((label) => {
-      const inGkk = hh.filter((h) => h.gkk === label);
-      const verified = inGkk.filter((h) => h.status === 'Verified').length;
-      const pending = inGkk.filter((h) => h.status === 'Pending').length;
-      const total = Math.max(1, inGkk.length);
-      return { label, verified, pending, vw: `${Math.round((verified / total) * 100)}%`, pw: `${Math.round((pending / total) * 100)}%` };
-    });
-
-    const sacDefs = [['Baptism', 'has_baptism'], ['First Communion', 'has_communion'], ['Confirmation', 'has_confirmation'], ['Matrimony', 'has_matrimony']];
-    const totalMembers = Math.max(1, mem.length);
-    const sacCompletion = sacDefs.map(([label, key]) => {
-      const n = mem.filter((m) => m[key]).length;
-      return { label, n, missing: mem.length - n, w: `${Math.round((n / totalMembers) * 100)}%` };
-    });
-
-    const groupNames = [...new Set(mem.flatMap((m) => [...(m.ministries || []), ...(m.organizations || [])]))];
-    const colors = ['#34589c', '#c39b4e', '#2f7a52', '#a13d29', '#7a6a3e', '#8a5fb0'];
-    const participation = groupNames.map((label, i) => {
-      const n = mem.filter((m) => (m.ministries || []).includes(label) || (m.organizations || []).includes(label)).length;
-      return { label, n, w: `${Math.round((n / totalMembers) * 100)}%`, color: colors[i % colors.length] };
-    });
-    const anyVolunteer = Math.round((mem.filter((m) => (m.ministries || []).length || (m.organizations || []).length).length / totalMembers) * 100);
-
-    const bloodMem = mem.filter((m) => m.blood_type);
-    const bloodTypes = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
-    const bloodCounts = bloodTypes.map((label) => ({ label, n: bloodMem.filter((m) => m.blood_type === label).length })).filter((b) => b.n > 0);
-
-    return {
-      totalHH: hh.length,
-      totalVerified: hh.filter((h) => h.status === 'Verified').length,
-      totalPending: hh.filter((h) => h.status === 'Pending').length,
-      totalMembers: mem.length,
-      regByGkk, sacCompletion, participation, anyVolunteer: Number.isFinite(anyVolunteer) ? anyVolunteer : 0,
-      bloodCounts, unknownBlood: mem.length - bloodMem.length,
-      gkkNames,
-    };
+    const { data, error } = await supabase.rpc('admin_report_stats');
+    if (error) throw mapError(error);
+    return shapeReport(data);
   },
 
   async reportSources() {
@@ -617,20 +531,34 @@ async function changeGroupMembership(memberId, column, name, join) {
   return api.updateMember(memberId, { [column]: next });
 }
 
-async function listGroup(table, column, opts) {
+/**
+ * Call the manage-staff Edge Function and turn its failures into readable
+ * messages: the function's own `{ error }` text, or a setup hint when it
+ * hasn't been deployed yet.
+ */
+async function callStaffFunction(body) {
+  const { data, error } = await supabase.functions.invoke('manage-staff', { body });
+  if (!error) return data;
+  const res = error.context;
+  const payload = res && typeof res.json === 'function' ? await res.json().catch(() => null) : null;
+  if (payload?.error) throw new Error(payload.error);
+  if (res?.status === 404 || error.name === 'FunctionsFetchError') {
+    throw new Error('Staff management isn’t set up yet: deploy the manage-staff Edge Function (see the README).');
+  }
+  throw new Error(error.message || 'Request failed');
+}
+
+async function listGroup(table, opts) {
   const gkk = opts && typeof opts === 'object' ? opts.gkk : undefined;
   const scoped = typeof gkk === 'string' && gkk && gkk !== 'All';
+  return { rows: await listCounts(table, scoped ? gkk : null) };
+}
 
-  const { data: names, error } = await supabase.from(table).select('name').order('name');
+/** [{ name, count }] for one staff-managed list, counted in the database (admin_list_counts). */
+async function listCounts(list, gkk = null) {
+  const { data, error } = await supabase.rpc('admin_list_counts', { p_list: list, p_gkk: gkk });
   if (error) throw mapError(error);
-
-  const counts = {};
-  const data = await fetchAll(() => (scoped
-    ? supabase.from('members_with_household').select(column).eq('household_gkk', gkk)
-    : supabase.from('members').select(column)).order('id'));
-  data.forEach((r) => (r[column] || []).forEach((n) => { counts[n] = (counts[n] || 0) + 1; }));
-
-  return { rows: names.map((r) => ({ name: r.name, count: counts[r.name] || 0 })) };
+  return (data || []).map((r) => ({ name: r.name, count: r.n }));
 }
 
 async function addGroup(table, name) {
