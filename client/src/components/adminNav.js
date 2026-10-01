@@ -6,6 +6,12 @@ import { can } from '../lib/access.js';
  */
 export const NAV_GROUPS = [
   {
+    label: 'Main',
+    items: [
+      { to: '/admin/website', label: 'Parish Website', need: 'website' },
+    ],
+  },
+  {
     label: 'Registry',
     items: [
       { to: '/admin', end: true, label: 'Dashboard', need: 'registry' },
@@ -20,7 +26,6 @@ export const NAV_GROUPS = [
     items: [
       { to: '/admin/ministries', label: 'Ministry rosters', need: 'registry' },
       { to: '/admin/organizations', label: 'Organization rosters', need: 'registry' },
-      { to: '/admin/website', label: 'Parish Website', need: 'website' },
     ],
   },
   {
