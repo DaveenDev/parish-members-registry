@@ -381,15 +381,24 @@ export default function RegistrationApp() {
 
 function Landing({ onStart }) {
   const [stats, setStats] = useState(null);
-  useEffect(() => { api.publicStats().then(setStats).catch(() => {}); }, []);
+  const [logo, setLogo] = useState(null);
+  useEffect(() => {
+    api.publicStats().then(setStats).catch(() => {});
+    // Before 0004 is run (or with no logo uploaded) this fails or is null — keep the cross.
+    api.publicParishLogo().then(setLogo).catch(() => {});
+  }, []);
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
       <div className="fixed top-4 right-4 z-40">
         <ThemePickerPopover align="right" label="Kolor" />
       </div>
       <div className="max-w-[560px] animate-fadeUp">
-        <div className="text-parish-gold flex justify-center mb-1.5">
-          <CrossLogo />
+        <div data-section-id="parish-logo" className="text-parish-gold flex justify-center mb-1.5">
+          {logo ? (
+            <img src={logo} alt="Parish logo" className="w-[82px] h-[82px] object-contain" />
+          ) : (
+            <CrossLogo />
+          )}
         </div>
         <div className="font-semibold text-[13px] tracking-[.22em] uppercase text-[var(--p-gold-deep)] mb-3.5">Rehistro sa mga Miyembro sa Parokya</div>
         <h1 className="font-serif font-semibold text-[clamp(38px,8vw,58px)] leading-[1.04] m-0 mb-1.5 text-parish-navy">Our Lady of Guadalupe</h1>

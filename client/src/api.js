@@ -55,6 +55,13 @@ export const api = {
     return data; // { gkks, households }
   },
 
+  /** The logo uploaded in Parish Config (a data URL), or null if there isn't one. */
+  async publicParishLogo() {
+    const { data, error } = await supabase.rpc('public_parish_logo');
+    if (error) throw mapError(error);
+    return data || null;
+  },
+
   /** True when no household (any status) already uses this name, ignoring case. */
   async householdNameAvailable(name) {
     const { data, error } = await supabase.rpc('household_name_available', { candidate: name });
