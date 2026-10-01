@@ -201,7 +201,7 @@ function BloodRequestDrawer({ request: r, onClose, onSaved, onDeleted }) {
         {Object.keys(tally).length > 0 && <span className="block mt-1 font-semibold text-parish-navy">{CONTACT_STATUSES.filter((s) => tally[s]).map((s) => `${tally[s]} ${s.toLowerCase()}`).join(' · ')}</span>}
       </div>
       {loadError ? <ErrorState message={loadError} onRetry={loadDonors} /> : !donors ? <LoadingState label="Finding donors…" /> : !matches.length ? (
-        <div className="text-[13.5px] text-parish-muted">No donors with a matching blood type have signed up yet. Add donors on the Blood Donors tab.</div>
+        <div className="text-[13.5px] text-parish-muted">No donors with a matching blood type have signed up yet.</div>
       ) : (
         <div className="flex flex-col gap-2">
           {matches.map((d) => <DonorContactRow key={d.id} donor={d} contact={contacts[d.id]} exact={d.blood_type === r.blood_type} sms={sms} onChange={setContact} />)}

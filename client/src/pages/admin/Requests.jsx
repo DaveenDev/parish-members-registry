@@ -6,13 +6,11 @@ import { can } from '../../lib/access.js';
 import CertificatesTab from '../../components/requests/CertificatesTab.jsx';
 import PrayerTab from '../../components/requests/PrayerTab.jsx';
 import BloodRequestsTab from '../../components/requests/BloodRequestsTab.jsx';
-import DonorsTab from '../../components/requests/DonorsTab.jsx';
 
 const TABS = [
   ['certificates', 'Certificates', CertificatesTab, (c) => c.certificates + c.ready],
   ['prayers', 'Prayer Requests', PrayerTab, (c) => c.prayers],
   ['blood', 'Blood Requests', BloodRequestsTab, (c) => c.blood],
-  ['donors', 'Blood Donors', DonorsTab, () => 0],
 ];
 
 /** Staff queues for what parishioners ask the parish office for. */

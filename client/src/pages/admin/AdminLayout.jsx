@@ -17,7 +17,7 @@ function NavItem({ to, end, label, count, badgeLabel, onNavigate }) {
       end={end}
       onClick={onNavigate}
       className={({ isActive }) =>
-        `relative flex items-center gap-3 px-3.5 py-[7px] rounded-xl font-semibold text-[14px] leading-snug text-left transition ${
+        `relative flex items-center gap-3 px-3.5 py-[5px] rounded-lg font-semibold text-[14px] leading-snug text-left transition ${
           isActive ? 'bg-white/12 text-white' : 'text-white/70 hover:text-white hover:bg-white/5'
         }`
       }
@@ -112,13 +112,13 @@ export default function AdminLayout() {
         </button>
       </div>
 
-      <nav className="px-3 py-2.5 flex flex-col gap-0.5 flex-1 overflow-auto" aria-label="Admin sections">
+      <nav className="px-3 py-1.5 flex flex-col flex-1 overflow-auto" aria-label="Admin sections">
         {NAV_GROUPS.map((g) => {
           const items = g.items.filter((n) => navAllowed(n, user));
           if (!items.length) return null;
           return (
-            <div key={g.label} role="group" aria-label={g.label} className="flex flex-col gap-0.5">
-              <div className="mx-3.5 mt-2.5 mb-0.5 font-bold text-[10px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70" aria-hidden>{g.label}</div>
+            <div key={g.label} role="group" aria-label={g.label} className="flex flex-col">
+              <div className="mx-3.5 mt-2 mb-px font-bold text-[10px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70" aria-hidden>{g.label}</div>
               {items.map((n) => <NavItem key={n.to} {...n} count={n.badge ? badges[n.badge] : 0} />)}
             </div>
           );
