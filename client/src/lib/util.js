@@ -74,3 +74,15 @@ export function generateTempPassword(length = 12, randomBytes = (n) => crypto.ge
   }
   return out;
 }
+
+/**
+ * Where to go after signing in: the admin page the person was sent away from
+ * (RequireAuth passes it along), or the Dashboard. Anything that isn't an
+ * admin page — or is the sign-in page itself — falls back to the Dashboard.
+ */
+export function adminReturnPath(from) {
+  if (typeof from !== 'string') return '/admin';
+  if (from !== '/admin' && !/^\/admin[/?#]/.test(from)) return '/admin';
+  if (/^\/admin\/login(?:[/?#]|$)/.test(from)) return '/admin';
+  return from;
+}

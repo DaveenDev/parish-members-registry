@@ -103,6 +103,7 @@ function ChangePasswordCard() {
 
   async function submit(e) {
     e.preventDefault();
+    if (!form.current) { setError('Enter your current password.'); return; }
     if (form.next !== form.confirm) { setError('The new passwords do not match.'); return; }
     if (form.next.length < 10) { setError('New password must be at least 10 characters.'); return; }
 
@@ -122,7 +123,7 @@ function ChangePasswordCard() {
     <form onSubmit={submit} className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
       <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Change password</div>
       <div className="text-[13.5px] text-parish-muted mb-4">Use at least 10 characters. You stay signed in on this device.</div>
-      {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium">{error}</div>}
+      {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
         <Field label="Current password"><TextInput type="password" autoComplete="current-password" value={form.current} onChange={set('current')} /></Field>
         <Field label="New password"><TextInput type="password" autoComplete="new-password" value={form.next} onChange={set('next')} /></Field>
@@ -266,7 +267,7 @@ function GkkList() {
 
   return (
     <>
-      {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium">{error}</div>}
+      {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
       <div className="flex gap-2 mb-4">
         <TextInput placeholder="New GKK name (e.g. GKK San Pedro Calungsod)" value={newName} onChange={(e) => setNewName(e.target.value)} />
         <PrimaryButton onClick={add} className="px-[22px] py-2.5 text-[14px] whitespace-nowrap" style={{ padding: '11px 22px' }}>Add</PrimaryButton>

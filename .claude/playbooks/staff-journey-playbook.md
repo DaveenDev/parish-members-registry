@@ -332,7 +332,8 @@ npm run install:all
    - root `.env` has `PLAYBOOK_TEST_PROJECT=yes`;
    - **the schema exists:** `curl -s "$SUPABASE_URL/rest/v1/articles?select=id&limit=1" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY"`
      answers `[]` or rows. A `PGRST205` *Could not find the table* means the
-     migrations haven't run (`articles` comes from the last one, 0013).
+     migrations haven't run (`articles` comes from 0013). Also check the last one, 0014, ran: an anon
+     `POST $SUPABASE_URL/rest/v1/rpc/delete_gkk` `{"target_name":"x"}` must answer *permission denied* (42501), not 204/400.
      Record `BLOCKED u0-schema` and ask the user to run them in the SQL editor;
    - **`manage-staff` is deployed:** `curl -s -o /dev/null -w "%{http_code}" -X POST "$SUPABASE_URL/functions/v1/manage-staff" -H "apikey: $VITE_SUPABASE_ANON_KEY"`
      answers **401** (deployed, no session). **404** means not deployed; carry
@@ -591,7 +592,7 @@ Unless a row says otherwise, the check is: correct page heading, no
 | `s-p1-admin-settings-min` | `/admin/settings/ministries` | renders |
 | `s-p1-admin-settings-org` | `/admin/settings/organizations` | renders |
 | `s-p1-guard-staff` | `/admin/settings/staff` | **admin-only.** Heading "Staff accounts" + empty state *Staff admins only*; **no** table, **no** "Add staff", **no** request to `/functions/v1/manage-staff` (§A.8) |
-| `s-p1-admin-unknown` | `/admin/bogus` | falls to the catch-all → `/` (record; a "not found" inside the admin shell would be friendlier — §7b) |
+| `s-p1-admin-unknown` | `/admin/bogus` | stays on `/admin/bogus` inside the admin shell (sidebar visible) with the heading **Page not found** and a *Back to the Dashboard* link. Landing on the public `/` is a regression |
 
 Record one line per id. Group 0–1 rows that involve drafts or other households
 are boundary checks: a draft or another family's data rendering is a **P0**.
@@ -732,9 +733,9 @@ Lito's own id is the `sub` in the access token
 |---|---|---|
 | `s-api-profiles-read-all` | `GET /rest/v1/profiles?select=*` | exactly **one** row — Lito's own (`profiles_select_own`); the admin's row must not appear |
 | `s-api-profiles-read-admin` | `GET /rest/v1/profiles?id=eq.<adminId>` | `[]` |
-| `s-api-profiles-promote` | `PATCH /rest/v1/profiles?id=eq.<own id>` body `{"is_admin":true}` | refused (401/403 *permission denied*). Then **reload `/admin`**: Staff must still be absent from the nav. A silent success is **P0** |
-| `s-api-profiles-insert` | `POST /rest/v1/profiles` body `{"id":"00000000-0000-0000-0000-000000000001","name":"x","is_admin":true}` | refused |
-| `s-api-profiles-delete` | `DELETE /rest/v1/profiles?id=eq.<adminId>` | refused (or 0 rows); the admin can still sign in |
+| `s-api-profiles-promote` | `PATCH /rest/v1/profiles?id=eq.<own id>` body `{"is_admin":true}` | refused: 403 *permission denied for table profiles* (0014 revokes writes; before 0014 it was 200 `[]`, stopped by RLS only). Then **reload `/admin`**: Staff must still be absent from the nav. A silent success is **P0** |
+| `s-api-profiles-insert` | `POST /rest/v1/profiles` body `{"id":"00000000-0000-0000-0000-000000000001","name":"x","is_admin":true}` | refused — *permission denied* (0014), not an RLS violation |
+| `s-api-profiles-delete` | `DELETE /rest/v1/profiles?id=eq.<adminId>` | refused — *permission denied* (0014); the admin can still sign in |
 
 ### s-api-staff-allowed · Things staff *must* be able to do over the API
 A refusal here is a bug too (a page would break for every non-admin):
@@ -812,10 +813,10 @@ Verify that first with `GET /auth/v1/user` (must be 401/403).
 | `a-rpc-approve` | `census_approve_submission` `{"p_id":<submissionId>}` (the portal update approved in `s-census-portal-approve`) | refused |
 | `a-rpc-verify-sacr` | `verify_sacrament` `{"p_member_id":<memberId>,"p_sacrament":"baptism","p_source":"x"}` | refused |
 | `a-rpc-census-open` | `census_open_cycle` `{"p_label":"Leak SV1001"}` | refused |
-| `a-rpc-create-hh` | `create_household` `{"payload":{}}` | refused **or** executes and fails validation (400) with **no row created**. The 0001 functions are `security invoker` and not revoked from `public`, so anon can run them and only RLS stops the write (run 2026-10-01, hardening note H1). A row actually created is **P0** |
-| `a-rpc-rename-gkk` | `rename_gkk` `{"old_name":"GKK San Isidro","new_name":"Leak SV1001"}` | refused, or 400 *GKK not found* (RLS hides the row from anon). **Read the body.** Confirm afterwards (service key) that the GKK name is unchanged |
-| `a-rpc-delete-gkk` | `delete_gkk` `{"target_name":"GKK Sto. Niño"}` | refused, or 204 with **zero rows deleted** (RLS). The GKK must still exist afterwards. Use a GKK no household uses, so the function's own in-use guard is not what stops it |
-| `a-rpc-census-progress` | `census_household_progress` `{"p_cycle_id":<cycleId>}` and `census_summary` `{"p_cycle_id":<cycleId>}` | refused or empty — never per-household names |
+| `a-rpc-create-hh` | `create_household` `{"payload":{}}` | refused (*permission denied*, 42501). 0014 revokes these staff functions from `public, anon` (hardening note H1 of the 2026-10-01 run); a 400 validation error means 0014 hasn't run — record it as a P2. A row actually created is **P0** |
+| `a-rpc-rename-gkk` | `rename_gkk` `{"old_name":"GKK San Isidro","new_name":"Leak SV1001"}` | refused (*permission denied*, 0014). **Read the body.** Confirm afterwards (service key) that the GKK name is unchanged |
+| `a-rpc-delete-gkk` | `delete_gkk` `{"target_name":"GKK Sto. Niño"}` | refused (*permission denied*, 0014). The GKK must still exist afterwards. Use a GKK no household uses, so the function's own in-use guard is not what stops it |
+| `a-rpc-census-progress` | `census_household_progress` `{"p_cycle_id":<cycleId>}` and `census_summary` `{"p_cycle_id":<cycleId>}` | refused — *permission denied for function* (0014); never per-household names |
 
 ### a-api-public · What anon *may* call returns no PII
 | ID | Call | Expected |
@@ -892,10 +893,10 @@ Visual-only judgements are `NEEDS-HUMAN` with a screenshot.
 ## PHASE S — Session & auth lifecycle
 
 1. **s-deeplink-redirect** — signed out, `browser_navigate` `/admin/members`.
-   Assert redirect to `/admin/login`. Sign in as Lito: you land on `/admin`
-   (the app does not remember the requested page — record it; per
-   `docs/beta-testing/02-admin-access.md` AA-16 that's an S4 usability note, not
-   a defect).
+   Assert redirect to `/admin/login`. Sign in as Lito: you land back on
+   `/admin/members` (also try `/admin/requests?tab=donors` — the query survives).
+   Landing on `/admin` instead is a regression (S4 usability, per
+   `docs/beta-testing/02-admin-access.md` AA-16).
 2. **s-reload-persists** — signed in, reload `/admin/requests?tab=donors`: still
    signed in, same tab, no flash of the sign-in page.
 3. **s-bad-login** — wrong password for Lito, and an unknown email
@@ -945,9 +946,9 @@ message verbatim, then fill the fields **one at a time** and assert each message
 
 | ID | Form |
 |---|---|
-| `f2-login` | `/admin/login`: blank → message; wrong password → error; correct → error gone, signed in |
+| `f2-login` | `/admin/login`: blank → *Enter your email and password.* (no request sent); wrong password → error; correct → error gone, signed in |
 | `f2-profile` | Parish Config → **Change password**: blank; mismatched confirm (*The new passwords do not match.*); 9 chars (*at least 10 characters*); wrong current (*Current password is incorrect*); then current = temporary password, new = `StaffPass-SV1001!` → *Password changed*. Sign out and in with the new password. Update `PLAYBOOK_STAFF_PASSWORD` in root `.env` |
-| `f2-new-household` | New Household drawer, blank Save |
+| `f2-new-household` | New Household drawer, blank **Next →** (step 1). Find fields by accessible name, e.g. `getByRole('textbox', { name: 'Last name', exact: true })` — see §2.6 |
 | `f2-register` | `/register` step 1 (signed-out tab), blank Next |
 | `f2-website` | Parish Website → Announcements → new, blank save |
 
@@ -970,7 +971,11 @@ After `s-p1-guard-staff`, in-app navigation to Households must render normally
   the staff `create_household` takes `household.name` plus `first` / `last` / `rel` / `pob` / `civil` (see `client/src/api.js`).
 - **Selectors.** Parish Config → **Parish GKK** has two text boxes — use the placeholder *New GKK name…*, not "the last textbox" (that is the search box). The Reports page's GKK
   picker only appears after choosing a data source and a report type (**Households → By GKK**). The sidebar link text includes a count badge for Requests.
-- **Errors are not all `role="alert"`.** The sign-in error is; the change-password error is a plain div (`.text-parish-error`).
+- **Errors are `role="alert"`.** The sign-in, change-password and per-field errors all are, so read them with `getByRole('alert')` (scope it to the dialog for drawers —
+  otherwise you also collect other alerts on the page). A blank change-password form now says *Enter your current password.*
+- **Required-field labels.** The label text is `Last name *`, but the `*` is `aria-hidden` and the input carries `aria-required`, so the
+  accessible name is exactly `Last name`. Use `getByRole('textbox', { name: 'Last name', exact: true })`; `getByLabel(..., { exact: true })` matches the
+  label's raw text including the `*` and finds nothing (the cause of the 2026-10-01 NEEDS-HUMAN on `f2-new-household-message-clears-on-fill`).
 - **Ids.** `npm run db:wipe-test` does not reset sequences, so ids keep counting up — read real ids from responses, never assume `1`.
 
 ## 3. Per-step procedure (applies to every step above)

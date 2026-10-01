@@ -196,9 +196,8 @@ parish secretary does before the actual work starts.
 
 **Expected**
 - You are sent to the sign-in page rather than seeing member data.
-- Signing in lands you in the admin panel without an error.
-- (If it returns you to the Dashboard rather than the page you asked for, that
-  is a usability note, **S4**, not a defect.)
+- Signing in takes you straight to the Members page you asked for, without an
+  error. (Landing on the Dashboard instead is a usability note, **S4**.)
 
 ---
 

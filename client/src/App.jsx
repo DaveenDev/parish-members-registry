@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import RegistrationApp from './pages/RegistrationApp.jsx';
 import CensusPortal from './pages/CensusPortal.jsx';
@@ -31,11 +31,14 @@ import Requests from './pages/admin/Requests.jsx';
 import ManageMinistries from './pages/admin/ManageMinistries.jsx';
 import ManageOrgs from './pages/admin/ManageOrgs.jsx';
 import ManageStaff from './pages/admin/ManageStaff.jsx';
+import AdminNotFound from './pages/admin/NotFound.jsx';
 
 function RequireAuth({ children }) {
   const { user, ready } = useAuth();
+  const location = useLocation();
   if (!ready) return null;
-  if (!user) return <Navigate to="/admin/login" replace />;
+  // Remember the page asked for, so signing in goes back to it.
+  if (!user) return <Navigate to="/admin/login" replace state={{ from: location.pathname + location.search + location.hash }} />;
   return children;
 }
 
@@ -89,6 +92,8 @@ export default function App() {
           <Route path="settings/ministries" element={<ManageMinistries />} />
           <Route path="settings/organizations" element={<ManageOrgs />} />
           <Route path="settings/staff" element={<ManageStaff />} />
+          {/* A mistyped admin URL stays inside the admin, not on the public home page. */}
+          <Route path="*" element={<AdminNotFound />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

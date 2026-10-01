@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
+import { adminReturnPath } from '../../lib/util.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
 
 export default function AdminLogin() {
   const { user, ready, login } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  // The admin page that sent the person here (see RequireAuth), else the Dashboard.
+  const dest = adminReturnPath(location.state?.from);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -18,15 +22,16 @@ export default function AdminLogin() {
   // The logo uploaded in Parish Config; the star emblem stays if there isn't one.
   useEffect(() => { api.publicParishLogo().then(setLogo).catch(() => {}); }, []);
 
-  if (ready && user) return <Navigate to="/admin" replace />;
+  if (ready && user) return <Navigate to={dest} replace />;
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (!email.trim() || !password) { setError('Enter your email and password.'); return; }
     setLoading(true);
     setError('');
     try {
       await login(email, password);
-      navigate('/admin', { replace: true });
+      navigate(dest, { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid email or password');
     } finally {
