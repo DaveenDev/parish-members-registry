@@ -194,6 +194,34 @@ export function groupEventsByDate(events, key, fromIso) {
   return groups;
 }
 
+/**
+ * The days a month calendar shows for month `key` (YYYY-MM): whole weeks,
+ * Sunday first, padded with the neighbouring months' days.
+ */
+export function monthCells(key) {
+  const first = parseIso(`${key}-01`);
+  const start = new Date(first);
+  start.setDate(1 - first.getDay());
+  const last = new Date(first.getFullYear(), first.getMonth() + 1, 0);
+  const weeks = Math.ceil((first.getDay() + last.getDate()) / 7);
+  return Array.from({ length: weeks * 7 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return { iso: isoOf(d), day: d.getDate(), dow: d.getDay(), inMonth: d.getMonth() === first.getMonth() };
+  });
+}
+
+/**
+ * Events that run on `iso`, longest first so multi-day bars keep their row.
+ * Each says whether its bar starts or ends here (a week break counts too).
+ */
+export function eventsOnDay(events, iso, dow) {
+  return events
+    .filter((e) => e.start_date <= iso && (e.end_date || e.start_date) >= iso)
+    .sort((a, b) => eventDays(b) - eventDays(a) || a.start_date.localeCompare(b.start_date) || String(a.start_time || '').localeCompare(String(b.start_time || '')))
+    .map((e) => ({ e, starts: e.start_date === iso || dow === 0, ends: (e.end_date || e.start_date) === iso || dow === 6 }));
+}
+
 /** An iCalendar file for one event (all-day when it has no start time). */
 export function eventIcs(e, { parishName = 'Parokya', now = new Date() } = {}) {
   const esc = (s) => String(s || '').replace(/[\\;,]/g, (c) => `\\${c}`).replace(/\n/g, '\\n');

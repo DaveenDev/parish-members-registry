@@ -23,19 +23,45 @@ export function Chip({ tone = 'blue', children }) {
   );
 }
 
+/**
+ * Page containers. Phones get the narrow column the layout already centres;
+ * from `lg` up each page centres itself at the width its design asks for.
+ */
+export const PAGE = 'px-3.5 pt-4 pb-7 animate-fadeUp lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-9 lg:pb-0';
+/** Inner pages (opened from a list): the layout shows "Balik" above them on desktop. */
+export const INNER = 'px-4 pt-[18px] pb-7 animate-fadeUp lg:mx-auto lg:px-6 lg:pb-0';
+
 export function Eyebrow({ children, className = '' }) {
-  return <div className={`font-bold text-[11.5px] tracking-[.18em] uppercase text-[var(--p-eyebrow)] ${className}`}>{children}</div>;
+  return <div className={`font-bold text-[11.5px] lg:text-[12px] tracking-[.18em] uppercase text-[var(--p-eyebrow)] ${className}`}>{children}</div>;
 }
 
 export function PageTitle({ children, className = 'mb-3.5' }) {
-  return <h1 className={`font-serif font-semibold text-[32px] leading-[1.08] mt-0.5 text-parish-navy ${className}`}>{children}</h1>;
+  return <h1 className={`font-serif font-semibold text-[32px] lg:text-[46px] leading-[1.08] mt-0.5 text-parish-navy ${className}`}>{children}</h1>;
 }
 
-export function SectionHead({ title, to, action }) {
+/** Eyebrow + title, with the section switch under them on phones and beside them on desktop. */
+export function PageHeader({ eyebrow, title, children }) {
   return (
-    <div className="flex items-baseline justify-between mb-2.5">
-      <h2 className="font-serif font-semibold text-[25px] m-0 text-parish-navy">{title}</h2>
-      {to && <Link to={to} className="min-h-[44px] inline-flex items-center font-bold text-[14.5px] text-parish-blue">{action}</Link>}
+    <div className="lg:flex lg:items-end lg:justify-between lg:gap-6 lg:mb-[22px]">
+      <div>
+        <Eyebrow>{eyebrow}</Eyebrow>
+        <PageTitle className="mb-3.5 lg:mb-0">{title}</PageTitle>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+/** Section heading with a link on the right. `actionLg` replaces the link text on desktop. */
+export function SectionHead({ title, to, action, actionLg }) {
+  return (
+    <div className="flex items-baseline justify-between mb-2.5 lg:mb-3.5">
+      <h2 className="font-serif font-semibold text-[25px] lg:text-[30px] m-0 text-parish-navy">{title}</h2>
+      {to && (
+        <Link to={to} className="min-h-[44px] inline-flex items-center font-bold text-[14.5px] lg:text-[15px] text-parish-blue">
+          {actionLg ? <><span className="lg:hidden">{action}</span><span className="hidden lg:inline">{actionLg}</span></> : action}
+        </Link>
+      )}
     </div>
   );
 }
@@ -51,7 +77,7 @@ export function Card({ as: Tag = 'div', className = '', children, ...rest }) {
 /** Two-way switch at the top of a section (role=tablist). */
 export function Segmented({ options, value, onChange, label }) {
   return (
-    <div role="tablist" aria-label={label} className="grid gap-1 p-1 bg-[#efe7d6] rounded-[14px] mb-4" style={{ gridTemplateColumns: `repeat(${options.length},1fr)` }}>
+    <div role="tablist" aria-label={label} className="grid gap-1 p-1 bg-[#efe7d6] rounded-[14px] mb-4 lg:mb-0 lg:flex lg:flex-none" style={{ gridTemplateColumns: `repeat(${options.length},1fr)` }}>
       {options.map(([v, l]) => {
         const on = v === value;
         return (
@@ -61,7 +87,7 @@ export function Segmented({ options, value, onChange, label }) {
             role="tab"
             aria-selected={on}
             onClick={() => onChange(v)}
-            className={`min-h-[44px] rounded-[11px] font-bold text-[14.5px] ${on ? 'bg-parish-blue text-white' : 'text-parish-ink'}`}
+            className={`min-h-[44px] rounded-[11px] font-bold text-[14.5px] lg:px-[22px] lg:text-[15px] ${on ? 'bg-parish-blue text-white' : 'text-parish-ink hover:text-parish-blueDeep'}`}
           >
             {l}
           </button>
@@ -74,7 +100,7 @@ export function Segmented({ options, value, onChange, label }) {
 /** Row of toggle pills (filters). `scroll` lets a long row scroll sideways. */
 export function Pills({ options, value, onChange, scroll = false, dark = false, className = '' }) {
   return (
-    <div className={`flex gap-1.5 ${scroll ? 'overflow-x-auto -mx-3.5 px-3.5 pb-0.5' : ''} ${className}`}>
+    <div className={`flex gap-1.5 lg:gap-2 ${scroll ? 'overflow-x-auto -mx-3.5 px-3.5 pb-0.5 lg:overflow-visible lg:flex-wrap lg:mx-0 lg:px-0' : ''} ${className}`}>
       {options.map(([v, l]) => {
         const on = v === value;
         const onCls = dark ? 'bg-parish-navy border-parish-navy text-white' : 'bg-parish-blue border-parish-blue text-white';
@@ -84,7 +110,7 @@ export function Pills({ options, value, onChange, scroll = false, dark = false, 
             type="button"
             aria-pressed={on}
             onClick={() => onChange(v)}
-            className={`min-h-[44px] rounded-xl border-[1.5px] font-semibold text-[14.5px] ${scroll ? 'flex-none px-3.5 min-h-[40px] rounded-full' : 'flex-1'} ${on ? onCls : 'bg-parish-card border-parish-borderSoft text-parish-ink'}`}
+            className={`min-h-[44px] rounded-xl border-[1.5px] font-semibold text-[14.5px] ${scroll ? 'flex-none px-3.5 min-h-[40px] rounded-full lg:px-4' : 'flex-1 lg:flex-none lg:px-[18px] lg:text-[15px]'} ${on ? onCls : 'bg-parish-card border-parish-borderSoft text-parish-ink hover:border-[var(--p-blue-border)]'}`}
           >
             {l}
           </button>

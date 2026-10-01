@@ -4,10 +4,12 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
 import { AnnouncementCard, EventRow, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
-import { fmtDayMonth, upcomingToday } from '../../lib/site.js';
+import { fmtDayMonth, gkkParts, upcomingToday } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
+import { api } from '../../api.js';
+import { usePublicData } from '../../components/site/usePublicData.js';
 import { ParishMark, PARISH_NAME, PARISH_SUB, SiteFooter, useParishLogo } from './SiteLayout.jsx';
-import { listState, useAnnouncements, useEvents, useMassSchedule, useOffice, usePortalStatus } from './data.js';
+import { listState, useAnnouncements, useEvents, useGkkDirectory, useMassSchedule, useOffice, usePortalStatus } from './data.js';
 
 const DISMISSED_KEY = 'pmr_dismissed_urgent';
 
@@ -22,13 +24,12 @@ export default function Home() {
   const portal = usePortalStatus().data;
   const office = useOffice().data;
   const logo = useParishLogo();
+  const gkks = useGkkDirectory().data || [];
   const [dismissed, setDismissed] = useState(readDismissed);
 
   const urgent = ann.rows.find((a) => a.urgent && !dismissed.includes(a.id));
   const latest = ann.rows.filter((a) => !a.urgent).slice(0, 2);
-  const now = new Date();
-  const todays = upcomingToday(mass.rows, now);
-  const anyToday = mass.rows.some((r) => r.day_of_week === now.getDay());
+  const areas = new Set(gkks.map((g) => gkkParts(g.name).area).filter(Boolean)).size;
 
   function dismiss() {
     const next = [...dismissed, urgent.id];
@@ -39,112 +40,172 @@ export default function Home() {
   return (
     <main className="pb-7 animate-fadeUp">
       {urgent && (
-        <div role="alert" className="mx-3.5 mt-3 flex gap-1.5 items-start bg-parish-errorBg border border-parish-errorBorder rounded-[14px] py-2.5 pl-3 pr-1 text-parish-error">
-          <Icon name="alert" className="mt-[3px]" />
-          <Link to={`/pahibalo/${urgent.id}`} className="flex-1 py-0.5 font-semibold text-[15px] leading-[1.35]">
-            <span className="block font-bold text-[11px] tracking-[.14em] uppercase mb-0.5">Urgent</span>
-            {urgent.title}
-          </Link>
-          <button type="button" aria-label="Isira ang pahibalo" onClick={dismiss} className="w-11 h-11 flex-none flex items-center justify-center -mt-1.5">
-            <Icon name="x" size={18} />
-          </button>
+        <div role="alert" className="mx-3.5 mt-3 bg-parish-errorBg border border-parish-errorBorder rounded-[14px] text-parish-error lg:m-0 lg:rounded-none lg:border-x-0 lg:border-t-0">
+          <div className="flex gap-1.5 items-start py-2.5 pl-3 pr-1 lg:max-w-[1240px] lg:mx-auto lg:items-center lg:gap-3 lg:py-1.5 lg:pl-6 lg:pr-4">
+            <Icon name="alert" className="mt-[3px] lg:mt-0 lg:w-5 lg:h-5" />
+            <Link to={`/pahibalo/${urgent.id}`} className="flex-1 py-0.5 font-semibold text-[15px] leading-[1.35] lg:flex lg:items-center lg:gap-3 lg:text-[15.5px]">
+              <span className="block font-bold text-[11px] lg:text-[11.5px] tracking-[.14em] uppercase mb-0.5 lg:mb-0">Urgent</span>
+              <span className="lg:underline lg:underline-offset-[3px]">{urgent.title}</span>
+            </Link>
+            <button type="button" aria-label="Isira ang pahibalo" onClick={dismiss} className="w-11 h-11 flex-none flex items-center justify-center -mt-1.5 lg:mt-0">
+              <Icon name="x" size={18} />
+            </button>
+          </div>
         </div>
       )}
 
-      <section className="text-center px-[22px] pt-[30px] pb-7" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
-        <div className="flex justify-center"><ParishMark size={64} logo={logo} /></div>
-        <div className="font-bold text-[11.5px] tracking-[.2em] uppercase text-[var(--p-eyebrow)] mt-1.5 mb-2.5">Rehistro sa mga Miyembro sa Parokya</div>
-        <h1 className="font-serif font-semibold text-[38px] leading-[1.02] m-0 mb-1 text-parish-navy">{PARISH_NAME}</h1>
-        <div className="font-serif text-[20px] text-parish-blue tracking-[.04em] mb-4">{PARISH_SUB}</div>
-        <p className="text-[16px] leading-relaxed text-[#4d4636] m-0 mb-[22px]">
-          Maayong pag-abot! Irehistro ang inyong pamilya sa parokya aron kita magpabiling magkasinabot, magkauban sa pagsaulog sa mga sakramento, ug mag-alagaray sa usag usa diha sa pagtuo.
-        </p>
-        <Link
-          to="/register"
-          className="w-full min-h-[56px] flex items-center justify-center font-bold text-[17px] text-white bg-parish-blue rounded-[14px]"
-          style={{ boxShadow: '0 14px 30px -12px color-mix(in srgb, var(--p-blue) 65%, transparent)' }}
-        >
-          Irehistro ang Inyong Pamilya
-        </Link>
-        {portal?.open && (
-          <Link to="/census" className="w-full min-h-[50px] mt-2.5 flex items-center justify-center font-semibold text-[15.5px] text-parish-blueDeep bg-parish-card border-[1.5px] border-[var(--p-blue-border)] rounded-[14px]">
-            Narehistro na? I-update ang inyong rekord
-          </Link>
-        )}
-        <div className="mt-4 flex justify-center gap-[7px] text-[13.5px] leading-snug text-parish-text2">
-          <Icon name="lock" size={15} className="mt-0.5" />
-          <span>Pribado ang inyong impormasyon. Ang kawani lang sa parokya ang makakita.</span>
+      <section className="lg:border-b lg:border-parish-border" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
+        <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-16 lg:pb-[60px] lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-14 lg:items-center">
+          <div className="text-center px-[22px] pt-[30px] pb-7 lg:text-left lg:p-0">
+            <div className="flex justify-center lg:justify-start"><ParishMark size={64} logo={logo} /></div>
+            <div className="font-bold text-[11.5px] lg:text-[12.5px] tracking-[.2em] lg:tracking-[.22em] uppercase text-[var(--p-eyebrow)] mt-1.5 mb-2.5 lg:mt-2.5 lg:mb-3">Rehistro sa mga Miyembro sa Parokya</div>
+            <h1 className="font-serif font-semibold text-[38px] lg:text-[64px] leading-[1.02] lg:leading-[.98] m-0 mb-1 lg:mb-1.5 text-parish-navy">{PARISH_NAME}</h1>
+            <div className="font-serif text-[20px] lg:text-[27px] text-parish-blue tracking-[.04em] mb-4 lg:mb-5">{PARISH_SUB}</div>
+            <p className="text-[16px] lg:text-[18.5px] leading-relaxed lg:leading-[1.6] text-[#4d4636] m-0 mb-[22px] lg:mb-[30px] lg:max-w-[560px]">
+              Maayong pag-abot! Irehistro ang inyong pamilya sa parokya aron kita magpabiling magkasinabot, magkauban sa pagsaulog sa mga sakramento, ug mag-alagaray sa usag usa diha sa pagtuo.
+            </p>
+            <div className="lg:flex lg:flex-wrap lg:gap-3 lg:items-center">
+              <Link
+                to="/register"
+                className="w-full min-h-[56px] flex items-center justify-center font-bold text-[17px] text-white bg-parish-blue rounded-[14px] hover:bg-parish-blueDeep lg:w-auto lg:min-h-[58px] lg:px-[34px] lg:text-[18px]"
+                style={{ boxShadow: '0 14px 30px -12px color-mix(in srgb, var(--p-blue) 65%, transparent)' }}
+              >
+                Irehistro ang Inyong Pamilya
+              </Link>
+              {portal?.open && (
+                <Link to="/census" className="w-full min-h-[50px] mt-2.5 flex items-center justify-center font-semibold text-[15.5px] text-parish-blueDeep bg-parish-card border-[1.5px] border-[var(--p-blue-border)] rounded-[14px] lg:w-auto lg:mt-0 lg:min-h-[58px] lg:px-[22px] lg:text-[16px]">
+                  Narehistro na? I-update ang inyong rekord
+                </Link>
+              )}
+            </div>
+            <div className="mt-4 lg:mt-[18px] flex justify-center lg:justify-start gap-[7px] text-[13.5px] lg:text-[14px] leading-snug text-parish-text2">
+              <Icon name="lock" size={15} className="mt-0.5" />
+              <span>Pribado ang inyong impormasyon. Ang kawani lang sa parokya ang makakita.</span>
+            </div>
+          </div>
+          <div className="hidden lg:block"><MassToday mass={mass} /></div>
         </div>
       </section>
 
-      <section className="px-3.5 pt-[22px]">
-        <Card className="p-4 shadow-card">
-          <div className="flex items-baseline justify-between gap-2 mb-2.5">
-            <h2 className="font-serif font-semibold text-[23px] m-0 text-parish-navy">Misa karong adlawa</h2>
-            <span className="font-semibold text-[13px] text-parish-text2">{fmtDayMonth(todayIso())}</span>
-          </div>
-          {mass.loading ? <Skeletons n={2} h={52} /> : mass.error ? (
-            <ErrorNote onRetry={mass.reload}>Wala ma-load ang iskedyul.</ErrorNote>
-          ) : !todays.length ? (
-            <p className="mt-1 text-parish-text2 text-[15px]">
-              {anyToday ? 'Nahuman na ang mga Misa karong adlawa.' : 'Walay Misa nga naka-iskedyul karong adlawa.'}
-            </p>
-          ) : (
-            <div className="flex flex-col gap-1.5">
-              {todays.map((m) => <MassRow key={m.id} m={m} compact />)}
-            </div>
-          )}
-          <Link to="/misa" className="min-h-[44px] mt-1.5 px-0.5 inline-flex items-center gap-1 font-bold text-[15px] text-parish-blue">
-            Tibuok iskedyul sa semana<Icon name="chev" size={16} />
-          </Link>
-        </Card>
+      <section className="px-3.5 pt-[22px] lg:hidden">
+        <MassToday mass={mass} />
       </section>
 
-      <section className="px-3.5 pt-7">
-        <SectionHead title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" />
+      <ParishStats />
+
+      <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-8 lg:items-start">
+      <section className="px-3.5 pt-7 lg:p-0">
+        <SectionHead title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
         {ann.loading ? <Skeletons n={2} h={104} /> : ann.error ? (
           <p className="m-0 text-parish-error text-[15px]">Wala ma-load ang mga pahibalo.</p>
         ) : !latest.length ? (
           <p className="m-0 text-parish-text2 text-[15px]">Wala pay pahibalo karong semanaha.</p>
         ) : (
-          <div className="flex flex-col gap-2.5">{latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}</div>
+          <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:gap-3.5 lg:items-start">{latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}</div>
         )}
       </section>
 
-      <section className="px-3.5 pt-7">
-        <SectionHead title="Umaabot nga kalihokan" to="/misa?view=kalendaryo" action="Kalendaryo" />
+      <section className="px-3.5 pt-7 lg:p-0">
+        <SectionHead title="Umaabot nga kalihokan" to="/misa?view=kalendaryo" action="Kalendaryo" actionLg="Kalendaryo →" />
         {events.loading ? <Skeleton h={150} /> : events.error ? (
           <p className="m-0 text-parish-error text-[15px]">Wala ma-load ang kalendaryo.</p>
         ) : events.empty ? (
           <p className="m-0 text-parish-text2 text-[15px]">Walay kalihokan nga naka-iskedyul.</p>
         ) : (
-          <div className="bg-parish-card border border-parish-border rounded-2xl overflow-hidden">
+          <div className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] overflow-hidden">
             {events.rows.slice(0, 3).map((e) => <EventRow key={e.id} e={e} />)}
           </div>
         )}
       </section>
+      </div>
 
-      <section className="px-3.5 pt-7">
-        <h2 className="font-serif font-semibold text-[25px] m-0 mb-2.5 text-parish-navy">Unsa ang imong kinahanglan?</h2>
-        <div className="grid grid-cols-2 gap-2.5">
-          <QuickLink to="/serbisyo/susiha" icon="search">Susiha ang akong rehistro</QuickLink>
-          <QuickLink to="/serbisyo/hangyo/sertipiko" icon="doc">Pangayo og sertipiko</QuickLink>
-          <QuickLink to="/komunidad" icon="people">Pangitaa ang akong GKK</QuickLink>
-          <QuickLink to="/kontak" icon="phone">Kontak ug oras sa opisina</QuickLink>
+      <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12">
+        <h2 className="font-serif font-semibold text-[25px] lg:text-[30px] m-0 mb-2.5 lg:mb-3.5 text-parish-navy">Unsa ang imong kinahanglan?</h2>
+        <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-3.5">
+          <QuickLink to="/serbisyo/susiha" icon="search" sub="Gamit ang reference number">Susiha ang akong rehistro</QuickLink>
+          <QuickLink to="/serbisyo/hangyo/sertipiko" icon="doc" sub="Bunyag, Kumpil, Kasal">Pangayo og sertipiko</QuickLink>
+          <QuickLink to="/komunidad" icon="people" sub={gkks.length ? `${gkks.length} ka GKK${areas > 1 ? ` sa ${areas} ka lugar` : ''}` : 'Pangitaa pinaagi sa barangay'}>Pangitaa ang akong GKK</QuickLink>
+          <QuickLink to="/kontak" icon="phone" sub="Tawag, text, mapa">Kontak ug oras sa opisina</QuickLink>
         </div>
       </section>
 
-      <SiteFooter address={office?.address} />
-      <CreditFooter inline />
+      <div className="lg:hidden">
+        <SiteFooter address={office?.address} />
+        <CreditFooter inline />
+      </div>
     </main>
   );
 }
 
-function QuickLink({ to, icon, children }) {
+/** Today's remaining Masses: a card under the hero on phones, beside it on desktop. */
+function MassToday({ mass }) {
+  const now = new Date();
+  const todays = upcomingToday(mass.rows, now);
+  const anyToday = mass.rows.some((r) => r.day_of_week === now.getDay());
   return (
-    <Link to={to} className="min-h-[88px] bg-parish-card border border-parish-border rounded-2xl p-3 flex flex-col gap-2 text-parish-blue">
-      <Icon name={icon} size={24} />
-      <span className="font-semibold text-[14.5px] leading-[1.25] text-parish-ink">{children}</span>
+    <Card className="p-4 shadow-card lg:p-[22px] lg:rounded-[22px]">
+      <div className="flex items-baseline justify-between gap-2 mb-2.5 lg:mb-3">
+        <h2 className="font-serif font-semibold text-[23px] lg:text-[27px] m-0 text-parish-navy">Misa karong adlawa</h2>
+        <span className="font-semibold text-[13px] lg:text-[14px] text-parish-text2">{fmtDayMonth(todayIso())}</span>
+      </div>
+      {mass.loading ? <Skeletons n={2} h={52} /> : mass.error ? (
+        <ErrorNote onRetry={mass.reload}>Wala ma-load ang iskedyul.</ErrorNote>
+      ) : !todays.length ? (
+        <p className="mt-1 text-parish-text2 text-[15px] lg:text-[16px]">
+          {anyToday ? 'Nahuman na ang mga Misa karong adlawa.' : 'Walay Misa nga naka-iskedyul karong adlawa.'}
+        </p>
+      ) : (
+        <div className="flex flex-col gap-1.5 lg:gap-2">
+          {todays.map((m) => <MassRow key={m.id} m={m} compact />)}
+        </div>
+      )}
+      <Link to="/misa" className="min-h-[44px] mt-1.5 lg:mt-2 px-0.5 inline-flex items-center gap-1 font-bold text-[15px] lg:text-[15.5px] text-parish-blue hover:text-parish-blueDeep">
+        Tibuok iskedyul sa semana<Icon name="chev" size={16} />
+      </Link>
+    </Card>
+  );
+}
+
+/**
+ * "Parokya sa usa ka tan-aw": desktop only (kept off phones on purpose).
+ * Shows the public totals the backend already exposes; any count under 5 is
+ * shown as "Ubos sa 5" so a small group can't be singled out. Hidden when the
+ * totals can't be loaded.
+ */
+function ParishStats() {
+  const q = usePublicData('stats', api.publicStats);
+  const s = q.data;
+  if (q.error || (!q.loading && !s)) return null;
+  const tiles = s ? [['households', 'Pamilya'], ['gkks', 'GKK']].filter(([k]) => s[k] != null).map(([k, label]) => ({ label, n: s[k] })) : [];
+  return (
+    <section className="hidden lg:block max-w-[1240px] mx-auto px-6 pt-11">
+      <div className="flex items-baseline justify-between gap-4 mb-3.5">
+        <div>
+          <div className="font-bold text-[12px] tracking-[.18em] uppercase text-[var(--p-eyebrow)] mb-1">Parokya sa usa ka tan-aw</div>
+          <h2 className="font-serif font-semibold text-[32px] m-0 text-parish-navy">Atong pamilya sa parokya</h2>
+        </div>
+        <span className="text-[13.5px] text-parish-text2">Ang ihap nga ubos sa 5 dili ipakita.</span>
+      </div>
+      <div className="grid grid-cols-6 gap-3.5">
+        {q.loading ? [0, 1].map((i) => <Skeleton key={i} h={112} className="rounded-[18px]" />) : tiles.map((t) => (
+          <div key={t.label} className="bg-parish-card border border-parish-border rounded-[18px] shadow-cardSm p-[18px] min-h-[112px]">
+            {t.n >= 5
+              ? <div className="font-serif text-[44px] font-bold text-parish-blue leading-none">{t.n.toLocaleString('en-US')}</div>
+              : <div className="font-serif text-[28px] font-bold text-[#4d4636] leading-[1.3]">Ubos sa 5</div>}
+            <div className="font-bold text-[11.5px] tracking-[.12em] uppercase text-parish-text2 mt-2 leading-[1.3]">{t.label}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function QuickLink({ to, icon, sub, children }) {
+  return (
+    <Link to={to} className="min-h-[88px] bg-parish-card border border-parish-border rounded-2xl p-3 flex flex-col gap-2 text-parish-blue lg:rounded-[18px] lg:p-[18px] lg:gap-3 hover:border-[var(--p-blue-border)]">
+      <Icon name={icon} size={24} className="lg:w-7 lg:h-7" />
+      <span className="font-semibold text-[14.5px] leading-[1.25] text-parish-ink lg:font-bold lg:text-[17px]">{children}</span>
+      {sub && <span className="hidden lg:block -mt-1 text-[14.5px] text-parish-text2">{sub}</span>}
     </Link>
   );
 }

@@ -19,16 +19,16 @@ export function ArticleChip({ a }) {
   return <Chip tone="blue">{ARTICLE_LABELS[a.tag] || a.tag}</Chip>;
 }
 
-/** Announcement in a list. `full` adds the excerpt. */
+/** Announcement in a list. `full` adds the excerpt on phones; desktop cards always have it. */
 export function AnnouncementCard({ a, full = false }) {
   return (
-    <Link to={`/pahibalo/${a.id}`} className="block w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5">
-      <div className="flex gap-2 items-center mb-1.5">
+    <Link to={`/pahibalo/${a.id}`} className="block w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)]">
+      <div className="flex gap-2 items-center mb-1.5 lg:mb-2">
         <AnnouncementChip a={a} />
-        <span className="text-[13px] text-parish-text2">{fmtShort(a.publish_on)}</span>
+        <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.publish_on)}</span>
       </div>
-      <div className={`font-serif font-bold leading-[1.2] text-parish-navy ${full ? 'text-[21px] mb-1' : 'text-[20px]'}`}>{a.title}</div>
-      {full && a.body && <div className="text-[15px] leading-normal text-[#4d4636]">{excerpt(a.body)}</div>}
+      <div className={`font-serif font-bold leading-[1.2] lg:leading-[1.18] text-parish-navy lg:text-[23px] lg:mb-1.5 ${full ? 'text-[21px] mb-1' : 'text-[20px]'}`}>{a.title}</div>
+      {a.body && <div className={`text-[15px] leading-normal text-[#4d4636] ${full ? '' : 'hidden lg:block'}`}>{excerpt(a.body)}</div>}
     </Link>
   );
 }
@@ -50,14 +50,14 @@ export function EventTypeLabel({ e, className = '' }) {
 export function EventRow({ e }) {
   const d = parseIso(e.start_date);
   return (
-    <Link to={`/misa/kalihokan/${e.id}`} className="w-full text-left flex gap-3 items-center px-3.5 py-3 border-b border-[#f0e8d6] last:border-b-0">
-      <div className="w-12 flex-none text-center">
-        <div className="font-bold text-[11px] tracking-[.1em] uppercase text-parish-text2">{BIS_MONTHS_SHORT[d.getMonth()]}</div>
-        <div className="font-serif text-[28px] font-bold leading-none text-parish-blue">{d.getDate()}</div>
+    <Link to={`/misa/kalihokan/${e.id}`} className="w-full text-left flex gap-3 lg:gap-3.5 items-center px-3.5 py-3 lg:px-[18px] lg:py-3.5 border-b border-[#f0e8d6] last:border-b-0 hover:bg-[#fbf7ef]">
+      <div className="w-12 lg:w-[52px] flex-none text-center">
+        <div className="font-bold text-[11px] lg:text-[11.5px] tracking-[.1em] uppercase text-parish-text2">{BIS_MONTHS_SHORT[d.getMonth()]}</div>
+        <div className="font-serif text-[28px] lg:text-[32px] font-bold leading-none text-parish-blue">{d.getDate()}</div>
       </div>
       <div className="flex-1 min-w-0">
-        <EventTypeLabel e={e} className="mb-0.5" />
-        <div className="font-semibold text-[15px] leading-[1.3]">{e.title}</div>
+        <EventTypeLabel e={e} className="mb-0.5 lg:text-[12px]" />
+        <div className="font-semibold text-[15px] lg:text-[16px] leading-[1.3]">{e.title}</div>
       </div>
     </Link>
   );
@@ -87,24 +87,30 @@ export function EventCard({ e }) {
   );
 }
 
-/** A schedule row: time, what, where, language. */
+/**
+ * A schedule row: time, what, where, language. `compact` is the Home card
+ * row; the full row stacks on desktop, where it sits in a narrow day column
+ * (time and language on top, the rest underneath).
+ */
 export function MassRow({ m, compact = false }) {
   return (
     <div
-      className={`flex items-center gap-3 ${compact ? 'p-2.5 rounded-xl border-[1.5px]' : 'px-3.5 py-[11px] border-t border-[#f4eddd]'}`}
+      className={compact
+        ? 'flex items-center gap-3 lg:gap-4 p-2.5 lg:px-3.5 lg:py-3 rounded-xl lg:rounded-[14px] border-[1.5px]'
+        : 'flex items-center gap-3 px-3.5 py-[11px] border-t border-[#f4eddd] lg:grid lg:grid-cols-[1fr_auto] lg:gap-x-2 lg:gap-y-0 lg:px-4'}
       style={m.next ? { background: 'var(--p-blue-tint)', borderColor: compact ? 'var(--p-blue-border)' : undefined } : { borderColor: compact ? 'transparent' : undefined }}
     >
-      <div className={`font-serif font-bold text-parish-blue ${compact ? 'text-[24px] min-w-[86px]' : 'text-[22px] min-w-[82px]'}`}>{fmtTime12(m.start_time)}</div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="font-semibold text-[15px]">{massKindLabel(m)}</span>
+      <div className={`font-serif font-bold text-parish-blue ${compact ? 'text-[24px] min-w-[86px] lg:text-[30px] lg:min-w-[112px]' : 'text-[22px] min-w-[82px] lg:text-[23px] lg:min-w-0'}`}>{fmtTime12(m.start_time)}</div>
+      <div className={`flex-1 min-w-0 ${compact ? '' : 'lg:col-span-2 lg:row-start-2'}`}>
+        <div className="flex items-center gap-1.5 lg:gap-2 flex-wrap">
+          <span className={`font-semibold text-[15px] ${compact ? 'lg:text-[16.5px]' : 'lg:text-[14.5px]'}`}>{massKindLabel(m)}</span>
           {m.next && <span className="font-bold text-[10.5px] tracking-[.12em] text-white bg-parish-blue rounded-md px-1.5 py-0.5">SUNOD</span>}
         </div>
-        <div className="text-[13.5px] text-parish-text2">{compact ? `${m.location} · ${m.language}` : m.location}</div>
+        <div className={`text-[13.5px] text-parish-text2 ${compact ? 'lg:text-[14.5px]' : ''}`}>{compact ? `${m.location} · ${m.language}` : m.location}</div>
         {m.notes && m.kind !== 'Other' && <div className="text-[13px] text-parish-text2 italic">{m.notes}</div>}
       </div>
       {!compact && (
-        <span className="font-bold text-[11.5px] rounded-md px-[7px] py-[3px] border border-parish-borderSoft text-[#4d4636] bg-parish-bg">{m.language}</span>
+        <span className="font-bold text-[11.5px] lg:text-[11px] rounded-md px-[7px] lg:px-1.5 py-[3px] lg:py-0.5 border border-parish-borderSoft text-[#4d4636] bg-parish-bg lg:col-start-2 lg:row-start-1 lg:justify-self-end">{m.language}</span>
       )}
     </div>
   );
