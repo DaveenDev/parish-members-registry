@@ -6,12 +6,16 @@ import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, Househo
 import { useHouseholdNameTaken } from '../../hooks.js';
 import { toNameCase, toSuffixCase } from '../../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../../lib/bisaya.js';
-import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, DEFAULT_ADDRESS, GKK_ROLES, blankMember } from '../../constants.js';
+import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, DEFAULT_ADDRESS, GKK_ROLES, HEAD, blankMember } from '../../constants.js';
+import { shareWedding, weddingPartners, WEDDING_FIELDS } from '../../lib/household.js';
 
 function blankNhMember() {
   const b = blankMember();
   return { first: '', middle: '', last: '', suffix: '', rel: '', sex: '', dob: '', pob: '', tribe: '', civil: '', gkkRole: '', parishRole: '', contact: '', email: '', occupation: '', bloodType: '', organizations: [], ...pickSac(b) };
 }
+// This form's member rows spell the relationship / civil status keys differently from the wizard's.
+const WEDDING_KEYS = { relationship: 'rel', civil: 'civil', fields: WEDDING_FIELDS };
+
 function pickSac(b) {
   const { hasBaptism, baptismDate, baptismChurch, hasCommunion, communionDate, communionChurch, hasConfirmation, confDate, confChurch, confName, confSponsor, hasMatrimony, matDate, matChurch, matType, ministries } = b;
   return { hasBaptism, baptismDate, baptismChurch, hasCommunion, communionDate, communionChurch, hasConfirmation, confDate, confChurch, confName, confSponsor, hasMatrimony, matDate, matChurch, matType, ministries };
@@ -38,8 +42,20 @@ export default function NewHousehold() {
 
   function setField(field, value) { setNh((h) => ({ ...h, [field]: value })); }
   function setMemberField(mi, field, value) {
-    setMembers((ms) => ms.map((m, i) => (i === mi ? { ...m, [field]: value } : m)));
+    // The head and a married Spouse share one wedding: an edit on either is copied to the other.
+    setMembers((ms) => {
+      const next = ms.map((m, i) => (i === mi ? { ...m, [field]: value } : m));
+      return shareWedding(next, WEDDING_FIELDS.includes(field) ? mi : -1, WEDDING_KEYS, next.findIndex((m) => m.rel === HEAD));
+    });
   }
+  const headIdx = members.findIndex((m) => m.rel === HEAD);
+  const weddingPartnerOf = (i) => {
+    if (headIdx < 0) return '';
+    const name = (m) => [m.first, m.last].filter(Boolean).join(' ') || 'the other spouse';
+    const partners = weddingPartners(members, WEDDING_KEYS, headIdx);
+    if (i === headIdx) return partners.map((idx) => name(members[idx])).join(' and ');
+    return partners.includes(i) ? name(members[headIdx]) : '';
+  };
   /** onBlur handler: tidy a name field to "Dela Cruz" style. */
   function tidyMember(mi, field, format = toNameCase) {
     return (e) => {
@@ -206,6 +222,11 @@ export default function NewHousehold() {
                       <Checkbox checked={mv.hasMatrimony} onChange={(e) => setMemberField(i, 'hasMatrimony', e.target.checked)} />
                       <span className="font-semibold text-[14px] text-parish-navy">Matrimony</span>
                     </label>
+                    {weddingPartnerOf(i) && (
+                      <div className="text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-lg px-3 py-2 mt-2.5">
+                        Same wedding as <strong>{weddingPartnerOf(i)}</strong>: the type, date and parish entered here are copied to their record too.
+                      </div>
+                    )}
                     {mv.hasMatrimony && (
                       <div className="grid gap-2.5 mt-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
                         <TextInput type="date" value={mv.matDate} onChange={(e) => setMemberField(i, 'matDate', e.target.value)} />

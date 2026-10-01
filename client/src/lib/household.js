@@ -32,26 +32,58 @@ export function groupByGkk(rows) {
 
 export const WEDDING_FIELDS = ['matType', 'hasMatrimony', 'matDate', 'matChurch'];
 
+/** Field names the wizard's member objects use for the wedding rule. */
+const WIZARD_KEYS = { relationship: 'relationship', civil: 'civilStatus', fields: WEDDING_FIELDS };
+
 /**
- * Keep each Spouse in step with the head (members[0]): they share the head's
- * Married / Live-in status and, when both are married, the same wedding. The
- * `civilFromHead` / `weddingFromHead` flags mark values that were filled in
- * automatically; once the spouse's own answer is edited by hand it's left
- * alone. Returns the same member objects when nothing needs to change.
+ * Indexes of the members who share the Household Head's wedding: married
+ * Spouses, while the head is married. `keys` names the relationship / civil
+ * status properties (the wizard and the admin form spell them differently);
+ * `headIdx` is the head's position.
  */
-export function syncSpouses(members) {
+export function weddingPartners(members, keys = WIZARD_KEYS, headIdx = 0) {
+  const head = members[headIdx];
+  if (!head || head[keys.civil] !== 'Married') return [];
+  return members.flatMap((m, idx) => (idx !== headIdx && m[keys.relationship] === 'Spouse' && m[keys.civil] === 'Married' ? [idx] : []));
+}
+
+/**
+ * The head and a married Spouse share one wedding — type, date and parish —
+ * so an edit on either side is copied to the other. `source` is the index of
+ * the member whose wedding field was just edited; otherwise the head's wedding
+ * wins, falling back to a spouse's when the head has none yet. Returns the
+ * same array when nothing needs to change.
+ */
+export function shareWedding(members, source = -1, keys = WIZARD_KEYS, headIdx = 0) {
+  const partners = weddingPartners(members, keys, headIdx);
+  if (!partners.length) return members;
+  const sharing = [headIdx, ...partners];
+  const recorded = (m) => keys.fields.some((f) => m[f]);
+  const from = sharing.includes(source) ? source : sharing.find((idx) => recorded(members[idx]));
+  if (from === undefined) return members;
+  const wedding = Object.fromEntries(keys.fields.map((f) => [f, members[from][f]]));
+  const next = members.map((m, idx) => (
+    sharing.includes(idx) && keys.fields.some((f) => m[f] !== wedding[f]) ? { ...m, ...wedding } : m
+  ));
+  return next.every((m, idx) => m === members[idx]) ? members : next;
+}
+
+/**
+ * Keep each Spouse in step with the head (members[0]). A Spouse takes the
+ * head's Married / Live-in status (`civilFromHead` marks a value filled in
+ * automatically; once edited by hand it's left alone), and shares the head's
+ * wedding (see shareWedding). Returns the same member objects when nothing
+ * needs to change.
+ */
+export function syncSpouses(members, source = -1) {
   const head = members[0];
   if (!head) return members;
-  return members.map((m, idx) => {
+  const synced = members.map((m, idx) => {
     if (idx === 0 || m.relationship !== 'Spouse') return m;
-    let next = m;
     if (PARTNERED_STATUSES.includes(head.civilStatus) && (m.civilFromHead || !m.civilStatus) && m.civilStatus !== head.civilStatus) {
-      next = { ...next, civilStatus: head.civilStatus, civilFromHead: true };
+      return { ...m, civilStatus: head.civilStatus, civilFromHead: true };
     }
-    if (head.civilStatus === 'Married' && next.civilStatus === 'Married' && head.matType && (next.weddingFromHead || !next.matType)) {
-      const differs = WEDDING_FIELDS.some((f) => next[f] !== head[f]);
-      if (differs) next = { ...next, ...Object.fromEntries(WEDDING_FIELDS.map((f) => [f, head[f]])), weddingFromHead: true };
-    }
-    return next;
+    return m;
   });
+  return shareWedding(synced, source);
 }
