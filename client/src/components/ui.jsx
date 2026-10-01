@@ -91,12 +91,12 @@ export function StatusPill({ status }) {
  * older free-text value that isn't on the list stays selectable so editing a
  * household doesn't silently drop it.
  */
-export function FamilyGroupingSelect({ value, onChange }) {
+export function FamilyGroupingSelect({ value, onChange, placeholder = 'Select…' }) {
   const current = value || '';
   const options = current && !FAMILY_GROUPINGS.includes(current) ? [current, ...FAMILY_GROUPINGS] : FAMILY_GROUPINGS;
   return (
     <Select value={current} onChange={(e) => onChange(e.target.value)}>
-      <option value="">Select…</option>
+      <option value="">{placeholder}</option>
       {options.map((g) => <option key={g} value={g}>{g}</option>)}
     </Select>
   );
@@ -109,7 +109,7 @@ const OTHER_TRIBE = '__other__';
  * `onChange` receives the tribe string. A saved value that isn't on the list
  * opens straight into "Other…" so older free-text entries still show.
  */
-export function TribeSelect({ value, onChange, placeholder = 'Tribu' }) {
+export function TribeSelect({ value, onChange, placeholder = 'Tribu', otherLabel = 'Other…' }) {
   const current = value || '';
   const known = TRIBES.includes(current);
   const [otherChosen, setOtherChosen] = useState(false);
@@ -131,7 +131,7 @@ export function TribeSelect({ value, onChange, placeholder = 'Tribu' }) {
       <Select value={showOther ? OTHER_TRIBE : current} onChange={pick}>
         <option value="">{placeholder}</option>
         {TRIBES.map((t) => <option key={t} value={t}>{t}</option>)}
-        <option value={OTHER_TRIBE}>Other…</option>
+        <option value={OTHER_TRIBE}>{otherLabel}</option>
       </Select>
       {showOther && (
         <TextInput

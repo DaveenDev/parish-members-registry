@@ -3,7 +3,10 @@ export const RELATIONSHIPS = [
   'Grandfather', 'Grandmother', 'Grandchild', 'Sibling', 'In-law', 'Household Helper', 'Other',
 ];
 
-export const CIVIL_STATUSES = ['Single', 'Married', 'Widowed', 'Separated'];
+export const CIVIL_STATUSES = ['Single', 'Married', 'Live-in', 'Widowed', 'Separated'];
+
+// Civil statuses where a Spouse member shares the head's status by default.
+export const PARTNERED_STATUSES = ['Married', 'Live-in'];
 
 export const RELIGIONS = ['Roman Catholic', 'Iglesia ni Cristo', 'Protestant', 'Born Again', 'Islam', 'Other'];
 

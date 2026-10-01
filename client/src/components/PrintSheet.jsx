@@ -32,7 +32,7 @@ export function ConfirmationPrintSheet({ refNo, householdName }) {
   return createPortal(
     <div id="print-sheet" aria-hidden style={{ textAlign: 'center', paddingTop: 40 }}>
       <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15, letterSpacing: '.16em', textTransform: 'uppercase', color: '#a98a3f', marginBottom: 8 }}>
-        Parish Members Registry
+        Rehistro sa mga Miyembro sa Parokya
       </div>
       <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 30, fontWeight: 600, color: '#1a2b4a', marginBottom: 2 }}>
         Our Lady of Guadalupe
@@ -42,21 +42,21 @@ export function ConfirmationPrintSheet({ refNo, householdName }) {
       </div>
 
       <div style={{ fontSize: 13, color: '#6b6552', marginBottom: 24 }}>
-        {householdName ? `${householdName} has been` : 'This household has been'} registered with the parish. Our
-        staff will review and verify the details shortly.
+        {householdName ? `Narehistro na ang ${householdName}` : 'Narehistro na kini nga pamilya'} sa parokya. Susihon ug
+        pamatud-an sa among kawani ang mga detalye sa dili madugay.
       </div>
 
       <div style={{ border: '1px solid #ddd', borderRadius: 10, padding: '20px 24px', display: 'inline-block', minWidth: 280 }}>
         <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a98a3f', marginBottom: 6 }}>
-          Reference number
+          Reference Number
         </div>
         <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 34, fontWeight: 600, letterSpacing: '.06em', color: '#34589c' }}>
           {refNo}
         </div>
-        <div style={{ fontSize: 11, color: '#8a836f', marginTop: 8 }}>Please keep this for your records.</div>
+        <div style={{ fontSize: 11, color: '#8a836f', marginTop: 8 }}>Palihug tipigi kini isip inyong rekord.</div>
       </div>
 
-      <div style={{ marginTop: 32, fontSize: 10, color: '#8a836f' }}>Printed {new Date().toLocaleDateString()}</div>
+      <div style={{ marginTop: 32, fontSize: 10, color: '#8a836f' }}>Gi-print {new Date().toLocaleDateString()}</div>
     </div>,
     document.body
   );

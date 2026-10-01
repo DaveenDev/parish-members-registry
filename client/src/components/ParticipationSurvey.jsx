@@ -51,7 +51,7 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
         <legend className={`font-semibold text-parish-navy mb-1 ${legendSize}`}>
           Sa unsang paagi kamo makatabang sa pagpalambo pa gayud sa simbahan / GKK?
         </legend>
-        <div className="text-[12.5px] text-parish-muted mb-3">Check all that apply.</div>
+        <div className="text-[12.5px] text-parish-muted mb-3">I-tsek ang tanan nga angay.</div>
         <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
           {HELP_WAYS.map(([key, label]) => {
             const checked = helpWays.includes(key);

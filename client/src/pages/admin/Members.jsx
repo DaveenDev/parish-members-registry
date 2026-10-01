@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import { StatusPill } from '../../components/ui.jsx';
-import { ageFromDob } from '../../constants.js';
+import { ageFromDob, CIVIL_STATUSES } from '../../constants.js';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useDebounced } from '../../hooks.js';
 
@@ -66,7 +66,7 @@ export default function Members() {
             <option value="All">All statuses</option><option value="Verified">Verified</option><option value="Pending">Pending</option>
           </FilterSelect>
           <FilterSelect value={filters.civil} onChange={(e) => setFilter('civil', e.target.value)}>
-            <option value="All">All civil status</option><option value="Single">Single</option><option value="Married">Married</option><option value="Widowed">Widowed</option><option value="Separated">Separated</option>
+            <option value="All">All civil status</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{c}</option>)}
           </FilterSelect>
           <FilterSelect value={filters.sacrament} onChange={(e) => setFilter('sacrament', e.target.value)}>
             <option value="All">Any sacrament</option><option value="Baptism">Baptized</option><option value="Communion">First Communion</option><option value="Confirmation">Confirmed</option><option value="Matrimony">Married in Church</option>

@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { useDebounced } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
+import { syncSpouses, WEDDING_FIELDS } from '../lib/household.js';
+import {
+  bis, serverErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS,
+} from '../lib/bisaya.js';
 import {
   blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
   PARTICIPATION_ITEMS, HELP_WAYS, DEFAULT_ADDRESS, fmtDate,
@@ -13,7 +17,7 @@ import ParticipationSurvey from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 
-const STEPS = ['Household & Head', 'Members', 'Sacraments', 'Engagement', 'Review'];
+const STEPS = ['Pamilya ug Ulo', 'Mga Miyembro', 'Mga Sakramento', 'Pag-apil', 'Pagsusi'];
 const MEMBER_RELATIONSHIPS = RELATIONSHIPS.filter((r) => r !== HEAD);
 
 function CrossLogo({ size = 82, className = '' }) {
@@ -51,7 +55,7 @@ function fullName(m) {
  * What actually gets sent for a member: names in Capitalized case, and the
  * wedding type only while Married.
  */
-function toPayloadMember(m) {
+function toPayloadMember({ civilFromHead, weddingFromHead, ...m }) {
   const named = {
     ...m,
     firstName: toNameCase(m.firstName), middleName: toNameCase(m.middleName),
@@ -200,8 +204,17 @@ export default function RegistrationApp() {
     });
   }
   function updateMember(i, field, value) {
-    setMembers((ms) => ms.map((m, idx) => (idx === i ? { ...m, [field]: value } : m)));
-    setMemberErr((me) => me.map((e, idx) => (idx === i && e ? { ...e, [field]: '' } : e)));
+    setMembers((ms) => syncSpouses(ms.map((m, idx) => {
+      if (idx !== i) return m;
+      const next = { ...m, [field]: value };
+      if (i > 0 && field === 'relationship') next.civilFromHead = value === 'Spouse';
+      if (i > 0 && field === 'civilStatus') next.civilFromHead = false;
+      if (i > 0 && WEDDING_FIELDS.includes(field)) next.weddingFromHead = false;
+      return next;
+    })));
+    // Picking "Spouse" may fill civil status in, so clear that error too.
+    const cleared = field === 'relationship' ? [field, 'civilStatus'] : [field];
+    setMemberErr((me) => me.map((e, idx) => (idx === i && e ? { ...e, ...Object.fromEntries(cleared.map((f) => [f, ''])) } : e)));
     setBanner('');
     if (i === 0 && field === 'lastName' && !householdNameTouched) {
       const last = toNameCase(value);
@@ -220,22 +233,23 @@ export default function RegistrationApp() {
     );
   }
   function addMember() {
-    setMembers((ms) => [...ms, blankMember()]);
-    showToast('Member added', 'ok');
+    // Most members share the head's surname, so start with it (still editable).
+    setMembers((ms) => [...ms, { ...blankMember(), lastName: toNameCase(ms[0]?.lastName) }]);
+    showToast('Nadugang ang miyembro', 'ok');
   }
   function removeMember(i) {
     if (i === 0) return; // the Household Head is required
     setMembers((ms) => ms.filter((_, idx) => idx !== i));
     setMemberErr((me) => me.filter((_, idx) => idx !== i));
-    showToast('Member removed', 'ok');
+    showToast('Natangtang ang miyembro', 'ok');
   }
 
   function memberErrors(m, { head = false } = {}) {
     const fe = {};
-    const req = [['lastName', 'Last name is required'], ['firstName', 'First name is required'], ['sex', 'Select sex'], ['dob', 'Date of birth is required'], ['civilStatus', 'Select civil status']];
-    if (!head) req.push(['relationship', 'Select a relationship']);
+    const req = [['lastName', 'Kinahanglan ang apelyido'], ['firstName', 'Kinahanglan ang ngalan'], ['sex', 'Pilia ang kasarian'], ['dob', 'Kinahanglan ang adlaw sa pagkatawo'], ['civilStatus', 'Pilia ang kahimtang sibil']];
+    if (!head) req.push(['relationship', 'Pilia ang relasyon sa ulo sa pamilya']);
     req.forEach(([k, msg]) => { if (!String(m[k] || '').trim()) fe[k] = msg; });
-    if (m.email && !/.+@.+\..+/.test(m.email)) fe.email = 'Enter a valid email';
+    if (m.email && !/.+@.+\..+/.test(m.email)) fe.email = 'Isulat ang saktong email';
     return fe;
   }
 
@@ -243,12 +257,12 @@ export default function RegistrationApp() {
     const e = {};
     const me = [];
     if (currentStep === 1) {
-      const req = { householdName: 'Household name is required', street: 'Street is required', barangay: 'Barangay is required', city: 'City / Municipality is required', province: 'Province is required', zip: 'ZIP code is required' };
+      const req = { householdName: 'Kinahanglan ang ngalan sa pamilya', street: 'Kinahanglan ang dalan', barangay: 'Kinahanglan ang barangay', city: 'Kinahanglan ang siyudad / lungsod', province: 'Kinahanglan ang probinsya', zip: 'Kinahanglan ang ZIP code' };
       Object.keys(req).forEach((k) => { if (!String(household[k] || '').trim()) e[k] = req[k]; });
-      if (household.email && !/.+@.+\..+/.test(household.email)) e.email = 'Enter a valid email';
+      if (household.email && !/.+@.+\..+/.test(household.email)) e.email = 'Isulat ang saktong email';
       me[0] = memberErrors(members[0], { head: true });
       const ok = Object.keys(e).length === 0 && Object.keys(me[0]).length === 0;
-      return { ok, err: e, memberErr: me, banner: ok ? '' : 'Please complete the highlighted Household Head and household fields.' };
+      return { ok, err: e, memberErr: me, banner: ok ? '' : 'Palihug kompletoha ang mga gimarkahan nga detalye sa ulo sa pamilya ug sa pamilya.' };
     }
     if (currentStep === 2) {
       let ok = true;
@@ -257,10 +271,10 @@ export default function RegistrationApp() {
         me[i] = memberErrors(m);
         if (Object.keys(me[i]).length) ok = false;
       });
-      return { ok, err: e, memberErr: me, banner: ok ? '' : 'Please complete the required member details.' };
+      return { ok, err: e, memberErr: me, banner: ok ? '' : 'Palihug kompletoha ang gikinahanglan nga detalye sa mga miyembro.' };
     }
     if (currentStep === 4) {
-      if (!consent) return { ok: false, err: e, memberErr: me, banner: 'Data privacy consent is required to continue.' };
+      if (!consent) return { ok: false, err: e, memberErr: me, banner: 'Kinahanglan ang inyong pagtugot sa data privacy aron makapadayon.' };
       return { ok: true, err: e, memberErr: me, banner: '' };
     }
     return { ok: true, err: e, memberErr: me, banner: '' };
@@ -269,8 +283,8 @@ export default function RegistrationApp() {
   async function next() {
     let v = validate(step);
     if (v.ok && step === 1 && (await confirmNameStatus()) === 'taken') {
-      const banner = 'That household name is already registered. Tap Edit to choose another.';
-      v = { ok: false, err: { householdName: `“${trimmedName}” is already registered` }, memberErr: [], banner };
+      const banner = 'Narehistro na kana nga ngalan sa pamilya. Pindota ang “Usba” aron mopili og lain.';
+      v = { ok: false, err: { householdName: `Narehistro na ang “${trimmedName}”` }, memberErr: [], banner };
     }
     if (!v.ok) {
       setErr(v.err); setMemberErr(v.memberErr); setBanner(v.banner);
@@ -287,7 +301,7 @@ export default function RegistrationApp() {
   function goStep(n) { setStep(n); setScreen('wizard'); setBanner(''); top(); }
 
   function openConfirm() {
-    if (!consent) { showToast('Please give data privacy consent to submit', 'error'); setStep(4); top(); return; }
+    if (!consent) { showToast('Palihug ihatag ang pagtugot sa data privacy aron makapadala', 'error'); setStep(4); top(); return; }
     setConfirmOpen(true);
   }
 
@@ -300,7 +314,7 @@ export default function RegistrationApp() {
       setScreen('done');
       top();
     } catch (e) {
-      showToast(e.message || 'Could not submit registration', 'error');
+      showToast(serverErrorInBisaya(e.message), 'error');
     } finally {
       setSubmitting(false);
     }
@@ -317,7 +331,7 @@ export default function RegistrationApp() {
 
   const memberViews = members.map((m, i) => ({
     ...m, mi: i,
-    displayName: [m.firstName, m.lastName, m.suffix].filter(Boolean).join(' ') || (i === 0 ? 'Household Head' : `Member ${i + 1}`),
+    displayName: [m.firstName, m.lastName, m.suffix].filter(Boolean).join(' ') || (i === 0 ? 'Ulo sa Pamilya' : `Miyembro ${i + 1}`),
     err: memberErr[i] || {},
   }));
 
@@ -371,31 +385,31 @@ function Landing({ onStart }) {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
       <div className="fixed top-4 right-4 z-40">
-        <ThemePickerPopover align="right" />
+        <ThemePickerPopover align="right" label="Kolor" />
       </div>
       <div className="max-w-[560px] animate-fadeUp">
         <div className="text-parish-gold flex justify-center mb-1.5">
           <CrossLogo />
         </div>
-        <div className="font-semibold text-[13px] tracking-[.22em] uppercase text-[var(--p-gold-deep)] mb-3.5">Parish Members Registry</div>
+        <div className="font-semibold text-[13px] tracking-[.22em] uppercase text-[var(--p-gold-deep)] mb-3.5">Rehistro sa mga Miyembro sa Parokya</div>
         <h1 className="font-serif font-semibold text-[clamp(38px,8vw,58px)] leading-[1.04] m-0 mb-1.5 text-parish-navy">Our Lady of Guadalupe</h1>
         <div className="font-serif text-[clamp(19px,4vw,24px)] text-parish-blue tracking-[.04em] mb-[22px]">Quasi&#8209;Parish · Mua&#8209;an</div>
         <p className="text-[clamp(16px,3.6vw,18px)] leading-relaxed text-parish-text2 max-w-[440px] mx-auto mb-8">
-          Welcome home. Enroll your household in the parish family so we can keep in touch, celebrate the sacraments together, and serve one another in faith.
+          Maayong pag-abot! Irehistro ang inyong pamilya sa parokya aron kita magpabiling magkasinabot, magkauban sa pagsaulog sa mga sakramento, ug mag-alagaray sa usag usa diha sa pagtuo.
         </p>
         {stats && (
           <div className="grid grid-cols-2 gap-3 max-w-[400px] mx-auto mb-8">
-            <LandingStat value={stats.gkks} label="GKKs in the parish" />
-            <LandingStat value={stats.households} label="Households registered" />
+            <LandingStat value={stats.gkks} label="Mga GKK sa Parokya" />
+            <LandingStat value={stats.households} label="Narehistro nga Pamilya" />
           </div>
         )}
-        <PrimaryButton onClick={onStart} className="px-10 py-[18px] text-[17px]">Register Your Household</PrimaryButton>
+        <PrimaryButton onClick={onStart} className="px-10 py-[18px] text-[17px]">Irehistro ang Inyong Pamilya</PrimaryButton>
         <div className="mt-7 inline-flex items-center gap-2 text-[13.5px] text-parish-muted">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
-          <span>Your information is private — seen only by authorized parish staff.</span>
+          <span>Pribado ang inyong impormasyon — makita lamang sa awtorisadong kawani sa parokya.</span>
         </div>
         <div className="mt-[30px] pt-[22px] border-t border-[#e7dcc4]">
-          <Link to="/admin/login" className="font-semibold text-[14px] text-parish-blue">Parish staff? Sign in to the admin panel →</Link>
+          <Link to="/admin/login" className="font-semibold text-[14px] text-parish-blue">Kawani sa parokya? Mag-sign in sa admin panel →</Link>
         </div>
       </div>
     </div>
@@ -419,18 +433,18 @@ function Confirmation({ refNo, householdName, onRestart }) {
         <div className="w-[82px] h-[82px] rounded-full bg-[#eaf4ee] flex items-center justify-center mx-auto mb-[22px] text-[#3a8a5e]">
           <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
         </div>
-        <h1 className="font-serif font-semibold text-[clamp(32px,7vw,46px)] leading-tight m-0 mb-2.5 text-parish-navy">Welcome to the family</h1>
+        <h1 className="font-serif font-semibold text-[clamp(32px,7vw,46px)] leading-tight m-0 mb-2.5 text-parish-navy">Maayong pag-abot sa pamilya!</h1>
         <p className="text-[16.5px] leading-relaxed text-parish-text2 mb-[26px]">
-          Your household has been registered with <strong>Our Lady of Guadalupe Quasi-Parish, Mua-an</strong>. Our parish staff will review and verify your details shortly.
+          Narehistro na ang inyong pamilya sa <strong>Our Lady of Guadalupe Quasi-Parish, Mua-an</strong>. Susihon ug pamatud-an sa among kawani sa parokya ang inyong mga detalye sa dili madugay.
         </p>
         <Card className="p-[26px] mb-[26px]">
-          <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[var(--p-gold-deep)] mb-2">Your reference number</div>
+          <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[var(--p-gold-deep)] mb-2">Inyong Reference Number</div>
           <div className="font-serif font-semibold text-[36px] tracking-[.06em] text-parish-blue">{refNo}</div>
-          <div className="text-[13px] text-parish-muted mt-2">Please keep this for your records.</div>
+          <div className="text-[13px] text-parish-muted mt-2">Palihug tipigi kini isip inyong rekord.</div>
         </Card>
         <div className="flex gap-3 justify-center flex-wrap">
-          <GhostButton onClick={() => window.print()} className="px-6 py-3.5 text-[15px] !border-[#cdd7e8] !text-parish-blue bg-white">Print confirmation</GhostButton>
-          <PrimaryButton onClick={onRestart} className="px-[26px] py-3.5 text-[15px]">Register another household</PrimaryButton>
+          <GhostButton onClick={() => window.print()} className="px-6 py-3.5 text-[15px] !border-[#cdd7e8] !text-parish-blue bg-white">I-print ang kumpirmasyon</GhostButton>
+          <PrimaryButton onClick={onRestart} className="px-[26px] py-3.5 text-[15px]">Magrehistro og laing pamilya</PrimaryButton>
         </div>
       </div>
     </div>
@@ -499,11 +513,11 @@ function Wizard(props) {
 
       <div className="fixed left-0 right-0 bottom-0 z-[16] bg-parish-bg/95 backdrop-blur-md border-t border-parish-border px-[18px] py-3.5">
         <div className="max-w-[880px] mx-auto flex gap-3 justify-between items-center">
-          <GhostButton onClick={onBack} className="px-5 py-3.5 text-[15px]">{step === 1 ? '← Home' : '← Back'}</GhostButton>
-          {step !== 5 && <PrimaryButton onClick={onNext} className="px-[30px] py-3.5 text-[16px]">Continue →</PrimaryButton>}
+          <GhostButton onClick={onBack} className="px-5 py-3.5 text-[15px]">{step === 1 ? '← Sinugdanan' : '← Balik'}</GhostButton>
+          {step !== 5 && <PrimaryButton onClick={onNext} className="px-[30px] py-3.5 text-[16px]">Padayon →</PrimaryButton>}
           {step === 5 && (
             <GoldButton onClick={onOpenConfirm} disabled={submitting} className="px-[30px] py-3.5 text-[16px] flex items-center gap-2.5">
-              {submitting ? (<><Spinner />Submitting…</>) : 'Submit Registration'}
+              {submitting ? (<><Spinner />Ginapadala…</>) : 'Ipadala ang Rehistro'}
             </GoldButton>
           )}
         </div>
@@ -532,17 +546,17 @@ function HouseholdNameField({ value, error, status, suggestion, onChange }) {
   }
 
   const statusLine = {
-    checking: <span className="text-parish-muted">Checking if this name is available…</span>,
-    available: <span className="text-parish-ok font-semibold">✓ Available</span>,
-    taken: <span className="text-parish-error font-semibold">✗ “{value.trim()}” is already registered. Please use a different name.</span>,
+    checking: <span className="text-parish-muted">Gisusi kung magamit pa kini nga ngalan…</span>,
+    available: <span className="text-parish-ok font-semibold">✓ Magamit kini nga ngalan</span>,
+    taken: <span className="text-parish-error font-semibold">✗ Narehistro na ang “{value.trim()}”. Palihug gamit og laing ngalan.</span>,
   }[status];
 
   return (
-    <Field label="Household Name / Pamilya" required error={error}>
+    <Field label="Ngalan sa Pamilya" required error={error}>
       <div className="flex gap-2">
         <TextInput
           ref={inputRef}
-          placeholder={editing ? 'e.g. Dela Cruz Family' : 'Filled in from the last name'}
+          placeholder={editing ? 'pananglitan: Dela Cruz Family' : 'Mapuno gikan sa apelyido'}
           value={value}
           readOnly={!editing}
           aria-readonly={!editing}
@@ -551,7 +565,7 @@ function HouseholdNameField({ value, error, status, suggestion, onChange }) {
           className={`flex-1 ${editing ? '' : '!bg-[#f4efe3] !text-parish-text2 cursor-default'}`}
         />
         <GhostButton type="button" onClick={toggle} className="px-4 text-[14px] flex-none !border-[#cdd7e8] !text-parish-blue bg-white">
-          {editing ? 'Done' : 'Edit'}
+          {editing ? 'Human na' : 'Usba'}
         </GhostButton>
       </div>
       {!error && statusLine && <div className="text-[12.5px] mt-1.5">{statusLine}</div>}
@@ -561,7 +575,7 @@ function HouseholdNameField({ value, error, status, suggestion, onChange }) {
           onClick={() => { onChange(suggestion); setEditing(false); }}
           className="mt-2 appearance-none cursor-pointer border-[1.5px] border-[#9db9e0] bg-[var(--p-blue-tint)] text-parish-blue font-semibold text-[13px] px-3 py-1.5 rounded-lg"
         >
-          Use “{suggestion}”
+          Gamita ang “{suggestion}”
         </button>
       )}
     </Field>
@@ -575,11 +589,11 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
   const gkks = household.gkk && !gkkOptions.includes(household.gkk) ? [household.gkk, ...gkkOptions] : gkkOptions;
   return (
     <div className="animate-fadeUp">
-      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Household &amp; Head</h2>
-      <p className="text-parish-text2 text-[15.5px] mb-[26px]">Let's start with the head of your household, your home, and how the parish can reach you.</p>
+      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Pamilya ug Ulo sa Pamilya</h2>
+      <p className="text-parish-text2 text-[15.5px] mb-[26px]">Sugdan nato sa ulo sa inyong pamilya, sa inyong puy-anan, ug kung unsaon pagkontak sa parokya kaninyo.</p>
 
       <Card className="p-[clamp(20px,4vw,32px)] mb-5">
-        <SectionTitle>Household Head</SectionTitle>
+        <SectionTitle>Ulo sa Pamilya</SectionTitle>
         <MemberNameFields mv={head} onField={onMemberField} />
         <div className="mt-[18px]">
           <HouseholdNameField
@@ -596,32 +610,32 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
       </Card>
 
       <Card className="p-[clamp(20px,4vw,32px)] mb-5">
-        <SectionTitle>Home Address &amp; Contact</SectionTitle>
+        <SectionTitle>Puy-anan ug Kontak</SectionTitle>
         <div className="mb-[18px]">
-          <Field label="Street / House No. / Purok" required error={err.street}>
-            <TextInput placeholder="e.g. 24 Rizal St." {...f('street')} />
+          <Field label="Dalan / Numero sa Balay / Purok" required error={err.street}>
+            <TextInput placeholder="pananglitan: Purok 3, 24 Rizal St." {...f('street')} />
           </Field>
         </div>
         <div className="grid gap-4 mb-[18px]" style={GRID}>
-          <Field label="Barangay" required error={err.barangay}><TextInput placeholder="e.g. Mua-an" {...f('barangay')} /></Field>
-          <Field label="City / Municipality" required error={err.city}><TextInput {...f('city')} /></Field>
+          <Field label="Barangay" required error={err.barangay}><TextInput placeholder="pananglitan: Mua-an" {...f('barangay')} /></Field>
+          <Field label="Siyudad / Lungsod" required error={err.city}><TextInput {...f('city')} /></Field>
         </div>
         <div className="grid gap-4 mb-[18px]" style={GRID}>
-          <Field label="Province" required error={err.province}><TextInput {...f('province')} /></Field>
+          <Field label="Probinsya" required error={err.province}><TextInput {...f('province')} /></Field>
           <Field label="ZIP Code" required error={err.zip}><TextInput inputMode="numeric" {...f('zip')} /></Field>
         </div>
         <div className="grid gap-4 mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
-          <Field label="Household contact no." error={err.contact}><TextInput type="tel" placeholder="e.g. 0917 123 4567" {...f('contact')} /></Field>
-          <Field label="Household email" error={err.email}><TextInput type="email" placeholder="optional" {...f('email')} /></Field>
+          <Field label="Numero sa kontak sa pamilya" error={err.contact}><TextInput type="tel" placeholder="pananglitan: 0917 123 4567" {...f('contact')} /></Field>
+          <Field label="Email sa pamilya" error={err.email}><TextInput type="email" placeholder="opsyonal" {...f('email')} /></Field>
         </div>
         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
-          <Field label="Parish GKK">
+          <Field label="GKK sa Parokya">
             <Select {...f('gkk')}>
-              <option value="">Select your GKK…</option>
+              <option value="">Pilia ang inyong GKK…</option>
               {gkks.map((g) => <option key={g} value={g}>{g}</option>)}
             </Select>
           </Field>
-          <Field label="Family Groupings"><FamilyGroupingSelect value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
+          <Field label="Family Grouping (FG)"><FamilyGroupingSelect placeholder="Pili…" value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
         </div>
       </Card>
 
@@ -651,9 +665,9 @@ function MemberNameFields({ mv, onField }) {
   };
   return (
     <div className="grid gap-4" style={GRID}>
-      <Field label="Last name" required error={mv.err.lastName}><TextInput value={mv.lastName} onChange={set('lastName')} onBlur={tidy('lastName')} autoCapitalize="words" /></Field>
-      <Field label="First name" required error={mv.err.firstName}><TextInput value={mv.firstName} onChange={set('firstName')} onBlur={tidy('firstName')} autoCapitalize="words" /></Field>
-      <Field label="Middle name"><TextInput placeholder="mother's maiden name" value={mv.middleName} onChange={set('middleName')} onBlur={tidy('middleName')} autoCapitalize="words" /></Field>
+      <Field label="Apelyido" required error={mv.err.lastName}><TextInput value={mv.lastName} onChange={set('lastName')} onBlur={tidy('lastName')} autoCapitalize="words" /></Field>
+      <Field label="Ngalan" required error={mv.err.firstName}><TextInput value={mv.firstName} onChange={set('firstName')} onBlur={tidy('firstName')} autoCapitalize="words" /></Field>
+      <Field label="Tunga nga ngalan"><TextInput placeholder="apelyido sa inahan" value={mv.middleName} onChange={set('middleName')} onBlur={tidy('middleName')} autoCapitalize="words" /></Field>
       <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={mv.suffix || ''} onChange={set('suffix')} onBlur={tidy('suffix', toSuffixCase)} /></Field>
     </div>
   );
@@ -665,43 +679,44 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
   return (
     <div className="grid gap-4" style={GRID}>
       {!head && (
-        <Field label="Relationship to head" required error={mv.err.relationship}>
+        <Field label="Relasyon sa ulo sa pamilya" required error={mv.err.relationship}>
           <Select value={mv.relationship} onChange={set('relationship')}>
-            <option value="">Select…</option>
-            {MEMBER_RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
+            <option value="">Pili…</option>
+            {MEMBER_RELATIONSHIPS.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
           </Select>
         </Field>
       )}
-      <Field label="Sex" required error={mv.err.sex}>
+      <Field label="Kasarian" required error={mv.err.sex}>
         <Select value={mv.sex} onChange={set('sex')}>
-          <option value="">Kasarian</option><option value="Male">Male</option><option value="Female">Female</option>
+          <option value="">Pili…</option>
+          {Object.entries(SEX_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select>
       </Field>
-      <Field label="Date of birth (Birthday)" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
-      <Field label="Place of birth"><TextInput placeholder="Asa gipanganak" value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
-      <Field label="Tribe"><TribeSelect value={mv.tribe} onChange={(v) => onField(mv.mi, 'tribe', v)} /></Field>
-      <Field label="Civil status" required error={mv.err.civilStatus}>
+      <Field label="Adlaw sa pagkatawo (Birthday)" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
+      <Field label="Lugar sa pagkatawo"><TextInput placeholder="Asa gipanganak" value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
+      <Field label="Tribu"><TribeSelect placeholder="Pili…" otherLabel="Uban pa…" value={mv.tribe} onChange={(v) => onField(mv.mi, 'tribe', v)} /></Field>
+      <Field label="Kahimtang sibil (Civil status)" required error={mv.err.civilStatus}>
         <Select value={mv.civilStatus} onChange={set('civilStatus')}>
-          <option value="">Select…</option>
-          {CIVIL_STATUSES.map((c) => <option key={c} value={c}>{c}</option>)}
+          <option value="">Pili…</option>
+          {CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
         </Select>
       </Field>
-      <Field label="Contact number"><TextInput type="tel" placeholder="0917…" value={mv.contact} onChange={set('contact')} /></Field>
-      <Field label="Email" error={mv.err.email}><TextInput type="email" placeholder="optional" value={mv.email} onChange={set('email')} /></Field>
-      <Field label="Occupation"><TextInput placeholder="optional" value={mv.occupation} onChange={set('occupation')} /></Field>
-      <Field label="Religion">
+      <Field label="Numero sa kontak"><TextInput type="tel" placeholder="0917…" value={mv.contact} onChange={set('contact')} /></Field>
+      <Field label="Email" error={mv.err.email}><TextInput type="email" placeholder="opsyonal" value={mv.email} onChange={set('email')} /></Field>
+      <Field label="Trabaho"><TextInput placeholder="opsyonal" value={mv.occupation} onChange={set('occupation')} /></Field>
+      <Field label="Relihiyon">
         <Select value={mv.religion} onChange={set('religion')}>
-          {RELIGIONS.map((r) => <option key={r} value={r}>{r}</option>)}
+          {RELIGIONS.map((r) => <option key={r} value={r}>{bis(RELIGION_LABELS, r)}</option>)}
         </Select>
       </Field>
       <div>
-        <Field label="Blood type">
+        <Field label="Tipo sa dugo (Blood type)">
           <Select value={mv.bloodType} onChange={set('bloodType')}>
-            <option value="">Unknown / prefer not to say</option>
+            <option value="">Wala mahibal-i / dili gustong isulti</option>
             {BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
           </Select>
         </Field>
-        <div className="text-[11.5px] text-parish-muted mt-1">Helps the parish reach blood donors in an emergency.</div>
+        <div className="text-[11.5px] text-parish-muted mt-1">Makatabang kini sa parokya sa pagpangita og mohatag og dugo kung adunay emerhensya.</div>
       </div>
     </div>
   );
@@ -712,14 +727,14 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }
   const others = memberViews.slice(1);
   return (
     <div className="animate-fadeUp">
-      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Household Members</h2>
-      <p className="text-parish-text2 text-[15.5px] mb-[18px]">Add everyone else living with <strong>{head.displayName}</strong>: the spouse, each child, and any other relatives. They'll all be saved together.</p>
+      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Mga Miyembro sa Pamilya</h2>
+      <p className="text-parish-text2 text-[15.5px] mb-[18px]">Idugang ang tanan nga nagpuyo uban ni <strong>{head.displayName}</strong>: ang asawa, matag anak, ug uban pang paryente. Dungan silang matipigan.</p>
       <div className="flex items-center gap-2.5 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl px-4 py-3 mb-[22px] text-[#2b466f] text-[14px]">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="flex-none"><path d="M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 20v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11" /></svg>
         <span>
           {others.length
-            ? <><strong>{memberViews.length}</strong> people in the household so far, including the head. Use <strong>“Add Another Member”</strong> for each person before you continue.</>
-            : <>Only the Household Head so far. Use <strong>“Add Another Member”</strong> for each person living with them, or continue if the head lives alone.</>}
+            ? <><strong>{memberViews.length}</strong> ka tawo na sa pamilya karon, apil ang ulo. Pindota ang <strong>“Idugang og Laing Miyembro”</strong> para sa matag tawo una mopadayon.</>
+            : <>Ang ulo pa lang sa pamilya ang nalista. Pindota ang <strong>“Idugang og Laing Miyembro”</strong> para sa matag tawo nga nagpuyo uban kaniya, o padayon kung nag-inusara ra siya.</>}
         </span>
       </div>
       <div className="flex flex-col gap-5">
@@ -730,7 +745,7 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }
                 <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[15px]">{mv.mi + 1}</div>
                 <span className="font-serif text-[22px] font-semibold text-parish-navy">{mv.displayName}</span>
               </div>
-              <button onClick={() => onRemoveMember(mv.mi)} className="border border-[#e7d5cf] bg-white text-parish-error cursor-pointer font-semibold text-[13px] px-3.5 py-2 rounded-lg">Remove</button>
+              <button onClick={() => onRemoveMember(mv.mi)} className="border border-[#e7d5cf] bg-white text-parish-error cursor-pointer font-semibold text-[13px] px-3.5 py-2 rounded-lg">Tangtangon</button>
             </div>
             <MemberNameFields mv={mv} onField={onMemberField} />
             <div className="mt-4">
@@ -741,7 +756,7 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }
       </div>
       <button onClick={onAddMember} className="mt-5 w-full appearance-none cursor-pointer py-4 font-bold text-[15.5px] text-parish-blue bg-white border-[1.5px] border-dashed border-[#b9c6de] rounded-2xl flex items-center justify-center gap-2.5 hover:bg-[#f4f7fc] hover:border-parish-blue transition">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12h14" /></svg>
-        Add Another Member
+        Idugang og Laing Miyembro
       </button>
     </div>
   );
@@ -759,7 +774,7 @@ function SacramentBlock({ mv, field, dateField, churchField, label, extra, onFie
       {checked && (
         <div className="grid gap-3 mt-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
           <input type="date" value={mv[dateField]} onChange={set(dateField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-          <input type="text" placeholder="Parish / Church" value={mv[churchField]} onChange={set(churchField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+          <input type="text" placeholder="Parokya / Simbahan" value={mv[churchField]} onChange={set(churchField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
           {extra && extra(set)}
         </div>
       )}
@@ -770,8 +785,8 @@ function SacramentBlock({ mv, field, dateField, churchField, label, extra, onFie
 function StepSacraments({ memberViews, onMemberField }) {
   return (
     <div className="animate-fadeUp">
-      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Sacramental Records</h2>
-      <p className="text-parish-text2 text-[15.5px] mb-[26px]">Tick the sacraments each member has received. Details are optional but help our records.</p>
+      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Mga Sakramento</h2>
+      <p className="text-parish-text2 text-[15.5px] mb-[26px]">I-tsek ang mga sakramento nga nadawat na sa matag miyembro. Dili kinahanglan ang mga detalye, apan makatabang kini sa among rekord.</p>
       <div className="flex flex-col gap-5">
         {memberViews.map((mv, i) => (
           <Card key={i} className="p-[clamp(18px,4vw,28px)]">
@@ -780,20 +795,20 @@ function StepSacraments({ memberViews, onMemberField }) {
               <span className="font-serif text-[21px] font-semibold text-parish-navy">{mv.displayName}</span>
             </div>
             <div className="flex flex-col gap-3">
-              <SacramentBlock mv={mv} field="hasBaptism" dateField="baptismDate" churchField="baptismChurch" label="Baptism" onField={onMemberField} />
-              <SacramentBlock mv={mv} field="hasCommunion" dateField="communionDate" churchField="communionChurch" label="First Communion (Eucharist)" onField={onMemberField} />
+              <SacramentBlock mv={mv} field="hasBaptism" dateField="baptismDate" churchField="baptismChurch" label="Bunyag (Baptism)" onField={onMemberField} />
+              <SacramentBlock mv={mv} field="hasCommunion" dateField="communionDate" churchField="communionChurch" label="Unang Kumunyon (First Communion)" onField={onMemberField} />
               <SacramentBlock
-                mv={mv} field="hasConfirmation" dateField="confDate" churchField="confChurch" label="Confirmation" onField={onMemberField}
+                mv={mv} field="hasConfirmation" dateField="confDate" churchField="confChurch" label="Kumpil (Confirmation)" onField={onMemberField}
                 extra={(set) => (
                   <>
-                    <input type="text" placeholder="Confirmation name" value={mv.confName} onChange={set('confName')} className="w-full px-3 py-2.5 text-[15px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-                    <input type="text" placeholder="Sponsor" value={mv.confSponsor} onChange={set('confSponsor')} className="w-full px-3 py-2.5 text-[15px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+                    <input type="text" placeholder="Ngalan sa kumpil" value={mv.confName} onChange={set('confName')} className="w-full px-3 py-2.5 text-[15px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+                    <input type="text" placeholder="Maninoy / Maninay" value={mv.confSponsor} onChange={set('confSponsor')} className="w-full px-3 py-2.5 text-[15px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
                   </>
                 )}
               />
               {mv.civilStatus === 'Married'
                 ? <WeddingBlock mv={mv} onField={onMemberField} />
-                : <SacramentBlock mv={mv} field="hasMatrimony" dateField="matDate" churchField="matChurch" label="Matrimony" onField={onMemberField} />}
+                : <SacramentBlock mv={mv} field="hasMatrimony" dateField="matDate" churchField="matChurch" label="Kasal (Matrimony)" onField={onMemberField} />}
             </div>
           </Card>
         ))}
@@ -812,9 +827,9 @@ function WeddingBlock({ mv, onField }) {
   const catholic = mv.matType === 'Catholic Marriage';
   return (
     <div className="border border-[#eee3ce] rounded-xl px-4 py-3.5 bg-[#fdfbf6]">
-      <div className="font-semibold text-[15px] text-parish-navy">Matrimony / Kasal</div>
+      <div className="font-semibold text-[15px] text-parish-navy">Kasal (Matrimony)</div>
       <div className="text-[13px] text-parish-muted mb-3">Unsang klase sa kasal?</div>
-      <div role="radiogroup" aria-label={`Wedding type for ${mv.displayName}`} className="flex flex-wrap gap-2">
+      <div role="radiogroup" aria-label={`Klase sa kasal ni ${mv.displayName}`} className="flex flex-wrap gap-2">
         {WEDDING_TYPES.map((type) => {
           const checked = mv.matType === type;
           return (
@@ -825,15 +840,15 @@ function WeddingBlock({ mv, onField }) {
               }`}
             >
               <input type="radio" name={`wedding-${mv.mi}`} value={type} checked={checked} onChange={() => choose(type)} className="sr-only" />
-              {type}
+              {bis(WEDDING_TYPE_LABELS, type)}
             </label>
           );
         })}
       </div>
       {catholic && (
         <div className="grid gap-3 mt-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-          <input type="date" aria-label="Wedding date" value={mv.matDate} onChange={set('matDate')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-          <input type="text" placeholder="Parish / Church" value={mv.matChurch} onChange={set('matChurch')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+          <input type="date" aria-label="Petsa sa kasal" value={mv.matDate} onChange={set('matDate')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+          <input type="text" placeholder="Parokya / Simbahan" value={mv.matChurch} onChange={set('matChurch')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
         </div>
       )}
     </div>
@@ -843,17 +858,17 @@ function WeddingBlock({ mv, onField }) {
 function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrganization, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent }) {
   return (
     <div className="animate-fadeUp">
-      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Church Engagement</h2>
-      <p className="text-parish-text2 text-[15.5px] mb-[22px]">Ministry assignments are handled by parish staff after your visit.</p>
+      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Pag-apil sa Simbahan</h2>
+      <p className="text-parish-text2 text-[15.5px] mb-[22px]">Ang pag-assign sa mga ministeryo himoon sa kawani sa parokya human sa inyong pagbisita.</p>
       {orgOptions.length > 0 && (
         <Card className="p-[clamp(20px,4vw,32px)] mb-5">
-          <SectionTitle>Organizations</SectionTitle>
-          <p className="text-[13.5px] text-parish-muted -mt-2 mb-4">Tick every parish organization each member already belongs to.</p>
+          <SectionTitle>Mga Organisasyon</SectionTitle>
+          <p className="text-[13.5px] text-parish-muted -mt-2 mb-4">I-tsek ang matag organisasyon sa parokya nga miyembro na ang matag usa.</p>
           <div className="flex flex-col gap-5">
             {memberViews.map((mv) => (
               <fieldset key={mv.mi} className="border-none p-0 m-0 min-w-0">
                 <legend className="font-semibold text-[15px] text-parish-navy mb-2">
-                  {mv.displayName} <span className="font-medium text-[12.5px] text-parish-muted">· {mv.relationship || '—'}</span>
+                  {mv.displayName} <span className="font-medium text-[12.5px] text-parish-muted">· {bis(RELATIONSHIP_LABELS, mv.relationship) || '—'}</span>
                 </legend>
                 <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
                   {orgOptions.map((name) => {
@@ -872,14 +887,14 @@ function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrgani
         </Card>
       )}
       <Card className="p-[clamp(20px,4vw,32px)] mb-5">
-        <SectionTitle>Responsibility in GKK</SectionTitle>
-        <p className="text-[13.5px] text-parish-muted -mt-2 mb-4">Leave blank for anyone who has no role in the GKK.</p>
+        <SectionTitle>Katungdanan sa GKK</SectionTitle>
+        <p className="text-[13.5px] text-parish-muted -mt-2 mb-4">Biyai nga blangko kung walay katungdanan sa GKK.</p>
         <div className="flex flex-col gap-3">
           {memberViews.map((mv) => (
             <div key={mv.mi} className="grid gap-x-4 gap-y-1.5 items-center" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
               <label htmlFor={`gkk-role-${mv.mi}`} className="font-semibold text-[15px] text-parish-navy">
                 {mv.displayName}
-                <span className="block text-[12.5px] font-medium text-parish-muted">{mv.relationship || '—'}</span>
+                <span className="block text-[12.5px] font-medium text-parish-muted">{bis(RELATIONSHIP_LABELS, mv.relationship) || '—'}</span>
               </label>
               <TextInput id={`gkk-role-${mv.mi}`} placeholder="Katungdanan sa GKK" value={mv.gkkRole || ''} onChange={(e) => onMemberField(mv.mi, 'gkkRole', e.target.value)} />
             </div>
@@ -888,23 +903,21 @@ function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrgani
       </Card>
       <Card className="p-[clamp(20px,4vw,32px)]">
         <div className="mb-[22px]">
-          <Field label="Is anyone in the household willing to volunteer?">
-            <Select value={volunteer} onChange={(e) => setVolunteer(e.target.value)} className="max-w-[280px]">
-              <option value="">Select…</option>
-              <option value="Yes">Yes, gladly</option>
-              <option value="Maybe">Maybe, please reach out</option>
-              <option value="No">Not at this time</option>
+          <Field label="Aduna bay sa pamilya nga andam mo-boluntaryo?">
+            <Select value={volunteer} onChange={(e) => setVolunteer(e.target.value)} className="max-w-[300px]">
+              <option value="">Pili…</option>
+              {Object.entries(VOLUNTEER_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
             </Select>
           </Field>
         </div>
         <label className="flex items-start gap-3 cursor-pointer p-4 border border-[#eee3ce] rounded-xl bg-[#fdfbf6] mb-3.5">
           <Checkbox checked={notifyOptin} onChange={(e) => setNotifyOptin(e.target.checked)} className="mt-0.5" />
-          <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">Add us to the parish email notification list for Mass schedules, feast days, and announcements.</span>
+          <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">Ilakip kami sa email list sa parokya para sa iskedyul sa Misa, mga pista, ug mga pahibalo.</span>
         </label>
         <label className="flex items-start gap-3 cursor-pointer p-4 rounded-xl border-[1.5px] transition" style={{ borderColor: consent ? '#9db9e0' : '#e0d6c1', background: consent ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
           <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
           <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">
-            <strong className="text-parish-navy">Data privacy consent <span className="text-parish-gold">*</span></strong> — I consent to the parish collecting and storing this information. It is kept private and viewed only by authorized parish staff, in accordance with the Data Privacy Act.
+            <strong className="text-parish-navy">Pagtugot sa Data Privacy <span className="text-parish-gold">*</span></strong> — Nagtugot ko nga kolektahon ug tipigan sa parokya kini nga impormasyon. Pribado kini ug makita lamang sa awtorisadong kawani sa parokya, subay sa Data Privacy Act.
           </span>
         </label>
       </Card>
@@ -916,52 +929,52 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
   const addr = [household.street, household.barangay, household.city, household.province, household.zip].filter(Boolean).join(', ') || '—';
   const participation = household.participation || {};
   const householdReview = [
-    ['Household head', fullName(memberViews[0]) || '—'],
-    ['Family name', household.householdName || '—'],
-    ['Address', addr],
-    ['Parish GKK', household.gkk || '—'],
-    ['Family grouping', household.familyGrouping || '—'],
-    ['Contact', household.contact || '—'],
+    ['Ulo sa pamilya', fullName(memberViews[0]) || '—'],
+    ['Ngalan sa pamilya', household.householdName || '—'],
+    ['Puy-anan', addr],
+    ['GKK sa Parokya', household.gkk || '—'],
+    ['Family Grouping', household.familyGrouping || '—'],
+    ['Kontak', household.contact || '—'],
     ['Email', household.email || '—'],
-    ['Participation', PARTICIPATION_ITEMS.filter(([k]) => participation[k]).map(([k, label]) => `${label}: ${participation[k]}`).join('  ·  ') || '—'],
-    ['Ways to help', HELP_WAYS.filter(([k]) => (household.helpWays || []).includes(k)).map(([, label]) => label).join(' ') || '—'],
+    ['Partisipasyon', PARTICIPATION_ITEMS.filter(([k]) => participation[k]).map(([k, label]) => `${label}: ${participation[k]}`).join('  ·  ') || '—'],
+    ['Paagi sa pagtabang', HELP_WAYS.filter(([k]) => (household.helpWays || []).includes(k)).map(([, label]) => label).join(' ') || '—'],
   ];
   const engReview = [
-    ['Volunteer', volunteer || '—'],
-    ['Email list', notifyOptin ? 'Opted in' : 'Not opted in'],
-    ['Privacy consent', consent ? 'Granted' : 'Not yet granted'],
+    ['Boluntaryo', bis(VOLUNTEER_LABELS, volunteer) || '—'],
+    ['Email list', notifyOptin ? 'Miapil' : 'Wala miapil'],
+    ['Data privacy', consent ? 'Gitugotan' : 'Wala pa gitugoti'],
   ];
 
   function sacList(m) {
     const j = (arr) => arr.filter(Boolean).join(' · ');
     const s = [];
-    if (m.hasBaptism) s.push(['Baptism', j([fmtDate(m.baptismDate), m.baptismChurch]) || 'Recorded']);
-    if (m.hasCommunion) s.push(['First Communion', j([fmtDate(m.communionDate), m.communionChurch]) || 'Recorded']);
-    if (m.hasConfirmation) s.push(['Confirmation', j([fmtDate(m.confDate), m.confChurch, m.confName && `Name: ${m.confName}`, m.confSponsor && `Sponsor: ${m.confSponsor}`]) || 'Recorded']);
+    if (m.hasBaptism) s.push(['Bunyag', j([fmtDate(m.baptismDate), m.baptismChurch]) || 'Natala']);
+    if (m.hasCommunion) s.push(['Unang Kumunyon', j([fmtDate(m.communionDate), m.communionChurch]) || 'Natala']);
+    if (m.hasConfirmation) s.push(['Kumpil', j([fmtDate(m.confDate), m.confChurch, m.confName && `Ngalan: ${m.confName}`, m.confSponsor && `Maninoy/Maninay: ${m.confSponsor}`]) || 'Natala']);
     const p = toPayloadMember(m);
-    if (p.hasMatrimony) s.push(['Matrimony', j([p.matType, fmtDate(p.matDate), p.matChurch]) || 'Recorded']);
-    else if (p.matType) s.push(['Married', p.matType]);
-    if (!s.length) s.push(['—', 'No sacraments recorded']);
+    if (p.hasMatrimony) s.push(['Kasal', j([bis(WEDDING_TYPE_LABELS, p.matType), fmtDate(p.matDate), p.matChurch]) || 'Natala']);
+    else if (p.matType) s.push(['Minyo', bis(WEDDING_TYPE_LABELS, p.matType)]);
+    if (!s.length) s.push(['—', 'Walay natala nga sakramento']);
     return s;
   }
 
   return (
     <div className="animate-fadeUp">
-      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Review &amp; Submit</h2>
-      <p className="text-parish-text2 text-[15.5px] mb-[26px]">Please review your household's details. You may edit any section before submitting.</p>
+      <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Susiha ug Ipadala</h2>
+      <p className="text-parish-text2 text-[15.5px] mb-[26px]">Palihug susiha ang mga detalye sa inyong pamilya. Mahimo ninyong usbon ang bisan unsang bahin una ipadala.</p>
 
-      <ReviewCard title="Household" onEdit={() => onGoStep(1)}>
+      <ReviewCard title="Pamilya" onEdit={() => onGoStep(1)}>
         {householdReview.map(([label, value]) => <ReviewRow key={label} label={label} value={value} />)}
       </ReviewCard>
 
-      <ReviewCard title={`Members (${memberViews.length})`} onEdit={() => onGoStep(2)}>
+      <ReviewCard title={`Mga Miyembro (${memberViews.length})`} onEdit={() => onGoStep(2)}>
         <div className="flex flex-col gap-4 mt-3">
           {memberViews.map((m, i) => (
             <div key={i} className="border border-[#f0e8d6] rounded-2xl px-[18px] py-4 bg-[#fdfbf6]">
               <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{fullName(m) || m.displayName}</div>
-              <div className="text-[13.5px] text-parish-muted mb-3">{[m.relationship, m.sex, m.civilStatus, m.dob && `b. ${fmtDate(m.dob)}`, m.tribe && `Tribe: ${m.tribe}`, m.bloodType && `Blood: ${m.bloodType}`, m.gkkRole && `GKK: ${m.gkkRole}`].filter(Boolean).join('  ·  ') || '—'}</div>
+              <div className="text-[13.5px] text-parish-muted mb-3">{[bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), bis(CIVIL_STATUS_LABELS, m.civilStatus), m.dob && `natawo ${fmtDate(m.dob)}`, m.tribe && `Tribu: ${m.tribe}`, m.bloodType && `Dugo: ${m.bloodType}`, m.gkkRole && `GKK: ${m.gkkRole}`].filter(Boolean).join('  ·  ') || '—'}</div>
               {!!(m.organizations || []).length && (
-                <div className="text-[13.5px] mb-3"><span className="text-parish-blue font-semibold">Organizations</span> <span className="text-parish-text2">{m.organizations.join(' · ')}</span></div>
+                <div className="text-[13.5px] mb-3"><span className="text-parish-blue font-semibold">Mga Organisasyon</span> <span className="text-parish-text2">{m.organizations.join(' · ')}</span></div>
               )}
               <div className="flex flex-col gap-1.5">
                 {sacList(m).map(([label, detail]) => (
@@ -976,13 +989,13 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
         </div>
       </ReviewCard>
 
-      <ReviewCard title="Engagement" onEdit={() => onGoStep(4)}>
+      <ReviewCard title="Pag-apil" onEdit={() => onGoStep(4)}>
         {engReview.map(([label, value]) => <ReviewRow key={label} label={label} value={value} />)}
       </ReviewCard>
 
       <div className="flex gap-2.5 items-start bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-2xl px-4 py-3.5 text-[#2b466f] text-[13.5px] leading-relaxed">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="flex-none mt-px"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
-        <span>By submitting, this record is stored securely and made available only to authorized parish staff.</span>
+        <span>Inig padala, kini nga rekord luwas nga matipigan ug makita lamang sa awtorisadong kawani sa parokya.</span>
       </div>
     </div>
   );
@@ -993,7 +1006,7 @@ function ReviewCard({ title, onEdit, children }) {
     <Card className="p-[clamp(20px,4vw,30px)] mb-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-serif text-[24px] font-semibold m-0 text-parish-navy">{title}</h3>
-        <button onClick={onEdit} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13.5px] text-parish-blue">Edit</button>
+        <button onClick={onEdit} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13.5px] text-parish-blue">Usba</button>
       </div>
       <div className="flex flex-col gap-2.5">{children}</div>
     </Card>
@@ -1015,24 +1028,24 @@ function ConfirmModal({ memberViews, onCancel, onAddMore, onSubmit }) {
         <div className="flex items-center gap-2.5 mb-1.5 text-parish-gold">
           <svg viewBox="0 0 40 40" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z" /><path d="M20 24v9M15.5 28.5h9" /></svg>
         </div>
-        <h3 className="font-serif text-[28px] font-semibold m-0 mb-1.5 text-parish-navy">Ready to submit?</h3>
+        <h3 className="font-serif text-[28px] font-semibold m-0 mb-1.5 text-parish-navy">Andam na ba ipadala?</h3>
         <p className="text-[15px] leading-relaxed text-parish-text2 mb-[18px]">
-          You're registering <strong className="text-parish-blue">{memberViews.length}</strong> household member(s). Please make sure everyone is included before finishing — you can still go back and add more.
+          Magrehistro kamo og <strong className="text-parish-blue">{memberViews.length}</strong> ka miyembro sa pamilya. Palihug siguroha nga apil ang tanan una mahuman — mahimo pa kamong mobalik ug modugang.
         </p>
         <div className="bg-[#fdfbf6] border border-[#eee3ce] rounded-xl px-3.5 mb-[22px]">
           {memberViews.map((m, i) => (
             <div key={i} className="flex items-center justify-between gap-3 py-2.5 border-b border-[#f4eddd] last:border-b-0">
               <span className="font-semibold text-[15px] text-parish-navy">{m.displayName}</span>
-              <span className="font-medium text-[13px] text-parish-muted">{m.relationship || '—'}</span>
+              <span className="font-medium text-[13px] text-parish-muted">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</span>
             </div>
           ))}
         </div>
         <div className="flex flex-col gap-2.5">
-          <GoldButton onClick={onSubmit} className="w-full py-4 text-[16px]">Yes, submit registration</GoldButton>
+          <GoldButton onClick={onSubmit} className="w-full py-4 text-[16px]">Oo, ipadala ang rehistro</GoldButton>
           <GhostButton onClick={onAddMore} className="w-full py-3.5 text-[15px] !border-[#cdd7e8] !text-parish-blue bg-white flex items-center justify-center gap-2">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12h14" /></svg>Wait — add another member
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12h14" /></svg>Kadiyot — idugang og laing miyembro
           </GhostButton>
-          <button onClick={onCancel} className="appearance-none border-none bg-none cursor-pointer w-full py-2 font-semibold text-[14px] text-parish-muted">Keep reviewing</button>
+          <button onClick={onCancel} className="appearance-none border-none bg-none cursor-pointer w-full py-2 font-semibold text-[14px] text-parish-muted">Padayon sa pagsusi</button>
         </div>
       </div>
     </div>

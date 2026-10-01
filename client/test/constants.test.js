@@ -31,7 +31,7 @@ describe('pick-lists', () => {
   test('cover the values the wizard and admin filters rely on', () => {
     assert.ok(RELATIONSHIPS.includes('Head of Household'));
     assert.ok(RELATIONSHIPS.includes('Spouse'));
-    assert.deepEqual(CIVIL_STATUSES, ['Single', 'Married', 'Widowed', 'Separated']);
+    assert.deepEqual(CIVIL_STATUSES, ['Single', 'Married', 'Live-in', 'Widowed', 'Separated']);
     assert.equal(RELIGIONS[0], 'Roman Catholic', 'the default religion must be first in the list');
     assert.deepEqual(BLOOD_TYPES, ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-']);
     assert.ok(RELATIONSHIPS.includes(HEAD), 'the wizard pins members[0] to HEAD, which must be a real relationship');
