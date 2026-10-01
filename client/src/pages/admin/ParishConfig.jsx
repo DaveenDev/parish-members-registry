@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useOutletContext, useSearchParams } from 'react-router-dom';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, SearchInput, Pagination, Tabs } from '../../components/admin.jsx';
 import { useClientList } from '../../hooks.js';
@@ -155,8 +155,7 @@ function ProfileTab() {
   async function save() {
     setSaving(true);
     try {
-      const { name, address, contact, email } = settings;
-      const res = await api.updateSettings({ name, address, contact, email });
+      const res = await api.updateSettings({ name: settings.name });
       applySaved(res.settings);
       toast.success('Parish profile saved');
     } catch (e) {
@@ -172,10 +171,9 @@ function ProfileTab() {
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-[18px]">Parish profile</div>
         <div className="flex flex-col gap-4">
           <Field label="Parish name"><TextInput value={settings.name || ''} onChange={(e) => set('name', e.target.value)} /></Field>
-          <Field label="Address"><TextInput value={settings.address || ''} onChange={(e) => set('address', e.target.value)} /></Field>
-          <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
-            <Field label="Contact"><TextInput value={settings.contact || ''} onChange={(e) => set('contact', e.target.value)} /></Field>
-            <Field label="Email"><TextInput value={settings.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
+          <div className="text-[13.5px] text-parish-muted">
+            The address, phone, email and office hours are in{' '}
+            <Link to="/admin/website?tab=office" className="font-semibold text-parish-blue">Parish Website → Office &amp; Contact</Link>.
           </div>
         </div>
         <div className="flex items-center gap-3 mt-5">

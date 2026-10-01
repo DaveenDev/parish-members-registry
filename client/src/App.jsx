@@ -17,6 +17,7 @@ import Reports from './pages/admin/Reports.jsx';
 import Exports from './pages/admin/Exports.jsx';
 import ParishConfig from './pages/admin/ParishConfig.jsx';
 import Census from './pages/admin/Census.jsx';
+import Website from './pages/admin/Website.jsx';
 import ManageMinistries from './pages/admin/ManageMinistries.jsx';
 import ManageOrgs from './pages/admin/ManageOrgs.jsx';
 import ManageStaff from './pages/admin/ManageStaff.jsx';
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="ministries" element={<Ministries />} />
           <Route path="organizations" element={<Organizations />} />
           <Route path="census" element={<Census />} />
+          <Route path="website" element={<Website />} />
           <Route path="reports" element={<Reports />} />
           <Route path="exports" element={<Exports />} />
           <Route path="settings" element={<ParishConfig />} />

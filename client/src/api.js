@@ -418,16 +418,62 @@ export const api = {
 
   async updateSettings(patch) {
     const cleaned = {};
-    for (const key of ['name', 'address', 'contact', 'email', 'logo']) {
+    for (const key of ['name', 'address', 'contact', 'email', 'logo', ...OFFICE_TEXT_FIELDS]) {
       if (!(key in patch)) continue;
       const raw = patch[key];
       const trimmed = typeof raw === 'string' ? raw.trim() : '';
       cleaned[key] = key === 'logo' ? (trimmed === '' ? null : raw) : trimmed;
     }
+    // Office hours and the map pin (0011 migration) aren't plain text.
+    if ('office_hours' in patch) cleaned.office_hours = patch.office_hours || null;
+    for (const key of ['latitude', 'longitude']) {
+      if (!(key in patch)) continue;
+      const n = patch[key] === '' || patch[key] === null ? null : Number(patch[key]);
+      if (n !== null && Number.isNaN(n)) throw new Error(`The map ${key} must be a number`);
+      cleaned[key] = n;
+    }
     if (!Object.keys(cleaned).length) return api.getSettings();
     const { data, error } = await supabase.from('parish_settings').update(cleaned).eq('id', 1).select().single();
     if (error) throw mapError(error);
     return { settings: data };
+  },
+
+  // ---- parish website content (0011 migration) ------------------------
+  async listMassSchedules() {
+    return listWebsite('mass_schedules', (q) => q.order('day_of_week').order('start_time'));
+  },
+  saveMassSchedule: (row) => saveWebsiteRow('mass_schedules', row),
+  deleteMassSchedule: (id) => deleteWebsiteRow('mass_schedules', id),
+
+  async listSacramentGuides() {
+    return listWebsite('sacrament_guides', (q) => q.order('sort').order('id'));
+  },
+  saveSacramentGuide: (row) => saveWebsiteRow('sacrament_guides', row),
+
+  async listAnnouncements() {
+    return listWebsite('announcements', (q) => q.order('publish_on', { ascending: false }).order('id', { ascending: false }));
+  },
+  saveAnnouncement: (row) => saveWebsiteRow('announcements', row),
+  deleteAnnouncement: (id) => deleteWebsiteRow('announcements', id),
+
+  async listBulletins() {
+    return listWebsite('bulletins', (q) => q.order('week_of', { ascending: false }));
+  },
+  saveBulletin: (row) => saveWebsiteRow('bulletins', row, 'A bulletin for this week'),
+  deleteBulletin: (id) => deleteWebsiteRow('bulletins', id),
+
+  async listEvents() {
+    return listWebsite('events', (q) => q.order('start_date').order('start_time', { nullsFirst: true }));
+  },
+  saveEvent: (row) => saveWebsiteRow('events', row),
+  deleteEvent: (id) => deleteWebsiteRow('events', id),
+
+  /** Publish or unpublish one item of any website content table. */
+  async setWebsitePublished(table, id, published) {
+    if (!WEBSITE_TABLES.includes(table)) throw new Error('Unknown content type');
+    const { data, error } = await supabase.from(table).update({ published }).eq('id', id).select().single();
+    if (error) throw mapError(error);
+    return data;
   },
 
   // ---- parish census (0007 migration) --------------------------------
@@ -682,6 +728,35 @@ export const api = {
     return new Blob([csv], { type: 'text/csv;charset=utf-8' });
   },
 };
+
+const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'directions', 'map_url'];
+
+const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events'];
+
+async function listWebsite(table, order) {
+  const { data, error } = await order(supabase.from(table).select('*'));
+  if (error) {
+    // Before 0011 is run the table doesn't exist; say which file fixes it.
+    if (error.code === '42P01' || error.code === 'PGRST205') throw new Error('Run the 0011_website_content.sql migration in Supabase to use this page');
+    throw mapError(error);
+  }
+  return { rows: data || [] };
+}
+
+/** Insert a row (no id) or update it (with id). Blank strings save as null. */
+async function saveWebsiteRow(table, row, dupLabel) {
+  const { id, created_at: _c, updated_at: _u, ...fields } = row;
+  const patch = cleanPatch(fields);
+  const q = id ? supabase.from(table).update(patch).eq('id', id) : supabase.from(table).insert(patch);
+  const { data, error } = await q.select().single();
+  if (error) throw mapError(error, { dupLabel });
+  return data;
+}
+
+async function deleteWebsiteRow(table, id) {
+  const { error } = await supabase.from(table).delete().eq('id', id);
+  if (error) throw mapError(error);
+}
 
 const GROUP_COLUMNS = ['ministries', 'organizations'];
 

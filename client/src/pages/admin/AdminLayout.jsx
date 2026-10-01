@@ -14,6 +14,7 @@ const NAV_MAIN = [
   { to: '/admin/organizations', label: 'Organizations' },
   { to: '/admin/ministries', label: 'Ministries' },
   { to: '/admin/census', label: 'Census' },
+  { to: '/admin/website', label: 'Parish Website' },
   { to: '/admin/reports', label: 'Reports' },
   { to: '/admin/exports', label: 'Exports' },
 ];
