@@ -103,17 +103,17 @@ export function ManageListCard({
       )}
       <div className="flex flex-col gap-2">
         {list.rows.map((r) => (
-          <div key={r.name} className="flex items-center gap-2.5 border border-[#f0e8d6] rounded-xl px-3.5 py-2.5 bg-[#fdfbf6]">
+          <div key={r.name} className="flex items-center gap-2.5 border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field">
             {editing === r.name ? (
               <form onSubmit={save} className="flex flex-1 items-center gap-2.5">
                 <TextInput
                   autoFocus value={editValue} aria-label={`Rename ${r.name}`}
                   onChange={(e) => setEditValue(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setEditing(null); } }}
-                  className="flex-1 !py-2.5 !bg-white !border-parish-blue"
+                  className="flex-1 !py-2.5 !bg-parish-surface !border-parish-blue"
                 />
-                <button type="submit" className="appearance-none border-none bg-parish-blue text-white cursor-pointer px-4 py-2 rounded-lg font-bold text-[12.5px]">Save</button>
-                <button type="button" onClick={() => setEditing(null)} className="appearance-none border-none bg-[#f4efe3] text-parish-text2 cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Cancel</button>
+                <button type="submit" className="appearance-none border-none bg-parish-fill text-white cursor-pointer px-4 py-2 rounded-lg font-bold text-[12.5px]">Save</button>
+                <button type="button" onClick={() => setEditing(null)} className="appearance-none border-none bg-parish-sunk text-parish-text2 cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Cancel</button>
               </form>
             ) : (
               <>

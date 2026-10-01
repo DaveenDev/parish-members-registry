@@ -170,14 +170,14 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
 
   return (
     <div className="fixed inset-0 z-[45] flex justify-end">
-      <div className="absolute inset-0 bg-parish-navy/35 backdrop-blur-[2px] animate-fadeIn" onClick={requestClose} />
+      <div className="absolute inset-0 bg-parish-scrim/35 backdrop-blur-[2px] animate-fadeIn" onClick={requestClose} />
       <aside
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative h-full w-full sm:w-[min(100%,560px)] lg:w-[40vw] lg:min-w-[520px] bg-white shadow-2xl flex flex-col animate-slideInRight"
+        className="relative h-full w-full sm:w-[min(100%,560px)] lg:w-[40vw] lg:min-w-[520px] bg-parish-surface shadow-2xl flex flex-col animate-slideInRight"
       >
-        <header className="flex items-start justify-between gap-3 px-5 sm:px-7 pt-5 pb-4 border-b border-[#f0e8d6]">
+        <header className="flex items-start justify-between gap-3 px-5 sm:px-7 pt-5 pb-4 border-b border-parish-line2">
           <div className="min-w-0">
             <h3 id={titleId} className="font-serif text-[24px] font-semibold m-0 text-parish-navy truncate">Edit household</h3>
             <p className="text-[13px] text-parish-muted m-0">{household.household_name}{household.ref_no ? ` · ${household.ref_no}` : ''}</p>
@@ -185,7 +185,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
               {[household.created_at && `Registered ${fmtDateTime(household.created_at, { time: false })}`,
                 household.updated_at && `Last updated ${fmtDateTime(household.updated_at)}`].filter(Boolean).join(' · ')}
             </p>
-            <VerifiedLine household={household} className="text-[12px] text-[#2f7a52] mt-0.5" />
+            <VerifiedLine household={household} className="text-[12px] text-parish-okText mt-0.5" />
           </div>
           <button onClick={requestClose} aria-label="Close" className="appearance-none border-none bg-transparent cursor-pointer text-parish-muted text-2xl leading-none px-1">×</button>
         </header>
@@ -226,7 +226,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
             </Field>
           </div>
 
-          <div className="mt-6 pt-5 border-t border-[#f0e8d6]">
+          <div className="mt-6 pt-5 border-t border-parish-line2">
             <ParticipationSurvey participation={form.participation} helpWays={form.help_ways} onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay} compact english />
           </div>
 
@@ -240,7 +240,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
             {members && (
               <div className="flex flex-col gap-2">
                 {members.map((m) => (
-                  <div key={m.id} className="flex items-center gap-3 px-3.5 py-2.5 bg-[#fdfbf6] border border-[#f0e8d6] rounded-xl">
+                  <div key={m.id} className="flex items-center gap-3 px-3.5 py-2.5 bg-parish-field border border-parish-line2 rounded-xl">
                     <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12px] flex-none" aria-hidden>
                       {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
                     </div>
@@ -260,7 +260,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
             {members && !adding && can(user, 'editRegistry') && (
               <button
                 onClick={() => setAdding(true)}
-                className="mt-3 w-full appearance-none cursor-pointer py-3 font-bold text-[14px] text-parish-blue bg-white border-[1.5px] border-dashed border-[#b9c6de] rounded-xl flex items-center justify-center gap-2 hover:bg-[#f4f7fc] hover:border-parish-blue transition"
+                className="mt-3 w-full appearance-none cursor-pointer py-3 font-bold text-[14px] text-parish-blue bg-parish-surface border-[1.5px] border-dashed border-parish-focusLine rounded-xl flex items-center justify-center gap-2 hover:bg-parish-fillSoft hover:border-parish-blue transition"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
                 Add member
@@ -286,15 +286,15 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
               <summary className="cursor-pointer list-none flex items-center gap-2.5 mb-3">
                 <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">History</span>
                 <span className="text-[12px] text-parish-muted group-open:hidden">Changes to this household and its members</span>
-                <span className="flex-1 h-px bg-[#f0e8d6]" />
+                <span className="flex-1 h-px bg-parish-track" />
               </summary>
               <ActivityList householdId={household.id} reloadKey={historyKey} />
             </details>
           )}
         </div>
 
-        <footer className="flex items-center gap-2.5 justify-end px-5 sm:px-7 py-3.5 border-t border-[#f0e8d6] bg-[#fffdf8]">
-          {dirty && <span className="mr-auto text-[12.5px] font-semibold text-[#a1762b]">Unsaved changes</span>}
+        <footer className="flex items-center gap-2.5 justify-end px-5 sm:px-7 py-3.5 border-t border-parish-line2 bg-parish-card">
+          {dirty && <span className="mr-auto text-[12.5px] font-semibold text-parish-warn">Unsaved changes</span>}
           <GhostButton onClick={requestClose} className="px-5 py-2.5 text-[14px]">Close</GhostButton>
           {can(user, 'editRegistry') && (
             <PrimaryButton onClick={save} disabled={saving || !dirty} className="px-6 py-2.5 text-[14px]">
@@ -315,7 +315,7 @@ function SectionLabel({ children, className = 'mb-3' }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
       <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{children}</span>
-      <span className="flex-1 h-px bg-[#f0e8d6]" />
+      <span className="flex-1 h-px bg-parish-track" />
     </div>
   );
 }
@@ -353,7 +353,7 @@ export function AddMemberForm({ householdId, defaultLastName, hasHead, onCancel,
   }
 
   return (
-    <div className="mt-3 border-[1.5px] border-[#cdd7e8] rounded-xl p-4 bg-[#f8faff]">
+    <div className="mt-3 border-[1.5px] border-parish-focusLine rounded-xl p-4 bg-parish-fillSoft">
       <div className="font-semibold text-[14px] text-parish-navy mb-3">New member</div>
       {errors.form && <div className="mb-3 text-parish-error text-[13px]" role="alert">{errors.form}</div>}
       <div className="grid gap-3" style={GRID}>

@@ -64,7 +64,7 @@ export default function BloodRequestsTab({ onCountsChanged }) {
             const u = urgency(r);
             return (
               <div key={r.id} {...rowActivationProps(() => setOpenId(r.id), `Open request ${r.ref_no}`)}
-                className="flex items-center gap-4 px-5 py-3.5 border-b border-[#f1e8d5] last:border-b-0 flex-wrap cursor-pointer hover:bg-[#fbf7ee] focus-visible:bg-[#fbf7ee] outline-none">
+                className="flex items-center gap-4 px-5 py-3.5 border-b border-parish-line last:border-b-0 flex-wrap cursor-pointer hover:bg-parish-field focus-visible:bg-parish-field outline-none">
                 <div className="w-[64px] h-[52px] rounded-xl bg-parish-errorBg text-parish-error font-serif font-bold text-[24px] flex items-center justify-center flex-none" aria-label={`Blood type ${r.blood_type}`}>
                   {r.blood_type}
                 </div>
@@ -184,7 +184,7 @@ function BloodRequestDrawer({ request: r, onClose, onSaved, onDeleted }) {
       <ContactLinks mobile={r.contact_mobile} />
 
       {r.allow_public ? (
-        <label className="flex items-start gap-3 px-4 py-3 rounded-xl border border-parish-border bg-[#fdfbf6] cursor-pointer">
+        <label className="flex items-start gap-3 px-4 py-3 rounded-xl border border-parish-border bg-parish-field cursor-pointer">
           <Checkbox checked={!!r.show_publicly} disabled={busy || !open} onChange={(e) => save({ show_publicly: e.target.checked }, e.target.checked ? 'Posted on the website' : 'Removed from the website')} className="mt-0.5" />
           <span>
             <span className="block font-semibold text-[14px] text-parish-navy">Post a blood call on the website</span>
@@ -219,7 +219,7 @@ function DonorContactRow({ donor: d, contact, exact, sms, onChange }) {
   const [note, setNote] = useState(contact?.note || '');
   const a = d.availability;
   return (
-    <div className="border border-[#f0e8d6] rounded-xl bg-[#fdfbf6] px-3.5 py-3 flex flex-col gap-2">
+    <div className="border border-parish-line2 rounded-xl bg-parish-field px-3.5 py-3 flex flex-col gap-2">
       <div className="flex items-center gap-2 flex-wrap">
         <span className="font-semibold text-[14.5px] text-parish-navy">{d.full_name}</span>
         <Badge tone={exact ? 'red' : 'gray'}>{d.blood_type}</Badge>
@@ -232,8 +232,8 @@ function DonorContactRow({ donor: d, contact, exact, sms, onChange }) {
           aria-label={`Contact status for ${d.full_name}`}
           value={contact?.status || ''}
           onChange={(e) => onChange(d, e.target.value, note)}
-          className="px-2.5 py-1.5 text-[13px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none cursor-pointer"
-          style={contact ? { color: STATUS_TONES[contact.status] === 'red' ? '#a13d29' : STATUS_TONES[contact.status] === 'green' ? '#2f6b48' : undefined } : undefined}
+          className="px-2.5 py-1.5 text-[13px] bg-parish-surface border-[1.5px] border-parish-borderSoft rounded-lg outline-none cursor-pointer"
+          style={contact ? { color: STATUS_TONES[contact.status] === 'red' ? 'rgb(var(--c-error))' : STATUS_TONES[contact.status] === 'green' ? '#2f6b48' : undefined } : undefined}
         >
           <option value="">Not contacted</option>
           {CONTACT_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -244,7 +244,7 @@ function DonorContactRow({ donor: d, contact, exact, sms, onChange }) {
           onChange={(e) => setNote(e.target.value)}
           onBlur={() => contact && note !== (contact.note || '') && onChange(d, contact.status, note)}
           placeholder="Note (e.g. can come Saturday)"
-          className="flex-1 min-w-[160px] px-2.5 py-1.5 text-[13px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none"
+          className="flex-1 min-w-[160px] px-2.5 py-1.5 text-[13px] bg-parish-surface border-[1.5px] border-parish-borderSoft rounded-lg outline-none"
         />
         {contact && <span className="text-[11.5px] text-parish-muted">{contact.updated_by_name ? `${contact.updated_by_name}, ` : ''}{fmtDateTime(contact.updated_at)}</span>}
       </div>

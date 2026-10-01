@@ -117,6 +117,13 @@ export const api = {
     return data || null;
   },
 
+  /** The parish's default color theme (Parish Config → Appearance), or null. Needs 0014. */
+  async publicParishTheme() {
+    const { data, error } = await supabase.rpc('public_parish_theme');
+    if (error) return null;
+    return data || null;
+  },
+
   /** True when no household (any status) already uses this name, ignoring case. */
   async householdNameAvailable(name) {
     const { data, error } = await supabase.rpc('household_name_available', { candidate: name });
@@ -548,6 +555,8 @@ export const api = {
     }
     // Office hours and the map pin (0011 migration) aren't plain text.
     if ('office_hours' in patch) cleaned.office_hours = patch.office_hours || null;
+    // The parish's default color theme (0014 migration).
+    if ('theme' in patch) cleaned.theme = patch.theme || null;
     for (const key of ['latitude', 'longitude']) {
       if (!(key in patch)) continue;
       const n = patch[key] === '' || patch[key] === null ? null : Number(patch[key]);

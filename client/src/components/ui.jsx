@@ -37,7 +37,7 @@ export function Field({ label, required, error, children, inputId }) {
 }
 
 const inputBase =
-  'w-full px-3.5 py-3 text-[16px] text-parish-ink bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15';
+  'w-full px-3.5 py-3 text-[16px] text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15';
 
 export const TextInput = React.forwardRef(function TextInput(props, ref) {
   return <input ref={ref} {...props} className={`${inputBase} ${props.className || ''}`} />;
@@ -52,14 +52,14 @@ export function Checkbox(props) {
 }
 
 export function Card({ className = '', children }) {
-  return <div className={`bg-white border border-parish-border rounded-[20px] shadow-card ${className}`}>{children}</div>;
+  return <div className={`bg-parish-surface border border-parish-border rounded-[20px] shadow-card ${className}`}>{children}</div>;
 }
 
 export function PrimaryButton({ className = '', children, ...rest }) {
   return (
     <button
       {...rest}
-      className={`appearance-none border-none cursor-pointer font-bold text-white bg-parish-blue rounded-xl shadow-btn transition hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
+      className={`appearance-none border-none cursor-pointer font-bold text-white bg-parish-fill rounded-xl shadow-btn transition hover:-translate-y-px disabled:opacity-60 disabled:cursor-not-allowed ${className}`}
     >
       {children}
     </button>
@@ -83,7 +83,7 @@ export const GhostButton = React.forwardRef(function GhostButton({ className = '
     <button
       ref={ref}
       {...rest}
-      className={`appearance-none cursor-pointer font-semibold text-parish-text2 bg-transparent border-[1.5px] border-[#dcd0b7] rounded-xl transition hover:bg-[#efe7d6] ${className}`}
+      className={`appearance-none cursor-pointer font-semibold text-parish-text2 bg-transparent border-[1.5px] border-parish-borderStrong rounded-xl transition hover:bg-parish-sunk ${className}`}
     >
       {children}
     </button>
@@ -99,7 +99,7 @@ export function StatusPill({ status }) {
   return (
     <span
       className={`inline-flex items-center gap-1.5 text-[12px] font-semibold px-2.5 py-1 rounded-full whitespace-nowrap ${
-        verified ? 'bg-[#eaf4ee] text-[#2f7a52]' : 'bg-[#fdf1de] text-[#a1762b]'
+        verified ? 'bg-parish-okBg text-parish-okText' : 'bg-parish-warnTint text-parish-warn'
       }`}
     >
       <span className={`w-1.5 h-1.5 rounded-full ${verified ? 'bg-[#2f7a52]' : 'bg-[#a1762b]'}`} />
@@ -242,7 +242,7 @@ export function ComboInput({ options, value, onChange, id, className = '', toggl
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M6 9l6 6 6-6" /></svg>
       </button>
       {expanded && (
-        <ul id={listId} role="listbox" className="absolute z-30 left-0 right-0 top-full mt-1 m-0 p-1 list-none bg-white border border-parish-border rounded-xl shadow-card max-h-60 overflow-auto">
+        <ul id={listId} role="listbox" className="absolute z-30 left-0 right-0 top-full mt-1 m-0 p-1 list-none bg-parish-surface border border-parish-border rounded-xl shadow-card max-h-60 overflow-auto">
           {shown.map((o, i) => {
             const selected = o.toLowerCase() === q;
             return (
@@ -285,7 +285,7 @@ export function OptionSelect({ options, value, onChange, placeholder = 'Selectâ€
 export function HouseholdNameTakenNote({ show }) {
   if (!show) return null;
   return (
-    <div className="text-[12.5px] font-semibold text-[#a1762b] mt-1.5">
+    <div className="text-[12.5px] font-semibold text-parish-warn mt-1.5">
       âš  Another household already uses this name. You can still save, but consider making it distinct.
     </div>
   );
@@ -296,7 +296,7 @@ const BADGE_TONES = {
   blue: 'bg-[var(--p-blue-tint)] text-parish-blue',
   green: 'bg-parish-okBg text-parish-ok',
   red: 'bg-parish-errorBg text-parish-error',
-  gray: 'bg-[#efebe1] text-[#6b6552]',
+  gray: 'bg-parish-sunk text-parish-text2',
 };
 
 export function Badge({ tone = 'blue', title, children }) {

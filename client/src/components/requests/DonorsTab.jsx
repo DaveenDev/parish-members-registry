@@ -55,7 +55,7 @@ export default function DonorsTab() {
         ) : (
           page.rows.map((d) => (
             <div key={d.id} {...rowActivationProps(() => setEditing(d), `Edit donor ${d.full_name}`)}
-              className="flex items-center gap-3 px-5 py-3 border-b border-[#f1e8d5] last:border-b-0 flex-wrap cursor-pointer hover:bg-[#fbf7ee] focus-visible:bg-[#fbf7ee] outline-none">
+              className="flex items-center gap-3 px-5 py-3 border-b border-parish-line last:border-b-0 flex-wrap cursor-pointer hover:bg-parish-field focus-visible:bg-parish-field outline-none">
               <div className="w-[48px] text-center font-serif font-bold text-[20px] text-parish-error">{d.blood_type || '?'}</div>
               <div className="flex-1 min-w-[180px]">
                 <div className="font-semibold text-[14.5px] text-parish-navy">{d.full_name}</div>
@@ -132,7 +132,7 @@ function DonorForm({ row, gkks, onClose, onSaved, onDeleted }) {
         </>
       )}
     >
-      {row.opted_out_at && <div className="px-4 py-2.5 rounded-xl bg-[#efebe1] text-parish-text2 text-[13.5px] font-semibold">Opted out on {fmtDate(String(row.opted_out_at).slice(0, 10))}. Not shown in blood request matches.</div>}
+      {row.opted_out_at && <div className="px-4 py-2.5 rounded-xl bg-parish-sunk text-parish-text2 text-[13.5px] font-semibold">Opted out on {fmtDate(String(row.opted_out_at).slice(0, 10))}. Not shown in blood request matches.</div>}
       <Field label="Full name" required><TextInput value={form.full_name} onChange={set('full_name')} /></Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Mobile" required><TextInput type="tel" value={form.mobile} onChange={set('mobile')} placeholder="09xx xxx xxxx" /></Field>

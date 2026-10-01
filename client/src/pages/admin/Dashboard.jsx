@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Link, useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, ErrorState, LoadingState, Panel } from '../../components/admin.jsx';
 import { useAsyncData } from '../../hooks.js';
@@ -7,14 +7,16 @@ import { daysAgo } from '../../constants.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
+import { todayItems } from '../../lib/today.js';
+import { todayIso } from '../../lib/website.js';
 
-const CARD = 'bg-[#fffdf8] border border-parish-border rounded-2xl shadow-cardSm';
+const CARD = 'bg-parish-card border border-parish-border rounded-2xl shadow-cardSm';
 const LINK_FOCUS = 'no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue';
 
 /** A card or row that opens the matching filtered list, or a plain block when there's nowhere to go. */
 function MaybeLink({ to, className, children, label }) {
   if (!to) return <div className={className}>{children}</div>;
-  return <Link to={to} aria-label={label} className={`${className} ${LINK_FOCUS} block hover:border-[#cdd7e8] hover:shadow-card transition`}>{children}</Link>;
+  return <Link to={to} aria-label={label} className={`${className} ${LINK_FOCUS} block hover:border-parish-focusLine hover:shadow-card transition`}>{children}</Link>;
 }
 
 function StatCard({ label, value, note, accent, to }) {
@@ -43,7 +45,7 @@ function Bars({ data, color1, color2, linkLabel }) {
         );
         const cls = 'flex-1 flex flex-col items-center gap-2 h-full justify-end';
         return b.to
-          ? <Link key={b.label} to={b.to} aria-label={linkLabel ? linkLabel(b) : undefined} className={`${cls} rounded-lg hover:bg-[#f7f2e6] ${LINK_FOCUS}`}>{bar}</Link>
+          ? <Link key={b.label} to={b.to} aria-label={linkLabel ? linkLabel(b) : undefined} className={`${cls} rounded-lg hover:bg-parish-hover ${LINK_FOCUS}`}>{bar}</Link>
           : <div key={b.label} className={cls}>{bar}</div>;
       })}
     </div>
@@ -56,17 +58,77 @@ function BreakdownBars({ data, color1, color2 }) {
       {data.map((g) => {
         const bar = (
           <>
-            <div className="flex justify-between text-[13px] mb-1.5"><span className="text-[#3f3b2f] font-semibold">{g.label}</span><span className="text-parish-muted">{g.n}</span></div>
-            <div className="h-2.5 bg-[#f1e8d5] rounded-full overflow-hidden">
+            <div className="flex justify-between text-[13px] mb-1.5"><span className="text-parish-text3 font-semibold">{g.label}</span><span className="text-parish-muted">{g.n}</span></div>
+            <div className="h-2.5 bg-parish-track rounded-full overflow-hidden">
               <div className="h-full rounded-full transition-all duration-500" style={{ width: g.w, background: `linear-gradient(90deg,${color1},${color2})` }} />
             </div>
           </>
         );
         return g.to
-          ? <Link key={g.label} to={g.to} className={`block rounded-lg -mx-1.5 px-1.5 py-1 hover:bg-[#f7f2e6] ${LINK_FOCUS}`}>{bar}</Link>
+          ? <Link key={g.label} to={g.to} className={`block rounded-lg -mx-1.5 px-1.5 py-1 hover:bg-parish-hover ${LINK_FOCUS}`}>{bar}</Link>
           : <div key={g.label}>{bar}</div>;
       })}
     </div>
+  );
+}
+
+const TONE_DOT = { gold: 'var(--p-gold)', blue: 'var(--p-blue)', red: 'rgb(var(--c-error))', green: 'rgb(var(--c-ok-text))' };
+
+/**
+ * What's waiting today: requests, census, sacraments to verify, the week's
+ * events and bulletin. Each part loads on its own and is left out quietly if
+ * it can't be (an account without access, or a migration not run yet).
+ */
+function TodayPanel({ counts }) {
+  const { user } = useAuth();
+  const [census, setCensus] = useState(null);
+  const [site, setSite] = useState({ events: [], bulletins: [] });
+
+  useEffect(() => {
+    if (!can(user, 'census')) return;
+    api.listCensusCycles()
+      .then((cycles) => {
+        const open = cycles.find((c) => c.status === 'Open');
+        if (open) return api.censusHouseholdProgressCounts(open.id).then((c) => setCensus({ label: open.label, counts: c }));
+      })
+      .catch(() => {});
+  }, [user]);
+  useEffect(() => {
+    if (!can(user, 'website')) return;
+    Promise.all([api.listEvents().catch(() => ({ rows: [] })), api.listBulletins().catch(() => ({ rows: [] }))])
+      .then(([e, b]) => setSite({ events: e.rows || [], bulletins: b.rows || [] }));
+  }, [user]);
+
+  if (!counts) return null;
+  const items = todayItems({ user, counts, census, ...site, today: todayIso() });
+  return (
+    <Panel className="px-[22px] py-5 mb-[18px]">
+      <h2 className="font-serif text-[20px] font-semibold text-parish-navy m-0 mb-0.5">Today</h2>
+      <div className="text-[12.5px] text-parish-muted mb-3">What's waiting for the parish office</div>
+      {!items.length && <div className="text-[13.5px] text-parish-muted py-1">All caught up. Nothing is waiting.</div>}
+      {!!items.length && (
+        <ul className="list-none m-0 p-0 grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(min(280px,100%),1fr))' }}>
+          {items.map((it) => (
+            <li key={it.key}>
+              <Link to={it.to} className={`flex items-start gap-3 h-full px-3.5 py-3 rounded-xl border border-parish-line2 bg-parish-field hover:border-parish-focusLine ${LINK_FOCUS}`}>
+                {it.n
+                  ? <span className="min-w-[30px] h-[30px] px-1.5 rounded-full flex items-center justify-center font-bold text-[13px] text-white flex-none" style={{ background: TONE_DOT[it.tone] }}>{it.n}</span>
+                  : <span className="w-2.5 h-2.5 mt-1.5 mx-2.5 rounded-full flex-none" style={{ background: TONE_DOT[it.tone] }} aria-hidden />}
+                <span className="min-w-0 flex-1">
+                  <span className="block font-semibold text-[14px] text-parish-navy">{it.label}</span>
+                  {it.detail && <span className="block text-[12.5px] text-parish-muted truncate">{it.detail}</span>}
+                  {it.progress !== undefined && (
+                    <span className="block h-1.5 mt-2 bg-parish-track rounded-full overflow-hidden" aria-hidden>
+                      <span className="block h-full rounded-full bg-[#2f7a52]" style={{ width: `${Math.round(it.progress * 100)}%` }} />
+                    </span>
+                  )}
+                </span>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
   );
 }
 
@@ -106,7 +168,7 @@ function PendingQueue({ pendingCount, onVerified }) {
       {queue.error && !queue.loading && <ErrorState message={queue.error} onRetry={queue.reload} />}
       {queue.data && !rows.length && <div className="text-[13.5px] text-parish-muted py-2">Nothing waiting. Every household has been verified.</div>}
       {!!rows.length && (
-        <ul className="list-none m-0 p-0 flex flex-col divide-y divide-[#f1e8d5]">
+        <ul className="list-none m-0 p-0 flex flex-col divide-y divide-parish-line">
           {rows.map((h) => (
             <li key={h.id} className="flex items-center gap-3 py-2.5 flex-wrap">
               <div className="min-w-0 flex-1">
@@ -115,7 +177,7 @@ function PendingQueue({ pendingCount, onVerified }) {
                   {[h.head_name && `Head: ${h.head_name}`, h.gkk || 'No GKK', `${h.member_count} member(s)`, `registered ${daysAgo(h.created_at)}`].filter(Boolean).join(' · ')}
                 </div>
               </div>
-              <Link to={`/admin/households?status=Pending&q=${encodeURIComponent(h.household_name)}`} className="px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-[#f4efe3] rounded-lg no-underline">Open</Link>
+              <Link to={`/admin/households?status=Pending&q=${encodeURIComponent(h.household_name)}`} className="px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg no-underline">Open</Link>
               {canVerify && <button
                 onClick={() => verify(h)}
                 disabled={busyId === h.id}
@@ -133,6 +195,7 @@ function PendingQueue({ pendingCount, onVerified }) {
 
 export default function Dashboard() {
   const { data: stats, loading, error, reload } = useAsyncData(() => api.dashboardStats(), []);
+  const layout = useOutletContext();
 
   if (!stats) {
     return (
@@ -154,8 +217,8 @@ export default function Dashboard() {
         </div>
 
         {stats.duplicateGroups > 0 && (
-          <Link to="/admin/duplicates" className={`flex items-center gap-3 mb-[18px] px-[18px] py-3.5 rounded-2xl border border-[#ecd3a6] bg-[#fdf6e8] text-[#7a5a1e] hover:border-[#d9b878] ${LINK_FOCUS}`}>
-            <span className="w-8 h-8 rounded-full bg-[#f6e3bd] flex items-center justify-center font-bold flex-none" aria-hidden>!</span>
+          <Link to="/admin/duplicates" className={`flex items-center gap-3 mb-[18px] px-[18px] py-3.5 rounded-2xl border border-parish-warnBorder bg-parish-warnBg text-parish-warnStrong hover:border-parish-warnBorder ${LINK_FOCUS}`}>
+            <span className="w-8 h-8 rounded-full bg-parish-warnTint flex items-center justify-center font-bold flex-none" aria-hidden>!</span>
             <span className="flex-1 text-[14px]">
               <strong>Possible duplicates: {stats.duplicateGroups}</strong> group{stats.duplicateGroups === 1 ? '' : 's'} of members share a name and date of birth.
             </span>
@@ -163,7 +226,9 @@ export default function Dashboard() {
           </Link>
         )}
 
-        <PendingQueue pendingCount={stats.pendingCount} onVerified={reload} />
+        <TodayPanel counts={layout?.navCounts} />
+
+        <PendingQueue pendingCount={stats.pendingCount} onVerified={() => { reload(); layout?.refreshNavCounts?.(); }} />
 
         <div className="grid gap-[18px] mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))' }}>
           <Panel className="px-[22px] py-5">
@@ -193,7 +258,7 @@ export default function Dashboard() {
           <div className="font-serif text-[20px] font-semibold text-parish-navy mb-4">Members by sacrament received</div>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
             {stats.sacStats.map((s) => (
-              <MaybeLink key={s.label} to={s.to} label={`${s.label}: ${s.n} members. Open the sacraments list`} className="border border-[#f0e8d6] rounded-xl px-3.5 py-3.5 bg-[#fdfbf6] text-center">
+              <MaybeLink key={s.label} to={s.to} label={`${s.label}: ${s.n} members. Open the sacraments list`} className="border border-parish-line2 rounded-xl px-3.5 py-3.5 bg-parish-field text-center">
                 <div className="font-serif text-[30px] font-semibold text-parish-blue leading-none">{s.n}</div>
                 <div className="text-[12.5px] text-parish-text2 mt-1.5 font-semibold">{s.label}</div>
               </MaybeLink>

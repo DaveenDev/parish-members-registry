@@ -494,6 +494,19 @@ language sql stable set search_path = public as $$
 $$;
 
 -- ---------------------------------------------------------------------------
+-- Parish default color theme (Parish Config → Appearance). A device that
+-- picked its own theme keeps it; everyone else, including the public site,
+-- follows this one.
+-- ---------------------------------------------------------------------------
+
+alter table parish_settings add column if not exists theme text;
+
+create or replace function public.public_parish_theme() returns text
+language sql stable security definer set search_path = public as $$
+  select theme from parish_settings where id = 1;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- Grants
 -- ---------------------------------------------------------------------------
 
@@ -520,3 +533,4 @@ grant execute on function public.trash_member(integer) to authenticated;
 grant execute on function public.restore_deleted(bigint) to authenticated;
 grant execute on function public.purge_deleted(bigint) to authenticated;
 grant execute on function public.admin_nav_counts() to authenticated;
+grant execute on function public.public_parish_theme() to anon, authenticated;

@@ -97,11 +97,11 @@ export default function Sacraments() {
                     key={s.key}
                     onClick={() => showQueue(s.key)}
                     disabled={!waiting}
-                    className={`appearance-none cursor-pointer px-3 py-2 rounded-xl border-[1.5px] text-left disabled:cursor-default disabled:opacity-60 ${active ? 'border-parish-blue bg-[var(--p-blue-tint)]' : 'border-[#eee3ce] bg-white hover:border-parish-blue'}`}
+                    className={`appearance-none cursor-pointer px-3 py-2 rounded-xl border-[1.5px] text-left disabled:cursor-default disabled:opacity-60 ${active ? 'border-parish-blue bg-[var(--p-blue-tint)]' : 'border-parish-edge bg-parish-surface hover:border-parish-blue'}`}
                   >
                     <div className="text-[13px] font-semibold text-parish-navy">{s.label}</div>
                     <div className="text-[12px] text-parish-muted">
-                      <strong className={waiting ? 'text-[#a1762b]' : 'text-parish-ok'}>{waiting}</strong> waiting · {counts[s.key].verified} of {counts[s.key].claimed} verified
+                      <strong className={waiting ? 'text-parish-warn' : 'text-parish-ok'}>{waiting}</strong> waiting · {counts[s.key].verified} of {counts[s.key].claimed} verified
                     </div>
                   </button>
                 );
@@ -149,14 +149,14 @@ export default function Sacraments() {
         >
           {groupByHousehold(rows).map((g, gi) => (
             <React.Fragment key={g.householdId}>
-              <tr className={`bg-[#f7f2e6] ${gi ? 'border-t-2 border-[#e7dcc4]' : ''}`}>
+              <tr className={`bg-parish-hover ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
                 <th scope="colgroup" colSpan={SACRAMENTS.length + 1} className="text-left px-4 py-2">
                   <span className="font-serif text-[16.5px] font-semibold text-parish-navy">{g.name}</span>
                   {g.gkk && <span className="text-[12px] font-medium text-parish-muted"> · {g.gkk}</span>}
                 </th>
               </tr>
               {g.members.map((m) => (
-            <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
+            <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-parish-line cursor-pointer hover:bg-parish-hover focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
               <td className="pl-7 pr-4 py-2.5">
                 <div className="font-semibold text-[14px] text-parish-navy whitespace-nowrap">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
                 <div className="text-[12px] text-parish-muted whitespace-nowrap">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</div>

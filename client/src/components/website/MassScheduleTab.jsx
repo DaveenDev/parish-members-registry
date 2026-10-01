@@ -59,7 +59,7 @@ export default function MassScheduleTab() {
           <EmptyState title="Nothing matches these filters" />
         ) : (
           byDay.map(({ day, rows }) => (
-            <section key={day} className="border-b border-[#f1e8d5] last:border-b-0">
+            <section key={day} className="border-b border-parish-line last:border-b-0">
               <div className="px-5 pt-4 pb-1 font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{day}</div>
               {rows.map((r) => (
                 <div key={r.id} className="flex items-center gap-3 px-5 py-3 flex-wrap">

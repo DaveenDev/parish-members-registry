@@ -74,7 +74,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
     const verified = !!verifications[key];
     if (!member[s.has]) {
       return savedClaim && verified
-        ? <span className="text-[12px] font-semibold text-[#a1762b]">Saving will remove its verification</span>
+        ? <span className="text-[12px] font-semibold text-parish-warn">Saving will remove its verification</span>
         : null;
     }
     if (!savedClaim) return <span className="text-[12px] text-parish-muted">Save first, then verify</span>;
@@ -171,8 +171,8 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-parish-navy/45 backdrop-blur-sm flex items-center justify-center p-5" onClick={onClose}>
-      <div className="bg-white rounded-2xl max-w-[720px] w-full shadow-2xl max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-parish-scrim/45 backdrop-blur-sm flex items-center justify-center p-5" onClick={onClose}>
+      <div className="bg-parish-surface rounded-2xl max-w-[720px] w-full shadow-2xl max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
         {!member ? (
           <div className="p-10 text-center text-parish-muted">Loading…</div>
         ) : (
@@ -252,7 +252,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                 )}
               </SacRow>
               {!!partners.length && (
-                <div className="text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-lg px-3 py-2">
+                <div className="text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-lg px-3 py-2">
                   Same wedding as <strong>{partnerNames}</strong>: saving a change to the matrimony details also updates their record.
                 </div>
               )}
@@ -282,7 +282,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               {censusHistory.length > 0 && (
                 <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
                   {censusHistory.map((r) => (
-                    <li key={r.cycle_id} className="text-[13px] text-[#3f3b2f] bg-[#fdfbf6] border border-[#f0e8d6] rounded-lg px-3 py-2">
+                    <li key={r.cycle_id} className="text-[13px] text-parish-text3 bg-parish-field border border-parish-line2 rounded-lg px-3 py-2">
                       <span className="font-semibold text-parish-navy">{r.census_cycles?.label}</span>: {r.status}
                       <span className="text-parish-muted"> · {r.source} · {r.confirmed_by_name || 'staff'}, {new Date(r.confirmed_at).toLocaleDateString()}</span>
                       {r.notes && <div className="text-[12.5px] text-parish-muted mt-0.5">{r.notes}</div>}
@@ -303,7 +303,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                 <summary className="cursor-pointer list-none flex items-center gap-2.5 mb-2.5">
                   <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">History</span>
                   <span className="text-[12px] text-parish-muted group-open:hidden">Show who changed this record</span>
-                  <span className="flex-1 h-px bg-[#f0e8d6]" />
+                  <span className="flex-1 h-px bg-parish-track" />
                 </summary>
                 <ActivityList memberId={memberId} />
               </details>
@@ -339,14 +339,14 @@ function SectionLabel({ children }) {
   return (
     <div className="flex items-center gap-2.5 mb-2.5">
       <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{children}</span>
-      <span className="flex-1 h-px bg-[#f0e8d6]" />
+      <span className="flex-1 h-px bg-parish-track" />
     </div>
   );
 }
 
 function SacRow({ label, checked, onCheck, status, children }) {
   return (
-    <div className="border border-[#eee3ce] rounded-xl px-3.5 py-3 bg-[#fdfbf6]">
+    <div className="border border-parish-edge rounded-xl px-3.5 py-3 bg-parish-field">
       <div className="flex items-center justify-between gap-2.5 flex-wrap">
         <label className="flex items-center gap-2.5 cursor-pointer">
           <Checkbox checked={!!checked} onChange={(e) => onCheck(e.target.checked)} />
@@ -365,7 +365,7 @@ function GroupChecks({ options, selected, onToggle }) {
       {options.map((name) => {
         const checked = selected.includes(name);
         return (
-          <label key={name} className="flex items-center gap-2 cursor-pointer border-[1.5px] rounded-lg px-2.5 py-2" style={{ borderColor: checked ? '#9db9e0' : '#e0d6c1', background: checked ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
+          <label key={name} className="flex items-center gap-2 cursor-pointer border-[1.5px] rounded-lg px-2.5 py-2" style={{ borderColor: checked ? 'rgb(var(--c-focus-line))' : 'rgb(var(--c-border-soft))', background: checked ? 'var(--p-blue-tint)' : 'rgb(var(--c-field))' }}>
             <Checkbox checked={checked} onChange={() => onToggle(name)} className="w-4 h-4" />
             <span className="font-medium text-[13.5px] text-parish-ink">{name}</span>
           </label>

@@ -64,7 +64,7 @@ export function useContentList({ table, load, remove, describe }) {
 /** "Show on the public website" switch inside an editor. */
 export function PublishSwitch({ checked, onChange }) {
   return (
-    <label className="flex items-start gap-3 px-4 py-3 rounded-xl border border-parish-border bg-[#fdfbf6] cursor-pointer">
+    <label className="flex items-start gap-3 px-4 py-3 rounded-xl border border-parish-border bg-parish-field cursor-pointer">
       <input type="checkbox" checked={checked} onChange={(e) => onChange(e.target.checked)} className="w-[19px] h-[19px] mt-0.5 accent-parish-blue cursor-pointer" />
       <span>
         <span className="block font-semibold text-[14px] text-parish-navy">Show on the public website</span>

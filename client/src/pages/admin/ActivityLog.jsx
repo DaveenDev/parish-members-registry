@@ -54,7 +54,7 @@ export default function ActivityLog() {
                 : <EmptyState title="Nothing recorded yet" subtitle="Changes to households and members show up here from now on." />
             )}
             {!!rows.length && (
-              <ul className="list-none m-0 px-[18px] py-1.5 divide-y divide-[#f1e8d5]">
+              <ul className="list-none m-0 px-[18px] py-1.5 divide-y divide-parish-line">
                 {rows.map((e) => <ActivityEntry key={e.id} entry={e} showLabel onOpen={open} />)}
               </ul>
             )}

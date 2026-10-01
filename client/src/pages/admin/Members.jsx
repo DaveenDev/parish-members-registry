@@ -151,7 +151,7 @@ export default function Members() {
           {MAIN_FILTERS.map(select)}
           <button
             type="button" onClick={() => setMoreOpen((o) => !o)} aria-expanded={moreOpen} aria-controls="more-member-filters"
-            className="appearance-none cursor-pointer px-3 py-2.5 rounded-lg border-[1.5px] border-parish-borderSoft bg-[#fffdf8] font-semibold text-[13px] text-parish-text2"
+            className="appearance-none cursor-pointer px-3 py-2.5 rounded-lg border-[1.5px] border-parish-borderSoft bg-parish-card font-semibold text-[13px] text-parish-text2"
           >
             More filters{extraActive ? ` (${extraActive})` : ''} <span aria-hidden>{moreOpen ? '▴' : '▾'}</span>
           </button>
@@ -160,7 +160,7 @@ export default function Members() {
             {canExport && (
               <button
                 onClick={() => exportCsv({ ...filters, search: debouncedSearch }, 'members.csv')} disabled={exporting || !total}
-                className="appearance-none border-[1.5px] border-parish-borderSoft bg-[#fffdf8] cursor-pointer px-3.5 py-2.5 font-semibold text-[13px] text-parish-text2 rounded-xl disabled:opacity-60"
+                className="appearance-none border-[1.5px] border-parish-borderSoft bg-parish-card cursor-pointer px-3.5 py-2.5 font-semibold text-[13px] text-parish-text2 rounded-xl disabled:opacity-60"
               >
                 {exporting ? 'Exporting…' : isFiltered ? 'Export this view' : 'Export CSV'}
               </button>
@@ -168,7 +168,7 @@ export default function Members() {
           </div>
         </div>
         {moreOpen && (
-          <div id="more-member-filters" className="flex flex-wrap gap-2.5 items-center mb-2.5 p-3 rounded-xl bg-[#f7f2e6]">
+          <div id="more-member-filters" className="flex flex-wrap gap-2.5 items-center mb-2.5 p-3 rounded-xl bg-parish-hover">
             {Object.keys(DEFAULT_FILTERS).filter((k) => !MAIN_FILTERS.includes(k)).map(select)}
           </div>
         )}
@@ -179,7 +179,7 @@ export default function Members() {
                 key={c.key} type="button"
                 onClick={() => setUrl({ [c.key]: c.key === 'q' ? '' : DEFAULT_FILTERS[c.key] })}
                 aria-label={`Remove filter ${c.text}`}
-                className="appearance-none cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-[#d4e0f2] bg-[var(--p-blue-tint)] font-semibold text-[12.5px] text-parish-blue"
+                className="appearance-none cursor-pointer inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-parish-infoBorder bg-[var(--p-blue-tint)] font-semibold text-[12.5px] text-parish-blue"
               >
                 {c.text} <span aria-hidden className="text-[14px] leading-none">×</span>
               </button>
@@ -213,9 +213,9 @@ export default function Members() {
             <ul className="list-none m-0 p-0">
               {groups.map((g) => (
                 <React.Fragment key={g.gkk || 'no-gkk'}>
-                  <li className="px-4 py-2 bg-[#f4efe3] font-serif text-[16.5px] font-semibold text-parish-navy">{g.gkk || 'No GKK'}</li>
+                  <li className="px-4 py-2 bg-parish-sunk font-serif text-[16.5px] font-semibold text-parish-navy">{g.gkk || 'No GKK'}</li>
                   {g.members.map((m) => (
-                    <li key={m.id} className="border-t border-[#f1e8d5]">
+                    <li key={m.id} className="border-t border-parish-line">
                       <button type="button" onClick={() => setOpenMemberId(m.id)} className="w-full appearance-none border-none bg-transparent cursor-pointer text-left px-4 py-3 flex items-center gap-3">
                         <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12.5px] flex-none" aria-hidden>
                           {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
@@ -237,7 +237,7 @@ export default function Members() {
         >
           {groups.map((g, gi) => (
             <React.Fragment key={g.gkk || 'no-gkk'}>
-              <tr className={`bg-[#f4efe3] ${gi ? 'border-t-2 border-[#e7dcc4]' : ''}`}>
+              <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
                 <th scope="colgroup" colSpan={8} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
                   {g.gkk || 'No GKK'}
                 </th>
@@ -245,7 +245,7 @@ export default function Members() {
               {g.members.map((m) => {
                 const memberGroups = [...(m.ministries || []), ...(m.organizations || [])];
                 return (
-                  <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className={`border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue ${selected.has(m.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
+                  <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className={`border-t border-parish-line cursor-pointer hover:bg-parish-hover focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue ${selected.has(m.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
                     <td className="pl-4 pr-0 py-2.5" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                       <Checkbox checked={selected.has(m.id)} onChange={() => toggleSelect(m.id)} aria-label={`Select ${fullName(m)}`} />
                     </td>
@@ -258,15 +258,15 @@ export default function Members() {
                         {m.membership_status && <Badge tone={STATUS_TONES[m.membership_status]} title={m.last_census_label ? `From the ${m.last_census_label}` : undefined}>{m.membership_status}</Badge>}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[14px] text-[#3f3b2f] whitespace-nowrap">{m.household_name}</td>
+                    <td className="px-4 py-3 text-[14px] text-parish-text3 whitespace-nowrap">{m.household_name}</td>
                     <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</td>
-                    <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{ageFromDob(m.dob) ?? '—'}</td>
+                    <td className="px-4 py-3 text-[14px] text-parish-text3">{ageFromDob(m.dob) ?? '—'}</td>
                     <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{bis(CIVIL_STATUS_LABELS, m.civil_status) || '—'}</td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1.5 items-center">
-                        {memberGroups.slice(0, 2).map((x) => <span key={x} className="font-semibold text-[11.5px] bg-[#f1e8d5] text-[#7a6a3e] px-2.5 py-1 rounded-full whitespace-nowrap">{x}</span>)}
+                        {memberGroups.slice(0, 2).map((x) => <span key={x} className="font-semibold text-[11.5px] bg-parish-track text-parish-chip px-2.5 py-1 rounded-full whitespace-nowrap">{x}</span>)}
                         {memberGroups.length > 2 && <span className="font-semibold text-[11.5px] text-parish-muted">+{memberGroups.length - 2} more</span>}
-                        {!memberGroups.length && <span className="text-[13px] text-[#c4bba4]">—</span>}
+                        {!memberGroups.length && <span className="text-[13px] text-parish-faint">—</span>}
                       </div>
                     </td>
                     <td className="px-4 py-3"><StatusPill status={m.household_status} /></td>

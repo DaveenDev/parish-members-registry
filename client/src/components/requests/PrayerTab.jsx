@@ -109,7 +109,7 @@ export default function PrayerTab({ onCountsChanged }) {
           </label>
           <span className="text-[13px] text-parish-text2 ml-auto">Prayed for at the Mass on</span>
           <input type="date" aria-label="Mass date" value={offeredOn} onChange={(e) => setOfferedOn(e.target.value)}
-            className="px-2.5 py-1.5 text-[14px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none" />
+            className="px-2.5 py-1.5 text-[14px] bg-parish-surface border-[1.5px] border-parish-borderSoft rounded-lg outline-none" />
           <RowButton tone="green" disabled={busy || !selected.size} onClick={() => markPrayed([...selected])}>
             Mark {selected.size || ''} prayed for
           </RowButton>
@@ -121,7 +121,7 @@ export default function PrayerTab({ onCountsChanged }) {
           <EmptyState title={list.rows.length ? 'Nothing here' : 'No prayer requests yet'} subtitle={view === 'New' && list.rows.length ? 'All intentions have been prayed for.' : undefined} />
         ) : (
           page.rows.map((r) => (
-            <div key={r.id} className="flex items-start gap-3 px-5 py-3.5 border-b border-[#f1e8d5] last:border-b-0">
+            <div key={r.id} className="flex items-start gap-3 px-5 py-3.5 border-b border-parish-line last:border-b-0">
               {r.status === 'New' && <Checkbox aria-label={`Select ${r.ref_no}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} className="mt-1" />}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -131,7 +131,7 @@ export default function PrayerTab({ onCountsChanged }) {
                   {r.show_publicly && <Badge tone="green">On the website</Badge>}
                 </div>
                 {r.for_name && <div className="font-semibold text-[14.5px] text-parish-navy">For {r.for_name}</div>}
-                <div className="text-[14px] text-[#3f3b2f] whitespace-pre-line">{r.intention}</div>
+                <div className="text-[14px] text-parish-text3 whitespace-pre-line">{r.intention}</div>
                 <div className="text-[12.5px] text-parish-muted mt-1">
                   {[r.ref_no, r.requester_name && `from ${r.requester_name}`, receivedText(r.created_at), r.offered_on && `prayed for ${fmtDate(r.offered_on)}`].filter(Boolean).join(' · ')}
                 </div>

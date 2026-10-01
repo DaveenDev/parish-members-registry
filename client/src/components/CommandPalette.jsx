@@ -104,10 +104,10 @@ export default function CommandPalette({ onClose }) {
   return (
     <>
       {!openMemberId && (
-      <div className="fixed inset-0 z-[80] bg-parish-navy/45 backdrop-blur-sm flex items-start justify-center p-4 pt-[12vh]" onClick={onClose}>
-        <div role="dialog" aria-modal="true" aria-label="Quick search" className="bg-white rounded-2xl w-full max-w-[600px] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
-          <div className="flex items-center gap-2.5 px-4 border-b border-[#f0e8d6]">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9a927f" strokeWidth="2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+      <div className="fixed inset-0 z-[80] bg-parish-scrim/45 backdrop-blur-sm flex items-start justify-center p-4 pt-[12vh]" onClick={onClose}>
+        <div role="dialog" aria-modal="true" aria-label="Quick search" className="bg-parish-surface rounded-2xl w-full max-w-[600px] shadow-2xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-2.5 px-4 border-b border-parish-line2">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--c-icon))" strokeWidth="2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
             <input
               ref={inputRef}
               value={query}
@@ -147,7 +147,7 @@ export default function CommandPalette({ onClose }) {
             {debounced.length >= 2 && searching && <li className="px-3 py-3 text-[13px] text-parish-muted" role="status">Searching…</li>}
             {debounced.length >= 2 && !searching && !results.length && <li className="px-3 py-3 text-[13px] text-parish-muted">Nothing matches “{debounced}”.</li>}
           </ul>
-          <div className="px-4 py-2.5 border-t border-[#f0e8d6] bg-[#fffdf8] text-[12px] text-parish-muted flex gap-4 flex-wrap">
+          <div className="px-4 py-2.5 border-t border-parish-line2 bg-parish-card text-[12px] text-parish-muted flex gap-4 flex-wrap">
             <span><kbd className="font-semibold">↑ ↓</kbd> move</span><span><kbd className="font-semibold">Enter</kbd> open</span><span><kbd className="font-semibold">Ctrl K</kbd> search from anywhere</span>
           </div>
         </div>

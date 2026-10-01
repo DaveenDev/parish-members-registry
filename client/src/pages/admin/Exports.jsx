@@ -29,12 +29,12 @@ export default function Exports() {
             />
             <ExportCard
               icon={<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M3 11l9-8 9 8" /><path d="M5 10v10h14V10" /></svg>}
-              iconBg="#fbf1dd" iconColor="var(--p-gold)" title="Households" desc="Household directory with address, GKK, grouping & status."
+              iconBg="rgb(var(--c-warn-tint))" iconColor="var(--p-gold)" title="Households" desc="Household directory with address, GKK, grouping & status."
               onExport={() => csvExport.run('/exports/households.csv', 'households.csv')} btnBg="var(--p-gold)"
               busy={csvExport.busy === '/exports/households.csv'} disabled={!!csvExport.busy}
             />
           </div>
-          <div className="bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl px-[18px] py-4 text-[13.5px] text-[#2b466f] leading-relaxed">
+          <div className="bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl px-[18px] py-4 text-[13.5px] text-parish-info leading-relaxed">
             CSV files open directly in Microsoft Excel and Google Sheets. Exported data is handled discreetly — share only with authorized parish personnel.
           </div>
         </div>

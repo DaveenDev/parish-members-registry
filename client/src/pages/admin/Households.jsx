@@ -263,7 +263,7 @@ export default function Households() {
               <button
                 onClick={() => exportCsv(filters, 'households.csv')}
                 disabled={exporting || !total}
-                className="appearance-none border-[1.5px] border-parish-borderSoft bg-[#fffdf8] cursor-pointer px-3.5 py-2.5 font-semibold text-[13px] text-parish-text2 rounded-xl disabled:opacity-60"
+                className="appearance-none border-[1.5px] border-parish-borderSoft bg-parish-card cursor-pointer px-3.5 py-2.5 font-semibold text-[13px] text-parish-text2 rounded-xl disabled:opacity-60"
                 title={isFiltered ? 'Download the households matching these filters' : 'Download every household'}
               >
                 {exporting ? 'Exporting…' : isFiltered ? 'Export this view' : 'Export CSV'}
@@ -293,7 +293,7 @@ export default function Households() {
             <table className="w-full border-collapse" style={{ minWidth: 900 }}>
               <caption className="sr-only">Registered households</caption>
               <thead>
-                <tr className="bg-[#f4efe3]">
+                <tr className="bg-parish-sunk">
                   <th scope="col" className="pl-4 pr-0 py-3.5 w-8">
                     <Checkbox checked={allSelected} onChange={toggleSelectAll} disabled={!rows.length} aria-label="Select every household on this page" />
                   </th>
@@ -308,17 +308,17 @@ export default function Households() {
               <tbody>
                 {rows.map((h) => (
                   <React.Fragment key={h.id}>
-                    <tr className={`border-t border-[#f1e8d5] ${selected.has(h.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
+                    <tr className={`border-t border-parish-line ${selected.has(h.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
                       <td className="pl-4 pr-0 py-3.5 align-top">
                         <Checkbox checked={selected.has(h.id)} onChange={() => toggleSelect(h.id)} aria-label={`Select ${h.household_name}`} className="mt-1" />
                       </td>
-                      <td className="p-0 min-w-[260px]">
+                      <td className="p-0 min-w-[220px]">
                         <button
                           onClick={() => toggleExpand(h.id)}
                           aria-expanded={!!expanded[h.id]}
-                          className="appearance-none border-none bg-none cursor-pointer text-left w-full px-4 py-2.5 flex items-center gap-2.5 hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue"
+                          className="appearance-none border-none bg-none cursor-pointer text-left w-full px-4 py-2.5 flex items-center gap-2.5 hover:bg-parish-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue"
                         >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9a927f" strokeWidth="2.6" className="flex-none transition-transform" style={{ transform: expanded[h.id] ? 'rotate(90deg)' : 'none' }} aria-hidden><path d="M9 6l6 6-6 6" /></svg>
+                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--c-icon))" strokeWidth="2.6" className="flex-none transition-transform" style={{ transform: expanded[h.id] ? 'rotate(90deg)' : 'none' }} aria-hidden><path d="M9 6l6 6-6 6" /></svg>
                           <span>
                             <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
                             {h.head_name && <span className="block text-[12.5px] text-parish-text2 mt-0.5">Head: {h.head_name}</span>}
@@ -326,7 +326,7 @@ export default function Households() {
                           </span>
                         </button>
                       </td>
-                      <td className="px-4 py-3.5 text-[13.5px] text-[#3f3b2f] whitespace-nowrap">{h.gkk || '—'}<div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div></td>
+                      <td className="px-4 py-3.5 text-[13.5px] text-parish-text3 whitespace-nowrap">{h.gkk || '—'}<div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div></td>
                       <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.member_count} member(s)</td>
                       <td className="px-4 py-3.5 text-[13px] text-parish-text2 whitespace-nowrap" title={fmtDateTime(h.created_at)}>
                         {daysAgo(h.created_at)}
@@ -334,7 +334,7 @@ export default function Households() {
                       </td>
                       <td className="px-4 py-3.5">
                         <StatusPill status={h.status} />
-                        <VerifiedLine household={h} className="mt-1 text-[11.5px] text-parish-muted max-w-[180px]" />
+                        <VerifiedLine household={h} className="mt-1 text-[11.5px] text-parish-muted max-w-[150px]" />
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex gap-2 justify-end items-center">
@@ -343,13 +343,13 @@ export default function Households() {
                               {h.status === 'Verified' ? 'Mark Pending' : 'Verify'}
                             </button>
                           )}
-                          <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-[#f4efe3] rounded-lg">{canEdit ? 'Edit' : 'View'}</button>
+                          <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">{canEdit ? 'Edit' : 'View'}</button>
                           <ActionMenu label={`More actions for ${h.household_name}`} items={rowActions(h)} />
                         </div>
                       </td>
                     </tr>
                     {expanded[h.id] && (
-                      <tr className="bg-[#fbf8f0]">
+                      <tr className="bg-parish-field">
                         <td colSpan={7} className="px-4 py-4 md:pl-[52px]">
                           <MemberList members={expandedMembers[h.id]} onOpen={setOpenMemberId} />
                         </td>
@@ -362,7 +362,7 @@ export default function Households() {
           </div>
 
           {/* Phones: one card per household. */}
-          <ul className="md:hidden list-none m-0 p-0 divide-y divide-[#f1e8d5]" aria-label="Registered households">
+          <ul className="md:hidden list-none m-0 p-0 divide-y divide-parish-line" aria-label="Registered households">
             {rows.map((h) => (
               <li key={h.id} className={`px-4 py-3.5 ${selected.has(h.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
                 <div className="flex items-start gap-3">
@@ -380,7 +380,7 @@ export default function Households() {
                       {h.status === 'Verified' ? 'Mark Pending' : 'Verify'}
                     </button>
                   )}
-                  <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-[#f4efe3] rounded-lg">{canEdit ? 'Edit' : 'View'}</button>
+                  <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">{canEdit ? 'Edit' : 'View'}</button>
                   <span className="ml-auto"><ActionMenu label={`More actions for ${h.household_name}`} items={rowActions(h)} /></span>
                 </div>
                 {expanded[h.id] && <div className="mt-3 pl-8"><MemberList members={expandedMembers[h.id]} onOpen={setOpenMemberId} /></div>}
@@ -430,7 +430,7 @@ function MemberList({ members, onOpen }) {
   return (
     <div className="flex flex-col gap-2">
       {members.map((m) => (
-        <button key={m.id} onClick={() => onOpen(m.id)} className="flex items-center gap-3 px-3.5 py-2.5 bg-[#fffdf8] border border-[#f0e8d6] rounded-xl text-left hover:border-[#cdd7e8] focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue flex-wrap">
+        <button key={m.id} onClick={() => onOpen(m.id)} className="flex items-center gap-3 px-3.5 py-2.5 bg-parish-card border border-parish-line2 rounded-xl text-left hover:border-parish-focusLine focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue flex-wrap">
           <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12px] flex-none" aria-hidden>
             {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
           </div>

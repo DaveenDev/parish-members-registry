@@ -6,7 +6,8 @@ import { ManageListCard } from '../../components/ManageList.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
-import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
+import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
+import { useTheme, THEMES } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
 
 const MAX_LOGO_BYTES = 500 * 1024;
@@ -69,7 +70,7 @@ function LogoCard({ settings, onSaved }) {
         Shown on the sign-in screen, the sidebar, and printed household sheets. PNG or JPG, ideally square, under 500&nbsp;KB.
       </div>
       <div className="flex items-center gap-5 flex-wrap">
-        <div className="w-24 h-24 rounded-[18px] border-2 border-dashed border-[#d9cdb4] bg-[#fdfbf6] flex items-center justify-center overflow-hidden flex-none">
+        <div className="w-24 h-24 rounded-[18px] border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center overflow-hidden flex-none">
           {settings.logo ? (
             <img src={settings.logo} alt="Current parish logo" className="w-full h-full object-contain" />
           ) : (
@@ -79,7 +80,7 @@ function LogoCard({ settings, onSaved }) {
           )}
         </div>
         <div className="flex flex-col gap-2.5 items-start">
-          <label className={`cursor-pointer px-[18px] py-2.5 font-semibold text-[14px] text-white bg-parish-blue rounded-xl inline-block ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
+          <label className={`cursor-pointer px-[18px] py-2.5 font-semibold text-[14px] text-white bg-parish-fill rounded-xl inline-block ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
             {busy ? 'Uploading…' : settings.logo ? 'Replace logo' : 'Upload logo'}
             <input type="file" accept="image/*" onChange={onFile} className="hidden" disabled={busy} />
           </label>
@@ -120,7 +121,7 @@ function ChangePasswordCard() {
   }
 
   return (
-    <form onSubmit={submit} className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+    <form onSubmit={submit} className="bg-parish-card border border-parish-border rounded-2xl p-6 shadow-cardSm">
       <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Change password</div>
       <div className="text-[13.5px] text-parish-muted mb-4">Use at least 10 characters. You stay signed in on this device.</div>
       {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium">{error}</div>}
@@ -197,6 +198,12 @@ function ProfileTab() {
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>
         <div className="text-[13.5px] text-parish-muted mb-4">Choose a color theme for the registration portal and admin panel. Saved on this device.</div>
         <ThemePickerGrid />
+        <ParishThemeRow canEdit={canEdit} onSaved={applySaved} />
+        <div className="mt-5 flex items-center gap-3 flex-wrap">
+          <span className="font-semibold text-[13.5px] text-parish-text2">Admin panel</span>
+          <ModeSwitch />
+          <span className="text-[12.5px] text-parish-muted">Auto follows this device's light or dark setting.</span>
+        </div>
       </Panel>
       <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3.5">Data &amp; privacy</div>
@@ -205,6 +212,47 @@ function ProfileTab() {
           <span>Member information is confidential and accessible only to authorized parish staff. All exports and printed sheets should be handled in accordance with the Data Privacy Act of 2012.</span>
         </div>
       </Panel>
+    </div>
+  );
+}
+
+/**
+ * The parish default theme: what the public site and every device that
+ * hasn't picked its own theme use. Staff with full access can set it to the
+ * theme chosen above.
+ */
+function ParishThemeRow({ canEdit, onSaved }) {
+  const toast = useToast();
+  const { theme, deviceTheme, parishTheme, setParishTheme, followParishTheme } = useTheme();
+  const [busy, setBusy] = useState(false);
+  const label = (id) => THEMES.find((t) => t.id === id)?.label || 'Gold & Navy';
+
+  async function makeDefault() {
+    setBusy(true);
+    try {
+      const res = await api.updateSettings({ theme });
+      if (res.settings.theme !== theme) throw new Error('Run the 0014_roles_activity_trash.sql migration in Supabase to save a parish theme');
+      setParishTheme(theme);
+      onSaved(res.settings);
+      toast.success(`${label(theme)} is now the parish theme`);
+    } catch (e) {
+      toast.error(e.message || 'Could not save the parish theme');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 flex items-center gap-3 flex-wrap text-[13px] text-parish-text2">
+      <span>Parish theme: <strong className="text-parish-navy">{label(parishTheme)}</strong>{deviceTheme ? ' · this device uses its own choice' : ''}</span>
+      {canEdit && theme !== (parishTheme || 'classic') && (
+        <button type="button" onClick={makeDefault} disabled={busy} className="appearance-none border-none cursor-pointer px-3 py-1.5 rounded-lg bg-[var(--p-blue-tint)] font-semibold text-[12.5px] text-parish-blue disabled:opacity-60">
+          {busy ? 'Saving…' : `Make ${label(theme)} the parish theme`}
+        </button>
+      )}
+      {deviceTheme && (
+        <button type="button" onClick={followParishTheme} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[12.5px] text-parish-blue">Use the parish theme on this device</button>
+      )}
     </div>
   );
 }

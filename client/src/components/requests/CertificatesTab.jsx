@@ -73,7 +73,7 @@ export default function CertificatesTab({ onCountsChanged }) {
         ) : (
           page.rows.map((r) => (
             <div key={r.id} {...rowActivationProps(() => setOpenId(r.id), `Open request ${r.ref_no}`)}
-              className="flex items-center gap-3 px-5 py-3.5 border-b border-[#f1e8d5] last:border-b-0 flex-wrap cursor-pointer hover:bg-[#fbf7ee] focus-visible:bg-[#fbf7ee] outline-none">
+              className="flex items-center gap-3 px-5 py-3.5 border-b border-parish-line last:border-b-0 flex-wrap cursor-pointer hover:bg-parish-field focus-visible:bg-parish-field outline-none">
               <div className="flex-1 min-w-[220px]">
                 <div className="flex items-center gap-2 flex-wrap mb-0.5">
                   <Badge tone="blue">{certTypeShort(r.cert_type)}</Badge>
@@ -87,7 +87,7 @@ export default function CertificatesTab({ onCountsChanged }) {
                 </div>
               </div>
               <div className="text-[12.5px] font-semibold text-right">
-                {r.member ? <span className="text-parish-ok">Linked to registry</span> : <span className="text-[#a1762b]">Not linked yet</span>}
+                {r.member ? <span className="text-parish-ok">Linked to registry</span> : <span className="text-parish-warn">Not linked yet</span>}
               </div>
             </div>
           ))
@@ -221,7 +221,7 @@ function Stepper({ status }) {
     <ol className="flex gap-1.5 m-0 p-0 list-none flex-wrap" aria-label="Progress">
       {CERT_FLOW.map((s, i) => (
         <li key={s} aria-current={i === at ? 'step' : undefined}
-          className={`flex-1 min-w-[110px] text-center px-2 py-2 rounded-lg text-[12.5px] font-semibold ${i < at ? 'bg-parish-okBg text-parish-ok' : i === at ? 'bg-parish-blue text-white' : 'bg-[#f4efe3] text-parish-muted'}`}>
+          className={`flex-1 min-w-[110px] text-center px-2 py-2 rounded-lg text-[12.5px] font-semibold ${i < at ? 'bg-parish-okBg text-parish-ok' : i === at ? 'bg-parish-fill text-white' : 'bg-parish-sunk text-parish-muted'}`}>
           {i < at ? '✓ ' : ''}{s}
         </li>
       ))}

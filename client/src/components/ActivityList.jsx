@@ -54,7 +54,7 @@ export default function ActivityList({ householdId, memberId, reloadKey }) {
   if (!rows.length) return <div className="text-[13px] text-parish-muted">No changes recorded yet. Changes are recorded from the 0014 migration on.</div>;
   return (
     <>
-      <ul className="list-none m-0 p-0 divide-y divide-[#f1e8d5]">
+      <ul className="list-none m-0 p-0 divide-y divide-parish-line">
         {rows.map((e) => <ActivityEntry key={e.id} entry={e} showLabel={!!householdId && e.table_name !== 'households'} />)}
       </ul>
       {rows.length < total && (

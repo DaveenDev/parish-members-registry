@@ -13,11 +13,11 @@ import { can } from '../lib/access.js';
  * given and there is a claim, it's a button that opens the verify dialog.
  */
 export function SacramentChip({ claimed, verified, label, onClick }) {
-  if (!claimed) return <span className="text-[#d3c8ad]" aria-label={`${label}: not claimed`}>—</span>;
+  if (!claimed) return <span className="text-parish-faint" aria-label={`${label}: not claimed`}>—</span>;
   const text = verified ? 'Verified' : 'Claimed';
   const cls = verified
-    ? 'bg-[#eaf4ee] text-[#2f7a52] border-[#bfe0cc]'
-    : 'bg-white text-[#a1762b] border-[#e8cf9f]';
+    ? 'bg-parish-okBg text-parish-okText border-parish-okBorder'
+    : 'bg-parish-surface text-parish-warn border-parish-warnBorder';
   const content = (
     <>
       {verified ? (
@@ -116,21 +116,21 @@ export default function SacramentVerifyDialog({ member, sacrament, verification,
   }
 
   return (
-    <div className="fixed inset-0 z-[60] bg-parish-navy/45 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-5" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()} className="bg-white rounded-2xl max-w-[520px] w-full shadow-2xl p-5 sm:p-7 max-h-[90vh] overflow-auto">
+    <div className="fixed inset-0 z-[60] bg-parish-scrim/45 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-5" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()} className="bg-parish-surface rounded-2xl max-w-[520px] w-full shadow-2xl p-5 sm:p-7 max-h-[90vh] overflow-auto">
         <div className="flex items-start justify-between gap-3 mb-1">
           <h3 id={titleId} className="font-serif text-[24px] font-semibold m-0 text-parish-navy leading-tight">{sacrament.label} — {name}</h3>
           <button onClick={onClose} aria-label="Close" className="appearance-none border-none bg-transparent cursor-pointer text-parish-muted text-2xl leading-none px-1">×</button>
         </div>
         <div className="mb-5"><SacramentChip claimed verified={!!verification} label={sacrament.label} /></div>
 
-        <div className="border border-[#eee3ce] rounded-xl px-4 py-3 bg-[#fdfbf6] mb-5">
+        <div className="border border-parish-edge rounded-xl px-4 py-3 bg-parish-field mb-5">
           <div className="font-bold text-[11.5px] tracking-[.1em] uppercase text-[var(--p-gold-deep)] mb-1">Reported by the family</div>
           <div className="text-[14px] text-parish-ink">{claimedDetails(member, sacrament)}</div>
         </div>
 
         {verification && !editing && (
-          <div className="border border-[#bfe0cc] bg-[#f3faf6] rounded-xl px-4 py-3 mb-5 text-[14px] text-[#24543a]">
+          <div className="border border-parish-okBorder bg-parish-okTint rounded-xl px-4 py-3 mb-5 text-[14px] text-parish-okText">
             <div className="font-semibold mb-0.5">Verified by {verification.verified_by_name || 'parish staff'} on {new Date(verification.verified_at).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
             <div>{[verification.source, verification.reference].filter(Boolean).join(' · ')}</div>
           </div>

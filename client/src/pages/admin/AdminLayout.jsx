@@ -3,6 +3,7 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
 import { ThemePickerPopover } from '../../components/ThemePicker.jsx';
+import { useAdminColorMode } from '../../ThemeContext.jsx';
 import { PageHeader, PageBody, EmptyState } from '../../components/admin.jsx';
 import CommandPalette, { useCommandPaletteShortcut } from '../../components/CommandPalette.jsx';
 import { NAV_GROUPS, navAllowed, navItemFor, navBadges } from '../../components/adminNav.js';
@@ -40,6 +41,7 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  useAdminColorMode();
   const [parish, setParish] = useState(null);
 
   const [navCounts, setNavCounts] = useState(null);
@@ -81,7 +83,7 @@ export default function AdminLayout() {
   const sidebar = (
     <>
       <div className="px-5 py-[22px] flex items-center gap-3 border-b border-white/10">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-none text-[var(--p-gold-light)] overflow-hidden ${parish?.logo ? 'bg-white p-1' : 'bg-[var(--p-gold-light)]/[.16]'}`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-none text-[var(--p-gold-light)] overflow-hidden ${parish?.logo ? 'bg-parish-surface p-1' : 'bg-[var(--p-gold-light)]/[.16]'}`}>
           {parish?.logo ? (
             <img src={parish.logo} alt={`${parish.name || 'Parish'} logo`} className="w-full h-full object-contain" />
           ) : (
@@ -119,7 +121,7 @@ export default function AdminLayout() {
       </nav>
 
       <div className="px-4 py-2.5">
-        <ThemePickerPopover align="left" placement="up" dark />
+        <ThemePickerPopover align="left" placement="up" dark showMode />
       </div>
 
       <div className="px-4 py-3.5 border-t border-white/10 flex items-center gap-2.5">
@@ -158,7 +160,7 @@ export default function AdminLayout() {
       {/* Mobile drawer */}
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-[70] flex" role="dialog" aria-modal="true" aria-label="Navigation menu">
-          <div className="absolute inset-0 bg-parish-navy/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
+          <div className="absolute inset-0 bg-parish-scrim/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
           <aside className="relative w-[248px] max-w-[82vw] text-white flex flex-col h-full shadow-2xl animate-fadeUp" style={sidebarBg}>
             {sidebar}
           </aside>
@@ -172,12 +174,12 @@ export default function AdminLayout() {
             onClick={() => setDrawerOpen(true)}
             aria-label="Open navigation menu"
             aria-expanded={drawerOpen}
-            className="appearance-none border-[1.5px] border-parish-borderSoft bg-white cursor-pointer w-10 h-10 rounded-xl flex items-center justify-center text-parish-navy flex-none"
+            className="appearance-none border-[1.5px] border-parish-borderSoft bg-parish-surface cursor-pointer w-10 h-10 rounded-xl flex items-center justify-center text-parish-navy flex-none"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M3 6h18M3 12h18M3 18h18" /></svg>
           </button>
           {parish?.logo && (
-            <img src={parish.logo} alt="" className="w-[30px] h-[30px] object-contain rounded-md bg-white flex-none" />
+            <img src={parish.logo} alt="" className="w-[30px] h-[30px] object-contain rounded-md bg-parish-surface flex-none" />
           )}
           <span className="font-serif text-[19px] font-semibold text-parish-navy truncate">{parish?.name || 'Parish Registry'}</span>
         </div>

@@ -51,7 +51,7 @@ export default function AnnouncementsTab() {
           <EmptyState title="Nothing matches" />
         ) : (
           page.rows.map((r) => (
-            <div key={r.id} className="flex items-start gap-3 px-5 py-4 border-b border-[#f1e8d5] last:border-b-0 flex-wrap">
+            <div key={r.id} className="flex items-start gap-3 px-5 py-4 border-b border-parish-line last:border-b-0 flex-wrap">
               <div className="flex-1 min-w-[220px]">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   {r.pinned && <Badge tone="gold">Pinned</Badge>}

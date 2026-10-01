@@ -78,10 +78,10 @@ function PasswordReveal({ who, email, password, onDone }) {
         then change it under <strong>Parish Config → Change password</strong>.
       </p>
       <div className="flex items-center gap-2.5">
-        <code className="flex-1 font-mono text-[20px] tracking-[.08em] text-parish-navy bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-xl px-3.5 py-2.5 select-all break-all" aria-label="Temporary password">{password}</code>
+        <code className="flex-1 font-mono text-[20px] tracking-[.08em] text-parish-navy bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl px-3.5 py-2.5 select-all break-all" aria-label="Temporary password">{password}</code>
         <GhostButton type="button" onClick={copy} className="px-4 py-2.5 text-[13.5px]">Copy</GhostButton>
       </div>
-      <p className="text-[12.5px] text-[#a1762b] m-0 font-semibold">This password won’t be shown again.</p>
+      <p className="text-[12.5px] text-parish-warn m-0 font-semibold">This password won’t be shown again.</p>
       <div className="flex justify-end"><PrimaryButton onClick={onDone} className="px-6 py-2.5 text-[14px]">Done</PrimaryButton></div>
     </div>
   );
@@ -196,7 +196,7 @@ export default function ManageStaff() {
       </PageHeader>
       <PageBody>
         <div className="max-w-[920px]">
-          <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl text-[13.5px] text-[#2b466f] leading-relaxed">
+          <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
             Choose each account's access: full, read only, one GKK, or the website and requests. Keep this list to people who need it, and disable accounts when someone leaves.
             New accounts and password resets get a temporary password for you to pass on.
           </div>
@@ -205,7 +205,7 @@ export default function ManageStaff() {
               <table className="w-full border-collapse" style={{ minWidth: 760 }}>
                 <caption className="sr-only">Staff accounts</caption>
                 <thead>
-                  <tr className="bg-[#f4efe3]">
+                  <tr className="bg-parish-sunk">
                     {['Name', 'Role', 'Last sign-in', 'Status'].map((h) => (
                       <th key={h} scope="col" className="text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">{h}</th>
                     ))}
@@ -216,7 +216,7 @@ export default function ManageStaff() {
                   {rows.map((s) => {
                     const isSelf = s.id === user.id;
                     return (
-                      <tr key={s.id} className={`border-t border-[#f1e8d5] ${s.disabled ? 'opacity-70' : ''}`}>
+                      <tr key={s.id} className={`border-t border-parish-line ${s.disabled ? 'opacity-70' : ''}`}>
                         <td className="px-4 py-3">
                           <div className="font-semibold text-[14.5px] text-parish-navy flex items-center gap-2 flex-wrap">
                             {s.name || <span className="text-parish-muted">No name</span>}
@@ -231,17 +231,17 @@ export default function ManageStaff() {
                         <td className="px-4 py-3">
                           {s.disabled
                             ? <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-parish-errorBg text-parish-error whitespace-nowrap">Disabled</span>
-                            : <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-[#eaf4ee] text-[#2f7a52] whitespace-nowrap">Active</span>}
+                            : <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-parish-okBg text-parish-okText whitespace-nowrap">Active</span>}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2 justify-end flex-wrap">
-                            <button onClick={() => setDialog({ kind: 'edit', target: s })} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-[#f4efe3] rounded-lg">Edit</button>
+                            <button onClick={() => setDialog({ kind: 'edit', target: s })} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">Edit</button>
                             <button onClick={() => resetPassword(s)} disabled={rowBusy === s.id} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap disabled:opacity-60">Reset password</button>
                             {!isSelf && (
                               <button
                                 onClick={() => toggleDisabled(s)}
                                 disabled={rowBusy === s.id}
-                                className={`appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] rounded-lg disabled:opacity-60 ${s.disabled ? 'text-[#2f7a52] bg-[#eaf4ee]' : 'text-parish-error bg-parish-errorBg'}`}
+                                className={`appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] rounded-lg disabled:opacity-60 ${s.disabled ? 'text-parish-okText bg-parish-okBg' : 'text-parish-error bg-parish-errorBg'}`}
                               >
                                 {s.disabled ? 'Enable' : 'Disable'}
                               </button>

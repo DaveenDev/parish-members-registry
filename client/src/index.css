@@ -96,6 +96,7 @@
   --p-sidebar-b: #4a1c2d;
 }
 :root {
+  --p-fill: var(--p-blue);
   --p-blue-tint: color-mix(in srgb, var(--p-blue) 9%, white);
   --p-blue-tint-strong: color-mix(in srgb, var(--p-blue) 16%, white);
   --p-blue-border: color-mix(in srgb, var(--p-blue) 40%, white);
@@ -104,12 +105,108 @@
   --p-eyebrow: color-mix(in srgb, var(--p-gold-deep) 78%, black);
 }
 
+/* ===== Neutral and status tokens =====
+   "r g b" channels, used through the parish-* Tailwind colors. The light
+   values are the parchment palette; the admin panel's dark mode
+   (data-mode="dark" on <html>, set by AdminLayout) swaps them. */
+:root {
+  --c-bg: 247 242 232;
+  --c-card: 255 253 248;
+  --c-surface: 255 255 255;
+  --c-field: 253 251 246;
+  --c-sunk: 244 239 227;
+  --c-hover: 247 242 230;
+  --c-track: 241 232 213;
+  --c-line: 241 232 213;
+  --c-line2: 240 232 214;
+  --c-edge: 238 227 206;
+  --c-border: 236 226 205;
+  --c-border-soft: 224 214 193;
+  --c-border-strong: 231 220 196;
+  --c-ink: 23 38 63;
+  --c-text3: 63 59 47;
+  --c-text2: 107 101 82;
+  --c-muted: 138 131 111;
+  --c-faint: 196 187 164;
+  --c-icon: 154 146 127;
+  --c-scrim: 26 43 74;
+  --c-warn: 161 118 43;
+  --c-warn-strong: 122 90 30;
+  --c-warn-bg: 253 246 232;
+  --c-warn-tint: 246 227 189;
+  --c-warn-border: 236 211 166;
+  --c-info: 43 70 111;
+  --c-info-border: 212 224 242;
+  --c-focus-line: 205 215 232;
+  --c-blue-soft: 244 247 252;
+  --c-chip: 122 106 62;
+  --c-error: 161 61 41;
+  --c-error-bg: 251 238 234;
+  --c-error-border: 240 206 195;
+  --c-ok: 47 107 72;
+  --c-ok-text: 47 122 82;
+  --c-ok-bg: 234 244 238;
+  --c-ok-tint: 243 250 246;
+  --c-ok-border: 191 224 204;
+}
+:root[data-mode='dark'] {
+  --c-bg: 17 21 27;
+  --c-card: 24 29 37;
+  --c-surface: 30 36 46;
+  --c-field: 20 25 32;
+  --c-sunk: 35 42 53;
+  --c-hover: 33 40 51;
+  --c-track: 42 49 61;
+  --c-line: 38 45 56;
+  --c-line2: 42 49 60;
+  --c-edge: 47 55 68;
+  --c-border: 44 52 65;
+  --c-border-soft: 58 67 82;
+  --c-border-strong: 66 76 92;
+  --c-ink: 230 234 241;
+  --c-text3: 208 214 223;
+  --c-text2: 173 181 194;
+  --c-muted: 143 152 167;
+  --c-faint: 93 102 118;
+  --c-icon: 127 136 152;
+  --c-scrim: 0 0 0;
+  --c-warn: 227 185 104;
+  --c-warn-strong: 235 198 127;
+  --c-warn-bg: 42 35 22;
+  --c-warn-tint: 58 47 26;
+  --c-warn-border: 90 71 36;
+  --c-info: 188 205 236;
+  --c-info-border: 51 67 92;
+  --c-focus-line: 74 93 124;
+  --c-blue-soft: 29 37 51;
+  --c-chip: 214 197 149;
+  --c-error: 242 145 123;
+  --c-error-bg: 54 32 27;
+  --c-error-border: 92 48 39;
+  --c-ok: 134 210 168;
+  --c-ok-text: 134 210 168;
+  --c-ok-bg: 23 48 34;
+  --c-ok-tint: 21 38 28;
+  --c-ok-border: 43 90 61;
+  color-scheme: dark;
+  /* Headings and accents brighten so they read on dark cards. */
+  --p-navy: #eef1f7;
+  --p-blue: color-mix(in srgb, var(--p-blue-light) 70%, white);
+  --p-fill: color-mix(in srgb, var(--p-blue-light) 85%, black);
+  --p-blue-tint: color-mix(in srgb, var(--p-blue-light) 22%, rgb(var(--c-card)));
+  --p-blue-tint-strong: color-mix(in srgb, var(--p-blue-light) 32%, rgb(var(--c-card)));
+  --p-blue-border: color-mix(in srgb, var(--p-blue-light) 55%, rgb(var(--c-card)));
+  --p-gold-tint: color-mix(in srgb, var(--p-gold) 22%, rgb(var(--c-card)));
+  --p-gold-deep: var(--p-gold-light);
+  --p-eyebrow: var(--p-gold-light);
+}
+
 * { box-sizing: border-box; }
 
 body {
   margin: 0;
-  background: #f7f2e8;
-  color: #17263f;
+  background: rgb(var(--c-bg));
+  color: rgb(var(--c-ink));
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }

@@ -44,7 +44,7 @@ export default function BulletinTab() {
           <EmptyState title="No bulletins yet" subtitle="Type in this week's bulletin." />
         ) : (
           page.rows.map((r) => (
-            <div key={r.id} className="flex items-center gap-3 px-5 py-4 border-b border-[#f1e8d5] last:border-b-0 flex-wrap">
+            <div key={r.id} className="flex items-center gap-3 px-5 py-4 border-b border-parish-line last:border-b-0 flex-wrap">
               <div className="w-[120px]">
                 <div className="font-bold text-[11px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Week of</div>
                 <div className="font-serif text-[18px] font-semibold text-parish-blue">{fmtDate(r.week_of)}</div>

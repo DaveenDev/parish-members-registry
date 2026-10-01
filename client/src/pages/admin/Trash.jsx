@@ -67,7 +67,7 @@ export default function Trash() {
       <PageHeader title="Trash" subtitle={`Deleted households and members, kept for ${KEEP_DAYS} days`} />
       <PageBody>
         <div className="max-w-[920px]">
-          <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl text-[13.5px] text-[#2b466f] leading-relaxed">
+          <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
             Restoring puts the record back as it was, with its members, sacrament verifications and census answers, and links it again to
             certificate requests and the blood donor list. Items are removed for good after {KEEP_DAYS} days.
           </div>
@@ -76,7 +76,7 @@ export default function Trash() {
             {trash.error && <ErrorState message={trash.error} onRetry={trash.reload} />}
             {trash.data && !rows.length && <EmptyState title="The trash is empty" subtitle="Deleted households and members show up here." />}
             {!!rows.length && (
-              <ul className="list-none m-0 p-0 divide-y divide-[#f1e8d5]">
+              <ul className="list-none m-0 p-0 divide-y divide-parish-line">
                 {rows.map((r) => (
                   <li key={r.id} className="px-[18px] py-3.5 flex items-center gap-3 flex-wrap">
                     <div className="min-w-0 flex-1">
@@ -87,7 +87,7 @@ export default function Trash() {
                       <div className="text-[12.5px] text-parish-muted">
                         {[r.detail, `deleted ${fmtDateTime(r.deleted_at)}`, r.deleted_by_name && `by ${r.deleted_by_name}`].filter(Boolean).join(' · ')}
                       </div>
-                      <div className="text-[12px] text-[#a1762b] font-semibold">{daysLeft(r.deleted_at)} day(s) left</div>
+                      <div className="text-[12px] text-parish-warn font-semibold">{daysLeft(r.deleted_at)} day(s) left</div>
                     </div>
                     <button onClick={() => restore(r)} disabled={busyId === r.id} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg disabled:opacity-60">Restore</button>
                     <button onClick={() => purge(r)} disabled={busyId === r.id} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-error bg-parish-errorBg rounded-lg disabled:opacity-60">Delete for good</button>

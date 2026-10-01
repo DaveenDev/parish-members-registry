@@ -10,8 +10,8 @@ import { useToast } from '../../ToastContext.jsx';
 function Bar({ label, right, w, color }) {
   return (
     <div>
-      <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-[#3f3b2f] font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
-      <div className="h-2.5 bg-[#f1e8d5] rounded-full overflow-hidden">
+      <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-parish-text3 font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
+      <div className="h-2.5 bg-parish-track rounded-full overflow-hidden">
         <div className="h-full rounded-full" style={{ width: w, background: color }} />
       </div>
     </div>
@@ -21,9 +21,9 @@ function Bar({ label, right, w, color }) {
 function SplitBar({ label, right, vw, pw }) {
   return (
     <div>
-      <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-[#3f3b2f] font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
-      <div className="h-2.5 bg-[#f1e8d5] rounded-full overflow-hidden flex">
-        <div className="h-full" style={{ width: vw, background: '#2f7a52' }} />
+      <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-parish-text3 font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
+      <div className="h-2.5 bg-parish-track rounded-full overflow-hidden flex">
+        <div className="h-full" style={{ width: vw, background: 'rgb(var(--c-ok-text))' }} />
         <div className="h-full" style={{ width: pw, background: 'var(--p-gold)' }} />
       </div>
     </div>
@@ -131,7 +131,7 @@ export default function Reports() {
               <Panel className="px-6 py-[22px]">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Blood types</div>
-                  <Link to="/admin/blood" className="px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg no-underline">Open Blood Types page →</Link>
+                  <Link to="/admin/blood" className="px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg no-underline">Open Blood Types page →</Link>
                 </div>
                 <p className="text-[13px] text-parish-muted mb-4">The directory for finding blood donors now has its own page, with search, filters and click-to-call. {stats.unknownBlood} member(s) have no blood type on file.</p>
                 <div className="flex flex-wrap gap-2">
@@ -168,7 +168,7 @@ export default function Reports() {
                 </div>
 
                 {genType && (
-                  <div className="border-t border-[#f0e8d6] pt-4 mb-4">
+                  <div className="border-t border-parish-line2 pt-4 mb-4">
                     <div className="font-semibold text-[12px] text-parish-ink mb-2.5">3. Scope</div>
                     <div className="flex flex-wrap gap-3.5 items-end">
                       {meta.gkk && (
@@ -190,8 +190,8 @@ export default function Reports() {
                       )}
                       {meta.dateRange && (
                         <>
-                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">Registered from</div><input type="date" value={scope.dateFrom} onChange={(e) => setScope((s) => ({ ...s, dateFrom: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
-                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">Registered to</div><input type="date" value={scope.dateTo} onChange={(e) => setScope((s) => ({ ...s, dateTo: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
+                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">Registered from</div><input type="date" value={scope.dateFrom} onChange={(e) => setScope((s) => ({ ...s, dateFrom: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
+                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">Registered to</div><input type="date" value={scope.dateTo} onChange={(e) => setScope((s) => ({ ...s, dateTo: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
                         </>
                       )}
                       {meta.sacrament && genType === 'By Sacrament' && (
@@ -222,8 +222,8 @@ export default function Reports() {
                   <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
                     <div className="font-serif text-[21px] font-semibold text-parish-navy">{report.title}</div>
                     <div className="flex gap-2">
-                      <GhostButton onClick={() => window.print()} disabled={report.empty} className="px-3.5 py-2 text-[12.5px] !text-parish-text2 !border-transparent bg-[#f4efe3]">Print</GhostButton>
-                      <button onClick={exportGenerated} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg">Export CSV</button>
+                      <GhostButton onClick={() => window.print()} disabled={report.empty} className="px-3.5 py-2 text-[12.5px] !text-parish-text2 !border-transparent bg-parish-sunk">Print</GhostButton>
+                      <button onClick={exportGenerated} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg">Export CSV</button>
                     </div>
                   </div>
                   <p className="text-[13px] text-parish-muted mb-4">{report.meta}</p>
@@ -235,14 +235,14 @@ export default function Reports() {
                   )}
                   {!report.empty && !reportList.total && <div className="py-7 px-4 text-center text-parish-muted text-[14px]">No rows match “{reportList.query}”.</div>}
                   {!report.empty && !!reportList.total && (
-                    <div className="border border-[#f0e8d6] rounded-xl overflow-hidden">
+                    <div className="border border-parish-line2 rounded-xl overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full border-collapse" style={{ minWidth: 560 }}>
-                          <thead><tr className="bg-[#f4efe3]">{report.columns.map((c) => <th key={c} className="text-left px-3.5 py-2.5 font-bold text-[11.5px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">{c}</th>)}</tr></thead>
+                          <thead><tr className="bg-parish-sunk">{report.columns.map((c) => <th key={c} className="text-left px-3.5 py-2.5 font-bold text-[11.5px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">{c}</th>)}</tr></thead>
                           <tbody>
                             {reportList.rows.map((row, i) => (
-                              <tr key={i} className="border-t border-[#f1e8d5]">
-                                {row.cells.map((cell, j) => <td key={j} className="px-3.5 py-2.5 text-[13.5px] text-[#3f3b2f] whitespace-nowrap">{cell}</td>)}
+                              <tr key={i} className="border-t border-parish-line">
+                                {row.cells.map((cell, j) => <td key={j} className="px-3.5 py-2.5 text-[13.5px] text-parish-text3 whitespace-nowrap">{cell}</td>)}
                               </tr>
                             ))}
                           </tbody>

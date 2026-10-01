@@ -17,7 +17,7 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
     <div className="flex flex-col gap-6">
       <fieldset className="border-none p-0 m-0 min-w-0">
         <legend className={`font-semibold text-parish-navy mb-3 ${legendSize}`}>{t.active}</legend>
-        <div className="flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-[#fdfbf6]">
+        <div className="flex flex-col divide-y divide-parish-line2 border border-parish-edge rounded-xl bg-parish-field">
           {PARTICIPATION_ITEMS.map(([key, label]) => (
             <div key={key} role="radiogroup" aria-label={label} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
               <span className="font-medium text-[14.5px] text-parish-ink">{label}</span>
@@ -28,7 +28,7 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
                     <label
                       key={level}
                       className={`cursor-pointer select-none px-3.5 py-2.5 rounded-full border-[1.5px] text-[13px] font-semibold transition focus-within:ring-2 focus-within:ring-parish-blue/30 ${
-                        checked ? 'bg-parish-blue border-parish-blue text-white' : 'bg-white border-parish-borderSoft text-parish-text2 hover:border-parish-blue'
+                        checked ? 'bg-parish-fill border-parish-blue text-white' : 'bg-parish-surface border-parish-borderSoft text-parish-text2 hover:border-parish-blue'
                       }`}
                     >
                       <input
@@ -56,7 +56,7 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
           {HELP_WAYS.map(([key, label]) => {
             const checked = helpWays.includes(key);
             return (
-              <label key={key} className="flex items-start gap-2.5 cursor-pointer border-[1.5px] rounded-xl px-3 py-2.5" style={{ borderColor: checked ? '#9db9e0' : '#e0d6c1', background: checked ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
+              <label key={key} className="flex items-start gap-2.5 cursor-pointer border-[1.5px] rounded-xl px-3 py-2.5" style={{ borderColor: checked ? 'rgb(var(--c-focus-line))' : 'rgb(var(--c-border-soft))', background: checked ? 'var(--p-blue-tint)' : 'rgb(var(--c-field))' }}>
                 <Checkbox checked={checked} onChange={() => onToggleHelpWay(key)} className="mt-0.5 flex-none" />
                 <span className="text-[14px] leading-snug text-parish-ink">{label}</span>
               </label>
@@ -80,7 +80,7 @@ export function ParticipationReview({ participation = {}, helpWays = [], english
     <div className="flex flex-col gap-4">
       <div>
         <div className="text-parish-muted font-semibold text-[13px] sm:text-[15px] mb-2">{english ? 'Participation' : 'Partisipasyon'}</div>
-        <div className="flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-[#fdfbf6]">
+        <div className="flex flex-col divide-y divide-parish-line2 border border-parish-edge rounded-xl bg-parish-field">
           {PARTICIPATION_ITEMS.map(([key, label]) => (
             <div key={key} role="group" aria-label={label} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-2.5">
               <span className="font-medium text-[14px] text-parish-ink">{label}</span>
