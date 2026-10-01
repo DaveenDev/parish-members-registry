@@ -17,7 +17,7 @@ function NavItem({ to, end, label, count, badgeLabel, onNavigate }) {
       end={end}
       onClick={onNavigate}
       className={({ isActive }) =>
-        `relative flex items-center gap-3 px-3.5 py-[5px] rounded-lg font-semibold text-[14px] leading-snug text-left transition ${
+        `relative flex items-center gap-3 pl-7 pr-3.5 py-[5px] rounded-lg font-semibold text-[14px] leading-snug text-left transition ${
           isActive ? 'bg-white/12 text-white' : 'text-white/70 hover:text-white hover:bg-white/5'
         }`
       }
