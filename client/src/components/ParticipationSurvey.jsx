@@ -25,7 +25,7 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
                   return (
                     <label
                       key={level}
-                      className={`cursor-pointer select-none px-3 py-1.5 rounded-full border-[1.5px] text-[13px] font-semibold transition focus-within:ring-2 focus-within:ring-parish-blue/30 ${
+                      className={`cursor-pointer select-none px-3.5 py-2.5 rounded-full border-[1.5px] text-[13px] font-semibold transition focus-within:ring-2 focus-within:ring-parish-blue/30 ${
                         checked ? 'bg-parish-blue border-parish-blue text-white' : 'bg-white border-parish-borderSoft text-parish-text2 hover:border-parish-blue'
                       }`}
                     >

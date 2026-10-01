@@ -1,16 +1,37 @@
-import React, { useState } from 'react';
+import React, { useId, useState } from 'react';
 import { TRIBES, FAMILY_GROUPINGS } from '../constants.js';
 
-export function Field({ label, required, error, children }) {
+/**
+ * Label + control + error. The label is linked to the control so tapping it
+ * focuses the field and screen readers announce it, and an error marks the
+ * control aria-invalid (which the wizard also uses to find the first error).
+ *
+ * The control is the first element child. When that isn't the input itself
+ * (e.g. a row holding an input and a button), pass `inputId` and put that id
+ * on the input directly.
+ */
+export function Field({ label, required, error, children, inputId }) {
+  const autoId = useId();
+  const errorId = `${autoId}-error`;
+  const items = React.Children.toArray(children);
+  const target = inputId ? -1 : items.findIndex((c) => React.isValidElement(c));
+  const controlId = inputId || (target >= 0 && items[target].props.id) || autoId;
+  const content = target < 0 ? children : items.map((c, i) => (
+    i !== target ? c : React.cloneElement(c, {
+      id: controlId,
+      'aria-invalid': error ? true : undefined,
+      'aria-describedby': error ? errorId : undefined,
+    })
+  ));
   return (
     <div>
       {label && (
-        <label className="block font-semibold text-[12.5px] text-parish-ink mb-1.5 tracking-wide">
+        <label htmlFor={controlId} className="block font-semibold text-[12.5px] text-parish-ink mb-1.5 tracking-wide">
           {label} {required && <span className="text-parish-gold">*</span>}
         </label>
       )}
-      {children}
-      {error && <div className="text-parish-error text-[12px] font-medium mt-1">{error}</div>}
+      {content}
+      {error && <div id={errorId} role="alert" className="text-parish-error text-[12px] font-medium mt-1">{error}</div>}
     </div>
   );
 }
@@ -45,16 +66,17 @@ export function PrimaryButton({ className = '', children, ...rest }) {
   );
 }
 
-export function GoldButton({ className = '', children, ...rest }) {
+export const GoldButton = React.forwardRef(function GoldButton({ className = '', children, ...rest }, ref) {
   return (
     <button
+      ref={ref}
       {...rest}
       className={`appearance-none border-none cursor-pointer font-bold text-white bg-parish-gold rounded-xl shadow-[0_10px_22px_-10px_rgba(195,155,78,.6)] transition hover:-translate-y-px ${className}`}
     >
       {children}
     </button>
   );
-}
+});
 
 export const GhostButton = React.forwardRef(function GhostButton({ className = '', children, ...rest }, ref) {
   return (
@@ -91,11 +113,11 @@ export function StatusPill({ status }) {
  * older free-text value that isn't on the list stays selectable so editing a
  * household doesn't silently drop it.
  */
-export function FamilyGroupingSelect({ value, onChange, placeholder = 'Select…' }) {
+export function FamilyGroupingSelect({ value, onChange, placeholder = 'Select…', ...rest }) {
   const current = value || '';
   const options = current && !FAMILY_GROUPINGS.includes(current) ? [current, ...FAMILY_GROUPINGS] : FAMILY_GROUPINGS;
   return (
-    <Select value={current} onChange={(e) => onChange(e.target.value)}>
+    <Select {...rest} value={current} onChange={(e) => onChange(e.target.value)}>
       <option value="">{placeholder}</option>
       {options.map((g) => <option key={g} value={g}>{g}</option>)}
     </Select>
@@ -109,7 +131,7 @@ const OTHER_TRIBE = '__other__';
  * `onChange` receives the tribe string. A saved value that isn't on the list
  * opens straight into "Other…" so older free-text entries still show.
  */
-export function TribeSelect({ value, onChange, placeholder = 'Tribu', otherLabel = 'Other…' }) {
+export function TribeSelect({ value, onChange, placeholder = 'Tribu', otherLabel = 'Other…', ...rest }) {
   const current = value || '';
   const known = TRIBES.includes(current);
   const [otherChosen, setOtherChosen] = useState(false);
@@ -128,7 +150,7 @@ export function TribeSelect({ value, onChange, placeholder = 'Tribu', otherLabel
 
   return (
     <>
-      <Select value={showOther ? OTHER_TRIBE : current} onChange={pick}>
+      <Select {...rest} value={showOther ? OTHER_TRIBE : current} onChange={pick}>
         <option value="">{placeholder}</option>
         {TRIBES.map((t) => <option key={t} value={t}>{t}</option>)}
         <option value={OTHER_TRIBE}>{otherLabel}</option>

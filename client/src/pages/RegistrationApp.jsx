@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useId } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { useDebounced } from '../hooks.js';
@@ -114,6 +114,21 @@ export default function RegistrationApp() {
   const [banner, setBanner] = useState('');
   const [refNo, setRefNo] = useState('');
   const [toast, setToast] = useState(null);
+  const [errorFocusTick, setErrorFocusTick] = useState(0);
+
+  // After a failed "Padayon", bring the first invalid field into view and
+  // focus it (Field marks it aria-invalid). Errors without a field, like the
+  // consent box, fall back to the banner at the top.
+  useEffect(() => {
+    if (!errorFocusTick) return;
+    const field = document.querySelector('[aria-invalid="true"]');
+    if (field) {
+      field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      field.focus({ preventScroll: true });
+    } else {
+      document.getElementById('wizard-banner')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+  }, [errorFocusTick]);
 
   useEffect(() => {
     if (screen !== 'wizard') return;
@@ -288,7 +303,7 @@ export default function RegistrationApp() {
     }
     if (!v.ok) {
       setErr(v.err); setMemberErr(v.memberErr); setBanner(v.banner);
-      showToast(v.banner, 'error'); top();
+      setErrorFocusTick((t) => t + 1); // jump to the first problem once it renders
       return;
     }
     setErr({}); setMemberErr([]); setBanner('');
@@ -374,7 +389,6 @@ export default function RegistrationApp() {
           </div>
         </div>
       )}
-      <CreditFooter />
     </div>
   );
 }
@@ -388,7 +402,7 @@ function Landing({ onStart }) {
     api.publicParishLogo().then(setLogo).catch(() => {});
   }, []);
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
       <div className="fixed top-4 right-4 z-40">
         <ThemePickerPopover align="right" label="Kolor" />
       </div>
@@ -418,8 +432,9 @@ function Landing({ onStart }) {
           <span>Pribado ang inyong impormasyon — makita lamang sa awtorisadong kawani sa parokya.</span>
         </div>
         <div className="mt-[30px] pt-[22px] border-t border-[#e7dcc4]">
-          <Link to="/admin/login" className="font-semibold text-[14px] text-parish-blue">Kawani sa parokya? Mag-sign in sa admin panel →</Link>
+          <Link to="/admin/login" className="inline-block py-2.5 font-semibold text-[14px] text-parish-blue">Kawani sa parokya? Mag-sign in sa admin panel →</Link>
         </div>
+        <CreditFooter inline />
       </div>
     </div>
   );
@@ -436,7 +451,7 @@ function LandingStat({ value, label }) {
 
 function Confirmation({ refNo, householdName, onRestart }) {
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-center px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
       <ConfirmationPrintSheet refNo={refNo} householdName={householdName} />
       <div className="max-w-[520px] animate-fadeUp">
         <div className="w-[82px] h-[82px] rounded-full bg-[#eaf4ee] flex items-center justify-center mx-auto mb-[22px] text-[#3a8a5e]">
@@ -446,15 +461,17 @@ function Confirmation({ refNo, householdName, onRestart }) {
         <p className="text-[16.5px] leading-relaxed text-parish-text2 mb-[26px]">
           Narehistro na ang inyong pamilya sa <strong>Our Lady of Guadalupe Quasi-Parish, Mua-an</strong>. Susihon ug pamatud-an sa among kawani sa parokya ang inyong mga detalye sa dili madugay.
         </p>
-        <Card className="p-[26px] mb-[26px]">
+        <Card className="p-[clamp(18px,5vw,26px)] mb-[26px]">
           <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[var(--p-gold-deep)] mb-2">Inyong Reference Number</div>
-          <div className="font-serif font-semibold text-[36px] tracking-[.06em] text-parish-blue">{refNo}</div>
+          {/* Sized to the screen so "OLG-2026-XXXXXX" stays on one line on small phones. */}
+          <div className="font-serif font-semibold text-[clamp(20px,6.8vw,36px)] tracking-[.06em] text-parish-blue whitespace-nowrap">{refNo}</div>
           <div className="text-[13px] text-parish-muted mt-2">Palihug tipigi kini isip inyong rekord.</div>
         </Card>
         <div className="flex gap-3 justify-center flex-wrap">
           <GhostButton onClick={() => window.print()} className="px-6 py-3.5 text-[15px] !border-[#cdd7e8] !text-parish-blue bg-white">I-print ang kumpirmasyon</GhostButton>
           <PrimaryButton onClick={onRestart} className="px-[26px] py-3.5 text-[15px]">Magrehistro og laing pamilya</PrimaryButton>
         </div>
+        <CreditFooter inline />
       </div>
     </div>
   );
@@ -492,14 +509,18 @@ function Wizard(props) {
   const progressPct = (step / 5) * 100;
   return (
     <div>
-      <div className="sticky top-0 z-[15] bg-parish-bg/90 backdrop-blur-md border-b border-parish-border px-[18px] pt-4 pb-[18px]">
+      <div className="sticky top-0 z-[15] bg-parish-bg/90 backdrop-blur-md border-b border-parish-border px-[18px] pt-3 pb-3 sm:pt-4 sm:pb-[18px]">
         <div className="max-w-[880px] mx-auto">
-          <div className="flex items-center gap-2.5 justify-center mb-4 text-parish-gold">
+          <div className="hidden sm:flex items-center gap-2.5 justify-center mb-4 text-parish-gold">
             <svg viewBox="0 0 40 40" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z" /><path d="M20 24v9M15.5 28.5h9" /></svg>
             <span className="font-serif text-[20px] font-semibold text-parish-navy">OLG Quasi&#8209;Parish · Mua&#8209;an</span>
           </div>
-          <StepDots step={step} />
-          <div className="h-[5px] bg-[#eaddc2] rounded-full mt-3.5 mx-auto max-w-[520px] overflow-hidden">
+          {/* Phones: one line instead of five wrapped step labels, to keep the form visible. */}
+          <div className="sm:hidden text-center text-[14px] font-semibold text-parish-navy" aria-live="polite">
+            <span className="text-parish-muted font-medium">Lakang {step} sa {STEPS.length} · </span>{STEPS[step - 1]}
+          </div>
+          <div className="hidden sm:block"><StepDots step={step} /></div>
+          <div className="h-[5px] bg-[#eaddc2] rounded-full mt-2.5 sm:mt-3.5 mx-auto max-w-[520px] overflow-hidden">
             <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg,var(--p-blue),var(--p-gold))' }} />
           </div>
         </div>
@@ -507,7 +528,7 @@ function Wizard(props) {
 
       <div className="max-w-[880px] mx-auto px-[18px] pt-[26px] pb-[150px]">
         {banner && (
-          <div className="flex gap-2.5 items-start bg-parish-errorBg border border-parish-errorBorder text-parish-error rounded-xl px-4 py-3.5 mb-5 text-[14.5px]">
+          <div id="wizard-banner" role="alert" className="flex gap-2.5 items-start bg-parish-errorBg border border-parish-errorBorder text-parish-error rounded-xl px-4 py-3.5 mb-5 text-[14.5px]">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-none mt-px"><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" /></svg>
             <span>{banner}</span>
           </div>
@@ -518,14 +539,15 @@ function Wizard(props) {
         {step === 3 && <StepSacraments {...props} />}
         {step === 4 && <StepEngagement {...props} />}
         {step === 5 && <StepReview {...props} />}
+        <CreditFooter inline />
       </div>
 
-      <div className="fixed left-0 right-0 bottom-0 z-[16] bg-parish-bg/95 backdrop-blur-md border-t border-parish-border px-[18px] py-3.5">
+      <div className="fixed left-0 right-0 bottom-0 z-[16] bg-parish-bg/95 backdrop-blur-md border-t border-parish-border px-[18px] py-2.5 sm:py-3.5">
         <div className="max-w-[880px] mx-auto flex gap-3 justify-between items-center">
-          <GhostButton onClick={onBack} className="px-5 py-3.5 text-[15px]">{step === 1 ? '← Sinugdanan' : '← Balik'}</GhostButton>
-          {step !== 5 && <PrimaryButton onClick={onNext} className="px-[30px] py-3.5 text-[16px]">Padayon →</PrimaryButton>}
+          <GhostButton onClick={onBack} className="px-4 sm:px-5 py-3 sm:py-3.5 text-[15px]">{step === 1 ? '← Sinugdanan' : '← Balik'}</GhostButton>
+          {step !== 5 && <PrimaryButton onClick={onNext} className="px-6 sm:px-[30px] py-3 sm:py-3.5 text-[16px]">Padayon →</PrimaryButton>}
           {step === 5 && (
-            <GoldButton onClick={onOpenConfirm} disabled={submitting} className="px-[30px] py-3.5 text-[16px] flex items-center gap-2.5">
+            <GoldButton onClick={onOpenConfirm} disabled={submitting} className="px-5 sm:px-[30px] py-3 sm:py-3.5 text-[16px] flex items-center gap-2.5">
               {submitting ? (<><Spinner />Ginapadala…</>) : 'Ipadala ang Rehistro'}
             </GoldButton>
           )}
@@ -544,6 +566,7 @@ const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' };
 function HouseholdNameField({ value, error, status, suggestion, onChange }) {
   const [editing, setEditing] = useState(false);
   const inputRef = useRef(null);
+  const inputId = useId();
 
   useEffect(() => {
     if (editing) inputRef.current?.focus();
@@ -561,9 +584,11 @@ function HouseholdNameField({ value, error, status, suggestion, onChange }) {
   }[status];
 
   return (
-    <Field label="Ngalan sa Pamilya" required error={error}>
+    <Field label="Ngalan sa Pamilya" required error={error} inputId={inputId}>
       <div className="flex gap-2">
         <TextInput
+          id={inputId}
+          aria-invalid={error ? true : undefined}
           ref={inputRef}
           placeholder={editing ? 'pananglitan: Dela Cruz Family' : 'Mapuno gikan sa apelyido'}
           value={value}
@@ -725,7 +750,7 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
             {BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
           </Select>
         </Field>
-        <div className="text-[11.5px] text-parish-muted mt-1">Makatabang kini sa parokya sa pagpangita og mohatag og dugo kung adunay emerhensya.</div>
+        <div className="text-[12.5px] text-parish-muted mt-1">Makatabang kini sa parokya sa pagpangita og mohatag og dugo kung adunay emerhensya.</div>
       </div>
     </div>
   );
@@ -754,7 +779,7 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }
                 <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[15px]">{mv.mi + 1}</div>
                 <span className="font-serif text-[22px] font-semibold text-parish-navy">{mv.displayName}</span>
               </div>
-              <button onClick={() => onRemoveMember(mv.mi)} className="border border-[#e7d5cf] bg-white text-parish-error cursor-pointer font-semibold text-[13px] px-3.5 py-2 rounded-lg">Tangtangon</button>
+              <button onClick={() => onRemoveMember(mv.mi)} className="border border-[#e7d5cf] bg-white text-parish-error cursor-pointer font-semibold text-[13.5px] px-3.5 py-2.5 rounded-lg">Tangtangon</button>
             </div>
             <MemberNameFields mv={mv} onField={onMemberField} />
             <div className="mt-4">
@@ -775,13 +800,14 @@ function SacramentBlock({ mv, field, dateField, churchField, label, extra, onFie
   const checked = mv[field];
   const set = (f) => (e) => onField(mv.mi, f, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
   return (
-    <div className="border border-[#eee3ce] rounded-xl px-4 py-3.5 bg-[#fdfbf6]">
-      <label className="flex items-center gap-2.5 cursor-pointer">
+    <div className="border border-[#eee3ce] rounded-xl px-4 py-1.5 bg-[#fdfbf6]">
+      {/* The whole row is the tap target, not just the small checkbox. */}
+      <label className="flex items-center gap-2.5 cursor-pointer min-h-[44px]">
         <Checkbox checked={checked} onChange={set(field)} />
         <span className="font-semibold text-[15px] text-parish-navy">{label}</span>
       </label>
       {checked && (
-        <div className="grid gap-3 mt-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
+        <div className="grid gap-3 mt-1 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
           <input type="date" value={mv[dateField]} onChange={set(dateField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
           <input type="text" placeholder="Parokya / Simbahan" value={mv[churchField]} onChange={set(churchField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
           {extra && extra(set)}
@@ -844,7 +870,7 @@ function WeddingBlock({ mv, onField }) {
           return (
             <label
               key={type}
-              className={`cursor-pointer select-none px-3.5 py-2 rounded-full border-[1.5px] text-[13.5px] font-semibold transition focus-within:ring-2 focus-within:ring-parish-blue/30 ${
+              className={`cursor-pointer select-none px-3.5 py-2.5 rounded-full border-[1.5px] text-[13.5px] font-semibold transition focus-within:ring-2 focus-within:ring-parish-blue/30 ${
                 checked ? 'bg-parish-blue border-parish-blue text-white' : 'bg-white border-parish-borderSoft text-parish-text2 hover:border-parish-blue'
               }`}
             >
@@ -1015,7 +1041,7 @@ function ReviewCard({ title, onEdit, children }) {
     <Card className="p-[clamp(20px,4vw,30px)] mb-4">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-serif text-[24px] font-semibold m-0 text-parish-navy">{title}</h3>
-        <button onClick={onEdit} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13.5px] text-parish-blue">Usba</button>
+        <button onClick={onEdit} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[14px] text-parish-blue px-3 py-2.5 -mr-3 rounded-lg hover:bg-[var(--p-blue-tint)]">Usba</button>
       </div>
       <div className="flex flex-col gap-2.5">{children}</div>
     </Card>
@@ -1023,21 +1049,46 @@ function ReviewCard({ title, onEdit, children }) {
 }
 function ReviewRow({ label, value }) {
   return (
-    <div className="flex gap-3.5 text-[15px] border-b border-[#f4eddd] pb-2.5">
-      <span className="flex-none w-[130px] text-parish-muted font-semibold">{label}</span>
-      <span className="text-parish-ink">{value}</span>
+    // Phones: label above the value so long addresses and survey answers get the full width.
+    <div className="flex flex-col sm:flex-row gap-0.5 sm:gap-3.5 text-[15px] border-b border-[#f4eddd] pb-2.5">
+      <span className="sm:flex-none sm:w-[130px] text-parish-muted font-semibold text-[13px] sm:text-[15px]">{label}</span>
+      <span className="text-parish-ink break-words">{value}</span>
     </div>
   );
 }
 
 function ConfirmModal({ memberViews, onCancel, onAddMore, onSubmit }) {
+  const titleId = useId();
+  const submitRef = useRef(null);
+  const cancelRef = useRef(onCancel);
+  cancelRef.current = onCancel;
+
+  // Focus the main action on open, close on Escape, and hand focus back to
+  // whatever opened the dialog when it goes away. Runs once per opening.
+  useEffect(() => {
+    const opener = document.activeElement;
+    submitRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') cancelRef.current(); };
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      if (opener && typeof opener.focus === 'function') opener.focus();
+    };
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-50 bg-parish-navy/45 backdrop-blur-sm flex items-center justify-center p-5 animate-fadeUp">
-      <div className="bg-white rounded-[22px] max-w-[460px] w-full shadow-2xl p-[clamp(24px,5vw,34px)] max-h-[88vh] overflow-auto">
+    <div className="fixed inset-0 z-50 bg-parish-navy/45 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-5 animate-fadeUp" onClick={onCancel}>
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white rounded-[22px] max-w-[460px] w-full shadow-2xl p-[clamp(22px,5vw,34px)] max-h-[90vh] overflow-auto"
+      >
         <div className="flex items-center gap-2.5 mb-1.5 text-parish-gold">
           <svg viewBox="0 0 40 40" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z" /><path d="M20 24v9M15.5 28.5h9" /></svg>
         </div>
-        <h3 className="font-serif text-[28px] font-semibold m-0 mb-1.5 text-parish-navy">Andam na ba ipadala?</h3>
+        <h3 id={titleId} className="font-serif text-[28px] font-semibold m-0 mb-1.5 text-parish-navy">Andam na ba ipadala?</h3>
         <p className="text-[15px] leading-relaxed text-parish-text2 mb-[18px]">
           Magrehistro kamo og <strong className="text-parish-blue">{memberViews.length}</strong> ka miyembro sa pamilya. Palihug siguroha nga apil ang tanan una mahuman — mahimo pa kamong mobalik ug modugang.
         </p>
@@ -1050,11 +1101,11 @@ function ConfirmModal({ memberViews, onCancel, onAddMore, onSubmit }) {
           ))}
         </div>
         <div className="flex flex-col gap-2.5">
-          <GoldButton onClick={onSubmit} className="w-full py-4 text-[16px]">Oo, ipadala ang rehistro</GoldButton>
+          <GoldButton ref={submitRef} onClick={onSubmit} className="w-full py-4 text-[16px]">Oo, ipadala ang rehistro</GoldButton>
           <GhostButton onClick={onAddMore} className="w-full py-3.5 text-[15px] !border-[#cdd7e8] !text-parish-blue bg-white flex items-center justify-center gap-2">
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12h14" /></svg>Kadiyot — idugang og laing miyembro
           </GhostButton>
-          <button onClick={onCancel} className="appearance-none border-none bg-none cursor-pointer w-full py-2 font-semibold text-[14px] text-parish-muted">Padayon sa pagsusi</button>
+          <button onClick={onCancel} className="appearance-none border-none bg-none cursor-pointer w-full py-3 font-semibold text-[14px] text-parish-muted">Padayon sa pagsusi</button>
         </div>
       </div>
     </div>
