@@ -468,6 +468,24 @@ export const api = {
   saveEvent: (row) => saveWebsiteRow('events', row),
   deleteEvent: (id) => deleteWebsiteRow('events', id),
 
+  // Latest updates: articles about activities held (0013 migration).
+  async listArticles() {
+    return listWebsite('articles', (q) => q.order('held_on', { ascending: false }).order('id', { ascending: false }), '0013_public_site.sql');
+  },
+  saveArticle: (row) => saveWebsiteRow('articles', row),
+  deleteArticle: (id) => deleteWebsiteRow('articles', id),
+
+  // GKK directory details on the gkks rows (0013 migration).
+  async listGkkDetails() {
+    return listWebsite('gkks', (q) => q.order('name'), '0013_public_site.sql');
+  },
+  async saveGkkDetails(id, patch) {
+    const fields = Object.fromEntries(GKK_DETAIL_FIELDS.filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
+    const { data, error } = await supabase.from('gkks').update(cleanPatch(fields)).eq('id', id).select().single();
+    if (error) throw mapError(error);
+    return data;
+  },
+
   /** Publish or unpublish one item of any website content table. */
   async setWebsitePublished(table, id, published) {
     if (!WEBSITE_TABLES.includes(table)) throw new Error('Unknown content type');
@@ -489,6 +507,34 @@ export const api = {
   publicBloodCalls: () => publicRpc('public_blood_calls'),
   /** Prayer intentions staff chose to show (requester agreed), last 30 days. */
   publicPrayerIntentions: () => publicRpc('public_prayer_intentions'),
+
+  // ---- public website reads (0011 tables, 0013 functions) -------------
+  // Published items only, even for a signed-in staff member browsing the site.
+  publicMassSchedules: () => listPublished('mass_schedules', (q) => q.order('day_of_week').order('start_time')),
+  /** Live announcements: pinned first, then newest. */
+  publicAnnouncements: () => listPublished('announcements', (q) => q
+    .lte('publish_on', todayLocal())
+    .or(`expires_on.is.null,expires_on.gte.${todayLocal()}`)
+    .order('pinned', { ascending: false }).order('publish_on', { ascending: false }).order('id', { ascending: false })),
+  publicBulletins: () => listPublished('bulletins', (q) => q.order('week_of', { ascending: false }).limit(26)),
+  /** Events that haven't ended before `fromIso` (YYYY-MM-DD). */
+  publicEvents: (fromIso) => listPublished('events', (q) => q
+    .or(`end_date.gte.${fromIso},and(end_date.is.null,start_date.gte.${fromIso})`)
+    .order('start_date').order('start_time', { nullsFirst: true })),
+  publicArticles: () => listPublished('articles', (q) => q.order('held_on', { ascending: false }).order('id', { ascending: false }).limit(30)),
+  /** One published item by id (for shared links to an event, announcement, bulletin or article), or null. */
+  async publicItem(table, id) {
+    if (!WEBSITE_TABLES.includes(table)) throw new Error('Unknown content type');
+    const rows = await listPublished(table, (q) => q.eq('id', Number(id) || 0).limit(1));
+    return rows[0] || null;
+  },
+  /** [{ name, puroks, meeting_schedule, meeting_place, households|null, census_pct|null, coordinator|null }] */
+  publicGkkDirectory: () => publicRpc('public_gkk_directory'),
+  /** { open, label, ends_on, pct, gkks: [{ name, pct|null }] } */
+  publicCensusProgress: () => publicRpc('public_census_progress'),
+  publicOfficeDetails: () => publicRpc('public_office_details'),
+  /** { ref_no, household_name, status, registered_on }, or null if not found. */
+  registrationStatus: (refNo) => publicRpc('registration_status', { p_ref: refNo }),
 
   // Staff queues.
   async requestInboxCounts() {
@@ -806,16 +852,31 @@ export const api = {
 
 const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'directions', 'map_url'];
 
-const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events'];
+const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles'];
 
-async function listWebsite(table, order) {
+const GKK_DETAIL_FIELDS = ['puroks', 'meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on'];
+
+async function listWebsite(table, order, migration = '0011_website_content.sql') {
   const { data, error } = await order(supabase.from(table).select('*'));
   if (error) {
-    // Before 0011 is run the table doesn't exist; say which file fixes it.
-    if (error.code === '42P01' || error.code === 'PGRST205') throw new Error('Run the 0011_website_content.sql migration in Supabase to use this page');
+    // Before the migration is run the table (or column) doesn't exist; say which file fixes it.
+    if (['42P01', 'PGRST205', '42703'].includes(error.code)) throw new Error(`Run the ${migration} migration in Supabase to use this page`);
     throw mapError(error);
   }
   return { rows: data || [] };
+}
+
+/** Today as YYYY-MM-DD on the visitor's clock (the parish is in one time zone). */
+function todayLocal() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Published rows of a website content table, for the public site. */
+async function listPublished(table, order) {
+  const { data, error } = await order(supabase.from(table).select('*').eq('published', true));
+  if (error) throw mapError(error);
+  return data || [];
 }
 
 /** Insert a row (no id) or update it (with id). Blank strings save as null. */

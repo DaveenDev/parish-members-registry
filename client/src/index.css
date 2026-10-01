@@ -100,6 +100,8 @@
   --p-blue-tint-strong: color-mix(in srgb, var(--p-blue) 16%, white);
   --p-blue-border: color-mix(in srgb, var(--p-blue) 40%, white);
   --p-gold-tint: color-mix(in srgb, var(--p-gold) 14%, white);
+  /* Gold eyebrow text darkened enough for AA contrast on parchment. */
+  --p-eyebrow: color-mix(in srgb, var(--p-gold-deep) 78%, black);
 }
 
 * { box-sizing: border-box; }
