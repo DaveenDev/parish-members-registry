@@ -7,7 +7,7 @@ import {
   blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
   PARTICIPATION_ITEMS, HELP_WAYS, DEFAULT_ADDRESS, fmtDate,
 } from '../constants.js';
-import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, TribeSelect } from '../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, TribeSelect, FamilyGroupingSelect } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
 import ParticipationSurvey from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
@@ -621,7 +621,7 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
               {gkks.map((g) => <option key={g} value={g}>{g}</option>)}
             </Select>
           </Field>
-          <Field label="Family Groupings"><TextInput placeholder="e.g. Grouping 2" {...f('familyGrouping')} /></Field>
+          <Field label="Family Groupings"><FamilyGroupingSelect value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
         </div>
       </Card>
 

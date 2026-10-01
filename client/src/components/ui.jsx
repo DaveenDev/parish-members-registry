@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { TRIBES } from '../constants.js';
+import { TRIBES, FAMILY_GROUPINGS } from '../constants.js';
 
 export function Field({ label, required, error, children }) {
   return (
@@ -83,6 +83,22 @@ export function StatusPill({ status }) {
       <span className={`w-1.5 h-1.5 rounded-full ${verified ? 'bg-[#2f7a52]' : 'bg-[#a1762b]'}`} />
       {status}
     </span>
+  );
+}
+
+/**
+ * Family Grouping picker (FG 1 – FG 10). `onChange` receives the value. An
+ * older free-text value that isn't on the list stays selectable so editing a
+ * household doesn't silently drop it.
+ */
+export function FamilyGroupingSelect({ value, onChange }) {
+  const current = value || '';
+  const options = current && !FAMILY_GROUPINGS.includes(current) ? [current, ...FAMILY_GROUPINGS] : FAMILY_GROUPINGS;
+  return (
+    <Select value={current} onChange={(e) => onChange(e.target.value)}>
+      <option value="">Select…</option>
+      {options.map((g) => <option key={g} value={g}>{g}</option>)}
+    </Select>
   );
 }
 

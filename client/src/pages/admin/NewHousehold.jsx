@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody } from '../../components/admin.jsx';
-import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, HouseholdNameTakenNote, TribeSelect } from '../../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, HouseholdNameTakenNote, TribeSelect, FamilyGroupingSelect } from '../../components/ui.jsx';
 import { useHouseholdNameTaken } from '../../hooks.js';
 import { toNameCase, toSuffixCase } from '../../lib/util.js';
 import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, DEFAULT_ADDRESS, blankMember } from '../../constants.js';
@@ -104,7 +104,7 @@ export default function NewHousehold() {
                     <option value="">Select…</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
                   </Select>
                 </Field>
-                <Field label="Family Grouping"><TextInput value={nh.grouping} onChange={(e) => setField('grouping', e.target.value)} /></Field>
+                <Field label="Family Grouping"><FamilyGroupingSelect value={nh.grouping} onChange={(v) => setField('grouping', v)} /></Field>
               </div>
               <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
                 <Field label="Household contact no."><TextInput value={nh.contact} onChange={(e) => setField('contact', e.target.value)} /></Field>

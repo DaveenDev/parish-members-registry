@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../api.js';
-import { Field, TextInput, Select, PrimaryButton, GhostButton, HouseholdNameTakenNote } from './ui.jsx';
+import { Field, TextInput, Select, PrimaryButton, GhostButton, HouseholdNameTakenNote, FamilyGroupingSelect } from './ui.jsx';
 import { useHouseholdNameTaken } from '../hooks.js';
 import ParticipationSurvey from './ParticipationSurvey.jsx';
 import { HELP_WAYS } from '../constants.js';
@@ -100,7 +100,7 @@ export default function HouseholdEditModal({ household, gkkOptions = [], onClose
                 <option value="">Select…</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
               </Select>
             </Field>
-            <Field label="Family Grouping"><TextInput value={form.family_grouping} onChange={set('family_grouping')} /></Field>
+            <Field label="Family Grouping"><FamilyGroupingSelect value={form.family_grouping} onChange={(v) => setForm((f) => ({ ...f, family_grouping: v }))} /></Field>
           </div>
           <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
             <Field label="Household contact no."><TextInput value={form.contact} onChange={set('contact')} /></Field>

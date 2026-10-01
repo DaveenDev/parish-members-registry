@@ -8,6 +8,7 @@ import {
   BLOOD_TYPES,
   HEAD,
   TRIBES,
+  FAMILY_GROUPINGS,
   WEDDING_TYPES,
   PARTICIPATION_ITEMS,
   PARTICIPATION_LEVELS,
@@ -55,6 +56,14 @@ describe('participation survey', () => {
     for (const [key, label] of [...PARTICIPATION_ITEMS, ...HELP_WAYS]) {
       assert.ok(typeof label === 'string' && label.trim(), `${key} has no label`);
     }
+  });
+});
+
+describe('FAMILY_GROUPINGS', () => {
+  test('runs FG 1 through FG 10', () => {
+    assert.equal(FAMILY_GROUPINGS.length, 10);
+    assert.equal(FAMILY_GROUPINGS[0], 'FG 1');
+    assert.equal(FAMILY_GROUPINGS[9], 'FG 10');
   });
 });
 

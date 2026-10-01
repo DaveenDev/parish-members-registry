@@ -11,6 +11,8 @@ export const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export const HEAD = 'Head of Household';
 
+export const FAMILY_GROUPINGS = Array.from({ length: 10 }, (_, i) => `FG ${i + 1}`);
+
 // Tribe pick-list (members.tribe stays free text, so "Other…" can hold anything else).
 export const TRIBES = [
   'Bisaya', 'Illongo', 'Bol-anon', 'Waray', 'Karay-a', 'Bagobo', "T'boli", "B'laan", 'Manobo', 'Subanon',
