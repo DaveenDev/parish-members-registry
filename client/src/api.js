@@ -476,6 +476,81 @@ export const api = {
     return data;
   },
 
+  // ---- requests from parishioners (0012 migration) --------------------
+  // Public forms (for the public website). Each returns { ref_no } except
+  // registerBloodDonor. Errors arrive in Bisaya, ready to show.
+  submitCertificateRequest: (payload) => publicRpc('submit_certificate_request', { payload }),
+  /** Status of a certificate request by reference number, or null if not found. */
+  certificateRequestStatus: (refNo) => publicRpc('certificate_request_status', { p_ref: refNo }),
+  submitPrayerRequest: (payload) => publicRpc('submit_prayer_request', { payload }),
+  registerBloodDonor: (payload) => publicRpc('register_blood_donor', { payload }),
+  submitBloodRequest: (payload) => publicRpc('submit_blood_request', { payload }),
+  /** Open blood calls staff chose to show: blood type, units, hospital, date. */
+  publicBloodCalls: () => publicRpc('public_blood_calls'),
+  /** Prayer intentions staff chose to show (requester agreed), last 30 days. */
+  publicPrayerIntentions: () => publicRpc('public_prayer_intentions'),
+
+  // Staff queues.
+  async requestInboxCounts() {
+    const { data, error } = await supabase.rpc('request_inbox_counts');
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async listCertificateRequests() {
+    return listRequests('certificate_requests', '*, member:members(*)');
+  },
+  saveCertificateRequest: (row) => saveRequestRow('certificate_requests', row, CERT_FIELDS),
+
+  async listPrayerRequests() {
+    return listRequests('prayer_requests');
+  },
+  savePrayerRequest: (row) => saveRequestRow('prayer_requests', row, PRAYER_FIELDS),
+  /** Mark several intentions as prayed for, at the Mass on `offeredOn`. */
+  async markPrayersPrayed(ids, offeredOn) {
+    if (!ids.length) return [];
+    const { data, error } = await supabase.from('prayer_requests')
+      .update({ status: 'Prayed for', offered_on: offeredOn || null }).in('id', ids).select();
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async listBloodRequests() {
+    return listRequests('blood_requests');
+  },
+  saveBloodRequest: (row) => saveRequestRow('blood_requests', row, BLOOD_REQUEST_FIELDS),
+
+  async listBloodDonors() {
+    const { data, error } = await supabase.from('blood_donors').select('*').order('full_name');
+    if (error) throw requestsError(error);
+    return { rows: data || [] };
+  },
+  saveBloodDonor: (row) => saveRequestRow('blood_donors', row, DONOR_FIELDS, 'A donor with this mobile number'),
+
+  async listBloodContacts(requestId) {
+    const { data, error } = await supabase.from('blood_request_contacts').select('*').eq('request_id', requestId);
+    if (error) throw mapError(error);
+    return data || [];
+  },
+  async setBloodContact(requestId, donorId, status, note) {
+    const { data, error } = await supabase.from('blood_request_contacts')
+      .upsert({ request_id: requestId, donor_id: donorId, status, note: note?.trim() || null }, { onConflict: 'request_id,donor_id' })
+      .select().single();
+    if (error) throw mapError(error);
+    return data;
+  },
+  async clearBloodContact(requestId, donorId) {
+    const { error } = await supabase.from('blood_request_contacts').delete().eq('request_id', requestId).eq('donor_id', donorId);
+    if (error) throw mapError(error);
+  },
+
+  /** Delete a request (e.g. spam). Only these tables. */
+  async deleteRequest(table, id) {
+    if (!REQUEST_TABLES.includes(table)) throw new Error('Unknown request type');
+    const { error } = await supabase.from(table).delete().eq('id', id);
+    if (error) throw mapError(error);
+  },
+
   // ---- parish census (0007 migration) --------------------------------
   /** Every census, newest first. */
   async listCensusCycles() {
@@ -756,6 +831,53 @@ async function saveWebsiteRow(table, row, dupLabel) {
 async function deleteWebsiteRow(table, id) {
   const { error } = await supabase.from(table).delete().eq('id', id);
   if (error) throw mapError(error);
+}
+
+const REQUEST_TABLES = ['certificate_requests', 'prayer_requests', 'blood_requests', 'blood_donors'];
+
+// The columns staff may set on each request table. Ref numbers, who handled
+// it and the timestamps are filled in by the database.
+const CERT_FIELDS = [
+  'cert_type', 'status', 'source', 'subject_first_name', 'subject_middle_name', 'subject_last_name', 'subject_birth_date',
+  'sacrament_date', 'sacrament_year', 'sacrament_place', 'father_name', 'mother_name', 'spouse_name', 'purpose', 'copies',
+  'requester_name', 'requester_mobile', 'requester_email', 'relationship', 'message',
+  'member_id', 'fee', 'or_number', 'released_to', 'public_note', 'staff_notes',
+];
+const PRAYER_FIELDS = [
+  'intention_type', 'intention', 'for_name', 'requester_name', 'requester_mobile', 'allow_public', 'show_publicly',
+  'status', 'source', 'offered_on', 'staff_notes',
+];
+const BLOOD_REQUEST_FIELDS = [
+  'patient_name', 'blood_type', 'units', 'hospital', 'needed_by', 'contact_name', 'contact_mobile', 'relationship', 'notes',
+  'allow_public', 'show_publicly', 'status', 'source', 'staff_notes',
+];
+const DONOR_FIELDS = ['full_name', 'mobile', 'blood_type', 'gkk', 'member_id', 'last_donated_on', 'source', 'opted_out_at', 'notes'];
+
+function requestsError(error) {
+  // Before 0012 is run the tables don't exist; say which file fixes it.
+  if (error.code === '42P01' || error.code === 'PGRST205') return new Error('Run the 0012_requests.sql migration in Supabase to use this page');
+  return mapError(error);
+}
+
+async function publicRpc(name, args) {
+  const { data, error } = await supabase.rpc(name, args);
+  if (error) throw mapError(error);
+  return data;
+}
+
+async function listRequests(table, select = '*') {
+  const { data, error } = await supabase.from(table).select(select).order('created_at', { ascending: false });
+  if (error) throw requestsError(error);
+  return { rows: data || [] };
+}
+
+/** Insert (no id) or update (with id) the allowed fields of a request row. Blank strings save as null. */
+async function saveRequestRow(table, row, fields, dupLabel) {
+  const patch = cleanPatch(Object.fromEntries(fields.filter((f) => f in row).map((f) => [f, typeof row[f] === 'string' ? row[f].trim() : row[f]])));
+  const q = row.id ? supabase.from(table).update(patch).eq('id', row.id) : supabase.from(table).insert(patch);
+  const { data, error } = await q.select(table === 'certificate_requests' ? '*, member:members(*)' : '*').single();
+  if (error) throw mapError(error, { dupLabel });
+  return data;
 }
 
 const GROUP_COLUMNS = ['ministries', 'organizations'];

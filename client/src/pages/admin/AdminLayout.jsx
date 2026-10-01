@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
@@ -14,6 +14,7 @@ const NAV_MAIN = [
   { to: '/admin/organizations', label: 'Organizations' },
   { to: '/admin/ministries', label: 'Ministries' },
   { to: '/admin/census', label: 'Census' },
+  { to: '/admin/requests', label: 'Requests', badge: 'requests' },
   { to: '/admin/website', label: 'Parish Website' },
   { to: '/admin/reports', label: 'Reports' },
   { to: '/admin/exports', label: 'Exports' },
@@ -26,7 +27,7 @@ const NAV_SETTINGS = [
   { to: '/admin/settings/staff', label: 'Staff', adminOnly: true },
 ];
 
-function NavItem({ to, end, label, onNavigate }) {
+function NavItem({ to, end, label, count, onNavigate }) {
   return (
     <NavLink
       to={to}
@@ -42,6 +43,11 @@ function NavItem({ to, end, label, onNavigate }) {
         <>
           <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded" style={{ background: isActive ? 'var(--p-gold-light)' : 'transparent' }} />
           {label}
+          {count > 0 && (
+            <span className="ml-auto min-w-[22px] px-1.5 py-px rounded-full bg-[var(--p-gold-light)] text-parish-navy text-[11.5px] font-bold text-center" aria-label={`${count} waiting`}>
+              {count}
+            </span>
+          )}
         </>
       )}
     </NavLink>
@@ -55,7 +61,18 @@ export default function AdminLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [parish, setParish] = useState(null);
 
+  const [requestCounts, setRequestCounts] = useState(null);
+
   useEffect(() => { api.getSettings().then((r) => setParish(r.settings)).catch(() => {}); }, []);
+
+  // Waiting requests for the sidebar badge, refreshed on every page change
+  // and whenever the Requests page changes one. Before 0012 is run this
+  // fails quietly and no badge shows.
+  const refreshRequestCounts = useCallback(() => {
+    api.requestInboxCounts().then(setRequestCounts).catch(() => {});
+  }, []);
+  useEffect(refreshRequestCounts, [location.pathname, refreshRequestCounts]);
+  const badges = { requests: requestCounts ? requestCounts.certificates + requestCounts.ready + requestCounts.prayers + requestCounts.blood : 0 };
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
@@ -91,7 +108,7 @@ export default function AdminLayout() {
       </div>
 
       <nav className="px-3 py-3.5 flex flex-col gap-0.5 flex-1 overflow-auto" aria-label="Admin sections">
-        {NAV_MAIN.map((n) => <NavItem key={n.to} {...n} />)}
+        {NAV_MAIN.map((n) => <NavItem key={n.to} {...n} count={n.badge ? badges[n.badge] : 0} />)}
         <div className="mx-3.5 mt-3.5 mb-1 font-bold text-[10.5px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70">Settings</div>
         {NAV_SETTINGS.filter((n) => !n.adminOnly || user?.isAdmin).map((n) => <NavItem key={n.to} {...n} />)}
       </nav>
@@ -159,7 +176,7 @@ export default function AdminLayout() {
         </div>
 
         {/* Pages that change parish settings (logo, name) push them back here so the sidebar updates without a reload. */}
-        <Outlet context={{ parish, setParish }} />
+        <Outlet context={{ parish, setParish, requestCounts, refreshRequestCounts }} />
       </main>
     </div>
   );

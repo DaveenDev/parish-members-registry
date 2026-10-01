@@ -1,0 +1,39 @@
+import React from 'react';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
+import { PageHeader, PageBody, Tabs } from '../../components/admin.jsx';
+import CertificatesTab from '../../components/requests/CertificatesTab.jsx';
+import PrayerTab from '../../components/requests/PrayerTab.jsx';
+import BloodRequestsTab from '../../components/requests/BloodRequestsTab.jsx';
+import DonorsTab from '../../components/requests/DonorsTab.jsx';
+
+const TABS = [
+  ['certificates', 'Certificates', CertificatesTab, (c) => c.certificates + c.ready],
+  ['prayers', 'Prayer Requests', PrayerTab, (c) => c.prayers],
+  ['blood', 'Blood Requests', BloodRequestsTab, (c) => c.blood],
+  ['donors', 'Blood Donors', DonorsTab, () => 0],
+];
+
+/** Staff queues for what parishioners ask the parish office for. */
+export default function Requests() {
+  const [params, setParams] = useSearchParams();
+  const layout = useOutletContext();
+  const counts = layout?.requestCounts;
+  const current = TABS.find(([k]) => k === params.get('tab')) || TABS[0];
+  const setTab = (k) => setParams(k === TABS[0][0] ? {} : { tab: k }, { replace: true });
+  const Tab = current[2];
+
+  const tabs = TABS.map(([k, label, , countOf]) => {
+    const n = counts ? countOf(counts) : 0;
+    return [k, n ? `${label} (${n})` : label];
+  });
+
+  return (
+    <>
+      <PageHeader title="Requests" subtitle="Certificates, prayer intentions and blood calls from parishioners" />
+      <PageBody>
+        <Tabs tabs={tabs} value={current[0]} onChange={setTab} />
+        <Tab key={current[0]} onCountsChanged={() => layout?.refreshRequestCounts?.()} />
+      </PageBody>
+    </>
+  );
+}
