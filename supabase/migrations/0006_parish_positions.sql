@@ -3,6 +3,24 @@
 -- per-member "Katungdanan sa Parish" picked from it. Run after
 -- 0005_sacrament_verification.sql. Safe to re-run.
 
+-- Stop early, naming the missing file, if an earlier migration hasn't run.
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_schema = 'public' and table_name = 'members' and column_name = 'gkk_role') then
+    raise exception 'Run 0002_head_first_registration.sql (then 0003, 0004, 0005) before this migration';
+  end if;
+  if to_regprocedure('public.list_public_organizations()') is null then
+    raise exception 'Run 0003_public_stats_groups_names.sql (then 0004, 0005) before this migration';
+  end if;
+  if to_regprocedure('public.public_parish_logo()') is null then
+    raise exception 'Run 0004_public_parish_logo.sql (then 0005) before this migration';
+  end if;
+  if to_regclass('public.sacrament_verifications') is null then
+    raise exception 'Run 0005_sacrament_verification.sql before this migration';
+  end if;
+end;
+$$;
+
 -- ---------------------------------------------------------------------------
 -- Table + member column
 -- ---------------------------------------------------------------------------
