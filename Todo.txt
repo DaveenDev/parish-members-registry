@@ -1,16 +1,9 @@
-1. make the Katungdan sa GKK a combobox but still allow user to input
-for example it can be "GKK President","Vice-President", Secretary, Treasurer, Buss. Manager
+1. in the members registration step 3
+if the member in question is the Asawa or Spouse of the Household
+Head, the Kasal/Marriage date and venue (parish) and type of
+marriage "Civil","Simbahang Katoliko" should be shared by both.
 
-update the admin backend side too.
+2. in the members registration step 5 (last),
 
-2. in the Organizations Settings page,
-make a new tab for Parish Organization Structure and another one for
-Lay Organization list. the current lay organization list will be displayed to the Lay Organization tab
-
-as for the Parish Organizations will be a new list which the 
-current parish structure have like "PPC President", and others.
-
-in the members front step 4, add a new Katungdanan sa Parish level
-with the following option "PPC Officer","GKK Cluster Head"
-"FLA Coordinator", based on the Parish Organization list from the
-admin panel settings
+for displaying for Partisipasyon and Paagi sa pagtabang
+should be in a checkbox (disabled) form.
