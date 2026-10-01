@@ -1,41 +1,26 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { useAuth } from '../../AuthContext.jsx';
-import { PageHeader, PageBody, EmptyState, ErrorState, LoadingState } from '../../components/admin.jsx';
-import { Field, TextInput, Checkbox, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
+import { PageHeader, PageBody, EmptyState, ErrorState, LoadingState, Panel, Modal } from '../../components/admin.jsx';
+import { Field, TextInput, Checkbox, Select, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
 import { useAsyncData } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { fmtDateTime } from '../../constants.js';
 import { generateTempPassword } from '../../lib/util.js';
+import { ACCESS_LEVELS, accessLabel } from '../../lib/access.js';
 
-const EMPTY_FORM = { name: '', email: '', role: 'Parish Staff', isAdmin: false };
-
-/** Centered dialog with Escape-to-close, matching the app's other modals. */
-function Dialog({ title, onClose, children }) {
-  const titleId = useId();
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && !document.querySelector('[role="alertdialog"]') && onClose();
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-50 bg-parish-navy/45 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 sm:p-5" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="bg-white rounded-2xl max-w-[480px] w-full shadow-2xl p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 id={titleId} className="font-serif text-[23px] font-semibold m-0 text-parish-navy">{title}</h3>
-          <button onClick={onClose} aria-label="Close" className="appearance-none border-none bg-transparent cursor-pointer text-parish-muted text-2xl leading-none">×</button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
+const EMPTY_FORM = { name: '', email: '', role: 'Parish Staff', isAdmin: false, access: 'full', accessGkk: '' };
 
 /** Add or edit form. Email is fixed once an account exists. */
-function StaffForm({ initial, isNew, busy, error, onSubmit, onCancel }) {
+function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
   const [form, setForm] = useState(initial);
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+  const set = (key) => (e) => setForm((f) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    // Staff admins always have full access.
+    if (key === 'isAdmin' && value) return { ...f, isAdmin: true, access: 'full' };
+    return { ...f, [key]: value };
+  });
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(form); }} className="flex flex-col gap-4">
       {error && <div className="text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
@@ -44,9 +29,26 @@ function StaffForm({ initial, isNew, busy, error, onSubmit, onCancel }) {
         ? <Field label="Email" required><TextInput type="email" value={form.email} onChange={set('email')} autoComplete="off" /></Field>
         : <div className="text-[13.5px] text-parish-text2"><span className="font-semibold">Email:</span> {form.email}</div>}
       <Field label="Role / title"><TextInput value={form.role} onChange={set('role')} placeholder="e.g. Parish Secretary" /></Field>
+      <fieldset className="border-none p-0 m-0 flex flex-col gap-2">
+        <legend className="font-semibold text-[13px] text-parish-ink mb-1.5">Access</legend>
+        {ACCESS_LEVELS.map((a) => (
+          <label key={a.key} className={`flex items-start gap-2.5 text-[13.5px] text-parish-text2 ${form.isAdmin && a.key !== 'full' ? 'opacity-50' : 'cursor-pointer'}`}>
+            <input type="radio" name="access" value={a.key} checked={form.access === a.key} onChange={set('access')} disabled={form.isAdmin && a.key !== 'full'} className="mt-1 accent-parish-blue" />
+            <span><strong className="text-parish-navy">{a.label}</strong>: {a.note}</span>
+          </label>
+        ))}
+        {form.access === 'gkk_leader' && (
+          <Field label="GKK" required>
+            <Select value={form.accessGkk || ''} onChange={set('accessGkk')}>
+              <option value="">Choose the GKK…</option>
+              {gkks.map((g) => <option key={g} value={g}>{g}</option>)}
+            </Select>
+          </Field>
+        )}
+      </fieldset>
       <label className="flex items-start gap-2.5 cursor-pointer text-[13.5px] text-parish-text2">
         <Checkbox checked={form.isAdmin} onChange={set('isAdmin')} className="mt-0.5" />
-        <span><strong className="text-parish-navy">Staff admin</strong>: can add, reset and disable staff accounts.</span>
+        <span><strong className="text-parish-navy">Staff admin</strong>: can add, reset and disable staff accounts, and set their access. Always full access.</span>
       </label>
       <div className="flex gap-2.5 justify-end mt-1">
         <GhostButton type="button" onClick={onCancel} className="px-5 py-2.5 text-[14px]">Cancel</GhostButton>
@@ -76,10 +78,10 @@ function PasswordReveal({ who, email, password, onDone }) {
         then change it under <strong>Parish Config → Change password</strong>.
       </p>
       <div className="flex items-center gap-2.5">
-        <code className="flex-1 font-mono text-[20px] tracking-[.08em] text-parish-navy bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-xl px-3.5 py-2.5 select-all break-all" aria-label="Temporary password">{password}</code>
+        <code className="flex-1 font-mono text-[20px] tracking-[.08em] text-parish-navy bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl px-3.5 py-2.5 select-all break-all" aria-label="Temporary password">{password}</code>
         <GhostButton type="button" onClick={copy} className="px-4 py-2.5 text-[13.5px]">Copy</GhostButton>
       </div>
-      <p className="text-[12.5px] text-[#a1762b] m-0 font-semibold">This password won’t be shown again.</p>
+      <p className="text-[12.5px] text-parish-warn m-0 font-semibold">This password won’t be shown again.</p>
       <div className="flex justify-end"><PrimaryButton onClick={onDone} className="px-6 py-2.5 text-[14px]">Done</PrimaryButton></div>
     </div>
   );
@@ -94,6 +96,8 @@ export default function ManageStaff() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
   const [rowBusy, setRowBusy] = useState(null);
+  const [gkks, setGkks] = useState([]);
+  useEffect(() => { api.listGkks().then((r) => setGkks(r.rows.map((g) => g.name))).catch(() => {}); }, []);
 
   if (!user?.isAdmin) {
     return (
@@ -192,16 +196,16 @@ export default function ManageStaff() {
       </PageHeader>
       <PageBody>
         <div className="max-w-[920px]">
-          <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl text-[13.5px] text-[#2b466f] leading-relaxed">
-            Every staff account can see and change all registry records. Keep this list to people who need it, and disable accounts when someone leaves.
+          <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
+            Choose each account's access: full, read only, one GKK, or the website and requests. Keep this list to people who need it, and disable accounts when someone leaves.
             New accounts and password resets get a temporary password for you to pass on.
           </div>
-          <div className="bg-[#fffdf8] border border-parish-border rounded-2xl overflow-hidden shadow-cardSm">
+          <Panel className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse" style={{ minWidth: 760 }}>
                 <caption className="sr-only">Staff accounts</caption>
                 <thead>
-                  <tr className="bg-[#f4efe3]">
+                  <tr className="bg-parish-sunk">
                     {['Name', 'Role', 'Last sign-in', 'Status'].map((h) => (
                       <th key={h} scope="col" className="text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">{h}</th>
                     ))}
@@ -212,11 +216,12 @@ export default function ManageStaff() {
                   {rows.map((s) => {
                     const isSelf = s.id === user.id;
                     return (
-                      <tr key={s.id} className={`border-t border-[#f1e8d5] ${s.disabled ? 'opacity-70' : ''}`}>
+                      <tr key={s.id} className={`border-t border-parish-line ${s.disabled ? 'opacity-70' : ''}`}>
                         <td className="px-4 py-3">
                           <div className="font-semibold text-[14.5px] text-parish-navy flex items-center gap-2 flex-wrap">
                             {s.name || <span className="text-parish-muted">No name</span>}
                             {s.is_admin && <Badge tone="gold">Admin</Badge>}
+                            {s.access && s.access !== 'full' && <Badge tone="gray" title={s.access_gkk || undefined}>{accessLabel(s.access)}{s.access_gkk ? `: ${s.access_gkk}` : ''}</Badge>}
                             {isSelf && <Badge tone="blue">You</Badge>}
                           </div>
                           <div className="text-[12.5px] text-parish-muted">{s.email}</div>
@@ -226,17 +231,17 @@ export default function ManageStaff() {
                         <td className="px-4 py-3">
                           {s.disabled
                             ? <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-parish-errorBg text-parish-error whitespace-nowrap">Disabled</span>
-                            : <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-[#eaf4ee] text-[#2f7a52] whitespace-nowrap">Active</span>}
+                            : <span className="text-[12px] font-semibold px-2.5 py-1 rounded-full bg-parish-okBg text-parish-okText whitespace-nowrap">Active</span>}
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex gap-2 justify-end flex-wrap">
-                            <button onClick={() => setDialog({ kind: 'edit', target: s })} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-[#f4efe3] rounded-lg">Edit</button>
+                            <button onClick={() => setDialog({ kind: 'edit', target: s })} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">Edit</button>
                             <button onClick={() => resetPassword(s)} disabled={rowBusy === s.id} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap disabled:opacity-60">Reset password</button>
                             {!isSelf && (
                               <button
                                 onClick={() => toggleDisabled(s)}
                                 disabled={rowBusy === s.id}
-                                className={`appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] rounded-lg disabled:opacity-60 ${s.disabled ? 'text-[#2f7a52] bg-[#eaf4ee]' : 'text-parish-error bg-parish-errorBg'}`}
+                                className={`appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] rounded-lg disabled:opacity-60 ${s.disabled ? 'text-parish-okText bg-parish-okBg' : 'text-parish-error bg-parish-errorBg'}`}
                               >
                                 {s.disabled ? 'Enable' : 'Disable'}
                               </button>
@@ -251,28 +256,28 @@ export default function ManageStaff() {
             </div>
             {staff.loading && !staff.data && <LoadingState label="Loading staff accounts…" />}
             {staff.error && !staff.loading && <ErrorState message={staff.error} onRetry={staff.reload} />}
-          </div>
+          </Panel>
         </div>
       </PageBody>
 
       {dialog?.kind === 'add' && (
-        <Dialog title="Add staff" onClose={close}>
-          <StaffForm initial={EMPTY_FORM} isNew busy={busy} error={formError} onSubmit={create} onCancel={close} />
-        </Dialog>
+        <Modal title="Add staff" onClose={close}>
+          <StaffForm initial={EMPTY_FORM} isNew busy={busy} error={formError} gkks={gkks} onSubmit={create} onCancel={close} />
+        </Modal>
       )}
       {dialog?.kind === 'edit' && (
-        <Dialog title="Edit staff" onClose={close}>
+        <Modal title="Edit staff" onClose={close}>
           <StaffForm
-            initial={{ name: dialog.target.name, email: dialog.target.email, role: dialog.target.role, isAdmin: dialog.target.is_admin }}
-            busy={busy} error={formError}
+            initial={{ name: dialog.target.name, email: dialog.target.email, role: dialog.target.role, isAdmin: dialog.target.is_admin, access: dialog.target.access || 'full', accessGkk: dialog.target.access_gkk || '' }}
+            busy={busy} error={formError} gkks={gkks}
             onSubmit={(form) => update(dialog.target, form)} onCancel={close}
           />
-        </Dialog>
+        </Modal>
       )}
       {dialog?.kind === 'password' && (
-        <Dialog title="Temporary password" onClose={close}>
+        <Modal title="Temporary password" onClose={close}>
           <PasswordReveal who={dialog.who} email={dialog.email} password={dialog.password} onDone={close} />
-        </Dialog>
+        </Modal>
       )}
     </>
   );

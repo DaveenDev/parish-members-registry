@@ -117,14 +117,28 @@ export default function PrintSheet({ data }) {
   }, [data, parish]);
 
   if (!data) return null;
-
-  const { household: h, members = [] } = data;
-  const address = [h.street, h.barangay, h.city, h.province, h.zip].filter(Boolean).join(', ');
+  // One household, or several (bulk print), each on its own page.
+  const list = Array.isArray(data) ? data : [data];
 
   // Rendered outside #root so the print stylesheet can hide the whole app
   // (body > #root) while keeping this sheet visible.
   return createPortal(
     <div id="print-sheet" aria-hidden>
+      {list.map((d) => (
+        <section key={d.household.id} className="census-page">
+          <HouseholdRecord data={d} parish={parish} />
+        </section>
+      ))}
+    </div>,
+    document.body
+  );
+}
+
+function HouseholdRecord({ data, parish }) {
+  const { household: h, members = [] } = data;
+  const address = [h.street, h.barangay, h.city, h.province, h.zip].filter(Boolean).join(', ');
+  return (
+    <>
       <header style={{ display: 'flex', alignItems: 'center', gap: 16, borderBottom: '2px solid #1a2b4a', paddingBottom: 12, marginBottom: 20 }}>
         {parish?.logo && <img src={parish.logo} alt="" style={{ width: 64, height: 64, objectFit: 'contain' }} />}
         <div>
@@ -210,8 +224,7 @@ export default function PrintSheet({ data }) {
       <footer style={{ marginTop: 24, paddingTop: 10, borderTop: '1px solid #ddd', fontSize: 10, color: '#8a836f' }}>
         Confidential — for authorized parish staff only. Handle in accordance with the Data Privacy Act of 2012.
       </footer>
-    </div>,
-    document.body
+    </>
   );
 }
 

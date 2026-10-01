@@ -103,8 +103,8 @@ function GuideEditor({ row, onClose, onSaved }) {
       <SectionLabel>Steps, in order</SectionLabel>
       <div className="flex flex-col gap-2.5">
         {form.steps.map((s, i) => (
-          <div key={i} className="border border-[#f0e8d6] rounded-xl bg-[#fdfbf6] p-3 flex gap-3">
-            <div className="w-7 h-7 rounded-full bg-parish-blue text-white font-bold text-[13px] flex items-center justify-center flex-none mt-1" aria-hidden>{i + 1}</div>
+          <div key={i} className="border border-parish-line2 rounded-xl bg-parish-field p-3 flex gap-3">
+            <div className="w-7 h-7 rounded-full bg-parish-fill text-white font-bold text-[13px] flex items-center justify-center flex-none mt-1" aria-hidden>{i + 1}</div>
             <div className="flex-1 flex flex-col gap-2 min-w-0">
               <TextInput aria-label={`Step ${i + 1} title`} value={s.title} onChange={(e) => setStep(i, 'title', e.target.value)} placeholder="e.g. Attend the pre-Cana seminar" className="!py-2.5 !text-[15px]" />
               <TextArea aria-label={`Step ${i + 1} details`} rows={2} value={s.detail} onChange={(e) => setStep(i, 'detail', e.target.value)} placeholder="Details (optional): when, where, what to bring" className="!py-2.5 !text-[14px]" />

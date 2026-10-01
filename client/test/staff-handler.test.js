@@ -1,14 +1,16 @@
 import test, { describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { handleStaffRequest, validateStaffInput, isDisabled } from '../../supabase/functions/manage-staff/handler.js';
+import { handleStaffRequest, validateStaffInput, isDisabled, accessInput } from '../../supabase/functions/manage-staff/handler.js';
 
 /**
  * In-memory stand-in for a service-role Supabase client: just the calls the
  * handler makes. Tokens are "token-<user id>".
  */
-function fakeAdmin({ users, profiles }) {
+function fakeAdmin({ users, profiles, legacySchema = false }) {
   const calls = [];
+  // Before 0014 there are no access columns: writing them fails like PostgREST does.
+  const columnError = (row) => (legacySchema && 'access' in row ? { message: "Could not find the 'access' column of 'profiles' in the schema cache" } : null);
   const findUser = (id) => users.find((u) => u.id === id);
   const profilesTable = {
     select() {
@@ -21,11 +23,13 @@ function fakeAdmin({ users, profiles }) {
       };
     },
     async insert(row) {
+      if (columnError(row)) return { error: columnError(row) };
       calls.push(['profiles.insert', row]);
       profiles.push({ ...row });
       return { error: null };
     },
     async upsert(row) {
+      if (columnError(row)) return { error: columnError(row) };
       calls.push(['profiles.upsert', row]);
       const i = profiles.findIndex((p) => p.id === row.id);
       if (i >= 0) profiles[i] = { ...profiles[i], ...row };
@@ -119,7 +123,7 @@ describe('manage-staff: create', () => {
     const res = await call('u1', { action: 'create', name: ' Juan ', email: 'Juan@Parish.test ', password: 'temp-pass-123', role: 'Encoder', is_admin: false });
     assert.equal(res.status, 200);
     assert.deepEqual(admin.calls[0], ['createUser', { email: 'juan@parish.test', password: 'temp-pass-123', email_confirm: true }]);
-    assert.deepEqual(profiles.at(-1), { id: res.body.id, name: 'Juan', role: 'Encoder', is_admin: false });
+    assert.deepEqual(profiles.at(-1), { id: res.body.id, name: 'Juan', role: 'Encoder', is_admin: false, access: 'full', access_gkk: null });
   });
 
   test('validates name, email and password length', async () => {
@@ -170,7 +174,7 @@ describe('manage-staff: edit and reset', () => {
   test('promotes another member of staff', async () => {
     const res = await call('u1', { action: 'update', id: 'u2', name: 'Pedro S.', role: 'Encoder', is_admin: true });
     assert.equal(res.status, 200);
-    assert.deepEqual(profiles[1], { id: 'u2', name: 'Pedro S.', role: 'Encoder', is_admin: true });
+    assert.deepEqual(profiles[1], { id: 'u2', name: 'Pedro S.', role: 'Encoder', is_admin: true, access: 'full', access_gkk: null });
   });
 
   test('resets a password, enforcing the minimum length', async () => {
@@ -188,5 +192,36 @@ describe('validateStaffInput', () => {
   test('only checks what is required', () => {
     assert.equal(validateStaffInput({ name: 'A' }), '');
     assert.match(validateStaffInput({ name: 'A', email: 'x' }, { requireEmail: true }), /email/);
+  });
+});
+
+describe('manage-staff: access levels', () => {
+  test('saves a GKK leader with their GKK', async () => {
+    const res = await call('u1', { action: 'update', id: 'u2', name: 'Pedro', access: 'gkk_leader', access_gkk: 'GKK San Isidro' });
+    assert.equal(res.status, 200);
+    assert.equal(profiles[1].access, 'gkk_leader');
+    assert.equal(profiles[1].access_gkk, 'GKK San Isidro');
+    const list = await call('u1', { action: 'list' });
+    assert.deepEqual(list.body.staff.map((s) => s.access), ['full', 'gkk_leader']);
+  });
+
+  test('a GKK leader needs a GKK, and admins need full access', async () => {
+    assert.match((await call('u1', { action: 'update', id: 'u2', name: 'Pedro', access: 'gkk_leader' })).body.error, /GKK/);
+    assert.match((await call('u1', { action: 'update', id: 'u2', name: 'Pedro', is_admin: true, access: 'read_only' })).body.error, /full access/);
+    assert.match((await call('u1', { action: 'update', id: 'u2', name: 'Pedro', access: 'owner' })).body.error, /access level/);
+  });
+
+  test('before the 0014 migration, full access still saves and other levels explain why not', async () => {
+    admin = fakeAdmin({ users, profiles, legacySchema: true });
+    assert.equal((await call('u1', { action: 'update', id: 'u2', name: 'Pedro S.' })).status, 200);
+    assert.equal(profiles[1].name, 'Pedro S.');
+    const res = await call('u1', { action: 'update', id: 'u2', name: 'Pedro', access: 'read_only' });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /0014/);
+  });
+
+  test('accessInput defaults to full and drops the GKK for other levels', () => {
+    assert.deepEqual(accessInput({}), { access: 'full', access_gkk: null });
+    assert.deepEqual(accessInput({ access: 'website', access_gkk: 'GKK X' }), { access: 'website', access_gkk: null });
   });
 });

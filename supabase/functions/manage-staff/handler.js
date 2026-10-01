@@ -20,6 +20,36 @@ const fail = (status, error) => ({ status, body: { error } });
 
 const clean = (v) => (typeof v === 'string' ? v.trim() : '');
 
+// Access levels (profiles.access, added in 0014_roles_activity_trash.sql).
+export const ACCESS_LEVELS = ['full', 'read_only', 'gkk_leader', 'website'];
+const MIGRATION_HINT = 'Run the 0014_roles_activity_trash.sql migration in Supabase to use access levels';
+
+/** { access, access_gkk } from a request, or { error }. Staff admins always have full access. */
+export function accessInput(body) {
+  const access = clean(body?.access) || 'full';
+  if (!ACCESS_LEVELS.includes(access)) return { error: 'Choose an access level' };
+  if (body?.is_admin && access !== 'full') return { error: 'Staff admins need full access' };
+  const gkk = access === 'gkk_leader' ? clean(body?.access_gkk) : '';
+  if (access === 'gkk_leader' && !gkk) return { error: 'Choose the GKK this leader looks after' };
+  return { access, access_gkk: gkk || null };
+}
+
+const missingAccessColumn = (error) => /access/.test(error?.message || '') && /column|schema cache/i.test(error?.message || '');
+
+/**
+ * Insert or upsert a profile row. Before 0014 there are no access columns:
+ * full access is then saved without them, and anything else is refused.
+ */
+async function saveProfile(admin, method, row) {
+  let { error } = await admin.from('profiles')[method](row);
+  if (error && missingAccessColumn(error)) {
+    if (row.access !== 'full') return { error: { message: MIGRATION_HINT } };
+    const { access: _a, access_gkk: _g, ...rest } = row;
+    ({ error } = await admin.from('profiles')[method](rest));
+  }
+  return { error };
+}
+
 export function isDisabled(user, now = new Date()) {
   return !!user?.banned_until && new Date(user.banned_until) > now;
 }
@@ -43,7 +73,8 @@ async function loadStaff(admin) {
     users.push(...(data?.users || []));
     if (!data?.users || data.users.length < 1000) break;
   }
-  const { data: profiles, error } = await admin.from('profiles').select('id, name, role, is_admin');
+  let { data: profiles, error } = await admin.from('profiles').select('id, name, role, is_admin, access, access_gkk');
+  if (error && missingAccessColumn(error)) ({ data: profiles, error } = await admin.from('profiles').select('id, name, role, is_admin'));
   if (error) throw error;
   const byId = new Map((profiles || []).map((p) => [p.id, p]));
   return users
@@ -55,6 +86,8 @@ async function loadStaff(admin) {
         name: p?.name || '',
         role: p?.role || '',
         is_admin: !!p?.is_admin,
+        access: p?.access || 'full',
+        access_gkk: p?.access_gkk || null,
         has_profile: !!p,
         disabled: isDisabled(u),
         last_sign_in_at: u.last_sign_in_at || null,
@@ -93,6 +126,8 @@ export async function handleStaffRequest({ admin, token, body }) {
       const input = { name: clean(body.name), email: clean(body.email).toLowerCase(), password: body.password };
       const invalid = validateStaffInput(input, { requireEmail: true, requirePassword: true });
       if (invalid) return fail(400, invalid);
+      const access = accessInput(body);
+      if (access.error) return fail(400, access.error);
 
       const { data: created, error } = await admin.auth.admin.createUser({
         email: input.email, password: input.password, email_confirm: true,
@@ -101,8 +136,9 @@ export async function handleStaffRequest({ admin, token, body }) {
         const taken = /already (been )?registered|already exists/i.test(error.message || '');
         return fail(taken ? 409 : 400, taken ? 'An account with this email already exists' : (error.message || 'Could not create the account'));
       }
-      const { error: pErr } = await admin.from('profiles').insert({
+      const { error: pErr } = await saveProfile(admin, 'insert', {
         id: created.user.id, name: input.name, role: clean(body.role) || 'Parish Staff', is_admin: !!body.is_admin,
+        access: access.access, access_gkk: access.access_gkk,
       });
       if (pErr) {
         // Don't leave a login without a profile behind.
@@ -126,13 +162,16 @@ export async function handleStaffRequest({ admin, token, body }) {
       const input = { name: clean(body.name) };
       const invalid = validateStaffInput(input);
       if (invalid) return fail(400, invalid);
+      const access = accessInput(body);
+      if (access.error) return fail(400, access.error);
       const makeAdmin = !!body.is_admin;
       if (!makeAdmin && target.is_admin) {
         if (isSelf) return fail(400, 'You can’t remove your own admin access. Ask another admin to do it.');
         if (lastAdmin) return fail(400, 'This is the only active admin. Make someone else an admin first.');
       }
-      const { error } = await admin.from('profiles').upsert({
+      const { error } = await saveProfile(admin, 'upsert', {
         id, name: input.name, role: clean(body.role) || 'Parish Staff', is_admin: makeAdmin,
+        access: access.access, access_gkk: access.access_gkk,
       });
       if (error) return fail(400, error.message || 'Could not save the changes');
       return ok({});

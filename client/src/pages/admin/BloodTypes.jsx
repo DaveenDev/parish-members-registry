@@ -2,18 +2,18 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
-import { BLOOD_TYPES } from '../../constants.js';
+import { BLOOD_TYPES, AGE_OPTS } from '../../constants.js';
 import { useDebounced, useCsvExport, useUrlState } from '../../hooks.js';
 
 const URL_DEFAULTS = { gkk: 'All', age: 'All', blood: 'Recorded', q: '', sort: 'blood', dir: 'asc', page: 1, size: 20 };
 const URL_ALLOWED = {
   blood: [...BLOOD_TYPES, 'Recorded', 'Unknown'],
+  age: AGE_OPTS.map(([v]) => v),
   sort: ['name', 'blood', 'age'],
   dir: ['asc', 'desc'],
   size: [10, 20, 50],
 };
 
-const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
 
 function BloodBadge({ type }) {
   return <span className="font-bold text-[12.5px] bg-parish-errorBg text-parish-error px-3 py-1 rounded-full whitespace-nowrap">{type}</span>;
@@ -96,7 +96,7 @@ export default function BloodTypes() {
                   key={t.key}
                   onClick={() => setBlood(t.key)}
                   aria-pressed={active}
-                  className={`appearance-none cursor-pointer text-left px-3 py-2.5 rounded-xl border-[1.5px] transition ${active ? 'border-parish-blue bg-[var(--p-blue-tint)]' : 'border-[#eee3ce] bg-[#fffdf8] hover:border-parish-blue'}`}
+                  className={`appearance-none cursor-pointer text-left px-3 py-2.5 rounded-xl border-[1.5px] transition ${active ? 'border-parish-blue bg-[var(--p-blue-tint)]' : 'border-parish-edge bg-parish-card hover:border-parish-blue'}`}
                 >
                   <div className={`font-serif text-[26px] font-semibold leading-none ${t.key === 'Unknown' ? 'text-parish-muted' : 'text-parish-error'}`}>{t.n}</div>
                   <div className="text-[12px] font-semibold text-parish-text2 mt-1">{t.label}</div>
@@ -114,7 +114,7 @@ export default function BloodTypes() {
           <button
             onClick={() => csvExport.run('/exports/blood.csv', 'blood-directory.csv')}
             disabled={!!csvExport.busy}
-            className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg disabled:opacity-60"
+            className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg disabled:opacity-60"
           >
             {csvExport.busy ? 'Exporting…' : 'Export CSV'}
           </button>
@@ -142,9 +142,26 @@ export default function BloodTypes() {
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
             </>
           }
+          mobile={
+            <ul className="list-none m-0 p-0 divide-y divide-parish-line">
+              {rows.map((m) => {
+                const tel = m.contact && String(m.contact).replace(/[^\d+]/g, '');
+                return (
+                  <li key={m.id} className="px-4 py-3 flex items-center gap-3">
+                    <button type="button" onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-left min-w-0 flex-1">
+                      <div className="font-semibold text-[14.5px] text-parish-navy">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
+                      <div className="text-[12.5px] text-parish-muted truncate">{[m.age != null && `${m.age} yrs`, m.household_gkk, m.household_name].filter(Boolean).join(' · ')}</div>
+                    </button>
+                    {m.blood_type ? <BloodBadge type={m.blood_type} /> : <span className="text-[12px] text-parish-faint">—</span>}
+                    {tel && <a href={`tel:${tel}`} aria-label={`Call ${m.first_name} ${m.last_name} at ${m.contact}`} className="px-3 py-2 rounded-lg font-semibold text-[12.5px] no-underline bg-[var(--p-blue-tint)] text-parish-blue">Call</a>}
+                  </li>
+                );
+              })}
+            </ul>
+          }
         >
           {rows.map((m) => (
-            <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
+            <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-parish-line cursor-pointer hover:bg-parish-hover focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
               <td className="px-4 py-2.5">
                 <div className="flex items-center gap-2.5">
                   <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12.5px] flex-none" aria-hidden>
@@ -156,8 +173,8 @@ export default function BloodTypes() {
                   </div>
                 </div>
               </td>
-              <td className="px-4 py-3">{m.blood_type ? <BloodBadge type={m.blood_type} /> : <span className="text-[13px] text-[#c4bba4]">Not recorded</span>}</td>
-              <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{m.age ?? '—'}</td>
+              <td className="px-4 py-3">{m.blood_type ? <BloodBadge type={m.blood_type} /> : <span className="text-[13px] text-parish-faint">Not recorded</span>}</td>
+              <td className="px-4 py-3 text-[14px] text-parish-text3">{m.age ?? '—'}</td>
               <td className="px-4 py-3 text-[13.5px] text-parish-text2 whitespace-nowrap">{m.household_gkk || '—'}</td>
               <td className="px-4 py-3 text-[14px] whitespace-nowrap">
                 {m.contact ? (
@@ -170,7 +187,7 @@ export default function BloodTypes() {
                   >
                     {m.contact}
                   </a>
-                ) : <span className="text-[#c4bba4]">—</span>}
+                ) : <span className="text-parish-faint">—</span>}
               </td>
               <td className="px-4 py-3 text-[13.5px] text-parish-text2">{[m.street, m.barangay].filter(Boolean).join(', ') || '—'}</td>
             </tr>

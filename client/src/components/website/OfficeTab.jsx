@@ -87,7 +87,7 @@ export default function OfficeTab() {
   return (
     <div className="flex flex-col gap-[18px] max-w-[760px]">
       {!migrated && (
-        <div className="px-4 py-3 rounded-xl bg-[#fdf1de] text-[#8a5f1e] text-[13.5px] font-medium" role="status">
+        <div className="px-4 py-3 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13.5px] font-medium" role="status">
           Run the <strong>0011_website_content.sql</strong> migration in Supabase to save office hours, the map and the extra contact numbers. The address, phone and email below save already.
         </div>
       )}
@@ -106,7 +106,7 @@ export default function OfficeTab() {
       </Card>
 
       <Card title="Office hours" subtitle="The website will show “Open now” or “Closed now” from these times.">
-        <div className="flex flex-col divide-y divide-[#f1e8d5]">
+        <div className="flex flex-col divide-y divide-parish-line">
           {form.office_hours.map((d, i) => (
             <div key={DAYS[i]} className="py-2.5 flex items-center gap-3 flex-wrap">
               <div className="w-[96px] font-semibold text-[14px] text-parish-navy">{DAYS[i]}</div>
@@ -173,7 +173,7 @@ function TimeBox({ label, value, onChange, disabled }) {
     <input
       type="time" aria-label={label} value={value} disabled={disabled}
       onChange={(e) => onChange(e.target.value)}
-      className="px-2.5 py-2 text-[14px] text-parish-ink bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue disabled:opacity-60"
+      className="px-2.5 py-2 text-[14px] text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue disabled:opacity-60"
     />
   );
 }

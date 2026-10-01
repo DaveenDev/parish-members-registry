@@ -1,17 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, ErrorState, LoadingState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, ErrorState, LoadingState, Tabs, Panel } from '../../components/admin.jsx';
 import { useAsyncData, useClientList } from '../../hooks.js';
 import { PrimaryButton, GhostButton } from '../../components/ui.jsx';
 import { ReportPrintSheet } from '../../components/PrintSheet.jsx';
 import { useToast } from '../../ToastContext.jsx';
+import { useAuth } from '../../AuthContext.jsx';
+import { can } from '../../lib/access.js';
 
 function Bar({ label, right, w, color }) {
   return (
     <div>
-      <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-[#3f3b2f] font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
-      <div className="h-2.5 bg-[#f1e8d5] rounded-full overflow-hidden">
+      <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-parish-text3 font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
+      <div className="h-2.5 bg-parish-track rounded-full overflow-hidden">
         <div className="h-full rounded-full" style={{ width: w, background: color }} />
       </div>
     </div>
@@ -21,29 +23,49 @@ function Bar({ label, right, w, color }) {
 function SplitBar({ label, right, vw, pw }) {
   return (
     <div>
-      <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-[#3f3b2f] font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
-      <div className="h-2.5 bg-[#f1e8d5] rounded-full overflow-hidden flex">
-        <div className="h-full" style={{ width: vw, background: '#2f7a52' }} />
+      <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-parish-text3 font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
+      <div className="h-2.5 bg-parish-track rounded-full overflow-hidden flex">
+        <div className="h-full" style={{ width: vw, background: 'rgb(var(--c-ok-text))' }} />
         <div className="h-full" style={{ width: pw, background: 'var(--p-gold)' }} />
       </div>
     </div>
   );
 }
 
-const SOURCE_META = {
-  Members: { gkk: true, group: true, sacrament: true },
-  Households: { gkk: true, dateRange: true, status: true },
+const REPORT_TABS = [['stats', 'Report Stats'], ['gen', 'Generate Report']];
+
+// Each data source, its reports, and which scope controls a report shows.
+const REPORTS = {
+  Members: { types: ['By GKK', 'By Sacrament', 'By Ministry / Organization'] },
+  Households: { types: ['By Status', 'By GKK', 'By registration month'] },
+  Sacraments: { types: ['Verification progress by GKK'] },
+  Census: { types: ['Results by GKK', 'Members not confirmed'], need: 'census' },
+  Requests: { types: ['Certificate turnaround'], need: 'requests' },
 };
+function scopeFor(source, type) {
+  return {
+    gkk: ['Members', 'Households', 'Sacraments'].includes(source) || type === 'Members not confirmed',
+    status: type === 'By Status',
+    dateRange: source === 'Households' || source === 'Requests',
+    sacrament: type === 'By Sacrament',
+    group: type === 'By Ministry / Organization',
+    cycle: source === 'Census',
+  };
+}
 
 export default function Reports() {
   const toast = useToast();
   const layout = useOutletContext();
-  const [tab, setTab] = useState('stats');
+  const [params, setParams] = useSearchParams();
+  const tab = REPORT_TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : REPORT_TABS[0][0];
+  const setTab = (k) => setParams(k === REPORT_TABS[0][0] ? {} : { tab: k }, { replace: true });
   const { data: stats, loading: statsLoading, error: statsError, reload: reloadStats } = useAsyncData(() => api.reportStats(), []);
 
   const [genSource, setGenSource] = useState('');
   const [genType, setGenType] = useState('');
-  const [scope, setScope] = useState({ gkk: 'All', status: 'All', dateFrom: '', dateTo: '', sacrament: 'Baptism', group: '' });
+  const [scope, setScope] = useState({ gkk: 'All', status: 'All', dateFrom: '', dateTo: '', sacrament: 'Baptism', group: '', cycleId: '' });
+  const [cycles, setCycles] = useState([]);
+  const { user } = useAuth();
   const [ministryOptions, setMinistryOptions] = useState([]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [report, setReport] = useState(null);
@@ -56,6 +78,12 @@ export default function Reports() {
       .catch(() => {});
   }, []);
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((g) => g.name))).catch(() => {}); }, []);
+  useEffect(() => {
+    if (genSource !== 'Census' || cycles.length) return;
+    api.listCensusCycles()
+      .then((list) => { setCycles(list); if (list[0]) setScope((s) => ({ ...s, cycleId: s.cycleId || String(list[0].id) })); })
+      .catch(() => {});
+  }, [genSource]);
 
   async function generate() {
     setGenerating(true);
@@ -77,24 +105,15 @@ export default function Reports() {
     }
   }
 
-  const meta = SOURCE_META[genSource] || {};
+  const meta = scopeFor(genSource, genType);
+  const sources = Object.keys(REPORTS).filter((k) => !REPORTS[k].need || can(user, REPORTS[k].need));
 
   return (
     <>
       <PageHeader title="Reports" subtitle="Registry statistics & custom reports" />
       <PageBody>
         <div className="max-w-[920px]">
-          <div className="flex gap-1 mb-[22px] border-b border-parish-border" style={{ marginBottom: '22px' }}>
-            {[['stats', 'Report Stats'], ['gen', 'Generate Report']].map(([k, label]) => (
-              <button
-                key={k} onClick={() => setTab(k)}
-                className="appearance-none border-none bg-none cursor-pointer px-4 py-2.5 -mb-px font-semibold text-[15px]"
-                style={{ color: tab === k ? 'var(--p-blue)' : '#8a836f', borderBottom: `2.5px solid ${tab === k ? 'var(--p-blue)' : 'transparent'}` }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Tabs tabs={REPORT_TABS} value={tab} onChange={setTab} />
 
           {tab === 'stats' && !stats && (
             statsError && !statsLoading
@@ -104,7 +123,7 @@ export default function Reports() {
 
           {tab === 'stats' && stats && (
             <div className="flex flex-col gap-5">
-              <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+              <Panel className="px-6 py-[22px]">
                 <div className="flex items-baseline justify-between gap-3 mb-1">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Registration Status by GKK</div>
                   <div className="text-[13px] text-parish-muted">{stats.totalVerified} verified · {stats.totalPending} pending of {stats.totalHH} households</div>
@@ -113,17 +132,17 @@ export default function Reports() {
                 <div className="flex flex-col gap-3.5">
                   {stats.regByGkk.map((g) => <SplitBar key={g.label} label={g.label} right={`${g.verified} verified · ${g.pending} pending`} vw={g.vw} pw={g.pw} />)}
                 </div>
-              </div>
+              </Panel>
 
-              <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+              <Panel className="px-6 py-[22px]">
                 <div className="font-serif text-[21px] font-semibold text-parish-navy mb-1">Sacramental Completion</div>
                 <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Share of all {stats.totalMembers} registered members who have received each sacrament.</p>
                 <div className="flex flex-col gap-3.5">
                   {stats.sacCompletion.map((s) => <Bar key={s.label} label={s.label} right={`${s.n} received · ${s.missing} not yet recorded`} w={s.w} color="linear-gradient(90deg,var(--p-blue),var(--p-blue-light))" />)}
                 </div>
-              </div>
+              </Panel>
 
-              <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+              <Panel className="px-6 py-[22px]">
                 <div className="flex items-baseline justify-between gap-3 mb-1">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Ministry &amp; Organization Participation</div>
                   <div className="text-[13px] text-parish-muted">{stats.anyVolunteer}% of members serve in at least one</div>
@@ -132,24 +151,24 @@ export default function Reports() {
                 <div className="grid gap-x-6 gap-y-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))' }}>
                   {stats.participation.map((p) => <Bar key={p.label} label={p.label} right={p.n} w={p.w} color={p.color} />)}
                 </div>
-              </div>
+              </Panel>
 
-              <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+              <Panel className="px-6 py-[22px]">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Blood types</div>
-                  <Link to="/admin/blood" className="px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg no-underline">Open Blood Types page →</Link>
+                  <Link to="/admin/blood" className="px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg no-underline">Open Blood Types page →</Link>
                 </div>
                 <p className="text-[13px] text-parish-muted mb-4">The directory for finding blood donors now has its own page, with search, filters and click-to-call. {stats.unknownBlood} member(s) have no blood type on file.</p>
                 <div className="flex flex-wrap gap-2">
                   {stats.bloodCounts.map((b) => <span key={b.label} className="font-bold text-[12.5px] bg-parish-errorBg text-parish-error px-3.5 py-1.5 rounded-full">{b.label} · {b.n}</span>)}
                 </div>
-              </div>
+              </Panel>
             </div>
           )}
 
           {tab === 'gen' && (
             <div className="flex flex-col gap-5">
-              <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+              <Panel className="px-6 py-[22px]">
                 <div className="font-serif text-[21px] font-semibold text-parish-navy mb-1">Build a report</div>
                 <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Choose a data source, a report type, then narrow the scope before generating.</p>
 
@@ -158,7 +177,7 @@ export default function Reports() {
                     <div className="font-semibold text-[12px] text-parish-ink mb-1.5">1. Data source</div>
                     <FilterSelect value={genSource} onChange={(e) => { setGenSource(e.target.value); setGenType(''); setReport(null); }} className="w-full">
                       <option value="">Select a data source…</option>
-                      <option value="Members">Members</option><option value="Households">Households</option>
+                      {sources.map((k) => <option key={k} value={k}>{k}</option>)}
                     </FilterSelect>
                   </div>
                   {genSource && (
@@ -166,15 +185,14 @@ export default function Reports() {
                       <div className="font-semibold text-[12px] text-parish-ink mb-1.5">2. Report</div>
                       <FilterSelect value={genType} onChange={(e) => { setGenType(e.target.value); setReport(null); }} className="w-full">
                         <option value="">Select a report…</option>
-                        {genSource === 'Members' && ['By GKK', 'By Sacrament', 'By Ministry / Organization'].map((t) => <option key={t} value={t}>{t}</option>)}
-                        {genSource === 'Households' && ['By Status', 'By GKK'].map((t) => <option key={t} value={t}>{t}</option>)}
+                        {(REPORTS[genSource]?.types || []).map((t) => <option key={t} value={t}>{t}</option>)}
                       </FilterSelect>
                     </div>
                   )}
                 </div>
 
                 {genType && (
-                  <div className="border-t border-[#f0e8d6] pt-4 mb-4">
+                  <div className="border-t border-parish-line2 pt-4 mb-4">
                     <div className="font-semibold text-[12px] text-parish-ink mb-2.5">3. Scope</div>
                     <div className="flex flex-wrap gap-3.5 items-end">
                       {meta.gkk && (
@@ -186,7 +204,16 @@ export default function Reports() {
                           </FilterSelect>
                         </div>
                       )}
-                      {meta.status && genType === 'By Status' && (
+                      {meta.cycle && (
+                        <div>
+                          <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Census</div>
+                          <FilterSelect value={scope.cycleId} onChange={(e) => setScope((s) => ({ ...s, cycleId: e.target.value }))}>
+                            {!cycles.length && <option value="">No census yet</option>}
+                            {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
+                          </FilterSelect>
+                        </div>
+                      )}
+                      {meta.status && (
                         <div>
                           <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Status</div>
                           <FilterSelect value={scope.status} onChange={(e) => setScope((s) => ({ ...s, status: e.target.value }))}>
@@ -196,11 +223,11 @@ export default function Reports() {
                       )}
                       {meta.dateRange && (
                         <>
-                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">Registered from</div><input type="date" value={scope.dateFrom} onChange={(e) => setScope((s) => ({ ...s, dateFrom: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
-                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">Registered to</div><input type="date" value={scope.dateTo} onChange={(e) => setScope((s) => ({ ...s, dateTo: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
+                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">{genSource === 'Requests' ? 'Received from' : 'Registered from'}</div><input type="date" value={scope.dateFrom} onChange={(e) => setScope((s) => ({ ...s, dateFrom: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
+                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">{genSource === 'Requests' ? 'Received to' : 'Registered to'}</div><input type="date" value={scope.dateTo} onChange={(e) => setScope((s) => ({ ...s, dateTo: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
                         </>
                       )}
-                      {meta.sacrament && genType === 'By Sacrament' && (
+                      {meta.sacrament && (
                         <div>
                           <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Sacrament</div>
                           <FilterSelect value={scope.sacrament} onChange={(e) => setScope((s) => ({ ...s, sacrament: e.target.value }))}>
@@ -208,7 +235,7 @@ export default function Reports() {
                           </FilterSelect>
                         </div>
                       )}
-                      {meta.group && genType === 'By Ministry / Organization' && (
+                      {meta.group && (
                         <div>
                           <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Ministry / Organization</div>
                           <FilterSelect value={scope.group} onChange={(e) => setScope((s) => ({ ...s, group: e.target.value }))}>
@@ -221,15 +248,15 @@ export default function Reports() {
                 )}
 
                 <PrimaryButton onClick={generate} disabled={!genType || generating} className="px-[22px] py-2.5 text-[14px]">{generating ? 'Generating…' : 'Generate Report'}</PrimaryButton>
-              </div>
+              </Panel>
 
               {report && (
-                <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+                <Panel className="px-6 py-[22px]">
                   <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
                     <div className="font-serif text-[21px] font-semibold text-parish-navy">{report.title}</div>
                     <div className="flex gap-2">
-                      <GhostButton onClick={() => window.print()} disabled={report.empty} className="px-3.5 py-2 text-[12.5px] !text-parish-text2 !border-transparent bg-[#f4efe3]">Print</GhostButton>
-                      <button onClick={exportGenerated} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg">Export CSV</button>
+                      <GhostButton onClick={() => window.print()} disabled={report.empty} className="px-3.5 py-2 text-[12.5px] !text-parish-text2 !border-transparent bg-parish-sunk">Print</GhostButton>
+                      <button onClick={exportGenerated} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg">Export CSV</button>
                     </div>
                   </div>
                   <p className="text-[13px] text-parish-muted mb-4">{report.meta}</p>
@@ -241,14 +268,14 @@ export default function Reports() {
                   )}
                   {!report.empty && !reportList.total && <div className="py-7 px-4 text-center text-parish-muted text-[14px]">No rows match “{reportList.query}”.</div>}
                   {!report.empty && !!reportList.total && (
-                    <div className="border border-[#f0e8d6] rounded-xl overflow-hidden">
+                    <div className="border border-parish-line2 rounded-xl overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full border-collapse" style={{ minWidth: 560 }}>
-                          <thead><tr className="bg-[#f4efe3]">{report.columns.map((c) => <th key={c} className="text-left px-3.5 py-2.5 font-bold text-[11.5px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">{c}</th>)}</tr></thead>
+                          <thead><tr className="bg-parish-sunk">{report.columns.map((c) => <th key={c} className="text-left px-3.5 py-2.5 font-bold text-[11.5px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">{c}</th>)}</tr></thead>
                           <tbody>
                             {reportList.rows.map((row, i) => (
-                              <tr key={i} className="border-t border-[#f1e8d5]">
-                                {row.cells.map((cell, j) => <td key={j} className="px-3.5 py-2.5 text-[13.5px] text-[#3f3b2f] whitespace-nowrap">{cell}</td>)}
+                              <tr key={i} className="border-t border-parish-line">
+                                {row.cells.map((cell, j) => <td key={j} className="px-3.5 py-2.5 text-[13.5px] text-parish-text3 whitespace-nowrap">{cell}</td>)}
                               </tr>
                             ))}
                           </tbody>
@@ -257,7 +284,7 @@ export default function Reports() {
                       <Pagination page={reportList.page} pageSize={reportList.pageSize} total={reportList.total} onPage={reportList.setPage} onPageSize={reportList.setPageSize} />
                     </div>
                   )}
-                </div>
+                </Panel>
               )}
             </div>
           )}

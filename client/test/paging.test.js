@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { pageWindow, searchAndPage, fetchAllPages, readUrlState, writeUrlState } from '../src/lib/paging.js';
+import { pageWindow, searchAndPage, fetchAllPages, readUrlState, writeUrlState, mergeUrlState } from '../src/lib/paging.js';
 
 describe('pageWindow', () => {
   test('shows every page when there are only a few', () => {
@@ -122,5 +122,20 @@ describe('readUrlState / writeUrlState', () => {
   test('a written state reads back the same', () => {
     const state = { status: 'Verified', gkk: 'GKK San Isidro', q: 'juan', page: 4, size: 50 };
     assert.deepEqual(read(new URLSearchParams(writeUrlState(state, defaults)).toString()), state);
+  });
+});
+
+describe('mergeUrlState', () => {
+  const defaults = { view: 'open', q: '', page: 1, size: 10 };
+
+  test('keeps keys the list does not own, such as the tab', () => {
+    const out = mergeUrlState(new URLSearchParams('tab=prayers&page=3'), { view: 'all' }, defaults);
+    assert.deepEqual(out, { tab: 'prayers', view: 'all' });
+  });
+
+  test('a filter change goes back to page 1; a page change keeps the filters', () => {
+    const params = new URLSearchParams('view=all&page=2');
+    assert.deepEqual(mergeUrlState(params, { q: 'ana' }, defaults), { view: 'all', q: 'ana' });
+    assert.deepEqual(mergeUrlState(params, { page: 4 }, defaults), { view: 'all', page: '4' });
   });
 });

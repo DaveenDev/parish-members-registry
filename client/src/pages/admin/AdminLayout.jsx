@@ -3,49 +3,32 @@ import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
 import { ThemePickerPopover } from '../../components/ThemePicker.jsx';
+import { useAdminColorMode } from '../../ThemeContext.jsx';
+import { PageHeader, PageBody, EmptyState } from '../../components/admin.jsx';
+import CommandPalette, { useCommandPaletteShortcut } from '../../components/CommandPalette.jsx';
+import IdleSignOut from '../../components/IdleSignOut.jsx';
+import { NAV_GROUPS, navAllowed, navItemFor, navBadges } from '../../components/adminNav.js';
+import { accessLabel } from '../../lib/access.js';
 
-const NAV_MAIN = [
-  { to: '/admin', end: true, label: 'Dashboard' },
-  { to: '/admin/households', label: 'Households' },
-  { to: '/admin/members', label: 'Members' },
-  { to: '/admin/duplicates', label: 'Duplicates' },
-  { to: '/admin/sacraments', label: 'Sacraments' },
-  { to: '/admin/blood', label: 'Blood Types' },
-  { to: '/admin/organizations', label: 'Organizations' },
-  { to: '/admin/ministries', label: 'Ministries' },
-  { to: '/admin/census', label: 'Census' },
-  { to: '/admin/requests', label: 'Requests', badge: 'requests' },
-  { to: '/admin/website', label: 'Parish Website' },
-  { to: '/admin/reports', label: 'Reports' },
-  { to: '/admin/exports', label: 'Exports' },
-];
-
-const NAV_SETTINGS = [
-  { to: '/admin/settings', end: true, label: 'Parish Config' },
-  { to: '/admin/settings/ministries', label: 'Ministries' },
-  { to: '/admin/settings/organizations', label: 'Organizations' },
-  { to: '/admin/settings/staff', label: 'Staff', adminOnly: true },
-];
-
-function NavItem({ to, end, label, count, onNavigate }) {
+function NavItem({ to, end, label, count, badgeLabel, onNavigate }) {
   return (
     <NavLink
       to={to}
       end={end}
       onClick={onNavigate}
       className={({ isActive }) =>
-        `relative flex items-center gap-3 px-3.5 py-2.5 rounded-xl font-semibold text-[14.5px] text-left transition ${
+        `relative flex items-center gap-3 px-3.5 py-[7px] rounded-xl font-semibold text-[14px] leading-snug text-left transition ${
           isActive ? 'bg-white/12 text-white' : 'text-white/70 hover:text-white hover:bg-white/5'
         }`
       }
     >
       {({ isActive }) => (
         <>
-          <span className="absolute left-0 top-2.5 bottom-2.5 w-[3px] rounded" style={{ background: isActive ? 'var(--p-gold-light)' : 'transparent' }} />
+          <span className="absolute left-0 top-2 bottom-2 w-[3px] rounded" style={{ background: isActive ? 'var(--p-gold-light)' : 'transparent' }} />
           {label}
           {count > 0 && (
-            <span className="ml-auto min-w-[22px] px-1.5 py-px rounded-full bg-[var(--p-gold-light)] text-parish-navy text-[11.5px] font-bold text-center" aria-label={`${count} waiting`}>
-              {count}
+            <span className="ml-auto min-w-[22px] px-1.5 py-px rounded-full bg-[var(--p-gold-light)] text-parish-navy text-[11.5px] font-bold text-center" aria-label={`${count} ${badgeLabel || 'waiting'}`}>
+              {count > 99 ? '99+' : count}
             </span>
           )}
         </>
@@ -59,20 +42,27 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
+  useAdminColorMode();
   const [parish, setParish] = useState(null);
 
-  const [requestCounts, setRequestCounts] = useState(null);
+  const [navCounts, setNavCounts] = useState(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const openSearch = useCallback(() => { setDrawerOpen(false); setSearchOpen(true); }, []);
+  useCommandPaletteShortcut(openSearch);
 
   useEffect(() => { api.getSettings().then((r) => setParish(r.settings)).catch(() => {}); }, []);
 
-  // Waiting requests for the sidebar badge, refreshed on every page change
-  // and whenever the Requests page changes one. Before 0012 is run this
-  // fails quietly and no badge shows.
-  const refreshRequestCounts = useCallback(() => {
-    api.requestInboxCounts().then(setRequestCounts).catch(() => {});
+  // What's waiting, for the sidebar badges: refreshed on every page change
+  // and whenever a page changes something counted (refreshNavCounts). Fails
+  // quietly, leaving the badges off.
+  const refreshNavCounts = useCallback(() => {
+    api.navCounts().then(setNavCounts).catch(() => {});
   }, []);
-  useEffect(refreshRequestCounts, [location.pathname, refreshRequestCounts]);
-  const badges = { requests: requestCounts ? requestCounts.certificates + requestCounts.ready + requestCounts.prayers + requestCounts.blood : 0 };
+  useEffect(refreshNavCounts, [location.pathname, refreshNavCounts]);
+  const badges = navBadges(navCounts);
+  const requestCounts = navCounts?.requests || null;
+  const current = navItemFor(location.pathname);
+  const allowed = !current || navAllowed(current, user);
 
   // Close the mobile drawer whenever the route changes.
   useEffect(() => { setDrawerOpen(false); }, [location.pathname]);
@@ -88,13 +78,17 @@ export default function AdminLayout() {
     logout();
     navigate('/admin/login', { replace: true });
   }
+  const onIdle = useCallback(() => {
+    logout();
+    navigate('/admin/login', { replace: true, state: { reason: 'idle' } });
+  }, [logout, navigate]);
 
   const nameInitials = (user?.name || '?').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase();
 
   const sidebar = (
     <>
       <div className="px-5 py-[22px] flex items-center gap-3 border-b border-white/10">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-none text-[var(--p-gold-light)] overflow-hidden ${parish?.logo ? 'bg-white p-1' : 'bg-[var(--p-gold-light)]/[.16]'}`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-none text-[var(--p-gold-light)] overflow-hidden ${parish?.logo ? 'bg-parish-surface p-1' : 'bg-[var(--p-gold-light)]/[.16]'}`}>
           {parish?.logo ? (
             <img src={parish.logo} alt={`${parish.name || 'Parish'} logo`} className="w-full h-full object-contain" />
           ) : (
@@ -102,26 +96,46 @@ export default function AdminLayout() {
           )}
         </div>
         <div className="min-w-0">
-          <div className="font-serif text-[18px] font-semibold leading-tight truncate">{parish?.name || 'OLG Quasi-Parish'}</div>
+          <div className="font-serif text-[18px] font-semibold leading-tight truncate">{parish?.name || 'Parish Registry'}</div>
           <div className="text-[11px] tracking-[.1em] uppercase text-[var(--p-gold-light)]/85">Members Registry</div>
         </div>
       </div>
 
-      <nav className="px-3 py-3.5 flex flex-col gap-0.5 flex-1 overflow-auto" aria-label="Admin sections">
-        {NAV_MAIN.map((n) => <NavItem key={n.to} {...n} count={n.badge ? badges[n.badge] : 0} />)}
-        <div className="mx-3.5 mt-3.5 mb-1 font-bold text-[10.5px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70">Settings</div>
-        {NAV_SETTINGS.filter((n) => !n.adminOnly || user?.isAdmin).map((n) => <NavItem key={n.to} {...n} />)}
+      <div className="px-3 pt-3">
+        <button
+          type="button" onClick={openSearch}
+          className="w-full appearance-none cursor-pointer flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white/75 text-[13.5px] font-semibold text-left"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+          <span className="flex-1">Search</span>
+          <kbd className="text-[10.5px] font-semibold text-white/55 border border-white/20 rounded px-1.5 py-px">Ctrl K</kbd>
+        </button>
+      </div>
+
+      <nav className="px-3 py-2.5 flex flex-col gap-0.5 flex-1 overflow-auto" aria-label="Admin sections">
+        {NAV_GROUPS.map((g) => {
+          const items = g.items.filter((n) => navAllowed(n, user));
+          if (!items.length) return null;
+          return (
+            <div key={g.label} role="group" aria-label={g.label} className="flex flex-col gap-0.5">
+              <div className="mx-3.5 mt-2.5 mb-0.5 font-bold text-[10px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70" aria-hidden>{g.label}</div>
+              {items.map((n) => <NavItem key={n.to} {...n} count={n.badge ? badges[n.badge] : 0} />)}
+            </div>
+          );
+        })}
       </nav>
 
       <div className="px-4 py-2.5">
-        <ThemePickerPopover align="left" placement="up" dark />
+        <ThemePickerPopover align="left" placement="up" dark showMode />
       </div>
 
       <div className="px-4 py-3.5 border-t border-white/10 flex items-center gap-2.5">
         <div className="w-9 h-9 rounded-full bg-[var(--p-gold-light)] text-parish-navy flex items-center justify-center font-bold text-[14px] flex-none" aria-hidden>{nameInitials}</div>
         <div className="min-w-0 flex-1">
           <div className="text-[13.5px] font-semibold whitespace-nowrap overflow-hidden text-ellipsis">{user?.name}</div>
-          <div className="text-[11.5px] text-white/60">{user?.role}</div>
+          <div className="text-[11.5px] text-white/60 truncate" title={user?.access && user.access !== 'full' ? accessLabel(user.access) : undefined}>
+            {user?.role}{user?.access && user.access !== 'full' ? ` · ${accessLabel(user.access)}` : ''}
+          </div>
         </div>
         <button onClick={onLogout} title="Sign out" aria-label="Sign out" className="appearance-none border-none bg-white/10 cursor-pointer text-white w-8 h-8 rounded-lg flex items-center justify-center flex-none">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></svg>
@@ -151,7 +165,7 @@ export default function AdminLayout() {
       {/* Mobile drawer */}
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-[70] flex" role="dialog" aria-modal="true" aria-label="Navigation menu">
-          <div className="absolute inset-0 bg-parish-navy/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
+          <div className="absolute inset-0 bg-parish-scrim/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
           <aside className="relative w-[248px] max-w-[82vw] text-white flex flex-col h-full shadow-2xl animate-fadeUp" style={sidebarBg}>
             {sidebar}
           </aside>
@@ -165,19 +179,30 @@ export default function AdminLayout() {
             onClick={() => setDrawerOpen(true)}
             aria-label="Open navigation menu"
             aria-expanded={drawerOpen}
-            className="appearance-none border-[1.5px] border-parish-borderSoft bg-white cursor-pointer w-10 h-10 rounded-xl flex items-center justify-center text-parish-navy flex-none"
+            className="appearance-none border-[1.5px] border-parish-borderSoft bg-parish-surface cursor-pointer w-10 h-10 rounded-xl flex items-center justify-center text-parish-navy flex-none"
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M3 6h18M3 12h18M3 18h18" /></svg>
           </button>
           {parish?.logo && (
-            <img src={parish.logo} alt="" className="w-[30px] h-[30px] object-contain rounded-md bg-white flex-none" />
+            <img src={parish.logo} alt="" className="w-[30px] h-[30px] object-contain rounded-md bg-parish-surface flex-none" />
           )}
           <span className="font-serif text-[19px] font-semibold text-parish-navy truncate">{parish?.name || 'Parish Registry'}</span>
         </div>
 
         {/* Pages that change parish settings (logo, name) push them back here so the sidebar updates without a reload. */}
-        <Outlet context={{ parish, setParish, requestCounts, refreshRequestCounts }} />
+        {allowed ? (
+          <Outlet context={{ parish, setParish, requestCounts, navCounts, refreshRequestCounts: refreshNavCounts, refreshNavCounts }} />
+        ) : (
+          <>
+            <PageHeader title={current.label} />
+            <PageBody>
+              <EmptyState title="Not available for your account" subtitle={`Your access level is ${accessLabel(user?.access)}. Ask a staff admin if you need this page.`} />
+            </PageBody>
+          </>
+        )}
       </main>
+      {searchOpen && <CommandPalette onClose={() => setSearchOpen(false)} />}
+      <IdleSignOut onSignOut={onIdle} />
     </div>
   );
 }

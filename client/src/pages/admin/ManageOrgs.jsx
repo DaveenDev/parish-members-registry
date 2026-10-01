@@ -23,6 +23,7 @@ export default function ManageOrgs() {
               description="Parish-level positions (e.g. PPC President, GKK Cluster Head, FLA Coordinator). Registrants pick from this list under “Katungdanan sa Parish”. A position held by a member cannot be deleted."
               itemNoun="position" placeholder="New position (e.g. PPC Officer)"
               listFn={api.listParishPositions} addFn={api.addParishPosition} renameFn={api.renameParishPosition} deleteFn={api.deleteParishPosition}
+              lockInUse
             />
           )}
           {tab === 'lay' && (

@@ -88,3 +88,15 @@ export function writeUrlState(values, defaults) {
   }
   return out;
 }
+
+/**
+ * The query string after applying `patch` to a list's URL state: back to
+ * page 1 unless the patch sets `page`, defaults left out, and keys the list
+ * doesn't own (e.g. the page's ?tab=) kept as they were.
+ */
+export function mergeUrlState(params, patch, defaults, allowed = {}) {
+  const next = { ...readUrlState(params, defaults, allowed), ...patch };
+  if (!('page' in patch) && 'page' in defaults) next.page = defaults.page;
+  const others = Object.fromEntries([...params].filter(([key]) => !(key in defaults)));
+  return { ...others, ...writeUrlState(next, defaults) };
+}

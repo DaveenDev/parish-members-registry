@@ -17,18 +17,20 @@ export function ToastProvider({ children }) {
     }
   }, []);
 
+  // `action` is an optional { label, onClick } button, e.g. Undo. Toasts with
+  // one stay up longer so there's time to use it.
   const push = useCallback(
-    (message, tone = 'ok') => {
+    (message, tone = 'ok', action = null) => {
       if (!message) return;
       const id = nextId++;
-      setToasts((list) => [...list, { id, message, tone }]);
-      timers.current.set(id, setTimeout(() => dismiss(id), tone === 'error' ? 5000 : 3000));
+      setToasts((list) => [...list, { id, message, tone, action }]);
+      timers.current.set(id, setTimeout(() => dismiss(id), action ? 8000 : tone === 'error' ? 5000 : 3000));
     },
     [dismiss]
   );
 
   const toast = {
-    success: (m) => push(m, 'ok'),
+    success: (m, opts) => push(m, 'ok', opts?.action),
     error: (m) => push(m, 'error'),
     show: push,
   };
@@ -51,6 +53,15 @@ export function ToastProvider({ children }) {
           >
             <span aria-hidden>{t.tone === 'error' ? '!' : '✓'}</span>
             <span>{t.message}</span>
+            {t.action && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); dismiss(t.id); t.action.onClick(); }}
+                className="appearance-none cursor-pointer ml-1 px-2.5 py-1 rounded-lg border-[1.5px] border-current bg-transparent font-bold text-[13px] text-inherit"
+              >
+                {t.action.label}
+              </button>
+            )}
           </div>
         ))}
       </div>
