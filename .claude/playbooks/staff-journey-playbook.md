@@ -1,7 +1,7 @@
 # Recurring Playbook — Staff Journey (empty-DB, non-admin staff role-scoped tester)
 
 **Created:** 2026-10-01
-**Updated:** 2026-10-01 — pointed at the repo's test Supabase project (new `sb_publishable_`/`sb_secret_` keys); REST wipe via `npm run db:wipe-test`
+**Updated:** 2026-10-01 — pointed at the repo's test Supabase project (new `sb_publishable_`/`sb_secret_` keys); REST wipe via `npm run db:wipe-test`; corrected after the first full run (portal fields, request/contact columns, anon-executable staff functions, Chromium CA trust)
 **Recurrence:** on demand (re-execute this file any time)
 **Driver:** Playwright MCP (interactive — AI drives a real browser via accessibility snapshots). **Read §A "How to drive the browser" before starting** — it is the concrete how-to; everything below it is the what-to-do.
 **App URL:** `http://localhost:<PORT>` — **pick any free port** at run start (see §1 step 0). **Do NOT use port 5173** — that's Vite's default and the user's own manual-test server; never bind or navigate to it. Everything else is fair game; the only goal is to get the app up on *some* free port and browser-test it.
@@ -638,7 +638,7 @@ person who did it.
    for Mass, status Active) → save. Progress updates.
 2. **s-census-portal-approve** — in a **second tab, signed out** (or a private
    window), `/census` with `<hhRef>` + `<accessCode>` → change Paolo's
-   occupation to `Student SV1001` → submit. Back as Lito: **Census → Online
+   contact number to `0917 555 7777` → submit. (The portal only corrects personal details — name, relationship, sex, date of birth, civil status, contact — not occupation.) Back as Lito: **Census → Online
    updates** shows it; **approve** it, and record its id `<submissionId>` from the
    network log. Paolo's record now shows the change (`census_approve_submission`).
 3. **s-census-new-code** — **New code** for Villar → the old `<accessCode>` no
@@ -653,8 +653,8 @@ person who did it.
 2. **s-req-prayer** — mark the prayer request **Prayed for**; **Print this
    list** (dismiss the dialog).
 3. **s-req-blood** — open the O+ request: `Ramon Abad SV1001` is listed as a
-   compatible donor. Log one contact attempt (it only writes a row — **never**
-   actually call the number).
+   compatible donor. Log one contact attempt (it only writes a `blood_request_contacts` row with `status` *Contacted* and a note — **never**
+   actually call the number); `updated_by_name` must read **Lito Ramos SV1001**.
 4. **s-req-badge** — the sidebar `"<n> waiting"` badge drops after each action
    without a reload (`refreshRequestCounts`).
 
@@ -812,9 +812,9 @@ Verify that first with `GET /auth/v1/user` (must be 401/403).
 | `a-rpc-approve` | `census_approve_submission` `{"p_id":<submissionId>}` (the portal update approved in `s-census-portal-approve`) | refused |
 | `a-rpc-verify-sacr` | `verify_sacrament` `{"p_member_id":<memberId>,"p_sacrament":"baptism","p_source":"x"}` | refused |
 | `a-rpc-census-open` | `census_open_cycle` `{"p_label":"Leak SV1001"}` | refused |
-| `a-rpc-create-hh` | `create_household` `{"payload":{}}` | refused (staff-only path; anon uses `submit_registration`) |
-| `a-rpc-rename-gkk` | `rename_gkk` `{"old_name":"GKK Test SV1001","new_name":"Leak SV1001"}` | refused — **read the body**: these 0001 functions are not explicitly revoked from `public`, so the refusal must come from table permissions. Confirm as staff afterwards that `GKK Test SV1001` is unchanged |
-| `a-rpc-delete-gkk` | `delete_gkk` `{"target_name":"GKK Test SV1001"}` | refused; GKK still exists |
+| `a-rpc-create-hh` | `create_household` `{"payload":{}}` | refused **or** executes and fails validation (400) with **no row created**. The 0001 functions are `security invoker` and not revoked from `public`, so anon can run them and only RLS stops the write (run 2026-10-01, hardening note H1). A row actually created is **P0** |
+| `a-rpc-rename-gkk` | `rename_gkk` `{"old_name":"GKK San Isidro","new_name":"Leak SV1001"}` | refused, or 400 *GKK not found* (RLS hides the row from anon). **Read the body.** Confirm afterwards (service key) that the GKK name is unchanged |
+| `a-rpc-delete-gkk` | `delete_gkk` `{"target_name":"GKK Sto. Niño"}` | refused, or 204 with **zero rows deleted** (RLS). The GKK must still exist afterwards. Use a GKK no household uses, so the function's own in-use guard is not what stops it |
 | `a-rpc-census-progress` | `census_household_progress` `{"p_cycle_id":<cycleId>}` and `census_summary` `{"p_cycle_id":<cycleId>}` | refused or empty — never per-household names |
 
 ### a-api-public · What anon *may* call returns no PII
@@ -960,6 +960,18 @@ After `s-p1-guard-staff`, in-app navigation to Households must render normally
 — no leftover *Staff admins only* fragment. Record `f3-nav-recovery`.
 
 ---
+
+## 2.6 Known pitfalls when driving this app (learned in the 2026-10-01 run)
+- **Chromium and the proxy CA.** In the Claude Code cloud container Chromium rejects the proxy's certificate (`net::ERR_CERT_AUTHORITY_INVALID`), so every Supabase
+  call from the browser fails and pages "render" with no data — a false PASS. Import `/root/.ccr/ca-bundle.crt` into `~/.pki/nssdb`
+  (`apt-get install libnss3-tools`, split the bundle into single certs, `certutil -d sql:$HOME/.pki/nssdb -A -t "C,," -n <name> -i <cert>`). Prove it with a request to
+  `$SUPABASE_URL/auth/v1/health` that answers 401, not a cert error. Never ignore HTTPS errors.
+- **Payload shapes differ between the public and staff RPCs.** `submit_registration` takes `householdName` / `firstName` / `lastName` / `relationship` / `civilStatus`;
+  the staff `create_household` takes `household.name` plus `first` / `last` / `rel` / `pob` / `civil` (see `client/src/api.js`).
+- **Selectors.** Parish Config → **Parish GKK** has two text boxes — use the placeholder *New GKK name…*, not "the last textbox" (that is the search box). The Reports page's GKK
+  picker only appears after choosing a data source and a report type (**Households → By GKK**). The sidebar link text includes a count badge for Requests.
+- **Errors are not all `role="alert"`.** The sign-in error is; the change-password error is a plain div (`.text-parish-error`).
+- **Ids.** `npm run db:wipe-test` does not reset sequences, so ids keep counting up — read real ids from responses, never assume `1`.
 
 ## 3. Per-step procedure (applies to every step above)
 1. **Act** — perform the action as the current identity would (§A loop).
