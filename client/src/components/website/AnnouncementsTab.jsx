@@ -3,24 +3,28 @@ import { api } from '../../api.js';
 import { Field, TextInput, Select, Checkbox, Badge } from '../ui.jsx';
 import { FilterSelect, SearchInput, Pagination, EmptyState, LoadingState, ErrorState } from '../admin.jsx';
 import { fmtDate } from '../../constants.js';
-import { useClientList } from '../../hooks.js';
+import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { ANNOUNCEMENT_CATEGORIES, announcementState, todayIso } from '../../lib/website.js';
 import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton } from './shared.jsx';
 
 const STATES = ['Live', 'Scheduled', 'Draft', 'Expired'];
+const URL_DEFAULTS = { state: 'All', q: '', page: 1, size: 10 };
+const URL_ALLOWED = { state: ['All', ...STATES], size: [10, 20, 50] };
 const describe = (r) => r.title;
 
 export default function AnnouncementsTab() {
   const list = useContentList({ table: 'announcements', load: api.listAnnouncements, remove: api.deleteAnnouncement, describe });
   const [editing, setEditing] = useState(null);
-  const [state, setState] = useState('All');
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { state } = url;
+  const setState = (v) => setUrl({ state: v });
   const today = todayIso();
 
   // Pinned first, then newest start date first.
   const sorted = [...list.rows].sort((a, b) => (b.pinned - a.pinned) || b.publish_on.localeCompare(a.publish_on) || b.id - a.id);
   const filtered = state === 'All' ? sorted : sorted.filter((r) => announcementState(r, today) === state);
-  const page = useClientList(filtered, (r) => `${r.title} ${r.body || ''} ${r.category}`);
+  const page = urlListPage(filtered, (r) => `${r.title} ${r.body || ''} ${r.category}`, url, setUrl);
 
   return (
     <>

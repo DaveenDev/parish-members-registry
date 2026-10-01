@@ -98,10 +98,8 @@ export function RowButton({ tone = 'blue', className = '', ...props }) {
   );
 }
 
-/** Card wrapper for a tab's list. */
-export function Panel({ children, className = '' }) {
-  return <div className={`bg-[#fffdf8] border border-parish-border rounded-2xl shadow-cardSm ${className}`}>{children}</div>;
-}
+/** Card wrapper for a tab's list (defined with the other admin building blocks). */
+export { Panel } from './admin.jsx';
 
 /** Heading row above a tab's list: short explanation on the left, actions on the right. */
 export function TabIntro({ text, children }) {

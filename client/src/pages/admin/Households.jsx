@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState, Panel } from '../../components/admin.jsx';
 import { StatusPill, PrimaryButton, Badge } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import HouseholdEditDrawer from '../../components/HouseholdEditDrawer.jsx';
@@ -155,7 +155,7 @@ export default function Households() {
           </PrimaryButton>
         </div>
 
-        <div className="bg-[#fffdf8] border border-parish-border rounded-2xl overflow-hidden shadow-cardSm">
+        <Panel className="overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse" style={{ minWidth: 820 }}>
               <caption className="sr-only">Registered households</caption>
@@ -236,7 +236,7 @@ export default function Households() {
               : <EmptyState title="No households registered yet" subtitle="Households appear here as families register, or add one with “New Household”." />
           )}
           <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
-        </div>
+        </Panel>
       </PageBody>
 
       {openMemberId && (

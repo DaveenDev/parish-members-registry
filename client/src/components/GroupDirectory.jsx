@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, EmptyState, ErrorState, LoadingState, Pagination, rowActivationProps } from './admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, EmptyState, ErrorState, LoadingState, Pagination, rowActivationProps, Panel } from './admin.jsx';
 import { ageFromDob } from '../constants.js';
 import { memberFullName } from '../lib/util.js';
 import { groupByGkk } from '../lib/household.js';
@@ -130,7 +130,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                 </button>
               ))}
             </div>
-            <div className="bg-[#fffdf8] border border-parish-border rounded-2xl overflow-hidden shadow-cardSm">
+            <Panel className="overflow-hidden">
               <div className="px-[18px] py-3.5 border-b border-[#f1e8d5] flex items-center gap-3 flex-wrap">
                 <div className="font-serif text-[19px] font-semibold text-parish-navy">
                   {activeLabel}
@@ -214,7 +214,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                     : <EmptyState title="No members in this group yet" subtitle={`Use “Add member” to put someone on this ${noun}'s roster.`} />
               )}
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
-            </div>
+            </Panel>
           </>
         )}
       </PageBody>

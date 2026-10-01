@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { fmtDate } from '../../constants.js';
-import { useClientList } from '../../hooks.js';
+import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { Field, TextInput, Select, Checkbox, Badge } from '../ui.jsx';
@@ -14,13 +14,19 @@ import { todayIso } from '../../lib/website.js';
 
 const TYPE_TONES = { 'For the sick': 'blue', Thanksgiving: 'gold', 'For the departed': 'gray', 'Special intention': 'green' };
 
+const URL_DEFAULTS = { view: 'New', type: 'All', q: '', page: 1, size: 20 };
+const URL_ALLOWED = { view: ['New', 'Prayed for', 'Archived', 'All'], type: ['All', ...PRAYER_TYPES], size: [10, 20, 50] };
+
 export default function PrayerTab({ onCountsChanged }) {
   const toast = useToast();
   const confirm = useConfirm();
   const layout = useOutletContext();
   const list = useRows(api.listPrayerRequests);
-  const [view, setView] = useState('New');
-  const [type, setType] = useState('All');
+  // View, type, search and page live in the address bar (see useUrlState).
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { view, type } = url;
+  const setView = (v) => setUrl({ view: v });
+  const setType = (v) => setUrl({ type: v });
   const [selected, setSelected] = useState(() => new Set());
   const [offeredOn, setOfferedOn] = useState(todayIso());
   const [busy, setBusy] = useState(false);
@@ -29,7 +35,7 @@ export default function PrayerTab({ onCountsChanged }) {
   const filtered = list.rows
     .filter((r) => (view === 'All' || r.status === view) && (type === 'All' || r.intention_type === type))
     .sort((a, b) => (view === 'New' ? 1 : -1) * a.created_at.localeCompare(b.created_at));
-  const page = useClientList(filtered, (r) => `${r.ref_no} ${r.intention} ${r.for_name || ''} ${r.requester_name || ''}`, 20);
+  const page = urlListPage(filtered, (r) => `${r.ref_no} ${r.intention} ${r.for_name || ''} ${r.requester_name || ''}`, url, setUrl);
   const newCount = list.rows.filter((r) => r.status === 'New').length;
 
   function toggle(id) {

@@ -110,7 +110,9 @@ export default function Members() {
           <FilterSelect aria-label="Census" value={filters.census} onChange={(e) => setFilter('census', e.target.value)}>
             <option value="All">Any census</option><option value="Confirmed">Confirmed in census</option><option value="Not confirmed">Not confirmed in census</option>
           </FilterSelect>
-          <button onClick={() => setUrl({ ...DEFAULT_FILTERS, q: '' })} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>
+          {isFiltered && (
+            <button onClick={() => setUrl({ ...DEFAULT_FILTERS, q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>
+          )}
           <div className="ml-auto text-[13px] text-parish-muted">{total} member(s)</div>
         </div>
 

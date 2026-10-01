@@ -1,15 +1,15 @@
 import React from 'react';
-import { PageHeader, PageBody } from '../../components/admin.jsx';
+import { PageHeader, PageBody, Panel } from '../../components/admin.jsx';
 import { useCsvExport } from '../../hooks.js';
 
 function ExportCard({ icon, iconBg, iconColor, title, desc, onExport, btnBg, busy, disabled }) {
   return (
-    <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-[22px] shadow-cardSm" style={{ padding: '22px' }}>
+    <Panel className="p-[22px]">
       <div className="w-11 h-11 rounded-xl flex items-center justify-center mb-3.5" style={{ background: iconBg, color: iconColor }}>{icon}</div>
       <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{title}</div>
       <div className="text-[13px] text-parish-muted mb-4">{desc}</div>
       <button onClick={onExport} disabled={disabled} className="w-full appearance-none border-none cursor-pointer py-2.5 font-semibold text-[14px] text-white rounded-xl disabled:opacity-60" style={{ background: btnBg }}>{busy ? 'Exporting…' : 'Export CSV'}</button>
-    </div>
+    </Panel>
   );
 }
 

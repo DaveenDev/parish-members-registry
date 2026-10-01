@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, ErrorState, LoadingState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, ErrorState, LoadingState, Panel } from '../../components/admin.jsx';
 import { useAsyncData } from '../../hooks.js';
 import { daysAgo } from '../../constants.js';
 import { useToast } from '../../ToastContext.jsx';
@@ -90,7 +90,7 @@ function PendingQueue({ pendingCount, onVerified }) {
 
   const rows = queue.data?.rows || [];
   return (
-    <div className={`${CARD} px-[22px] py-5 mb-[18px]`}>
+    <Panel className="px-[22px] py-5 mb-[18px]">
       <div className="flex items-baseline justify-between gap-3 flex-wrap mb-0.5">
         <h2 className="font-serif text-[20px] font-semibold text-parish-navy m-0">Awaiting verification</h2>
         {pendingCount > 0 && (
@@ -123,7 +123,7 @@ function PendingQueue({ pendingCount, onVerified }) {
           ))}
         </ul>
       )}
-    </div>
+    </Panel>
   );
 }
 
@@ -162,30 +162,30 @@ export default function Dashboard() {
         <PendingQueue pendingCount={stats.pendingCount} onVerified={reload} />
 
         <div className="grid gap-[18px] mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))' }}>
-          <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-5 shadow-cardSm">
+          <Panel className="px-[22px] py-5">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-0.5">Registrations over time</div>
             <div className="text-[12.5px] text-parish-muted mb-5">Members enrolled per month</div>
             <Bars data={stats.regMonths} color1="var(--p-blue-light)" color2="var(--p-blue)" />
-          </div>
-          <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-5 shadow-cardSm">
+          </Panel>
+          <Panel className="px-[22px] py-5">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-0.5">Age distribution</div>
             <div className="text-[12.5px] text-parish-muted mb-5">All registered members</div>
             <Bars data={stats.ageBuckets} color1="#e0bd6d" color2="var(--p-gold)" linkLabel={(b) => `Ages ${b.label}: ${b.n} members. Open the members list`} />
-          </div>
+          </Panel>
         </div>
 
         <div className="grid gap-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))' }}>
-          <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-5 shadow-cardSm">
+          <Panel className="px-[22px] py-5">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-[18px]">Members by GKK</div>
             {stats.gkkBreak.length ? <BreakdownBars data={stats.gkkBreak} color1="var(--p-blue)" color2="var(--p-blue-light)" /> : <div className="text-parish-muted text-sm">No GKK data yet.</div>}
-          </div>
-          <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-5 shadow-cardSm">
+          </Panel>
+          <Panel className="px-[22px] py-5">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-[18px]">Top ministries &amp; organizations</div>
             {stats.ministryBreak.length ? <BreakdownBars data={stats.ministryBreak} color1="var(--p-gold)" color2="#e0bd6d" /> : <div className="text-parish-muted text-sm">No participation data yet.</div>}
-          </div>
+          </Panel>
         </div>
 
-        <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-5 shadow-cardSm mt-[18px]">
+        <Panel className="px-[22px] py-5 mt-[18px]">
           <div className="font-serif text-[20px] font-semibold text-parish-navy mb-4">Members by sacrament received</div>
           <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
             {stats.sacStats.map((s) => (
@@ -195,7 +195,7 @@ export default function Dashboard() {
               </MaybeLink>
             ))}
           </div>
-        </div>
+        </Panel>
       </PageBody>
     </>
   );

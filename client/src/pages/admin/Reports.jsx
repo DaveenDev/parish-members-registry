@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, ErrorState, LoadingState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, ErrorState, LoadingState, Tabs, Panel } from '../../components/admin.jsx';
 import { useAsyncData, useClientList } from '../../hooks.js';
 import { PrimaryButton, GhostButton } from '../../components/ui.jsx';
 import { ReportPrintSheet } from '../../components/PrintSheet.jsx';
@@ -30,6 +30,8 @@ function SplitBar({ label, right, vw, pw }) {
   );
 }
 
+const REPORT_TABS = [['stats', 'Report Stats'], ['gen', 'Generate Report']];
+
 const SOURCE_META = {
   Members: { gkk: true, group: true, sacrament: true },
   Households: { gkk: true, dateRange: true, status: true },
@@ -38,7 +40,9 @@ const SOURCE_META = {
 export default function Reports() {
   const toast = useToast();
   const layout = useOutletContext();
-  const [tab, setTab] = useState('stats');
+  const [params, setParams] = useSearchParams();
+  const tab = REPORT_TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : REPORT_TABS[0][0];
+  const setTab = (k) => setParams(k === REPORT_TABS[0][0] ? {} : { tab: k }, { replace: true });
   const { data: stats, loading: statsLoading, error: statsError, reload: reloadStats } = useAsyncData(() => api.reportStats(), []);
 
   const [genSource, setGenSource] = useState('');
@@ -84,17 +88,7 @@ export default function Reports() {
       <PageHeader title="Reports" subtitle="Registry statistics & custom reports" />
       <PageBody>
         <div className="max-w-[920px]">
-          <div className="flex gap-1 mb-[22px] border-b border-parish-border" style={{ marginBottom: '22px' }}>
-            {[['stats', 'Report Stats'], ['gen', 'Generate Report']].map(([k, label]) => (
-              <button
-                key={k} onClick={() => setTab(k)}
-                className="appearance-none border-none bg-none cursor-pointer px-4 py-2.5 -mb-px font-semibold text-[15px]"
-                style={{ color: tab === k ? 'var(--p-blue)' : '#8a836f', borderBottom: `2.5px solid ${tab === k ? 'var(--p-blue)' : 'transparent'}` }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Tabs tabs={REPORT_TABS} value={tab} onChange={setTab} />
 
           {tab === 'stats' && !stats && (
             statsError && !statsLoading
@@ -104,7 +98,7 @@ export default function Reports() {
 
           {tab === 'stats' && stats && (
             <div className="flex flex-col gap-5">
-              <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+              <Panel className="px-6 py-[22px]">
                 <div className="flex items-baseline justify-between gap-3 mb-1">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Registration Status by GKK</div>
                   <div className="text-[13px] text-parish-muted">{stats.totalVerified} verified · {stats.totalPending} pending of {stats.totalHH} households</div>
@@ -113,17 +107,17 @@ export default function Reports() {
                 <div className="flex flex-col gap-3.5">
                   {stats.regByGkk.map((g) => <SplitBar key={g.label} label={g.label} right={`${g.verified} verified · ${g.pending} pending`} vw={g.vw} pw={g.pw} />)}
                 </div>
-              </div>
+              </Panel>
 
-              <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+              <Panel className="px-6 py-[22px]">
                 <div className="font-serif text-[21px] font-semibold text-parish-navy mb-1">Sacramental Completion</div>
                 <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Share of all {stats.totalMembers} registered members who have received each sacrament.</p>
                 <div className="flex flex-col gap-3.5">
                   {stats.sacCompletion.map((s) => <Bar key={s.label} label={s.label} right={`${s.n} received · ${s.missing} not yet recorded`} w={s.w} color="linear-gradient(90deg,var(--p-blue),var(--p-blue-light))" />)}
                 </div>
-              </div>
+              </Panel>
 
-              <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+              <Panel className="px-6 py-[22px]">
                 <div className="flex items-baseline justify-between gap-3 mb-1">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Ministry &amp; Organization Participation</div>
                   <div className="text-[13px] text-parish-muted">{stats.anyVolunteer}% of members serve in at least one</div>
@@ -132,9 +126,9 @@ export default function Reports() {
                 <div className="grid gap-x-6 gap-y-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))' }}>
                   {stats.participation.map((p) => <Bar key={p.label} label={p.label} right={p.n} w={p.w} color={p.color} />)}
                 </div>
-              </div>
+              </Panel>
 
-              <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+              <Panel className="px-6 py-[22px]">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Blood types</div>
                   <Link to="/admin/blood" className="px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg no-underline">Open Blood Types page →</Link>
@@ -143,13 +137,13 @@ export default function Reports() {
                 <div className="flex flex-wrap gap-2">
                   {stats.bloodCounts.map((b) => <span key={b.label} className="font-bold text-[12.5px] bg-parish-errorBg text-parish-error px-3.5 py-1.5 rounded-full">{b.label} · {b.n}</span>)}
                 </div>
-              </div>
+              </Panel>
             </div>
           )}
 
           {tab === 'gen' && (
             <div className="flex flex-col gap-5">
-              <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+              <Panel className="px-6 py-[22px]">
                 <div className="font-serif text-[21px] font-semibold text-parish-navy mb-1">Build a report</div>
                 <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Choose a data source, a report type, then narrow the scope before generating.</p>
 
@@ -221,10 +215,10 @@ export default function Reports() {
                 )}
 
                 <PrimaryButton onClick={generate} disabled={!genType || generating} className="px-[22px] py-2.5 text-[14px]">{generating ? 'Generating…' : 'Generate Report'}</PrimaryButton>
-              </div>
+              </Panel>
 
               {report && (
-                <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
+                <Panel className="px-6 py-[22px]">
                   <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
                     <div className="font-serif text-[21px] font-semibold text-parish-navy">{report.title}</div>
                     <div className="flex gap-2">
@@ -257,7 +251,7 @@ export default function Reports() {
                       <Pagination page={reportList.page} pageSize={reportList.pageSize} total={reportList.total} onPage={reportList.setPage} onPageSize={reportList.setPageSize} />
                     </div>
                   )}
-                </div>
+                </Panel>
               )}
             </div>
           )}

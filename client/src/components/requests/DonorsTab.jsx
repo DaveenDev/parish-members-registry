@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { fmtDate, BLOOD_TYPES } from '../../constants.js';
-import { useClientList } from '../../hooks.js';
+import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { Field, TextInput, Select, Checkbox, Badge, OptionSelect } from '../ui.jsx';
@@ -10,10 +10,16 @@ import { SidePanel, TextArea, RowButton, Panel, TabIntro, AddButton } from '../p
 import { useRows, ContactLinks, FilterChips } from './common.jsx';
 import { donorAvailability, AVAILABILITY_TONES } from '../../lib/requests.js';
 
+const URL_DEFAULTS = { view: 'Available', type: 'All', q: '', page: 1, size: 20 };
+const URL_ALLOWED = { view: ['Available', 'Resting', 'Opted out', 'All'], type: ['All', ...BLOOD_TYPES, 'Unknown'], size: [10, 20, 50] };
+
 export default function DonorsTab() {
   const list = useRows(api.listBloodDonors);
-  const [view, setView] = useState('Available');
-  const [type, setType] = useState('All');
+  // View, blood type, search and page live in the address bar (see useUrlState).
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { view, type } = url;
+  const setView = (v) => setUrl({ view: v });
+  const setType = (v) => setUrl({ type: v });
   const [editing, setEditing] = useState(null);
   const [gkks, setGkks] = useState([]);
 
@@ -22,7 +28,7 @@ export default function DonorsTab() {
   const rows = list.rows.map((d) => ({ ...d, availability: donorAvailability(d) }));
   const count = (s) => rows.filter((d) => d.availability.state === s).length;
   const filtered = rows.filter((d) => (view === 'All' || d.availability.state === view) && (type === 'All' || (type === 'Unknown' ? !d.blood_type : d.blood_type === type)));
-  const page = useClientList(filtered, (d) => `${d.full_name} ${d.mobile} ${d.gkk || ''}`, 20);
+  const page = urlListPage(filtered, (d) => `${d.full_name} ${d.mobile} ${d.gkk || ''}`, url, setUrl);
 
   return (
     <>

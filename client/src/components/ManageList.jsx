@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { PageHeader, PageBody, SearchInput, Pagination, ErrorState, LoadingState } from './admin.jsx';
+import { PageHeader, PageBody, SearchInput, Pagination, ErrorState, LoadingState, Panel } from './admin.jsx';
 import { useClientList } from '../hooks.js';
 import { TextInput, PrimaryButton } from './ui.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -20,9 +20,13 @@ export default function ManageList({ title, subtitle, ...listProps }) {
 /**
  * Add / search / rename / delete card for one staff-managed name list.
  * `lockInUse` disables Delete for items with a count, for lists whose count
- * matches what the database's delete guard checks.
+ * matches what the database's delete guard checks. `countLabel` words that
+ * count ("3 member(s)").
  */
-export function ManageListCard({ heading, description, itemNoun, placeholder, listFn, addFn, renameFn, deleteFn, lockInUse = false }) {
+export function ManageListCard({
+  heading, description, itemNoun, placeholder, listFn, addFn, renameFn, deleteFn,
+  lockInUse = false, countLabel = (n) => `${n} member(s)`, lockedHint = '',
+}) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -84,7 +88,7 @@ export function ManageListCard({ heading, description, itemNoun, placeholder, li
   }
 
   return (
-    <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+    <Panel className="p-6">
       {heading && <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">{heading}</div>}
       {description && <div className="text-[13.5px] text-parish-muted mb-[18px]">{description}</div>}
       {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium">{error}</div>}
@@ -114,12 +118,12 @@ export function ManageListCard({ heading, description, itemNoun, placeholder, li
             ) : (
               <>
                 <span className="flex-1 font-semibold text-[14.5px] text-parish-navy">{r.name}</span>
-                <span className="font-semibold text-[12px] text-parish-muted">{r.count} member(s)</span>
+                <span className="font-semibold text-[12px] text-parish-muted">{countLabel(r.count)}</span>
                 <button onClick={() => { setEditing(r.name); setEditValue(r.name); }} className="appearance-none border-none bg-[var(--p-blue-tint)] text-parish-blue cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Edit</button>
                 <button
                   onClick={() => remove(r.name)}
                   disabled={lockInUse && r.count > 0}
-                  title={lockInUse && r.count > 0 ? `In use by ${r.count} member(s), so it can't be deleted` : undefined}
+                  title={lockInUse && r.count > 0 ? `In use by ${countLabel(r.count)}, so it can't be deleted.${lockedHint ? ` ${lockedHint}` : ''}` : undefined}
                   className="appearance-none border-none bg-parish-errorBg text-parish-error cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px] disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Delete
@@ -136,6 +140,6 @@ export function ManageListCard({ heading, description, itemNoun, placeholder, li
       <div className="-mx-6 -mb-6 mt-4">
         <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
       </div>
-    </div>
+    </Panel>
   );
 }

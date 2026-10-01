@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { fmtDate, fmtDateTime, BLOOD_TYPES } from '../../constants.js';
+import { useUrlState } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { Field, TextInput, Select, Checkbox, Badge } from '../ui.jsx';
@@ -21,9 +22,14 @@ function urgency(r, today = todayIso()) {
   return null;
 }
 
+const URL_DEFAULTS = { view: 'open' };
+const URL_ALLOWED = { view: ['open', 'all'] };
+
 export default function BloodRequestsTab({ onCountsChanged }) {
   const list = useRows(api.listBloodRequests);
-  const [view, setView] = useState('open');
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { view } = url;
+  const setView = (v) => setUrl({ view: v });
   const [openId, setOpenId] = useState(null);
   const [creating, setCreating] = useState(false);
 

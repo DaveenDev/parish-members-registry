@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useUrlState } from '../../hooks.js';
 import { api } from '../../api.js';
 import { Field, TextInput, Select, Badge, OptionSelect } from '../ui.jsx';
 import { FilterSelect, EmptyState, LoadingState, ErrorState } from '../admin.jsx';
@@ -20,11 +21,16 @@ function whenText(r) {
   return days + times;
 }
 
+const URL_DEFAULTS = { when: 'upcoming', type: 'All' };
+const URL_ALLOWED = { when: ['upcoming', 'past'], type: ['All', ...EVENT_TYPES] };
+
 export default function EventsTab() {
   const list = useContentList({ table: 'events', load: api.listEvents, remove: api.deleteEvent, describe });
   const [editing, setEditing] = useState(null);
-  const [when, setWhen] = useState('upcoming');
-  const [type, setType] = useState('All');
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { when, type } = url;
+  const setWhen = (v) => setUrl({ when: v });
+  const setType = (v) => setUrl({ type: v });
   const [gkks, setGkks] = useState([]);
   const today = todayIso();
 

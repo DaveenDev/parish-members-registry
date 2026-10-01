@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps, Panel } from '../../components/admin.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import SacramentVerifyDialog, { SacramentChip } from '../../components/SacramentVerifyDialog.jsx';
 import { SACRAMENTS } from '../../constants.js';
@@ -86,7 +86,7 @@ export default function Sacraments() {
       </PageHeader>
       <PageBody>
         {counts && (
-          <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-4 py-3.5 mb-4 shadow-cardSm">
+          <Panel className="px-4 py-3.5 mb-4">
             <div className="font-bold text-[11.5px] tracking-[.1em] uppercase text-[var(--p-gold-deep)] mb-2">Awaiting verification</div>
             <div className="flex flex-wrap gap-2">
               {SACRAMENTS.map((s) => {
@@ -107,7 +107,7 @@ export default function Sacraments() {
                 );
               })}
             </div>
-          </div>
+          </Panel>
         )}
 
         <div className="flex flex-wrap gap-2.5 items-center mb-3">

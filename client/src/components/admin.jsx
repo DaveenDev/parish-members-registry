@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 import { pageWindow } from '../lib/paging.js';
 
 export function PageHeader({ title, subtitle, children }) {
@@ -11,6 +11,11 @@ export function PageHeader({ title, subtitle, children }) {
       <div className="flex items-center gap-2.5 flex-wrap w-full sm:w-auto">{children}</div>
     </div>
   );
+}
+
+/** Parchment card that admin lists, forms and charts sit on. */
+export function Panel({ children, className = '', ...rest }) {
+  return <div {...rest} className={`bg-[#fffdf8] border border-parish-border rounded-2xl shadow-cardSm ${className}`}>{children}</div>;
 }
 
 export function PageBody({ children }) {
@@ -42,7 +47,7 @@ export function SearchInput(props) {
 
 export function DataTable({ columns, children, minWidth = 700, footer }) {
   return (
-    <div className="bg-[#fffdf8] border border-parish-border rounded-2xl overflow-hidden shadow-cardSm">
+    <Panel className="overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full border-collapse" style={{ minWidth }}>
           <thead>
@@ -62,7 +67,7 @@ export function DataTable({ columns, children, minWidth = 700, footer }) {
         </table>
       </div>
       {footer}
-    </div>
+    </Panel>
   );
 }
 
@@ -169,6 +174,40 @@ export function Tabs({ tabs, value, onChange }) {
           {label}
         </button>
       ))}
+    </div>
+  );
+}
+
+/**
+ * Centered dialog with a title, a close button and Escape-to-close. Only
+ * the topmost dialog closes, and not while a confirm is open above it.
+ */
+export function Modal({ title, onClose, children, maxWidth = 480, z = 'z-50' }) {
+  const titleId = useId();
+  const ref = useRef(null);
+  useEffect(() => {
+    const onTop = () => {
+      const dialogs = document.querySelectorAll('[role="dialog"]');
+      return dialogs[dialogs.length - 1] === ref.current && !document.querySelector('[role="alertdialog"]');
+    };
+    const onKey = (e) => e.key === 'Escape' && onTop() && onClose();
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className={`fixed inset-0 ${z} bg-parish-navy/45 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 sm:p-5`} onClick={onClose}>
+      <div
+        ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId}
+        className="bg-white rounded-2xl w-full shadow-2xl p-5 sm:p-6 max-h-[90vh] overflow-auto"
+        style={{ maxWidth }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between gap-3 mb-4">
+          <h3 id={titleId} className="font-serif text-[23px] font-semibold m-0 text-parish-navy">{title}</h3>
+          <button type="button" onClick={onClose} aria-label="Close" className="appearance-none border-none bg-transparent cursor-pointer text-parish-muted text-2xl leading-none">×</button>
+        </div>
+        {children}
+      </div>
     </div>
   );
 }

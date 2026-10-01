@@ -3,18 +3,22 @@ import { api } from '../../api.js';
 import { Field, TextInput } from '../ui.jsx';
 import { Pagination, EmptyState, LoadingState, ErrorState } from '../admin.jsx';
 import { fmtDate } from '../../constants.js';
-import { useClientList } from '../../hooks.js';
+import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { sundayOf, todayIso, addDays } from '../../lib/website.js';
 import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton } from './shared.jsx';
 
 const describe = (r) => `Bulletin for ${fmtDate(r.week_of)}`;
 
+const URL_DEFAULTS = { q: '', page: 1, size: 10 };
+const URL_ALLOWED = { size: [10, 20, 50] };
+
 export default function BulletinTab() {
   const list = useContentList({ table: 'bulletins', load: api.listBulletins, remove: api.deleteBulletin, describe });
   const [editing, setEditing] = useState(null);
   const sorted = [...list.rows].sort((a, b) => b.week_of.localeCompare(a.week_of));
-  const page = useClientList(sorted, (r) => `${r.title} ${r.body || ''}`);
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const page = urlListPage(sorted, (r) => `${r.title} ${r.body || ''}`, url, setUrl);
   const latest = sorted[0];
 
   function newBulletin(copyFrom) {

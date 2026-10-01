@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, SearchInput, Pagination, Tabs, ErrorState, LoadingState } from '../../components/admin.jsx';
-import { useClientList } from '../../hooks.js';
+import { PageHeader, PageBody, Tabs, Panel } from '../../components/admin.jsx';
+import { ManageListCard } from '../../components/ManageList.jsx';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
 import { useToast } from '../../ToastContext.jsx';
-import { useConfirm } from '../../components/ConfirmDialog.jsx';
 
 const MAX_LOGO_BYTES = 500 * 1024;
 
@@ -62,7 +61,7 @@ function LogoCard({ settings, onSaved }) {
   }
 
   return (
-    <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+    <Panel className="p-6">
       <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Parish logo</div>
       <div className="text-[13.5px] text-parish-muted mb-4">
         Shown on the sign-in screen, the sidebar, and printed household sheets. PNG or JPG, ideally square, under 500&nbsp;KB.
@@ -89,7 +88,7 @@ function LogoCard({ settings, onSaved }) {
           )}
         </div>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -167,7 +166,7 @@ function ProfileTab() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+      <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-[18px]">Parish profile</div>
         <div className="flex flex-col gap-4">
           <Field label="Parish name"><TextInput value={settings.name || ''} onChange={(e) => set('name', e.target.value)} /></Field>
@@ -181,24 +180,24 @@ function ProfileTab() {
             {saving ? 'Saving…' : 'Save changes'}
           </PrimaryButton>
         </div>
-      </div>
+      </Panel>
 
       <LogoCard settings={settings} onSaved={applySaved} />
 
       <ChangePasswordCard />
 
-      <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+      <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>
         <div className="text-[13.5px] text-parish-muted mb-4">Choose a color theme for the registration portal and admin panel. Saved on this device.</div>
         <ThemePickerGrid />
-      </div>
-      <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+      </Panel>
+      <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3.5">Data &amp; privacy</div>
         <div className="flex gap-2.5 items-start text-[13.5px] text-parish-text2 leading-relaxed">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p-blue)" strokeWidth="1.7" className="flex-none mt-px"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
           <span>Member information is confidential and accessible only to authorized parish staff. All exports and printed sheets should be handled in accordance with the Data Privacy Act of 2012.</span>
         </div>
-      </div>
+      </Panel>
     </div>
   );
 }
@@ -218,113 +217,16 @@ export default function ParishConfig() {
           <Tabs tabs={CONFIG_TABS} value={tab} onChange={setTab} />
           {tab === 'config' && <ProfileTab />}
           {tab === 'gkk' && (
-            <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
-              <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Basic Ecclesial Communities (GKK)</div>
-              <div className="text-[13.5px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Add, rename, or remove the parish's GKKs. A GKK currently assigned to a household cannot be deleted.</div>
-              <GkkList />
-            </div>
+            <ManageListCard
+              heading="Basic Ecclesial Communities (GKK)"
+              description="Add, rename, or remove the parish's GKKs. A GKK currently assigned to a household cannot be deleted."
+              itemNoun="GKK" placeholder="New GKK name (e.g. GKK San Pedro Calungsod)"
+              listFn={api.listGkks} addFn={api.addGkk} renameFn={api.renameGkk} deleteFn={api.deleteGkk}
+              lockInUse countLabel={(n) => `${n} household(s)`} lockedHint="Move them to another GKK first."
+            />
           )}
         </div>
       </PageBody>
-    </>
-  );
-}
-
-function GkkList() {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState('');
-  const [newName, setNewName] = useState('');
-  const [editing, setEditing] = useState(null);
-  const [editValue, setEditValue] = useState('');
-  const [error, setError] = useState('');
-  const confirm = useConfirm();
-  const list = useClientList(rows, (r) => r.name);
-
-  function reload() {
-    setLoadError('');
-    api.listGkks()
-      .then((r) => setRows(r.rows))
-      .catch((e) => setLoadError(e.message || 'Could not load the GKK list'))
-      .finally(() => setLoading(false));
-  }
-  useEffect(() => { reload(); }, []);
-
-  async function add(e) {
-    e.preventDefault();
-    if (!newName.trim()) return;
-    setError('');
-    try { await api.addGkk(newName.trim()); setNewName(''); reload(); } catch (e) { setError(e.message || 'Could not add this GKK'); }
-  }
-  async function save(e) {
-    e.preventDefault();
-    if (!editValue.trim()) return;
-    setError('');
-    try { await api.renameGkk(editing, editValue.trim()); setEditing(null); reload(); } catch (e) { setError(e.message || 'Could not rename this GKK'); }
-  }
-  async function remove(name) {
-    const ok = await confirm({
-      title: `Delete “${name}”?`,
-      message: "This removes the GKK from the list. It can't be undone, but you can add it again later.",
-      confirmLabel: 'Delete GKK',
-      tone: 'danger',
-    });
-    if (!ok) return;
-    setError('');
-    try { await api.deleteGkk(name); reload(); } catch (e) { setError(e.message || 'Could not delete this GKK'); }
-  }
-
-  return (
-    <>
-      {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium">{error}</div>}
-      <form onSubmit={add} className="flex gap-2 mb-4">
-        <TextInput placeholder="New GKK name (e.g. GKK San Pedro Calungsod)" aria-label="New GKK name" value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <PrimaryButton type="submit" className="px-[22px] py-2.5 text-[14px] whitespace-nowrap" style={{ padding: '11px 22px' }}>Add</PrimaryButton>
-      </form>
-      {rows.length > 0 && (
-        <div className="mb-3">
-          <SearchInput placeholder="Search GKK names…" aria-label="Search GKK names" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
-        </div>
-      )}
-      <div className="flex flex-col gap-2">
-        {list.rows.map((r) => (
-          <div key={r.name} className="flex items-center gap-2.5 border border-[#f0e8d6] rounded-xl px-3.5 py-2.5 bg-[#fdfbf6]">
-            {editing === r.name ? (
-              <form onSubmit={save} className="flex flex-1 items-center gap-2.5">
-                <TextInput
-                  autoFocus value={editValue} aria-label={`Rename ${r.name}`}
-                  onChange={(e) => setEditValue(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Escape') { e.preventDefault(); setEditing(null); } }}
-                  className="flex-1 !py-2.5 !bg-white !border-parish-blue"
-                />
-                <button type="submit" className="appearance-none border-none bg-parish-blue text-white cursor-pointer px-4 py-2 rounded-lg font-bold text-[12.5px]">Save</button>
-                <button type="button" onClick={() => setEditing(null)} className="appearance-none border-none bg-[#f4efe3] text-parish-text2 cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Cancel</button>
-              </form>
-            ) : (
-              <>
-                <span className="flex-1 font-semibold text-[14.5px] text-parish-navy">{r.name}</span>
-                <span className="font-semibold text-[12px] text-parish-muted">{r.count} household(s)</span>
-                <button onClick={() => { setEditing(r.name); setEditValue(r.name); }} className="appearance-none border-none bg-[var(--p-blue-tint)] text-parish-blue cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Edit</button>
-                <button
-                  onClick={() => remove(r.name)}
-                  disabled={r.count > 0}
-                  title={r.count > 0 ? `Assigned to ${r.count} household(s), so it can't be deleted. Move them to another GKK first.` : undefined}
-                  className="appearance-none border-none bg-parish-errorBg text-parish-error cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px] disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Delete
-                </button>
-              </>
-            )}
-          </div>
-        ))}
-        {loading && <LoadingState label="Loading GKKs…" />}
-        {!loading && loadError && <ErrorState message={loadError} onRetry={reload} />}
-        {!loading && !loadError && !rows.length && <div className="text-[13.5px] text-parish-muted">No GKKs added yet.</div>}
-        {!!rows.length && !list.total && <div className="text-[13.5px] text-parish-muted">No GKK matches “{list.query}”.</div>}
-      </div>
-      <div className="-mx-6 -mb-6 mt-4">
-        <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
-      </div>
     </>
   );
 }

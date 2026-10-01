@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, downloadWithAuth } from './api.js';
 import { useToast } from './ToastContext.jsx';
-import { searchAndPage, readUrlState, writeUrlState } from './lib/paging.js';
+import { searchAndPage, readUrlState, mergeUrlState } from './lib/paging.js';
 
 /**
  * Search + pagination state for a list that's already loaded in the page
@@ -116,11 +116,21 @@ export function useUrlState(defaults, allowed) {
   const [params, setParams] = useSearchParams();
   const state = useMemo(() => readUrlState(params, defaults, allowed), [params]); // eslint-disable-line react-hooks/exhaustive-deps
   const set = useCallback((patch) => {
-    setParams((prev) => {
-      const next = { ...readUrlState(prev, defaults, allowed), ...patch };
-      if (!('page' in patch) && 'page' in defaults) next.page = defaults.page;
-      return writeUrlState(next, defaults);
-    }, { replace: true });
+    setParams((prev) => mergeUrlState(prev, patch, defaults, allowed), { replace: true });
   }, [setParams]); // eslint-disable-line react-hooks/exhaustive-deps
   return [state, set];
+}
+
+/**
+ * useClientList's search and paging for an in-memory list, driven by
+ * useUrlState values `q`, `page` and `size` instead of local state.
+ */
+export function urlListPage(items, toText, url, setUrl) {
+  const result = searchAndPage(items || [], { query: url.q, toText, page: url.page, pageSize: url.size });
+  return {
+    query: url.q, setQuery: (q) => setUrl({ q }),
+    page: result.page, setPage: (page) => setUrl({ page }),
+    pageSize: url.size, setPageSize: (size) => setUrl({ size }),
+    rows: result.rows, total: result.total,
+  };
 }

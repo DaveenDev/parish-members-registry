@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { fmtDate, fmtDateTime } from '../../constants.js';
-import { useClientList } from '../../hooks.js';
+import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { Field, TextInput, Select, Badge } from '../ui.jsx';
@@ -15,10 +15,16 @@ import {
   certTypeLabel, certTypeShort, certSearchText, subjectName, certificateReadySms,
 } from '../../lib/requests.js';
 
+const URL_DEFAULTS = { view: 'open', type: 'All', q: '', page: 1, size: 10 };
+const URL_ALLOWED = { view: ['open', 'ready', 'done', 'all'], type: ['All', ...CERT_TYPES.map((t) => t.key)], size: [10, 20, 50] };
+
 export default function CertificatesTab({ onCountsChanged }) {
   const list = useRows(api.listCertificateRequests);
-  const [view, setView] = useState('open');
-  const [type, setType] = useState('All');
+  // View, type, search and page live in the address bar (see useUrlState).
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { view, type } = url;
+  const setView = (v) => setUrl({ view: v });
+  const setType = (v) => setUrl({ type: v });
   const [openId, setOpenId] = useState(null);
   const [creating, setCreating] = useState(false);
 
@@ -36,7 +42,7 @@ export default function CertificatesTab({ onCountsChanged }) {
   const filtered = list.rows
     .filter((r) => inView(r) && (type === 'All' || r.cert_type === type))
     .sort((a, b) => (view === 'open' || view === 'ready' ? 1 : -1) * a.created_at.localeCompare(b.created_at));
-  const page = useClientList(filtered, certSearchText);
+  const page = urlListPage(filtered, certSearchText, url, setUrl);
   const open = list.rows.find((r) => r.id === openId);
 
   function saved(row) {

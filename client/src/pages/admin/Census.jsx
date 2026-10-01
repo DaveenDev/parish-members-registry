@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api, triggerDownload } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel } from '../../components/admin.jsx';
 import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
 import CensusHouseholdDrawer from '../../components/CensusHouseholdDrawer.jsx';
 import CensusPrintSheet from '../../components/CensusPrintSheet.jsx';
@@ -18,14 +18,14 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 function Tile({ label, value, note, accent }) {
   return (
-    <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[18px] py-4 shadow-cardSm min-w-0">
+    <Panel className="px-[18px] py-4 min-w-0">
       <div className="flex items-center gap-2 mb-2" style={{ color: accent }}>
         <span className="w-2 h-2 rounded-full" style={{ background: accent }} />
         <span className="font-semibold text-[12px] tracking-wide uppercase text-parish-muted">{label}</span>
       </div>
       <div className="font-serif text-[32px] font-semibold leading-none text-parish-navy">{value}</div>
       {note && <div className="text-[12.5px] text-parish-muted mt-1.5">{note}</div>}
-    </div>
+    </Panel>
   );
 }
 
@@ -125,7 +125,7 @@ export default function Census() {
         {!openCycle && !starting && <PrimaryButton onClick={() => setStarting(true)} className="px-4 py-2.5 text-[14px]">Start a new census</PrimaryButton>}
       </PageHeader>
       <PageBody>
-        <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-5 py-4 shadow-cardSm mb-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+        <Panel className="px-5 py-4 mb-5 flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-2.5">
             <span className="text-[13.5px] text-parish-text2 font-semibold">Schedule</span>
             <FilterSelect aria-label="Census schedule" value={interval} onChange={(e) => changeInterval(e.target.value)}>
@@ -139,7 +139,7 @@ export default function Census() {
                 ? <>Next census due around <strong className="text-parish-navy">{fmtDate(due)}</strong>{due <= today() && ' — it is time to start one.'}</>
                 : 'No census has been held yet.'}
           </div>
-        </div>
+        </Panel>
 
         {starting && (
           <StartCensusForm
@@ -149,9 +149,9 @@ export default function Census() {
         )}
 
         {!cycle && !starting && (
-          <div className="bg-[#fffdf8] border border-parish-border rounded-2xl shadow-cardSm">
+          <Panel>
             <EmptyState title="No census yet" subtitle="Start a census, print the pre-filled forms by GKK, and record the answers as they come back." />
-          </div>
+          </Panel>
         )}
 
         {cycle && (

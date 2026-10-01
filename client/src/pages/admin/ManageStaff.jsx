@@ -1,7 +1,7 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useState } from 'react';
 import { api } from '../../api.js';
 import { useAuth } from '../../AuthContext.jsx';
-import { PageHeader, PageBody, EmptyState, ErrorState, LoadingState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, EmptyState, ErrorState, LoadingState, Panel, Modal } from '../../components/admin.jsx';
 import { Field, TextInput, Checkbox, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
 import { useAsyncData } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
@@ -10,27 +10,6 @@ import { fmtDateTime } from '../../constants.js';
 import { generateTempPassword } from '../../lib/util.js';
 
 const EMPTY_FORM = { name: '', email: '', role: 'Parish Staff', isAdmin: false };
-
-/** Centered dialog with Escape-to-close, matching the app's other modals. */
-function Dialog({ title, onClose, children }) {
-  const titleId = useId();
-  useEffect(() => {
-    const onKey = (e) => e.key === 'Escape' && !document.querySelector('[role="alertdialog"]') && onClose();
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [onClose]);
-  return (
-    <div className="fixed inset-0 z-50 bg-parish-navy/45 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 sm:p-5" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="bg-white rounded-2xl max-w-[480px] w-full shadow-2xl p-5 sm:p-6" onClick={(e) => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-4">
-          <h3 id={titleId} className="font-serif text-[23px] font-semibold m-0 text-parish-navy">{title}</h3>
-          <button onClick={onClose} aria-label="Close" className="appearance-none border-none bg-transparent cursor-pointer text-parish-muted text-2xl leading-none">×</button>
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-}
 
 /** Add or edit form. Email is fixed once an account exists. */
 function StaffForm({ initial, isNew, busy, error, onSubmit, onCancel }) {
@@ -196,7 +175,7 @@ export default function ManageStaff() {
             Every staff account can see and change all registry records. Keep this list to people who need it, and disable accounts when someone leaves.
             New accounts and password resets get a temporary password for you to pass on.
           </div>
-          <div className="bg-[#fffdf8] border border-parish-border rounded-2xl overflow-hidden shadow-cardSm">
+          <Panel className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full border-collapse" style={{ minWidth: 760 }}>
                 <caption className="sr-only">Staff accounts</caption>
@@ -251,28 +230,28 @@ export default function ManageStaff() {
             </div>
             {staff.loading && !staff.data && <LoadingState label="Loading staff accounts…" />}
             {staff.error && !staff.loading && <ErrorState message={staff.error} onRetry={staff.reload} />}
-          </div>
+          </Panel>
         </div>
       </PageBody>
 
       {dialog?.kind === 'add' && (
-        <Dialog title="Add staff" onClose={close}>
+        <Modal title="Add staff" onClose={close}>
           <StaffForm initial={EMPTY_FORM} isNew busy={busy} error={formError} onSubmit={create} onCancel={close} />
-        </Dialog>
+        </Modal>
       )}
       {dialog?.kind === 'edit' && (
-        <Dialog title="Edit staff" onClose={close}>
+        <Modal title="Edit staff" onClose={close}>
           <StaffForm
             initial={{ name: dialog.target.name, email: dialog.target.email, role: dialog.target.role, isAdmin: dialog.target.is_admin }}
             busy={busy} error={formError}
             onSubmit={(form) => update(dialog.target, form)} onCancel={close}
           />
-        </Dialog>
+        </Modal>
       )}
       {dialog?.kind === 'password' && (
-        <Dialog title="Temporary password" onClose={close}>
+        <Modal title="Temporary password" onClose={close}>
           <PasswordReveal who={dialog.who} email={dialog.email} password={dialog.password} onDone={close} />
-        </Dialog>
+        </Modal>
       )}
     </>
   );
