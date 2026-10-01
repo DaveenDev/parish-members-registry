@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useId } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useDebounced } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
@@ -81,11 +81,17 @@ function loadDraft() {
 export default function RegistrationApp() {
   const draft = useRef(loadDraft()).current;
 
-  const [screen, setScreen] = useState(draft ? 'wizard' : 'landing');
+  const navigate = useNavigate();
+  const [params] = useSearchParams();
+  // The public site's Home page is the landing page now; this route opens
+  // straight into the wizard ("?gkk=" comes from a GKK directory page).
+  const [screen, setScreen] = useState('wizard');
   const [step, setStep] = useState(draft?.step || 1);
   const [submitting, setSubmitting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
-  const [household, setHousehold] = useState(draft?.household ? { ...EMPTY_HOUSEHOLD, ...draft.household } : EMPTY_HOUSEHOLD);
+  const [household, setHousehold] = useState(draft?.household
+    ? { ...EMPTY_HOUSEHOLD, ...draft.household, ...(params.get('gkk') ? { gkk: params.get('gkk') } : {}) }
+    : { ...EMPTY_HOUSEHOLD, gkk: params.get('gkk') || '' });
   const [householdNameTouched, setHouseholdNameTouched] = useState(!!draft?.householdNameTouched);
   const [members, setMembers] = useState(draft?.members || [blankHead()]);
   const [gkkOptions, setGkkOptions] = useState([]);
@@ -297,7 +303,7 @@ export default function RegistrationApp() {
     if (step < 5) { setStep((s) => s + 1); top(); }
   }
   function back() {
-    if (step === 1) { setScreen('landing'); top(); }
+    if (step === 1) { navigate('/'); return; }
     else { setStep((s) => s - 1); top(); }
   }
   function goStep(n) { setStep(n); setScreen('wizard'); setBanner(''); top(); }
@@ -324,7 +330,7 @@ export default function RegistrationApp() {
 
   function restart() {
     clearDraft();
-    setScreen('landing'); setStep(1);
+    setScreen('wizard'); setStep(1);
     setHousehold(EMPTY_HOUSEHOLD); setHouseholdNameTouched(false);
     setMembers([blankHead()]); setVolunteer(''); setNotifyOptin(false); setConsent(false);
     setErr({}); setMemberErr([]); setBanner(''); setRefNo('');
@@ -339,7 +345,6 @@ export default function RegistrationApp() {
 
   return (
     <div className="min-h-screen relative font-sans">
-      {screen === 'landing' && <Landing household={household} onStart={() => { setScreen('wizard'); top(); }} />}
       {screen === 'wizard' && (
         <Wizard
           step={step} banner={banner}

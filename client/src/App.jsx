@@ -3,6 +3,15 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import RegistrationApp from './pages/RegistrationApp.jsx';
 import CensusPortal from './pages/CensusPortal.jsx';
+import SiteLayout from './pages/site/SiteLayout.jsx';
+import Home from './pages/site/Home.jsx';
+import Misa from './pages/site/Misa.jsx';
+import Pahibalo from './pages/site/Pahibalo.jsx';
+import Komunidad, { GkkDetail } from './pages/site/Komunidad.jsx';
+import Serbisyo, { Kontak, Blood } from './pages/site/Serbisyo.jsx';
+import CheckStatus from './pages/site/CheckStatus.jsx';
+import RequestForm from './pages/site/RequestForm.jsx';
+import { EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail } from './pages/site/Details.jsx';
 import AdminLogin from './pages/admin/AdminLogin.jsx';
 import AdminLayout from './pages/admin/AdminLayout.jsx';
 import Dashboard from './pages/admin/Dashboard.jsx';
@@ -34,7 +43,23 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
-        <Route path="/" element={<RegistrationApp />} />
+        <Route element={<SiteLayout />}>
+          <Route path="/" element={<Home />} />
+          <Route path="/misa" element={<Misa />} />
+          <Route path="/misa/kalihokan/:id" element={<EventDetail />} />
+          <Route path="/pahibalo" element={<Pahibalo />} />
+          <Route path="/pahibalo/bulletin/:id" element={<BulletinDetail />} />
+          <Route path="/pahibalo/:id" element={<AnnouncementDetail />} />
+          <Route path="/komunidad" element={<Komunidad />} />
+          <Route path="/komunidad/balita/:id" element={<ArticleDetail />} />
+          <Route path="/komunidad/gkk/:name" element={<GkkDetail />} />
+          <Route path="/serbisyo" element={<Serbisyo />} />
+          <Route path="/serbisyo/susiha" element={<CheckStatus />} />
+          <Route path="/serbisyo/dugo" element={<Blood />} />
+          <Route path="/serbisyo/hangyo/:form" element={<RequestForm />} />
+          <Route path="/kontak" element={<Kontak />} />
+        </Route>
+        <Route path="/register" element={<RegistrationApp />} />
         <Route path="/census" element={<CensusPortal />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
