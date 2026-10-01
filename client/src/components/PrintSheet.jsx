@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api.js';
-import { fmtDate, ageFromDob } from '../constants.js';
+import { fmtDate, ageFromDob, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, HELP_WAYS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
 
 /** Trigger the browser print dialog for the currently rendered sheet. */
@@ -65,6 +65,44 @@ export function ConfirmationPrintSheet({ refNo, householdName }) {
   );
 }
 
+/** A survey answer as a disabled checkbox; the ones picked are ticked and bold. */
+function Answer({ checked, children }) {
+  return (
+    <label style={{ display: 'inline-flex', alignItems: 'flex-start', gap: 5, fontWeight: checked ? 700 : 400, color: checked ? '#17263f' : '#6b6552' }}>
+      <input type="checkbox" disabled checked={checked} readOnly style={{ margin: '1px 0 0', flex: 'none' }} />
+      <span>{children}</span>
+    </label>
+  );
+}
+
+/** The household's participation survey: how active it is, and the ways it can help. */
+function ParticipationSheet({ participation, helpWays }) {
+  const answers = participation || {};
+  const helping = helpWays || [];
+  return (
+    <div style={{ fontSize: 11, marginBottom: 20 }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 8 }}>
+        <tbody>
+          {PARTICIPATION_ITEMS.map(([key, label]) => (
+            <tr key={key}>
+              <td style={{ padding: '2px 0', width: 190, color: '#3f3b2f' }}>{label}</td>
+              <td style={{ padding: '2px 0' }}>
+                <span style={{ display: 'inline-flex', gap: 16 }}>
+                  {PARTICIPATION_LEVELS.map((level) => <Answer key={level} checked={answers[key] === level}>{level}</Answer>)}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ color: '#8a836f', fontWeight: 600, marginBottom: 3 }}>Ways the household can help</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 16px' }}>
+        {HELP_WAYS.map(([key, label]) => <Answer key={key} checked={helping.includes(key)}>{label}</Answer>)}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Off-screen household record, revealed only by the @media print rules in
  * index.css (which target #print-sheet). Rendering nothing when there is no
@@ -122,6 +160,11 @@ export default function PrintSheet({ data }) {
           ))}
         </tbody>
       </table>
+
+      <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, margin: '0 0 8px', color: '#1a2b4a' }}>
+        Participation in the Parish / GKK
+      </h3>
+      <ParticipationSheet participation={h.participation} helpWays={h.help_ways} />
 
       <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, margin: '0 0 8px', color: '#1a2b4a' }}>
         Members ({members.length})
