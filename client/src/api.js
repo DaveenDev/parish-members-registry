@@ -138,8 +138,22 @@ export const api = {
     return { household, members };
   },
 
-  async createHousehold({ household, members }) {
-    const { data, error } = await supabase.rpc('create_household', { payload: { household, members } });
+  /**
+   * Staff registering a family (admin New Household). Takes the public
+   * wizard's household / member shapes and maps them to the keys
+   * create_household reads; the survey, volunteer, consent and religion need
+   * the 0009 migration.
+   */
+  async createHousehold({ household, status, members, volunteer, notifyOptin, consent }) {
+    const { householdName, familyGrouping, ...rest } = household;
+    const payload = {
+      household: { ...rest, name: householdName, grouping: familyGrouping, status },
+      members: members.map(({ firstName, middleName, lastName, relationship, placeOfBirth, civilStatus, ...m }) => ({
+        ...m, first: firstName, middle: middleName, last: lastName, rel: relationship, pob: placeOfBirth, civil: civilStatus,
+      })),
+      volunteer, notifyOptin, consent,
+    };
+    const { data, error } = await supabase.rpc('create_household', { payload });
     if (error) throw mapError(error);
     return { id: data };
   },

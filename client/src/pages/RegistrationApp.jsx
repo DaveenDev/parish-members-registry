@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { useDebounced } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
-import { syncSpouses, weddingPartners, WEDDING_FIELDS } from '../lib/household.js';
+import { syncSpouses, weddingPartners, toPayloadMember, WEDDING_FIELDS } from '../lib/household.js';
 import {
   bis, serverErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS,
 } from '../lib/bisaya.js';
@@ -49,20 +49,6 @@ function blankHead() {
 
 function fullName(m) {
   return [m.firstName, m.middleName, m.lastName, m.suffix].filter(Boolean).join(' ');
-}
-
-/**
- * What actually gets sent for a member: names in Capitalized case, and the
- * wedding type only while Married.
- */
-function toPayloadMember({ civilFromHead, weddingFromHead, ...m }) {
-  const named = {
-    ...m,
-    firstName: toNameCase(m.firstName), middleName: toNameCase(m.middleName),
-    lastName: toNameCase(m.lastName), suffix: toSuffixCase(m.suffix),
-  };
-  if (m.civilStatus === 'Married') return { ...named, hasMatrimony: m.matType === 'Catholic Marriage' };
-  return { ...named, matType: WEDDING_TYPES.includes(m.matType) ? '' : m.matType };
 }
 
 /** Alternatives offered when the household name is already taken. */

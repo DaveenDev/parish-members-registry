@@ -1,4 +1,5 @@
-import { PARTNERED_STATUSES } from '../constants.js';
+import { PARTNERED_STATUSES, WEDDING_TYPES } from '../constants.js';
+import { toNameCase, toSuffixCase } from './util.js';
 
 /**
  * Group member rows (from members_with_household, already sorted by
@@ -86,4 +87,19 @@ export function syncSpouses(members, source = -1) {
     return m;
   });
   return shareWedding(synced, source);
+}
+
+/**
+ * What actually gets sent for a member (public wizard and admin New
+ * Household): names in Capitalized case, and the wedding type only while
+ * Married, where only a Catholic wedding counts as the sacrament.
+ */
+export function toPayloadMember({ civilFromHead, weddingFromHead, ...m }) {
+  const named = {
+    ...m,
+    firstName: toNameCase(m.firstName), middleName: toNameCase(m.middleName),
+    lastName: toNameCase(m.lastName), suffix: toSuffixCase(m.suffix),
+  };
+  if (m.civilStatus === 'Married') return { ...named, hasMatrimony: m.matType === 'Catholic Marriage' };
+  return { ...named, matType: WEDDING_TYPES.includes(m.matType) ? '' : m.matType };
 }

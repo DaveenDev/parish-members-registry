@@ -7,7 +7,6 @@ import AdminLogin from './pages/admin/AdminLogin.jsx';
 import AdminLayout from './pages/admin/AdminLayout.jsx';
 import Dashboard from './pages/admin/Dashboard.jsx';
 import Households from './pages/admin/Households.jsx';
-import NewHousehold from './pages/admin/NewHousehold.jsx';
 import Members from './pages/admin/Members.jsx';
 import Sacraments from './pages/admin/Sacraments.jsx';
 import BloodTypes from './pages/admin/BloodTypes.jsx';
@@ -44,7 +43,8 @@ export default function App() {
         >
           <Route index element={<Dashboard />} />
           <Route path="households" element={<Households />} />
-          <Route path="households/new" element={<NewHousehold />} />
+          {/* Old link to the full-page form: open the New Household panel instead. */}
+          <Route path="households/new" element={<Navigate to="/admin/households" replace state={{ newHousehold: true }} />} />
           <Route path="members" element={<Members />} />
           <Route path="sacraments" element={<Sacraments />} />
           <Route path="blood" element={<BloodTypes />} />

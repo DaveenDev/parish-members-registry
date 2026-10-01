@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState } from '../../components/admin.jsx';
 import { StatusPill, PrimaryButton, Badge } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import HouseholdEditDrawer from '../../components/HouseholdEditDrawer.jsx';
+import NewHouseholdDrawer from '../../components/NewHouseholdDrawer.jsx';
 import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 import PrintSheet, { printHouseholdSheet } from '../../components/PrintSheet.jsx';
 import { useToast } from '../../ToastContext.jsx';
@@ -12,7 +13,7 @@ import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { useDebounced } from '../../hooks.js';
 
 export default function Households() {
-  const navigate = useNavigate();
+  const location = useLocation();
   const toast = useToast();
   const confirm = useConfirm();
 
@@ -31,6 +32,8 @@ export default function Households() {
   const [expandedMembers, setExpandedMembers] = useState({});
   const [openMemberId, setOpenMemberId] = useState(null);
   const [editing, setEditing] = useState(null);
+  // The old /admin/households/new link arrives here with the panel open.
+  const [creating, setCreating] = useState(!!location.state?.newHousehold);
   const [printData, setPrintData] = useState(null);
 
   function reload() {
@@ -140,7 +143,7 @@ export default function Households() {
       <PageBody>
         <div className="flex items-center gap-3 flex-wrap mb-4">
           <div className="text-[13px] text-parish-muted">{total} household(s)</div>
-          <PrimaryButton onClick={() => navigate('/admin/households/new')} className="ml-auto px-[18px] py-2.5 text-[13.5px] flex items-center gap-2">
+          <PrimaryButton onClick={() => setCreating(true)} className="ml-auto px-[18px] py-2.5 text-[13.5px] flex items-center gap-2">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M12 5v14M5 12h14" /></svg>New Household
           </PrimaryButton>
         </div>
@@ -240,6 +243,13 @@ export default function Households() {
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); reload(); }}
           onMembersChanged={() => { reload(); refreshExpanded(editing.id); }}
+        />
+      )}
+      {creating && (
+        <NewHouseholdDrawer
+          gkkOptions={gkkOptions}
+          onClose={() => setCreating(false)}
+          onSaved={() => { setCreating(false); setPage(1); reload(); }}
         />
       )}
       <PrintSheet data={printData} />
