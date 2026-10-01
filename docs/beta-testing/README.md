@@ -16,6 +16,7 @@ and a willingness to write down anything that looks wrong.
 | 5 | [Ministries, organizations & parish config](05-config.md) | Parish coordinator | 30 min |
 | 6 | [Reports & exports](06-reports-exports.md) | Anyone producing parish reports | 25 min |
 | 7 | [Cross-cutting checks](07-cross-cutting.md) | One tester per device/browser | 40 min |
+| 8 | [Parish census & family portal](08-census.md) | Parish secretary | 55 min |
 
 Supporting material:
 

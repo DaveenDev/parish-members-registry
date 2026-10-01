@@ -2,11 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, GKK_ROLES, HEAD, ageFromDob } from '../constants.js';
 import SacramentVerifyDialog, { SacramentChip } from './SacramentVerifyDialog.jsx';
-import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect, ComboInput, OptionSelect } from './ui.jsx';
+import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect, ComboInput, OptionSelect, Badge } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
+import { STATUS_TONES } from '../lib/census.js';
 
 // Stored columns for the wedding the Household Head and a married Spouse share.
 const WEDDING_COLUMNS = ['has_matrimony', 'mat_date', 'mat_church', 'mat_type'];
@@ -24,6 +25,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   const [saved, setSaved] = useState(null); // the member as stored, before any unsaved edits
   const [verifications, setVerifications] = useState({});
   const [verifying, setVerifying] = useState(null); // a SACRAMENTS entry while its dialog is open
+  const [censusHistory, setCensusHistory] = useState([]);
   const [housemates, setHousemates] = useState([]); // the household's members as stored, to find who shares this wedding
 
   function loadVerifications() {
@@ -42,6 +44,8 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
     api.listOrganizations().then((res) => setOrgList(res.rows.map((r) => r.name))).catch(() => {});
     api.listParishPositions().then((res) => setParishRoleList(res.rows.map((r) => r.name))).catch(() => {});
     loadVerifications();
+    // Before the 0007 migration there is no census table; just show none.
+    api.memberCensusHistory(memberId).then(setCensusHistory).catch(() => setCensusHistory([]));
   }, [memberId]);
 
   useEffect(() => {
@@ -249,6 +253,28 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                   </>
                 )}
               </SacRow>
+            </div>
+
+            <SectionLabel>Parish census</SectionLabel>
+            <div className="mb-5">
+              <div className="flex items-center gap-2 text-[13.5px] text-parish-text2 mb-2">
+                <span>Membership status:</span>
+                {member.membership_status
+                  ? <Badge tone={STATUS_TONES[member.membership_status]}>{member.membership_status}</Badge>
+                  : <span className="text-parish-muted">Not yet assessed</span>}
+                <span className="text-[12px] text-parish-muted">· set through the Census page</span>
+              </div>
+              {censusHistory.length > 0 && (
+                <ul className="list-none m-0 p-0 flex flex-col gap-1.5">
+                  {censusHistory.map((r) => (
+                    <li key={r.cycle_id} className="text-[13px] text-[#3f3b2f] bg-[#fdfbf6] border border-[#f0e8d6] rounded-lg px-3 py-2">
+                      <span className="font-semibold text-parish-navy">{r.census_cycles?.label}</span>: {r.status}
+                      <span className="text-parish-muted"> · {r.source} · {r.confirmed_by_name || 'staff'}, {new Date(r.confirmed_at).toLocaleDateString()}</span>
+                      {r.notes && <div className="text-[12.5px] text-parish-muted mt-0.5">{r.notes}</div>}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
 
             <SectionLabel>Ministries</SectionLabel>
