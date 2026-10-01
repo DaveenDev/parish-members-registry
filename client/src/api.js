@@ -697,6 +697,8 @@ function applyMemberFilters(q, params = {}) {
     // Moved away / deceased members drop out of every list unless asked for.
     membership = 'Current', census = 'All',
     groupColumn,
+    // 'Any' = members holding any Responsibility in Parish; otherwise one position.
+    parishRole = 'All',
   } = params;
   const SACRAMENT_COLUMNS = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' };
   const AGE_RANGES = { '0-17': [0, 17], '18-30': [18, 30], '31-59': [31, 59], '60-200': [60, 200] };
@@ -728,6 +730,9 @@ function applyMemberFilters(q, params = {}) {
     const escaped = String(ministry).replace(/"/g, '\\"');
     q = q.or(`ministries.cs.{"${escaped}"},organizations.cs.{"${escaped}"}`);
   }
+
+  if (parishRole === 'Any') q = q.not('parish_role', 'is', null);
+  else if (parishRole !== 'All') q = q.eq('parish_role', parishRole);
 
   // 'Recorded' = any blood type on file; 'Unknown' = none on file.
   if (blood !== 'All') {
