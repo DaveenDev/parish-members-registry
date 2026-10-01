@@ -1,6 +1,7 @@
 # Recurring Playbook — Staff Journey (empty-DB, non-admin staff role-scoped tester)
 
 **Created:** 2026-10-01
+**Updated:** 2026-10-01 — pointed at the repo's test Supabase project (new `sb_publishable_`/`sb_secret_` keys); REST wipe via `npm run db:wipe-test`
 **Recurrence:** on demand (re-execute this file any time)
 **Driver:** Playwright MCP (interactive — AI drives a real browser via accessibility snapshots). **Read §A "How to drive the browser" before starting** — it is the concrete how-to; everything below it is the what-to-do.
 **App URL:** `http://localhost:<PORT>` — **pick any free port** at run start (see §1 step 0). **Do NOT use port 5173** — that's Vite's default and the user's own manual-test server; never bind or navigate to it. Everything else is fair game; the only goal is to get the app up on *some* free port and browser-test it.
@@ -229,33 +230,58 @@ choosing PASS/FAIL.
   Code cloud container Chromium is pre-installed — do **not** run
   `playwright install`.
 
-### 0b. A dedicated TEST Supabase project, and where the credentials live
+### 0b. The TEST Supabase project, and where the credentials live
 This app has no local database: the browser talks straight to a Supabase project.
-You need a **separate test project** — never the parish's live one. Either:
+Runs use a **separate test project**, never the parish's live one.
 
-- **(preferred) a second hosted Supabase project** created only for testing, with
-  every migration in `supabase/migrations/` run in order (README §1 step 2) and
-  the `manage-staff` Edge Function deployed (README §1 step 6); or
-- **a local stack** — `npx supabase start` (needs Docker), then
-  `npx supabase db reset` to apply the migrations, and
-  `npx supabase functions serve manage-staff` in the background.
+**This repository's test project** (created 2026-10-01 for these runs):
+
+| | Value |
+|---|---|
+| Project URL | `https://qyoyuukpdjrwfhovtrwd.supabase.co` |
+| Publishable key (the browser's "anon" key) | `sb_publishable_bSXrlvkN9er_uRkcqzRD1A_e9BvDKdN` |
+| JWKS | `https://qyoyuukpdjrwfhovtrwd.supabase.co/auth/v1/.well-known/jwks.json` |
+| Secret key (service-role) | **not in the repo.** Ask the project owner, or copy it from Supabase → Project Settings → API Keys |
+| Session storage key in the browser | `sb-qyoyuukpdjrwfhovtrwd-auth-token` |
+
+The publishable key is public by design (it ships in every page the app
+serves), so it lives here. RLS is what protects the data, and that is what this
+playbook tests. The secret key bypasses RLS, so it stays in the gitignored root
+`.env`.
+
+The project needs every migration in `supabase/migrations/` run in order
+(README §1 step 2) and the `manage-staff` Edge Function deployed (README §1
+step 6). §1 step 1 checks both. If you ever replace this project, a local stack
+works too: `npx supabase start` (needs Docker), `npx supabase db reset`, and
+`npx supabase functions serve manage-staff` in the background.
+
+> **Network access.** The machine running the playbook must be able to reach
+> `qyoyuukpdjrwfhovtrwd.supabase.co`. In a Claude Code cloud session, add that
+> host to the environment's allowed domains first. A `CONNECT tunnel failed,
+> response 403` from `curl` means it isn't allowed yet.
+
+> **Key format.** This project uses the new `sb_publishable_…` / `sb_secret_…`
+> keys, not the older JWT-style anon / service-role keys. They go in the same
+> variables, and supabase-js accepts both. The one difference that matters here:
+> a new-format key is **not a JWT**, so send it only as the `apikey` header and
+> **never** as `Authorization: Bearer …`. The gateway rejects that as an invalid
+> JWT. The §2.5 helper handles this already.
 
 Credentials go in **two gitignored files** (`.gitignore` already covers `.env`
-and `client/.env.local`). **Never commit any of these values, never paste them
-into this playbook or the results file:**
+and `client/.env.local`):
 
 `client/.env.local` — what the browser uses:
 ```
-VITE_SUPABASE_URL=https://<test-project-ref>.supabase.co
-VITE_SUPABASE_ANON_KEY=<test project anon/publishable key>
+VITE_SUPABASE_URL=https://qyoyuukpdjrwfhovtrwd.supabase.co
+VITE_SUPABASE_ANON_KEY=sb_publishable_bSXrlvkN9er_uRkcqzRD1A_e9BvDKdN
 ```
 
 root `.env` — what the shell steps use:
 ```
-SUPABASE_URL=https://<test-project-ref>.supabase.co      # MUST equal VITE_SUPABASE_URL
-SUPABASE_SERVICE_ROLE_KEY=<test project service-role key>
-SUPABASE_DB_URL=<test project Postgres connection string>  # optional; enables the §1 SQL wipe
-PLAYBOOK_TEST_PROJECT=yes                                   # you assert this project is disposable
+SUPABASE_URL=https://qyoyuukpdjrwfhovtrwd.supabase.co      # MUST equal VITE_SUPABASE_URL
+SUPABASE_SERVICE_ROLE_KEY=<the sb_secret_… key>              # never commit, never in the browser
+SUPABASE_DB_URL=<Postgres connection string>                 # optional; enables the psql wipe
+PLAYBOOK_TEST_PROJECT=yes                                    # you assert this project is disposable
 ```
 
 **Admin login — `PLAYBOOK_ADMIN_EMAIL` / `PLAYBOOK_ADMIN_PASSWORD`.** These are
@@ -298,20 +324,36 @@ npm run install:all
    `netstat -ano | findstr :5174` (Windows) — empty output means free. Remember it
    as `<PORT>`.
 
-1. **Prove you are pointed at the test project** (shell, before anything
-   destructive):
+1. **Prove you are pointed at the test project, and that it's ready** (shell,
+   before anything destructive):
    - `client/.env.local` exists and `VITE_SUPABASE_URL` equals `SUPABASE_URL` in
-     root `.env`;
-   - root `.env` has `PLAYBOOK_TEST_PROJECT=yes`.
+     root `.env`, and both are `https://qyoyuukpdjrwfhovtrwd.supabase.co` (or a
+     project the user has named as the test project in this run);
+   - root `.env` has `PLAYBOOK_TEST_PROJECT=yes`;
+   - **the schema exists:** `curl -s "$SUPABASE_URL/rest/v1/articles?select=id&limit=1" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY"`
+     answers `[]` or rows. A `PGRST205` *Could not find the table* means the
+     migrations haven't run (`articles` comes from the last one, 0013).
+     Record `BLOCKED u0-schema` and ask the user to run them in the SQL editor;
+   - **`manage-staff` is deployed:** `curl -s -o /dev/null -w "%{http_code}" -X POST "$SUPABASE_URL/functions/v1/manage-staff" -H "apikey: $VITE_SUPABASE_ANON_KEY"`
+     answers **401** (deployed, no session). **404** means not deployed; carry
+     on, but B4 uses its fallback.
 
-   If either is false, or you have any reason to think this is the live parish
+   If any check fails, or you have any reason to think this is the live parish
    project, **stop and ask the user**. Do not run steps 2–3 on a guess.
 
-2. **Wipe registry data to EMPTY.** With `SUPABASE_DB_URL` set, run this with
-   `psql "$SUPABASE_DB_URL"` (foreground; confirm it exits 0). Without it, run
-   `npm run db:reset` (households + members only) and paste the same SQL into the
-   test project's SQL editor; if you can do neither, record
-   `BLOCKED u0-wipe (no DB access)` and **stop**.
+2. **Wipe registry data to EMPTY.** Use the first that's available, foreground,
+   and confirm it exits 0:
+   - **(default) the REST wipe**, which only needs the secret key in root `.env`:
+     ```
+     npm run db:wipe-test -- --yes
+     ```
+     `scripts/playbook-wipe.mjs` refuses without `PLAYBOOK_TEST_PROJECT=yes`
+     and `--yes`. It does the same as the SQL below, except that ids keep
+     counting up rather than restarting at 1 (so never assume an id of `1`).
+   - with `SUPABASE_DB_URL` set: the SQL below via `psql "$SUPABASE_DB_URL"`;
+   - otherwise paste the SQL into the test project's SQL editor.
+
+   If you can do none of them, record `BLOCKED u0-wipe (no DB access)` and **stop**.
    ```sql
    truncate households, members, sacrament_verifications, duplicate_dismissals,
             census_cycles, census_member_responses, census_household_snapshots,
@@ -325,7 +367,7 @@ npm run install:all
    delete from ministries       where name ~ ' SV[0-9]{4}';
    delete from organizations    where name ~ ' SV[0-9]{4}';
    delete from parish_positions where name ~ ' SV[0-9]{4}';
-   delete from auth.users where email like 'staff.sv%@example.test';  -- cascades to profiles
+   delete from auth.users where email ~* '^(staff|leak|nobody)\.sv[0-9-]+@example\.test$';  -- cascades to profiles
    ```
    > Deliberately **kept**: `profiles` for real accounts (incl. the admin),
    > `parish_settings`, the stock GKKs / ministries / organizations / parish
@@ -385,9 +427,9 @@ you're the admin, to contrast against Phase 1.
    id `<memberId>`.
 2. **Verify the public registration** — find `<regRef>` (Abad) on the
    Dashboard's awaiting-verification queue and **Verify** it.
-3. **Census** — Census → start `Census SV1001`. Open the `Villar Family SV1001`
-   census panel and record its **access code** `<accessCode>` (printed form or
-   the panel).
+3. **Census** — Census → start `Census SV1001` and record its id `<cycleId>`
+   from the network log. Open the `Villar Family SV1001` census panel and record
+   its **access code** `<accessCode>` (printed form or the panel).
 4. **Website** — Parish Website → Announcements: one **published**
    `Pahibalo SV1001` and one left as **draft** `Draft notice SV1001` (record
    its id `<draftId>` from the network log). Events: one **draft** event
@@ -597,8 +639,8 @@ person who did it.
 2. **s-census-portal-approve** — in a **second tab, signed out** (or a private
    window), `/census` with `<hhRef>` + `<accessCode>` → change Paolo's
    occupation to `Student SV1001` → submit. Back as Lito: **Census → Online
-   updates** shows it; **approve** it; Paolo's record now shows the change
-   (`census_approve_submission`).
+   updates** shows it; **approve** it, and record its id `<submissionId>` from the
+   network log. Paolo's record now shows the change (`census_approve_submission`).
 3. **s-census-new-code** — **New code** for Villar → the old `<accessCode>` no
    longer opens `/census` (verify in the signed-out tab).
 4. **s-census-close** — leave the census **open** (Phase A needs it). Record
@@ -648,19 +690,21 @@ grants and `manage-staff` are the real boundary. Run these with
 `browser_evaluate` **inside Lito's signed-in page**, so the real session token is
 used.
 
-**Helper — paste once per probe.** Fill in `SB_URL` and `ANON` from
-`client/.env.local` (the anon key is public by design, so it may appear in a
-probe; the **service-role key must never**). The function reads the session that
-supabase-js stored in `localStorage` (key `sb-<ref>-auth-token`):
+**Helper — paste once per probe.** `SB_URL` and `ANON` are this repo's test
+project (§0b; the publishable key is public, so it may appear in a probe — the
+**secret key must never**). The function reads the session supabase-js stored in
+`localStorage` (key `sb-qyoyuukpdjrwfhovtrwd-auth-token`). With no session it
+sends the publishable key alone, because a new-format key isn't a JWT and must not
+go in `Authorization` (§0b):
 ```js
 async () => {
-  const SB_URL = 'https://<test-project-ref>.supabase.co';
-  const ANON   = '<anon key>';
+  const SB_URL = 'https://qyoyuukpdjrwfhovtrwd.supabase.co';
+  const ANON   = 'sb_publishable_bSXrlvkN9er_uRkcqzRD1A_e9BvDKdN';
   const k = Object.keys(localStorage).find((x) => /^sb-.+-auth-token$/.test(x));
-  const token = k ? JSON.parse(localStorage.getItem(k)).access_token : ANON;
+  const token = k ? JSON.parse(localStorage.getItem(k)).access_token : null;
   const call = async (path, init = {}) => {
     const r = await fetch(SB_URL + path, { ...init, headers: {
-      apikey: ANON, Authorization: 'Bearer ' + token,
+      apikey: ANON, ...(token ? { Authorization: 'Bearer ' + token } : {}),
       'Content-Type': 'application/json', Prefer: 'return=representation',
       ...(init.headers || {}) } });
     return { status: r.status, body: (await r.text()).slice(0, 300) };
@@ -678,7 +722,7 @@ Change only the last `return` line for each row.
 | `s-api-fn-update-self` | `{"action":"update","id":"<Lito's own id>","name":"Lito Ramos SV1001","is_admin":true}` | 403 — **the self-promotion probe**; a 200 here is the worst leak in the app (**P0**) |
 | `s-api-fn-reset` | `{"action":"reset_password","id":"<adminId>","password":"Hijack-SV1001!"}` | 403; admin can still sign in with their own password (verify in Phase D) |
 | `s-api-fn-disable` | `{"action":"disable","id":"<adminId>"}` | 403 |
-| `s-api-fn-noauth` | same `list` call with `Authorization: 'Bearer ' + ANON` | 401 *Please sign in again* |
+| `s-api-fn-noauth` | same `list` call with `headers: { Authorization: '' }` (no session token) | 401 *Please sign in again* |
 
 Lito's own id is the `sub` in the access token
 (`JSON.parse(atob(token.split('.')[1])).sub`).
@@ -705,7 +749,7 @@ A refusal here is a bug too (a page would break for every non-admin):
 ### s-api-internal · Functions nobody should call directly, staff included
 | ID | Call | Expected |
 |---|---|---|
-| `s-api-take-snapshot` | `POST /rest/v1/rpc/census_take_snapshot` body `{"p_cycle_id":1,"p_household_id":<hhId>}` | refused (revoked from `authenticated` in 0008) |
+| `s-api-take-snapshot` | `POST /rest/v1/rpc/census_take_snapshot` body `{"p_cycle_id":<cycleId>,"p_household_id":<hhId>}` | refused (revoked from `authenticated` in 0008) |
 | `s-api-portal-check` | `POST /rest/v1/rpc/portal_check` body `{"p_ref":"<hhRef>","p_code":"x"}` | refused (only `portal_open`/`portal_submit` are public) |
 | `s-api-request-guard` | `POST /rest/v1/rpc/public_request_guard` body `{"p_kind":"x","p_per_visitor":1,"p_overall":1}` | refused |
 | `s-api-request-log` | `GET /rest/v1/public_request_log?select=*` | refused — the hashed visitor keys stay private |
@@ -765,13 +809,13 @@ Verify that first with `GET /auth/v1/user` (must be 401/403).
 | `a-rpc-inbox` | `request_inbox_counts` | refused |
 | `a-rpc-access-codes` | `census_access_codes` `{"p_household_ids":[<hhId>]}` | refused |
 | `a-rpc-reset-code` | `census_reset_access_code` `{"p_household_id":<hhId>}` | refused — and the Villar code still works afterwards |
-| `a-rpc-approve` | `census_approve_submission` `{"p_id":1}` | refused |
+| `a-rpc-approve` | `census_approve_submission` `{"p_id":<submissionId>}` (the portal update approved in `s-census-portal-approve`) | refused |
 | `a-rpc-verify-sacr` | `verify_sacrament` `{"p_member_id":<memberId>,"p_sacrament":"baptism","p_source":"x"}` | refused |
 | `a-rpc-census-open` | `census_open_cycle` `{"p_label":"Leak SV1001"}` | refused |
 | `a-rpc-create-hh` | `create_household` `{"payload":{}}` | refused (staff-only path; anon uses `submit_registration`) |
 | `a-rpc-rename-gkk` | `rename_gkk` `{"old_name":"GKK Test SV1001","new_name":"Leak SV1001"}` | refused — **read the body**: these 0001 functions are not explicitly revoked from `public`, so the refusal must come from table permissions. Confirm as staff afterwards that `GKK Test SV1001` is unchanged |
 | `a-rpc-delete-gkk` | `delete_gkk` `{"target_name":"GKK Test SV1001"}` | refused; GKK still exists |
-| `a-rpc-census-progress` | `census_household_progress` `{"p_cycle_id":1}` and `census_summary` `{"p_cycle_id":1}` | refused or empty — never per-household names |
+| `a-rpc-census-progress` | `census_household_progress` `{"p_cycle_id":<cycleId>}` and `census_summary` `{"p_cycle_id":<cycleId>}` | refused or empty — never per-household names |
 
 ### a-api-public · What anon *may* call returns no PII
 | ID | Call | Expected |

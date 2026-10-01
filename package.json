@@ -9,6 +9,7 @@
     "build": "npm run build --prefix client",
     "db:demo": "node scripts/supabase-seed.mjs demo",
     "db:reset": "node scripts/supabase-seed.mjs reset",
+    "db:wipe-test": "node scripts/playbook-wipe.mjs",
     "install:all": "npm install && npm install --prefix client",
     "test": "node --test \"client/test/**/*.test.js\"",
     "test:watch": "node --test --watch \"client/test/**/*.test.js\""
