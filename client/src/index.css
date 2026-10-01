@@ -141,6 +141,7 @@ select {
 
   /* Hide the app chrome without unmounting it, so print state is preserved. */
   body > #root { display: none !important; }
+  body { background: #fff !important; }
 
   #print-sheet {
     position: static !important;
@@ -151,6 +152,10 @@ select {
 
   #print-sheet figure,
   #print-sheet table { break-inside: avoid; }
+
+  /* Census forms: one household per page. */
+  #print-sheet .census-page { break-after: page; }
+  #print-sheet .census-page:last-child { break-after: auto; }
 
   * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }

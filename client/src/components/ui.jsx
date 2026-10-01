@@ -295,6 +295,8 @@ const BADGE_TONES = {
   gold: 'bg-[var(--p-gold-tint)] text-[var(--p-gold-deep)]',
   blue: 'bg-[var(--p-blue-tint)] text-parish-blue',
   green: 'bg-parish-okBg text-parish-ok',
+  red: 'bg-parish-errorBg text-parish-error',
+  gray: 'bg-[#efebe1] text-[#6b6552]',
 };
 
 export function Badge({ tone = 'blue', title, children }) {

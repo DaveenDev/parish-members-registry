@@ -288,7 +288,7 @@ function SectionLabel({ children, className = 'mb-3' }) {
 }
 
 /** Quick add with the essentials; the full record is editable afterwards via "Edit". */
-function AddMemberForm({ householdId, defaultLastName, hasHead, onCancel, onAdded }) {
+export function AddMemberForm({ householdId, defaultLastName, hasHead, onCancel, onAdded }) {
   const [m, setM] = useState({ lastName: toNameCase(defaultLastName), firstName: '', middleName: '', suffix: '', relationship: '', sex: '', dob: '', civilStatus: '' });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);

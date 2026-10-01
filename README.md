@@ -19,6 +19,7 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 - Ministry & organization directories with per-group rosters
 - Reports: registration status by GKK, sacramental completion, ministry/org participation, blood type directory, and an ad-hoc report builder
 - CSV exports for members, households, and blood type directory
+- Parish census: start a census whenever the parish decides (yearly, every two years…), print pre-filled census forms by GKK, record each member's participation and status (Active, Inactive, Moved away, Deceased, Left the Church), and see results by GKK
 - Parish configuration: profile details, GKK list, ministries, and organizations management
 
 ## Tech stack
@@ -47,7 +48,7 @@ project/               Original Claude Design source files this app was built fr
 Follow [`guadalupe-registry-deployment-guide.md`](guadalupe-registry-deployment-guide.md) Part 1, or in short:
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations. Then run each later migration in order ([`0002_head_first_registration.sql`](supabase/migrations/0002_head_first_registration.sql) adds the Household Head fields, the participation survey, and the public GKK list; [`0003_public_stats_groups_names.sql`](supabase/migrations/0003_public_stats_groups_names.sql) adds the homepage stats, the public organization list, unique household names, and fixes renaming ministries/organizations; [`0004_public_parish_logo.sql`](supabase/migrations/0004_public_parish_logo.sql) lets the public registration site show the uploaded parish logo; [`0005_sacrament_verification.sql`](supabase/migrations/0005_sacrament_verification.sql) lets staff mark self-reported sacraments as verified against a certificate or the parish register; [`0006_parish_positions.sql`](supabase/migrations/0006_parish_positions.sql) adds the Parish Organization Structure list and each member's "Katungdanan sa Parish"). Existing projects only need the migrations they haven't run yet.
+2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations. Then run each later migration in order ([`0002_head_first_registration.sql`](supabase/migrations/0002_head_first_registration.sql) adds the Household Head fields, the participation survey, and the public GKK list; [`0003_public_stats_groups_names.sql`](supabase/migrations/0003_public_stats_groups_names.sql) adds the homepage stats, the public organization list, unique household names, and fixes renaming ministries/organizations; [`0004_public_parish_logo.sql`](supabase/migrations/0004_public_parish_logo.sql) lets the public registration site show the uploaded parish logo; [`0005_sacrament_verification.sql`](supabase/migrations/0005_sacrament_verification.sql) lets staff mark self-reported sacraments as verified against a certificate or the parish register; [`0006_parish_positions.sql`](supabase/migrations/0006_parish_positions.sql) adds the Parish Organization Structure list and each member's "Katungdanan sa Parish"; [`0007_census.sql`](supabase/migrations/0007_census.sql) adds the parish census). Existing projects only need the migrations they haven't run yet.
 3. Create your first admin: **Authentication → Users → Add user**, then run the `insert into profiles (...)` statement at the bottom of the migration file with that user's UUID.
 4. **Authentication → Providers → Email → turn off "Allow new users to sign up."**
 5. Copy your **Project URL** and **anon/publishable key** from **Project Settings → API**.
@@ -84,6 +85,34 @@ npm run dev
 npm run db:demo    # insert six fictional sample households
 npm run db:reset   # delete every household (and, via cascade, every member)
 ```
+
+## Running a parish census
+
+The **Census** page in the admin panel replaces the hand-filled census sheet.
+
+1. **Start a census** (e.g. "2026 Census"). Only one can be open at a time. The
+   *Schedule* setting (every year, every 2 years, …) only drives the "next
+   census due" reminder; the administrator still decides when to start one.
+2. **Print the forms.** Choose a GKK and print its forms: one page per
+   household, pre-filled with what the registry has on file, with an A / P / W
+   (Aktibo / Panagsa / Wala) grid and status choices per member and blank rows
+   for new members.
+3. **Record what comes back.** Open a household with **Record census**, mark
+   each member's answers and status, and save. The status is suggested from
+   the answers (Mass *Aktibo*, or two items *Aktibo/Panagsa*, suggests Active;
+   all *Wala* suggests Inactive), but staff always choose it. Corrections to
+   names, sacraments and so on use the usual member window, and new members
+   can be added from the same panel.
+4. **Close the census** when forms stop coming in. Closing changes no data.
+   Members nobody confirmed show up under the *Not confirmed in census* filter
+   on the Members page, and in the census results by GKK.
+
+The census is per member, not per household. Members marked *Moved away* or
+*Deceased* stay on record but drop out of lists, counts and the next census's
+forms. Before staff first change a household in a census, a snapshot of it is
+saved in `census_household_snapshots`. The free Supabase plan has no
+backups, so also export the Members and Households CSVs before starting each
+census.
 
 ## Available scripts
 
