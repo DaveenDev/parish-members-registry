@@ -4,9 +4,10 @@
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
 import { ageFromDob, PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES } from './constants.js';
-import { memberFullName } from './lib/util.js';
+import { memberFullName, inDateRange } from './lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
+import { fetchAllPages } from './lib/paging.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -20,6 +21,18 @@ function mapError(error, { fallback = 'Request failed', dupLabel } = {}) {
   if (!error) return new Error(fallback);
   if (error.code === '23505' && dupLabel) return new Error(`${dupLabel} already exists`);
   return new Error(error.message || fallback);
+}
+
+/**
+ * Every row of a query, however many there are. Supabase caps a single
+ * request at 1,000 rows, so whole-table reads (dashboard, reports, exports,
+ * counts) would otherwise come up short in a large parish. `build` returns a
+ * fresh, stably ordered query each time it's called.
+ */
+async function fetchAll(build) {
+  const { data, error } = await fetchAllPages((from, to) => build().range(from, to));
+  if (error) throw mapError(error);
+  return data;
 }
 
 function cleanPatch(patch) {
@@ -77,7 +90,13 @@ export const api = {
   },
 
   // ---- account (used by ParishConfig's "Change password" card) --------
-  async changePassword(_currentPassword, newPassword) {
+  async changePassword(currentPassword, newPassword) {
+    // Re-check the current password first, so an unattended signed-in
+    // browser can't be used to take over the account.
+    const { data: { user }, error: uErr } = await supabase.auth.getUser();
+    if (uErr || !user?.email) throw mapError(uErr, { fallback: 'Please sign in again' });
+    const { error: authErr } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword || '' });
+    if (authErr) throw new Error('Current password is incorrect');
     const { error } = await supabase.auth.updateUser({ password: newPassword });
     if (error) throw mapError(error);
     return { ok: true };
@@ -286,12 +305,11 @@ export const api = {
 
   // ---- GKKs ------------------------------------------------------------
   async listGkks() {
-    const [{ data: names, error }, { data: hhRows, error: hErr }] = await Promise.all([
+    const [{ data: names, error }, hhRows] = await Promise.all([
       supabase.from('gkks').select('name').order('name'),
-      supabase.from('households').select('gkk'),
+      fetchAll(() => supabase.from('households').select('gkk').not('gkk', 'is', null).order('id')),
     ]);
     if (error) throw mapError(error);
-    if (hErr) throw mapError(hErr);
     const counts = {};
     for (const r of hhRows) if (r.gkk) counts[r.gkk] = (counts[r.gkk] || 0) + 1;
     return { rows: names.map((g) => ({ name: g.name, count: counts[g.name] || 0 })) };
@@ -329,12 +347,11 @@ export const api = {
   // ---- parish positions (Parish Organization Structure) ----------------
   // One position per member (members.parish_role), not an array like the above.
   async listParishPositions() {
-    const [{ data: names, error }, { data: mem, error: mErr }] = await Promise.all([
+    const [{ data: names, error }, mem] = await Promise.all([
       supabase.from('parish_positions').select('name').order('name'),
-      supabase.from('members').select('parish_role').not('parish_role', 'is', null),
+      fetchAll(() => supabase.from('members').select('parish_role').not('parish_role', 'is', null).order('id')),
     ]);
     if (error) throw mapError(error);
-    if (mErr) throw mapError(mErr);
     const counts = {};
     for (const r of mem) counts[r.parish_role] = (counts[r.parish_role] || 0) + 1;
     return { rows: names.map((r) => ({ name: r.name, count: counts[r.name] || 0 })) };
@@ -366,12 +383,12 @@ export const api = {
 
   // ---- dashboard ---------------------------------------------------------
   async dashboardStats() {
-    const [{ data: hh, error: hErr }, { data: mem, error: mErr }] = await Promise.all([
-      supabase.from('households').select('*'),
-      supabase.from('members').select('*'),
+    const [hh, mem] = await Promise.all([
+      fetchAll(() => supabase.from('households').select('id, status, gkk').order('id')),
+      fetchAll(() => supabase.from('members')
+        .select('id, created_at, dob, ministries, organizations, has_baptism, has_communion, has_confirmation, has_matrimony')
+        .order('id')),
     ]);
-    if (hErr) throw mapError(hErr);
-    if (mErr) throw mapError(mErr);
 
     const verified = hh.filter((h) => h.status === 'Verified').length;
     const pending = hh.filter((h) => h.status === 'Pending').length;
@@ -432,12 +449,12 @@ export const api = {
 
   // ---- reports -------------------------------------------------------
   async reportStats() {
-    const [{ data: hh, error: hErr }, { data: mem, error: mErr }] = await Promise.all([
-      supabase.from('households').select('*'),
-      supabase.from('members_with_household').select('*'),
+    const [hh, mem] = await Promise.all([
+      fetchAll(() => supabase.from('households').select('id, status, gkk').order('id')),
+      fetchAll(() => supabase.from('members')
+        .select('id, ministries, organizations, blood_type, has_baptism, has_communion, has_confirmation, has_matrimony')
+        .order('id')),
     ]);
-    if (hErr) throw mapError(hErr);
-    if (mErr) throw mapError(mErr);
 
     const gkkNames = [...new Set(hh.map((h) => h.gkk).filter(Boolean))];
     const regByGkk = gkkNames.map((label) => {
@@ -486,11 +503,9 @@ export const api = {
     return { sources: Object.keys(types), types };
   },
 
-  async generateReport({ source, type, gkk = 'All', dateFrom, dateTo, sacrament, group }) {
+  async generateReport({ source, type, gkk = 'All', status = 'All', dateFrom, dateTo, sacrament, group }) {
     if (source === 'Members') {
-      const { data, error } = await supabase.from('members_with_household').select('*');
-      if (error) throw mapError(error);
-      let list = data;
+      let list = await fetchAll(() => supabase.from('members_with_household').select('*').order('household_name').order('id'));
       if (gkk && gkk !== 'All') list = list.filter((m) => m.household_gkk === gkk);
       if (type === 'By Sacrament' && sacrament) {
         const key = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' }[sacrament];
@@ -507,12 +522,10 @@ export const api = {
     }
 
     if (source === 'Households') {
-      const { data, error } = await supabase.from('households').select('*');
-      if (error) throw mapError(error);
-      let list = data;
+      let list = await fetchAll(() => supabase.from('households').select('*').order('household_name').order('id'));
       if (gkk && gkk !== 'All') list = list.filter((h) => h.gkk === gkk);
-      if (dateFrom) list = list.filter((h) => new Date(h.created_at) >= new Date(dateFrom));
-      if (dateTo) list = list.filter((h) => new Date(h.created_at) <= new Date(dateTo));
+      if (type === 'By Status' && status && status !== 'All') list = list.filter((h) => h.status === status);
+      if (dateFrom || dateTo) list = list.filter((h) => inDateRange(h.created_at, dateFrom, dateTo));
       const columns = ['Household', 'GKK', 'Grouping', 'Status', 'Registered'];
       const rowsOut = list.map((h) => ({
         cells: [h.household_name, h.gkk || '—', h.family_grouping || '—', h.status, new Date(h.created_at).toLocaleDateString()],
@@ -612,15 +625,10 @@ async function listGroup(table, column, opts) {
   if (error) throw mapError(error);
 
   const counts = {};
-  if (scoped) {
-    const { data, error: e2 } = await supabase.from('members_with_household').select(column).eq('household_gkk', gkk);
-    if (e2) throw mapError(e2);
-    data.forEach((r) => (r[column] || []).forEach((n) => { counts[n] = (counts[n] || 0) + 1; }));
-  } else {
-    const { data, error: e2 } = await supabase.from('members').select(column);
-    if (e2) throw mapError(e2);
-    data.forEach((r) => (r[column] || []).forEach((n) => { counts[n] = (counts[n] || 0) + 1; }));
-  }
+  const data = await fetchAll(() => (scoped
+    ? supabase.from('members_with_household').select(column).eq('household_gkk', gkk)
+    : supabase.from('members').select(column)).order('id'));
+  data.forEach((r) => (r[column] || []).forEach((n) => { counts[n] = (counts[n] || 0) + 1; }));
 
   return { rows: names.map((r) => ({ name: r.name, count: counts[r.name] || 0 })) };
 }
@@ -643,80 +651,72 @@ async function deleteGroup(rpcName, name) {
   return null;
 }
 
+/** Build and download one of the CSV exports. Rejects if the data can't be read. */
 export async function downloadWithAuth(path, filename) {
-  try {
-    if (path === '/exports/members.csv') {
-      const { data, error } = await supabase.from('members_with_household').select('*').order('household_name').order('id');
-      if (error) throw mapError(error);
-      downloadCsv(filename, data, [
-        { label: 'First Name', value: 'first_name' },
-        { label: 'Middle Name', value: 'middle_name' },
-        { label: 'Last Name', value: 'last_name' },
-        { label: 'Suffix', value: 'suffix' },
-        { label: 'Household', value: 'household_name' },
-        { label: 'Relationship', value: (r) => bis(RELATIONSHIP_LABELS, r.relationship) },
-        { label: 'Sex', value: (r) => bis(SEX_LABELS, r.sex) },
-        { label: 'Date of Birth', value: 'dob' },
-        { label: 'Age', value: (r) => r.age ?? '' },
-        { label: 'Place of Birth', value: 'place_of_birth' },
-        { label: 'Tribe', value: 'tribe' },
-        { label: 'Civil Status', value: (r) => bis(CIVIL_STATUS_LABELS, r.civil_status) },
-        { label: 'Contact', value: 'contact' },
-        { label: 'Email', value: 'email' },
-        { label: 'Occupation', value: 'occupation' },
-        { label: 'Blood Type', value: 'blood_type' },
-        { label: 'GKK', value: 'household_gkk' },
-        { label: 'Baptism', value: (r) => (r.has_baptism ? 'Yes' : 'No') },
-        { label: 'First Communion', value: (r) => (r.has_communion ? 'Yes' : 'No') },
-        { label: 'Confirmation', value: (r) => (r.has_confirmation ? 'Yes' : 'No') },
-        { label: 'Matrimony', value: (r) => (r.has_matrimony ? 'Yes' : 'No') },
-        { label: 'Wedding Type', value: (r) => bis(WEDDING_TYPE_LABELS, r.mat_type) },
-        ...SACRAMENTS.map((s) => ({ label: `${s.label} Verified`, value: (r) => (r[`${s.key}_verified`] ? 'Yes' : 'No') })),
-        { label: 'GKK Responsibility', value: 'gkk_role' },
-        { label: 'Parish Responsibility', value: 'parish_role' },
-        { label: 'Ministries', value: (r) => (r.ministries || []).join('; ') },
-        { label: 'Organizations', value: (r) => (r.organizations || []).join('; ') },
-      ]);
-    } else if (path === '/exports/households.csv') {
-      const { data, error } = await supabase.from('households_with_count').select('*').order('household_name');
-      if (error) throw mapError(error);
-      downloadCsv(filename, data, [
-        { label: 'Household Name', value: 'household_name' },
-        { label: 'Head', value: 'head_name' },
-        { label: 'Street', value: 'street' },
-        { label: 'Barangay', value: 'barangay' },
-        { label: 'City', value: 'city' },
-        { label: 'Province', value: 'province' },
-        { label: 'ZIP', value: 'zip' },
-        { label: 'GKK', value: 'gkk' },
-        { label: 'Family Grouping', value: 'family_grouping' },
-        { label: 'Contact', value: 'contact' },
-        { label: 'Email', value: 'email' },
-        { label: 'Members', value: 'member_count' },
-        { label: 'Status', value: 'status' },
-        { label: 'Reference No.', value: 'ref_no' },
-        ...PARTICIPATION_ITEMS.map(([key, label]) => ({ label, value: (r) => (r.participation || {})[key] || '' })),
-        { label: 'Ways to Help', value: (r) => (r.help_ways || []).map((k) => (HELP_WAYS.find(([hk]) => hk === k) || [k, k])[1]).join('; ') },
-        { label: 'Registered', value: (r) => new Date(r.created_at).toISOString().slice(0, 10) },
-      ]);
-    } else if (path === '/exports/blood.csv') {
-      const { data, error } = await supabase.from('members_with_household').select('*').not('blood_type', 'is', null).order('blood_type');
-      if (error) throw mapError(error);
-      downloadCsv(filename, data, [
-        { label: 'Name', value: (r) => `${r.first_name} ${r.last_name}` },
-        { label: 'Blood Type', value: 'blood_type' },
-        { label: 'Age', value: (r) => r.age ?? '' },
-        { label: 'GKK', value: 'household_gkk' },
-        { label: 'Household', value: 'household_name' },
-        { label: 'Contact', value: 'contact' },
-      ]);
-    } else {
-      throw new Error(`Unknown export: ${path}`);
-    }
-  } catch (err) {
-    // Matches the old fetch-based downloadWithAuth, which never surfaced
-    // errors to the caller either (Exports.jsx doesn't await/catch it).
-    console.error(err);
+  if (path === '/exports/members.csv') {
+    const data = await fetchAll(() => supabase.from('members_with_household').select('*').order('household_name').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'First Name', value: 'first_name' },
+      { label: 'Middle Name', value: 'middle_name' },
+      { label: 'Last Name', value: 'last_name' },
+      { label: 'Suffix', value: 'suffix' },
+      { label: 'Household', value: 'household_name' },
+      { label: 'Relationship', value: (r) => bis(RELATIONSHIP_LABELS, r.relationship) },
+      { label: 'Sex', value: (r) => bis(SEX_LABELS, r.sex) },
+      { label: 'Date of Birth', value: 'dob' },
+      { label: 'Age', value: (r) => r.age ?? '' },
+      { label: 'Place of Birth', value: 'place_of_birth' },
+      { label: 'Tribe', value: 'tribe' },
+      { label: 'Civil Status', value: (r) => bis(CIVIL_STATUS_LABELS, r.civil_status) },
+      { label: 'Contact', value: 'contact' },
+      { label: 'Email', value: 'email' },
+      { label: 'Occupation', value: 'occupation' },
+      { label: 'Blood Type', value: 'blood_type' },
+      { label: 'GKK', value: 'household_gkk' },
+      { label: 'Baptism', value: (r) => (r.has_baptism ? 'Yes' : 'No') },
+      { label: 'First Communion', value: (r) => (r.has_communion ? 'Yes' : 'No') },
+      { label: 'Confirmation', value: (r) => (r.has_confirmation ? 'Yes' : 'No') },
+      { label: 'Matrimony', value: (r) => (r.has_matrimony ? 'Yes' : 'No') },
+      { label: 'Wedding Type', value: (r) => bis(WEDDING_TYPE_LABELS, r.mat_type) },
+      ...SACRAMENTS.map((s) => ({ label: `${s.label} Verified`, value: (r) => (r[`${s.key}_verified`] ? 'Yes' : 'No') })),
+      { label: 'GKK Responsibility', value: 'gkk_role' },
+      { label: 'Parish Responsibility', value: 'parish_role' },
+      { label: 'Ministries', value: (r) => (r.ministries || []).join('; ') },
+      { label: 'Organizations', value: (r) => (r.organizations || []).join('; ') },
+    ]);
+  } else if (path === '/exports/households.csv') {
+    const data = await fetchAll(() => supabase.from('households_with_count').select('*').order('household_name').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Household Name', value: 'household_name' },
+      { label: 'Head', value: 'head_name' },
+      { label: 'Street', value: 'street' },
+      { label: 'Barangay', value: 'barangay' },
+      { label: 'City', value: 'city' },
+      { label: 'Province', value: 'province' },
+      { label: 'ZIP', value: 'zip' },
+      { label: 'GKK', value: 'gkk' },
+      { label: 'Family Grouping', value: 'family_grouping' },
+      { label: 'Contact', value: 'contact' },
+      { label: 'Email', value: 'email' },
+      { label: 'Members', value: 'member_count' },
+      { label: 'Status', value: 'status' },
+      { label: 'Reference No.', value: 'ref_no' },
+      ...PARTICIPATION_ITEMS.map(([key, label]) => ({ label, value: (r) => (r.participation || {})[key] || '' })),
+      { label: 'Ways to Help', value: (r) => (r.help_ways || []).map((k) => (HELP_WAYS.find(([hk]) => hk === k) || [k, k])[1]).join('; ') },
+      { label: 'Registered', value: (r) => new Date(r.created_at).toISOString().slice(0, 10) },
+    ]);
+  } else if (path === '/exports/blood.csv') {
+    const data = await fetchAll(() => supabase.from('members_with_household').select('*').not('blood_type', 'is', null).order('blood_type').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Name', value: (r) => `${r.first_name} ${r.last_name}` },
+      { label: 'Blood Type', value: 'blood_type' },
+      { label: 'Age', value: (r) => r.age ?? '' },
+      { label: 'GKK', value: 'household_gkk' },
+      { label: 'Household', value: 'household_name' },
+      { label: 'Contact', value: 'contact' },
+    ]);
+  } else {
+    throw new Error(`Unknown export: ${path}`);
   }
 }
 

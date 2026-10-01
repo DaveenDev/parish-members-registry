@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { pageWindow, searchAndPage } from '../src/lib/paging.js';
+import { pageWindow, searchAndPage, fetchAllPages } from '../src/lib/paging.js';
 
 describe('pageWindow', () => {
   test('shows every page when there are only a few', () => {
@@ -50,5 +50,42 @@ describe('searchAndPage', () => {
 
   test('handles an empty list', () => {
     assert.deepEqual(searchAndPage([], { page: 4 }), { rows: [], total: 0, page: 1 });
+  });
+});
+
+describe('fetchAllPages', () => {
+  const source = (n) => Array.from({ length: n }, (_, i) => i);
+  const pager = (rows, calls = []) => async (from, to) => {
+    calls.push([from, to]);
+    return { data: rows.slice(from, to + 1), error: null };
+  };
+
+  test('reads past the per-request cap until a short page', async () => {
+    const calls = [];
+    const { data, error } = await fetchAllPages(pager(source(2500), calls), 1000);
+    assert.equal(error, null);
+    assert.equal(data.length, 2500);
+    assert.deepEqual(data.slice(998, 1002), [998, 999, 1000, 1001]);
+    assert.deepEqual(calls, [[0, 999], [1000, 1999], [2000, 2999]]);
+  });
+
+  test('asks once more when the total is an exact multiple of the chunk', async () => {
+    const calls = [];
+    const { data } = await fetchAllPages(pager(source(2000), calls), 1000);
+    assert.equal(data.length, 2000);
+    assert.equal(calls.length, 3);
+  });
+
+  test('handles an empty table', async () => {
+    const { data } = await fetchAllPages(pager([]), 1000);
+    assert.deepEqual(data, []);
+  });
+
+  test('stops and returns the error from a failed page', async () => {
+    const boom = { message: 'boom' };
+    let n = 0;
+    const { data, error } = await fetchAllPages(async () => (n++ ? { data: null, error: boom } : { data: source(10), error: null }), 10);
+    assert.equal(data, null);
+    assert.equal(error, boom);
   });
 });

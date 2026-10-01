@@ -40,3 +40,20 @@ export function searchAndPage(items, { query = '', toText = String, page = 1, pa
     page: current,
   };
 }
+
+/**
+ * Read every row of a query that the server caps per request (Supabase
+ * returns at most 1,000 rows by default). `fetchPage(from, to)` resolves to
+ * `{ data, error }` for the inclusive row range; pages are requested until
+ * one comes back short. The query must have a stable order, or rows can be
+ * skipped or repeated between pages.
+ */
+export async function fetchAllPages(fetchPage, chunkSize = 1000) {
+  const rows = [];
+  for (let from = 0; ; from += chunkSize) {
+    const { data, error } = await fetchPage(from, from + chunkSize - 1);
+    if (error) return { data: null, error };
+    rows.push(...(data || []));
+    if (!data || data.length < chunkSize) return { data: rows, error: null };
+  }
+}

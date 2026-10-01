@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { api, downloadWithAuth } from '../../api.js';
+import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { BLOOD_TYPES } from '../../constants.js';
-import { useDebounced } from '../../hooks.js';
+import { useDebounced, useCsvExport } from '../../hooks.js';
 
 const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
 
@@ -23,6 +23,7 @@ export default function BloodTypes() {
   const [blood, setBlood] = useState('Recorded'); // a type, 'Recorded' (any on file), or 'Unknown'
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounced(search);
+  const csvExport = useCsvExport();
   const [sortKey, setSortKey] = useState('blood');
   const [sortDir, setSortDir] = useState('asc');
   const [page, setPage] = useState(1);
@@ -102,10 +103,11 @@ export default function BloodTypes() {
             <button onClick={() => { setGkk('All'); setAge('All'); setBlood('Recorded'); setSearch(''); }} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-1">Clear</button>
           )}
           <button
-            onClick={() => downloadWithAuth('/exports/blood.csv', 'blood-directory.csv')}
-            className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg"
+            onClick={() => csvExport.run('/exports/blood.csv', 'blood-directory.csv')}
+            disabled={!!csvExport.busy}
+            className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg disabled:opacity-60"
           >
-            Export CSV
+            {csvExport.busy ? 'Exporting…' : 'Export CSV'}
           </button>
         </div>
 

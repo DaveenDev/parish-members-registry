@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { api } from '../../api.js';
-import { PageHeader, PageBody } from '../../components/admin.jsx';
+import { PageHeader, PageBody, ErrorState, LoadingState } from '../../components/admin.jsx';
+import { useAsyncData } from '../../hooks.js';
 
 function StatCard({ label, value, note, accent }) {
   return (
@@ -45,11 +46,18 @@ function BreakdownBars({ data, color1, color2 }) {
 }
 
 export default function Dashboard() {
-  const [stats, setStats] = useState(null);
+  const { data: stats, loading, error, reload } = useAsyncData(() => api.dashboardStats(), []);
 
-  useEffect(() => { api.dashboardStats().then(setStats); }, []);
-
-  if (!stats) return <div className="p-8 text-parish-muted">Loading dashboard…</div>;
+  if (!stats) {
+    return (
+      <>
+        <PageHeader title="Dashboard" subtitle="Parish registry overview" />
+        <PageBody>
+          {error && !loading ? <ErrorState message={error} onRetry={reload} /> : <LoadingState label="Loading dashboard…" />}
+        </PageBody>
+      </>
+    );
+  }
 
   return (
     <>

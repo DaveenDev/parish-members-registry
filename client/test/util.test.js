@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { toNameCase, toSuffixCase, initials } from '../src/lib/util.js';
+import { toNameCase, toSuffixCase, initials, inDateRange } from '../src/lib/util.js';
 
 describe('toNameCase', () => {
   test('capitalizes the first letter of each word only', () => {
@@ -52,5 +52,29 @@ describe('initials', () => {
   test('uses the first letter of each name', () => {
     assert.equal(initials('juan', 'duran'), 'JD');
     assert.equal(initials('', ''), '?');
+  });
+});
+
+describe('inDateRange', () => {
+  const at = (y, m, d, h = 0, min = 0) => new Date(y, m - 1, d, h, min).toISOString();
+
+  test('includes the whole of the "to" day', () => {
+    assert.equal(inDateRange(at(2026, 10, 1, 23, 59), '', '2026-10-01'), true);
+    assert.equal(inDateRange(at(2026, 10, 2, 0, 0), '', '2026-10-01'), false);
+  });
+
+  test('includes the whole of the "from" day', () => {
+    assert.equal(inDateRange(at(2026, 10, 1, 0, 0), '2026-10-01', ''), true);
+    assert.equal(inDateRange(at(2026, 9, 30, 23, 59), '2026-10-01', ''), false);
+  });
+
+  test('a single-day range keeps that day only', () => {
+    assert.equal(inDateRange(at(2026, 10, 1, 9), '2026-10-01', '2026-10-01'), true);
+    assert.equal(inDateRange(at(2026, 10, 2, 9), '2026-10-01', '2026-10-01'), false);
+  });
+
+  test('blank bounds keep everything; bad timestamps keep nothing', () => {
+    assert.equal(inDateRange(at(2020, 1, 1), '', ''), true);
+    assert.equal(inDateRange('not a date', '', ''), false);
   });
 });

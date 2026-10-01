@@ -212,3 +212,41 @@ export default function PrintSheet({ data }) {
     document.body
   );
 }
+
+/**
+ * Off-screen copy of a generated report (Reports → Generate Report) for
+ * printing: every row, not just the page shown on screen. Uses the same
+ * #print-sheet print rules as the household record.
+ */
+export function ReportPrintSheet({ report, parish }) {
+  if (!report || report.empty) return null;
+  const cell = { padding: '5px 8px', borderBottom: '1px solid #e6dcc7', fontSize: 11, textAlign: 'left' };
+  return createPortal(
+    <div id="print-sheet" aria-hidden>
+      <header style={{ display: 'flex', alignItems: 'center', gap: 16, borderBottom: '2px solid #1a2b4a', paddingBottom: 12, marginBottom: 16 }}>
+        {parish?.logo && <img src={parish.logo} alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />}
+        <div>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 600, color: '#1a2b4a' }}>
+            {parish?.name || 'Our Lady of Guadalupe'}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: '#1a2b4a', marginTop: 2 }}>{report.title}</div>
+          <div style={{ fontSize: 11, color: '#6b6552' }}>{report.meta} · Printed {new Date().toLocaleDateString()}</div>
+        </div>
+      </header>
+      {/* A long report must be allowed to run across pages. */}
+      <table style={{ width: '100%', borderCollapse: 'collapse', breakInside: 'auto' }}>
+        <thead>
+          <tr>{report.columns.map((c) => <th key={c} style={{ ...cell, fontWeight: 700, textTransform: 'uppercase', fontSize: 10, color: '#6b6552', borderBottom: '1.5px solid #1a2b4a' }}>{c}</th>)}</tr>
+        </thead>
+        <tbody>
+          {report.rows.map((row, i) => (
+            <tr key={i} style={{ breakInside: 'avoid' }}>
+              {row.cells.map((c, j) => <td key={j} style={cell}>{c}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>,
+    document.body
+  );
+}

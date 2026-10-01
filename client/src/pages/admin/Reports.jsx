@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useOutletContext } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination } from '../../components/admin.jsx';
-import { useClientList } from '../../hooks.js';
+import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, ErrorState, LoadingState } from '../../components/admin.jsx';
+import { useAsyncData, useClientList } from '../../hooks.js';
 import { PrimaryButton, GhostButton } from '../../components/ui.jsx';
+import { ReportPrintSheet } from '../../components/PrintSheet.jsx';
+import { useToast } from '../../ToastContext.jsx';
 
 function Bar({ label, right, w, color }) {
   return (
@@ -30,35 +32,49 @@ function SplitBar({ label, right, vw, pw }) {
 
 const SOURCE_META = {
   Members: { gkk: true, group: true, sacrament: true },
-  Households: { gkk: true, dateRange: true },
+  Households: { gkk: true, dateRange: true, status: true },
 };
 
 export default function Reports() {
+  const toast = useToast();
+  const layout = useOutletContext();
   const [tab, setTab] = useState('stats');
-  const [stats, setStats] = useState(null);
+  const { data: stats, loading: statsLoading, error: statsError, reload: reloadStats } = useAsyncData(() => api.reportStats(), []);
 
   const [genSource, setGenSource] = useState('');
   const [genType, setGenType] = useState('');
-  const [scope, setScope] = useState({ gkk: 'All', dateFrom: '', dateTo: '', sacrament: 'Baptism', group: '' });
+  const [scope, setScope] = useState({ gkk: 'All', status: 'All', dateFrom: '', dateTo: '', sacrament: 'Baptism', group: '' });
   const [ministryOptions, setMinistryOptions] = useState([]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [report, setReport] = useState(null);
+  const [generating, setGenerating] = useState(false);
   const reportList = useClientList(report?.rows || [], (row) => row.cells.join(' '));
 
-  useEffect(() => { api.reportStats().then(setStats); }, []);
   useEffect(() => {
-    Promise.all([api.listMinistries(), api.listOrganizations()]).then(([m, o]) => setMinistryOptions([...m.rows.map((x) => x.name), ...o.rows.map((x) => x.name)]));
+    Promise.all([api.listMinistries(), api.listOrganizations()])
+      .then(([m, o]) => setMinistryOptions([...m.rows.map((x) => x.name), ...o.rows.map((x) => x.name)]))
+      .catch(() => {});
   }, []);
-  useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((g) => g.name))); }, []);
+  useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((g) => g.name))).catch(() => {}); }, []);
 
   async function generate() {
-    const res = await api.generateReport({ source: genSource, type: genType, ...scope });
-    setReport(res);
+    setGenerating(true);
+    try {
+      setReport(await api.generateReport({ source: genSource, type: genType, ...scope }));
+    } catch (e) {
+      toast.error(e.message || 'Could not generate this report');
+    } finally {
+      setGenerating(false);
+    }
   }
   async function exportGenerated() {
     if (!report) return;
-    const blob = await api.exportGenerated({ title: report.title, columns: report.csvColumns, rows: report.rows });
-    triggerDownload(blob, `${report.title.toLowerCase().replace(/\s+/g, '-')}.csv`);
+    try {
+      const blob = await api.exportGenerated({ title: report.title, columns: report.csvColumns, rows: report.rows });
+      triggerDownload(blob, `${report.title.toLowerCase().replace(/\s+/g, '-')}.csv`);
+    } catch (e) {
+      toast.error(e.message || 'Could not export this report');
+    }
   }
 
   const meta = SOURCE_META[genSource] || {};
@@ -79,6 +95,12 @@ export default function Reports() {
               </button>
             ))}
           </div>
+
+          {tab === 'stats' && !stats && (
+            statsError && !statsLoading
+              ? <ErrorState message={statsError} onRetry={reloadStats} />
+              : <LoadingState label="Loading report stats…" />
+          )}
 
           {tab === 'stats' && stats && (
             <div className="flex flex-col gap-5">
@@ -164,6 +186,14 @@ export default function Reports() {
                           </FilterSelect>
                         </div>
                       )}
+                      {meta.status && genType === 'By Status' && (
+                        <div>
+                          <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Status</div>
+                          <FilterSelect value={scope.status} onChange={(e) => setScope((s) => ({ ...s, status: e.target.value }))}>
+                            <option value="All">All statuses</option><option value="Verified">Verified</option><option value="Pending">Pending</option>
+                          </FilterSelect>
+                        </div>
+                      )}
                       {meta.dateRange && (
                         <>
                           <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">Registered from</div><input type="date" value={scope.dateFrom} onChange={(e) => setScope((s) => ({ ...s, dateFrom: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
@@ -190,7 +220,7 @@ export default function Reports() {
                   </div>
                 )}
 
-                <PrimaryButton onClick={generate} disabled={!genType} className="px-[22px] py-2.5 text-[14px]">Generate Report</PrimaryButton>
+                <PrimaryButton onClick={generate} disabled={!genType || generating} className="px-[22px] py-2.5 text-[14px]">{generating ? 'Generating…' : 'Generate Report'}</PrimaryButton>
               </div>
 
               {report && (
@@ -198,7 +228,7 @@ export default function Reports() {
                   <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
                     <div className="font-serif text-[21px] font-semibold text-parish-navy">{report.title}</div>
                     <div className="flex gap-2">
-                      <GhostButton onClick={() => window.print()} className="px-3.5 py-2 text-[12.5px] !text-parish-text2 !border-transparent bg-[#f4efe3]">Print</GhostButton>
+                      <GhostButton onClick={() => window.print()} disabled={report.empty} className="px-3.5 py-2 text-[12.5px] !text-parish-text2 !border-transparent bg-[#f4efe3]">Print</GhostButton>
                       <button onClick={exportGenerated} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg">Export CSV</button>
                     </div>
                   </div>
@@ -233,6 +263,7 @@ export default function Reports() {
           )}
         </div>
       </PageBody>
+      {tab === 'gen' && <ReportPrintSheet report={report} parish={layout?.parish} />}
     </>
   );
 }

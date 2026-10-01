@@ -6,6 +6,7 @@ import { useClientList } from '../../hooks.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
 import { useToast } from '../../ToastContext.jsx';
+import { useConfirm } from '../../components/ConfirmDialog.jsx';
 
 const MAX_LOGO_BYTES = 500 * 1024;
 
@@ -233,6 +234,7 @@ function GkkList() {
   const [editing, setEditing] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [error, setError] = useState('');
+  const confirm = useConfirm();
   const list = useClientList(rows, (r) => r.name);
 
   function reload() { api.listGkks().then((r) => setRows(r.rows)); }
@@ -249,6 +251,13 @@ function GkkList() {
     try { await api.renameGkk(editing, editValue.trim()); setEditing(null); reload(); } catch (e) { setError(e.message || 'Could not rename this GKK'); }
   }
   async function remove(name) {
+    const ok = await confirm({
+      title: `Delete “${name}”?`,
+      message: "This removes the GKK from the list. It can't be undone, but you can add it again later.",
+      confirmLabel: 'Delete GKK',
+      tone: 'danger',
+    });
+    if (!ok) return;
     setError('');
     try { await api.deleteGkk(name); reload(); } catch (e) { setError(e.message || 'Could not delete this GKK'); }
   }

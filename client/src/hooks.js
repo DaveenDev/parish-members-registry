@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from './api.js';
+import { api, downloadWithAuth } from './api.js';
+import { useToast } from './ToastContext.jsx';
 import { searchAndPage } from './lib/paging.js';
 
 /**
@@ -80,4 +81,25 @@ export function useHouseholdNameTaken(name, ownName = '') {
     return () => { cancelled = true; };
   }, [debounced, ownName]);
   return taken && debounced === trimmed;
+}
+
+/**
+ * Run one of the CSV exports with a busy flag and an error toast, so a
+ * failed or slow export doesn't look like a dead button. `busy` is the path
+ * of the export in progress, or ''.
+ */
+export function useCsvExport() {
+  const toast = useToast();
+  const [busy, setBusy] = useState('');
+  async function run(path, filename) {
+    setBusy(path);
+    try {
+      await downloadWithAuth(path, filename);
+    } catch (e) {
+      toast.error(e?.message || 'Could not export this data');
+    } finally {
+      setBusy('');
+    }
+  }
+  return { busy, run };
 }
