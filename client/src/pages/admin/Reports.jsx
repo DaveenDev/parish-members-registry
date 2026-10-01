@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api, downloadWithAuth, triggerDownload } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination } from '../../components/admin.jsx';
+import { useClientList } from '../../hooks.js';
 import { PrimaryButton, GhostButton } from '../../components/ui.jsx';
 
 function Bar({ label, right, w, color }) {
@@ -43,6 +44,8 @@ export default function Reports() {
   const [ministryOptions, setMinistryOptions] = useState([]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [report, setReport] = useState(null);
+  const bloodList = useClientList(bloodRows, (b) => [b.name, b.household, b.gkk, b.contact, b.bloodType].join(' '));
+  const reportList = useClientList(report?.rows || [], (row) => row.cells.join(' '));
 
   useEffect(() => { api.reportStats().then(setStats); }, []);
   useEffect(() => { api.bloodReport(bloodType).then((r) => setBloodRows(r.rows)); }, [bloodType]);
@@ -121,18 +124,22 @@ export default function Reports() {
                 <div className="flex flex-wrap gap-2 mb-4">
                   {stats.bloodCounts.map((b) => <span key={b.label} className="font-bold text-[12.5px] bg-parish-errorBg text-parish-error px-3.5 py-1.5 rounded-full">{b.label} · {b.n}</span>)}
                 </div>
-                <FilterSelect value={bloodType} onChange={(e) => setBloodType(e.target.value)} className="mb-3.5">
-                  <option value="All">All blood types</option>
-                  {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((b) => <option key={b} value={b}>{b}</option>)}
-                </FilterSelect>
+                <div className="flex flex-wrap items-center gap-2.5 mb-3.5">
+                  <FilterSelect value={bloodType} onChange={(e) => setBloodType(e.target.value)} aria-label="Filter by blood type">
+                    <option value="All">All blood types</option>
+                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((b) => <option key={b} value={b}>{b}</option>)}
+                  </FilterSelect>
+                  <SearchInput placeholder="Search name, household, GKK, contact…" aria-label="Search blood directory" value={bloodList.query} onChange={(e) => bloodList.setQuery(e.target.value)} />
+                </div>
                 {!bloodRows.length && <div className="py-7 px-4 text-center text-parish-muted text-[14px]">No members with a recorded blood type for this filter.</div>}
-                {!!bloodRows.length && (
+                {!!bloodRows.length && !bloodList.total && <div className="py-7 px-4 text-center text-parish-muted text-[14px]">No donors match “{bloodList.query}”.</div>}
+                {!!bloodList.total && (
                   <div className="border border-[#f0e8d6] rounded-xl overflow-hidden">
                     <div className="overflow-x-auto">
                       <table className="w-full border-collapse" style={{ minWidth: 560 }}>
                         <thead><tr className="bg-[#f4efe3]">{['Member', 'Blood Type', 'Age', 'GKK', 'Contact'].map((h) => <th key={h} className="text-left px-3.5 py-2.5 font-bold text-[11.5px] tracking-wide uppercase text-parish-text2">{h}</th>)}</tr></thead>
                         <tbody>
-                          {bloodRows.map((b) => (
+                          {bloodList.rows.map((b) => (
                             <tr key={b.mid} className="border-t border-[#f1e8d5]">
                               <td className="px-3.5 py-2.5">
                                 <div className="flex items-center gap-2.5"><div className="w-7 h-7 rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[11px] flex-none">{b.initials}</div>
@@ -148,6 +155,7 @@ export default function Reports() {
                         </tbody>
                       </table>
                     </div>
+                    <Pagination page={bloodList.page} pageSize={bloodList.pageSize} total={bloodList.total} onPage={bloodList.setPage} onPageSize={bloodList.setPageSize} />
                   </div>
                 )}
               </div>
@@ -234,12 +242,18 @@ export default function Reports() {
                   <p className="text-[13px] text-parish-muted mb-4">{report.meta}</p>
                   {report.empty && <div className="py-7 px-4 text-center text-parish-muted text-[14px]">No records match this scope.</div>}
                   {!report.empty && (
+                    <div className="mb-3.5">
+                      <SearchInput placeholder="Search this report…" aria-label="Search report rows" value={reportList.query} onChange={(e) => reportList.setQuery(e.target.value)} />
+                    </div>
+                  )}
+                  {!report.empty && !reportList.total && <div className="py-7 px-4 text-center text-parish-muted text-[14px]">No rows match “{reportList.query}”.</div>}
+                  {!report.empty && !!reportList.total && (
                     <div className="border border-[#f0e8d6] rounded-xl overflow-hidden">
                       <div className="overflow-x-auto">
                         <table className="w-full border-collapse" style={{ minWidth: 560 }}>
                           <thead><tr className="bg-[#f4efe3]">{report.columns.map((c) => <th key={c} className="text-left px-3.5 py-2.5 font-bold text-[11.5px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">{c}</th>)}</tr></thead>
                           <tbody>
-                            {report.rows.map((row, i) => (
+                            {reportList.rows.map((row, i) => (
                               <tr key={i} className="border-t border-[#f1e8d5]">
                                 {row.cells.map((cell, j) => <td key={j} className="px-3.5 py-2.5 text-[13.5px] text-[#3f3b2f] whitespace-nowrap">{cell}</td>)}
                               </tr>
@@ -247,6 +261,7 @@ export default function Reports() {
                           </tbody>
                         </table>
                       </div>
+                      <Pagination page={reportList.page} pageSize={reportList.pageSize} total={reportList.total} onPage={reportList.setPage} onPageSize={reportList.setPageSize} />
                     </div>
                   )}
                 </div>

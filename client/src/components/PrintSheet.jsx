@@ -10,11 +10,13 @@ export function printHouseholdSheet() {
 
 function sacramentLines(m) {
   const join = (parts) => parts.filter(Boolean).join(' · ');
+  // "(verified)" once staff have checked the claim against a certificate or the register.
+  const v = (key) => (m.verified?.[key] ? ' (verified)' : '');
   const out = [];
-  if (m.has_baptism) out.push(['Baptism', join([fmtDate(m.baptism_date), m.baptism_church]) || 'Recorded']);
-  if (m.has_communion) out.push(['First Communion', join([fmtDate(m.communion_date), m.communion_church]) || 'Recorded']);
-  if (m.has_confirmation) out.push(['Confirmation', join([fmtDate(m.conf_date), m.conf_church, m.conf_name && `Name: ${m.conf_name}`, m.conf_sponsor && `Sponsor: ${m.conf_sponsor}`]) || 'Recorded']);
-  if (m.has_matrimony) out.push(['Matrimony', join([fmtDate(m.mat_date), m.mat_church, m.mat_type]) || 'Recorded']);
+  if (m.has_baptism) out.push(['Baptism', (join([fmtDate(m.baptism_date), m.baptism_church]) || 'Recorded') + v('baptism')]);
+  if (m.has_communion) out.push(['First Communion', (join([fmtDate(m.communion_date), m.communion_church]) || 'Recorded') + v('communion')]);
+  if (m.has_confirmation) out.push(['Confirmation', (join([fmtDate(m.conf_date), m.conf_church, m.conf_name && `Name: ${m.conf_name}`, m.conf_sponsor && `Sponsor: ${m.conf_sponsor}`]) || 'Recorded') + v('confirmation')]);
+  if (m.has_matrimony) out.push(['Matrimony', (join([fmtDate(m.mat_date), m.mat_church, m.mat_type]) || 'Recorded') + v('matrimony')]);
   else if (m.mat_type) out.push(['Married', m.mat_type]);
   if (!out.length) out.push(['—', 'No sacraments recorded']);
   return out;

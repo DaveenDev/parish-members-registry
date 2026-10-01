@@ -5,6 +5,7 @@ import { StatusPill } from '../../components/ui.jsx';
 import { ageFromDob, CIVIL_STATUSES } from '../../constants.js';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useDebounced } from '../../hooks.js';
+import { groupByGkk } from '../../lib/household.js';
 
 const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
 const BLOOD_OPTS = ['All', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
@@ -18,7 +19,9 @@ export default function Members() {
   const [filters, setFilters] = useState(DEFAULT_FILTERS);
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounced(search);
-  const [sortKey, setSortKey] = useState('name');
+  // Rows are grouped under GKK headings; inside each GKK the default order is
+  // household name, then member name. Column headers re-sort within the GKKs.
+  const [sortKey, setSortKey] = useState('household');
   const [sortDir, setSortDir] = useState('asc');
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -29,7 +32,7 @@ export default function Members() {
   function reload() {
     setLoading(true);
     setError('');
-    api.listMembers({ ...filters, search: debouncedSearch, sortKey, sortDir, page, pageSize })
+    api.listMembers({ ...filters, search: debouncedSearch, sortKey, sortDir, page, pageSize, groupBy: 'gkk', memberOrder: 'name' })
       .then((res) => { setRows(res.rows); setTotal(res.total); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -57,7 +60,7 @@ export default function Members() {
 
   return (
     <>
-      <PageHeader title="Members" subtitle="Every registered parishioner">
+      <PageHeader title="Members" subtitle="Every registered parishioner, grouped by GKK">
         <SearchInput placeholder="Search name, household, contact…" aria-label="Search members" value={search} onChange={(e) => setSearch(e.target.value)} />
       </PageHeader>
       <PageBody>
@@ -111,7 +114,14 @@ export default function Members() {
             </>
           }
         >
-          {rows.map((m) => {
+          {groupByGkk(rows).map((g, gi) => (
+            <React.Fragment key={g.gkk || 'no-gkk'}>
+              <tr className={`bg-[#f4efe3] ${gi ? 'border-t-2 border-[#e7dcc4]' : ''}`}>
+                <th scope="colgroup" colSpan={7} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
+                  {g.gkk || 'No GKK'}
+                </th>
+              </tr>
+              {g.members.map((m) => {
             const groups = [...(m.ministries || []), ...(m.organizations || [])];
             return (
               <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
@@ -137,7 +147,9 @@ export default function Members() {
                 <td className="px-4 py-3"><StatusPill status={m.household_status} /></td>
               </tr>
             );
-          })}
+              })}
+            </React.Fragment>
+          ))}
         </DataTable>
       </PageBody>
 

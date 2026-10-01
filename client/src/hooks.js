@@ -1,5 +1,19 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
+import { searchAndPage } from './lib/paging.js';
+
+/**
+ * Search + pagination state for a list that's already loaded in the page
+ * (config lists, report tables). Typing resets to page 1.
+ */
+export function useClientList(items, toText, initialPageSize = 10) {
+  const [query, setQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  useEffect(() => { setPage(1); }, [query, pageSize]);
+  const result = searchAndPage(items || [], { query, toText, page, pageSize });
+  return { query, setQuery, page: result.page, setPage, pageSize, setPageSize, rows: result.rows, total: result.total };
+}
 
 /** Debounce a rapidly-changing value — used so typing in search doesn't fire a request per keystroke. */
 export function useDebounced(value, delay = 350) {

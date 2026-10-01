@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody } from '../../components/admin.jsx';
+import { PageHeader, PageBody, SearchInput, Pagination } from '../../components/admin.jsx';
+import { useClientList } from '../../hooks.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
 import { useToast } from '../../ToastContext.jsx';
@@ -242,6 +243,7 @@ function GkkList() {
   const [editing, setEditing] = useState(null);
   const [editValue, setEditValue] = useState('');
   const [error, setError] = useState('');
+  const list = useClientList(rows, (r) => r.name);
 
   function reload() { api.listGkks().then((r) => setRows(r.rows)); }
   useEffect(() => { reload(); }, []);
@@ -268,8 +270,13 @@ function GkkList() {
         <TextInput placeholder="New GKK name (e.g. GKK San Pedro Calungsod)" value={newName} onChange={(e) => setNewName(e.target.value)} />
         <PrimaryButton onClick={add} className="px-[22px] py-2.5 text-[14px] whitespace-nowrap" style={{ padding: '11px 22px' }}>Add</PrimaryButton>
       </div>
+      {rows.length > 0 && (
+        <div className="mb-3">
+          <SearchInput placeholder="Search GKK names…" aria-label="Search GKK names" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
+        </div>
+      )}
       <div className="flex flex-col gap-2">
-        {rows.map((r) => (
+        {list.rows.map((r) => (
           <div key={r.name} className="flex items-center gap-2.5 border border-[#f0e8d6] rounded-xl px-3.5 py-2.5 bg-[#fdfbf6]">
             {editing === r.name ? (
               <>
@@ -288,6 +295,10 @@ function GkkList() {
           </div>
         ))}
         {!rows.length && <div className="text-[13.5px] text-parish-muted">No GKKs added yet.</div>}
+        {!!rows.length && !list.total && <div className="text-[13.5px] text-parish-muted">No GKK matches “{list.query}”.</div>}
+      </div>
+      <div className="-mx-6 -mb-6 mt-4">
+        <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
       </div>
     </>
   );

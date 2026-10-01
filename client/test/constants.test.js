@@ -9,6 +9,8 @@ import {
   HEAD,
   TRIBES,
   FAMILY_GROUPINGS,
+  SACRAMENTS,
+  VERIFICATION_SOURCES,
   WEDDING_TYPES,
   PARTICIPATION_ITEMS,
   PARTICIPATION_LEVELS,
@@ -55,6 +57,20 @@ describe('participation survey', () => {
   test('has a label for every entry', () => {
     for (const [key, label] of [...PARTICIPATION_ITEMS, ...HELP_WAYS]) {
       assert.ok(typeof label === 'string' && label.trim(), `${key} has no label`);
+    }
+  });
+});
+
+describe('sacrament verification', () => {
+  test('uses the four keys the database accepts', () => {
+    assert.deepEqual(SACRAMENTS.map((s) => s.key), ['baptism', 'communion', 'confirmation', 'matrimony']);
+  });
+
+  test('every sacrament defaults to a source the server accepts', () => {
+    assert.equal(new Set(VERIFICATION_SOURCES).size, VERIFICATION_SOURCES.length);
+    for (const s of SACRAMENTS) {
+      assert.ok(VERIFICATION_SOURCES.includes(s.defaultSource), `${s.key} defaults to an unknown source`);
+      assert.match(s.has, /^has_/);
     }
   });
 });

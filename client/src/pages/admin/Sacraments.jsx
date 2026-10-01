@@ -1,15 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
+import SacramentVerifyDialog, { SacramentChip } from '../../components/SacramentVerifyDialog.jsx';
+import { SACRAMENTS } from '../../constants.js';
+import { useDebounced } from '../../hooks.js';
+import { groupByHousehold } from '../../lib/household.js';
 
-const YN = [['All', 'All'], ['Yes', 'Yes'], ['No', 'No']];
-
-function Tick({ yes }) {
-  return yes
-    ? <span className="text-[#2f7a52] font-bold">✓</span>
-    : <span className="text-[#d3c8ad]">—</span>;
-}
+// Filter values understood by api.listMembers for each sacrament.
+const STATUS_OPTIONS = [
+  ['All', 'Any'],
+  ['Yes', 'Claimed'],
+  ['Unverified', 'Awaiting verification'],
+  ['Verified', 'Verified'],
+  ['No', 'Not claimed'],
+];
+const DEFAULT_FILTERS = { gkk: 'All', baptism: 'All', communion: 'All', confirmation: 'All', matrimony: 'All' };
 
 export default function Sacraments() {
   const [rows, setRows] = useState([]);
@@ -17,84 +23,165 @@ export default function Sacraments() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [gkkOptions, setGkkOptions] = useState([]);
-  const [filters, setFilters] = useState({ gkk: 'All', baptism: 'All', communion: 'All', confirmation: 'All', matrimony: 'All' });
+  const [filters, setFilters] = useState(DEFAULT_FILTERS);
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search);
   const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
+  // Rows are grouped by household, so a bigger page keeps families together more often.
+  const [pageSize, setPageSize] = useState(20);
   const [openMemberId, setOpenMemberId] = useState(null);
+  const [verifying, setVerifying] = useState(null); // { member, sacrament, verification }
+  const [counts, setCounts] = useState(null);
 
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, []);
-  useEffect(() => { setPage(1); }, [filters]);
+  useEffect(() => { setPage(1); }, [filters, debouncedSearch]);
 
   // The sacrament filters are applied server-side; filtering a single page
   // client-side would make both the row list and the total incorrect.
   function reload() {
     setLoading(true);
     setError('');
-    api.listMembers({
-      gkk: filters.gkk,
-      baptism: filters.baptism,
-      communion: filters.communion,
-      confirmation: filters.confirmation,
-      matrimony: filters.matrimony,
-      page, pageSize, sortKey: 'name', sortDir: 'asc',
-    })
+    api.listMembers({ ...filters, search: debouncedSearch, page, pageSize, sortKey: 'household', sortDir: 'asc' })
       .then((res) => { setRows(res.rows); setTotal(res.total); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }
+  function reloadCounts() {
+    api.sacramentVerificationCounts({ gkk: filters.gkk }).then(setCounts).catch(() => setCounts(null));
+  }
+  function refreshAll() { reload(); reloadCounts(); }
 
-  useEffect(() => { reload(); }, [filters, page, pageSize]);
+  useEffect(() => { reload(); }, [filters, debouncedSearch, page, pageSize]);
+  useEffect(() => { reloadCounts(); }, [filters.gkk]);
+
+  const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
+  const isFiltered = !!debouncedSearch || Object.keys(DEFAULT_FILTERS).some((k) => filters[k] !== DEFAULT_FILTERS[k]);
+
+  async function openVerify(member, sacrament) {
+    let verification = null;
+    if (member[`${sacrament.key}_verified`]) {
+      try {
+        verification = (await api.getSacramentVerifications(member.id))[sacrament.key] || null;
+      } catch { /* the dialog still works; it just won't show who verified */ }
+    }
+    setVerifying({ member, sacrament, verification });
+  }
+
+  /** Show only the claims still waiting on staff for one sacrament. */
+  function showQueue(key) {
+    setFilters({ ...DEFAULT_FILTERS, gkk: filters.gkk, [key]: 'Unverified' });
+    setSearch('');
+  }
 
   return (
     <>
-      <PageHeader title="Sacraments" subtitle="Sacramental record overview" />
+      <PageHeader title="Sacraments" subtitle="Self-reported by families · verify against certificates or the parish register">
+        <SearchInput placeholder="Search name, household, contact…" aria-label="Search members" value={search} onChange={(e) => setSearch(e.target.value)} />
+      </PageHeader>
       <PageBody>
-        <div className="flex flex-wrap gap-2.5 items-center mb-4">
-          <FilterSelect value={filters.gkk} onChange={(e) => setFilters((f) => ({ ...f, gkk: e.target.value }))}>
+        {counts && (
+          <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-4 py-3.5 mb-4 shadow-cardSm">
+            <div className="font-bold text-[11.5px] tracking-[.1em] uppercase text-[var(--p-gold-deep)] mb-2">Awaiting verification</div>
+            <div className="flex flex-wrap gap-2">
+              {SACRAMENTS.map((s) => {
+                const waiting = counts[s.key].claimed - counts[s.key].verified;
+                const active = filters[s.key] === 'Unverified';
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => showQueue(s.key)}
+                    disabled={!waiting}
+                    className={`appearance-none cursor-pointer px-3 py-2 rounded-xl border-[1.5px] text-left disabled:cursor-default disabled:opacity-60 ${active ? 'border-parish-blue bg-[var(--p-blue-tint)]' : 'border-[#eee3ce] bg-white hover:border-parish-blue'}`}
+                  >
+                    <div className="text-[13px] font-semibold text-parish-navy">{s.label}</div>
+                    <div className="text-[12px] text-parish-muted">
+                      <strong className={waiting ? 'text-[#a1762b]' : 'text-parish-ok'}>{waiting}</strong> waiting · {counts[s.key].verified} of {counts[s.key].claimed} verified
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        <div className="flex flex-wrap gap-2.5 items-center mb-3">
+          <FilterSelect value={filters.gkk} onChange={(e) => setFilter('gkk', e.target.value)} aria-label="Filter by GKK">
             <option value="All">All GKKs</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </FilterSelect>
-          <FilterSelect value={filters.baptism} onChange={(e) => setFilters((f) => ({ ...f, baptism: e.target.value }))}>
-            {YN.map(([v, t]) => <option key={v} value={v}>Baptism: {t}</option>)}
-          </FilterSelect>
-          <FilterSelect value={filters.communion} onChange={(e) => setFilters((f) => ({ ...f, communion: e.target.value }))}>
-            {YN.map(([v, t]) => <option key={v} value={v}>Communion: {t}</option>)}
-          </FilterSelect>
-          <FilterSelect value={filters.confirmation} onChange={(e) => setFilters((f) => ({ ...f, confirmation: e.target.value }))}>
-            {YN.map(([v, t]) => <option key={v} value={v}>Confirmation: {t}</option>)}
-          </FilterSelect>
-          <FilterSelect value={filters.matrimony} onChange={(e) => setFilters((f) => ({ ...f, matrimony: e.target.value }))}>
-            {YN.map(([v, t]) => <option key={v} value={v}>Matrimony: {t}</option>)}
-          </FilterSelect>
+          {SACRAMENTS.map((s) => (
+            <FilterSelect key={s.key} value={filters[s.key]} onChange={(e) => setFilter(s.key, e.target.value)} aria-label={`Filter by ${s.label}`}>
+              {STATUS_OPTIONS.map(([v, t]) => <option key={v} value={v}>{s.label}: {t}</option>)}
+            </FilterSelect>
+          ))}
+          {isFiltered && (
+            <button onClick={() => { setFilters(DEFAULT_FILTERS); setSearch(''); }} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>
+          )}
           <div className="ml-auto text-[13px] text-parish-muted">{total} member(s)</div>
         </div>
 
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 mb-4 text-[12.5px] text-parish-muted">
+          <span className="flex items-center gap-1.5"><SacramentChip claimed label="Example" /> self-reported, not yet checked</span>
+          <span className="flex items-center gap-1.5"><SacramentChip claimed verified label="Example" /> confirmed by staff</span>
+          <span>Click a chip to verify or review it.</span>
+        </div>
+
         <DataTable
-          columns={[
-            { label: 'Member' }, { label: 'Baptism', align: 'center' }, { label: 'Communion', align: 'center' },
-            { label: 'Confirmation', align: 'center' }, { label: 'Matrimony', align: 'center' },
-          ]}
+          minWidth={720}
+          columns={[{ label: 'Member' }, ...SACRAMENTS.map((s) => ({ label: s.label, align: 'center' }))]}
           footer={
             <>
               {loading && <LoadingState label="Loading members…" />}
               {!loading && error && <ErrorState message={error} onRetry={reload} />}
-              {!loading && !error && !rows.length && <EmptyState title="No members match this filter" />}
+              {!loading && !error && !rows.length && (
+                isFiltered
+                  ? <EmptyState title="No members match this filter" subtitle="Try adjusting your search or filters." />
+                  : <EmptyState title="No members registered yet" />
+              )}
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
             </>
           }
         >
-          {rows.map((m) => (
+          {groupByHousehold(rows).map((g, gi) => (
+            <React.Fragment key={g.householdId}>
+              <tr className={`bg-[#f7f2e6] ${gi ? 'border-t-2 border-[#e7dcc4]' : ''}`}>
+                <th scope="colgroup" colSpan={SACRAMENTS.length + 1} className="text-left px-4 py-2">
+                  <span className="font-serif text-[16.5px] font-semibold text-parish-navy">{g.name}</span>
+                  {g.gkk && <span className="text-[12px] font-medium text-parish-muted"> · {g.gkk}</span>}
+                </th>
+              </tr>
+              {g.members.map((m) => (
             <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
-              <td className="px-4 py-2.5 font-semibold text-[14px] text-parish-navy whitespace-nowrap">{m.first_name} {m.last_name}</td>
-              <td className="text-center px-2.5 py-2.5"><Tick yes={m.has_baptism} /></td>
-              <td className="text-center px-2.5 py-2.5"><Tick yes={m.has_communion} /></td>
-              <td className="text-center px-2.5 py-2.5"><Tick yes={m.has_confirmation} /></td>
-              <td className="text-center px-2.5 py-2.5"><Tick yes={m.has_matrimony} /></td>
+              <td className="pl-7 pr-4 py-2.5">
+                <div className="font-semibold text-[14px] text-parish-navy whitespace-nowrap">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
+                <div className="text-[12px] text-parish-muted whitespace-nowrap">{m.relationship || '—'}</div>
+              </td>
+              {SACRAMENTS.map((s) => (
+                <td key={s.key} className="text-center px-2.5 py-2.5">
+                  <SacramentChip
+                    claimed={!!m[s.has]}
+                    verified={!!m[`${s.key}_verified`]}
+                    label={s.label}
+                    onClick={() => openVerify(m, s)}
+                  />
+                </td>
+              ))}
             </tr>
+              ))}
+            </React.Fragment>
           ))}
         </DataTable>
       </PageBody>
 
-      {openMemberId && <MemberDetailModal memberId={openMemberId} onClose={() => setOpenMemberId(null)} onChanged={reload} />}
+      {openMemberId && <MemberDetailModal memberId={openMemberId} onClose={() => setOpenMemberId(null)} onChanged={refreshAll} />}
+      {verifying && (
+        <SacramentVerifyDialog
+          member={verifying.member}
+          sacrament={verifying.sacrament}
+          verification={verifying.verification}
+          onClose={() => setVerifying(null)}
+          onChanged={refreshAll}
+        />
+      )}
     </>
   );
 }

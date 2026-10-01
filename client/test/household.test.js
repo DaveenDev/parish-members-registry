@@ -1,11 +1,45 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { syncSpouses } from '../src/lib/household.js';
+import { syncSpouses, groupByHousehold, groupByGkk } from '../src/lib/household.js';
 import { blankMember } from '../src/constants.js';
 
 const head = (over = {}) => ({ ...blankMember(), relationship: 'Head of Household', ...over });
 const member = (over = {}) => ({ ...blankMember(), ...over });
+
+describe('groupByHousehold', () => {
+  test('groups consecutive rows and keeps households with the same name apart', () => {
+    const rows = [
+      { id: 1, household_id: 7, household_name: 'Duran Family', household_gkk: 'GKK San Isidro' },
+      { id: 2, household_id: 7, household_name: 'Duran Family', household_gkk: 'GKK San Isidro' },
+      { id: 3, household_id: 9, household_name: 'Duran Family', household_gkk: 'GKK Sto. Niño' },
+    ];
+    const groups = groupByHousehold(rows);
+    assert.equal(groups.length, 2);
+    assert.deepEqual(groups.map((g) => g.members.map((m) => m.id)), [[1, 2], [3]]);
+    assert.equal(groups[1].gkk, 'GKK Sto. Niño');
+  });
+
+  test('returns nothing for no rows', () => {
+    assert.deepEqual(groupByHousehold([]), []);
+  });
+});
+
+describe('groupByGkk', () => {
+  test('groups consecutive rows by GKK, with no-GKK members together', () => {
+    const rows = [
+      { id: 1, household_gkk: 'GKK San Isidro' },
+      { id: 2, household_gkk: 'GKK San Isidro' },
+      { id: 3, household_gkk: 'GKK Sto. Niño' },
+      { id: 4, household_gkk: null },
+      { id: 5, household_gkk: '' },
+    ];
+    const groups = groupByGkk(rows);
+    assert.deepEqual(groups.map((g) => [g.gkk, g.members.map((m) => m.id)]), [
+      ['GKK San Isidro', [1, 2]], ['GKK Sto. Niño', [3]], [null, [4, 5]],
+    ]);
+  });
+});
 
 describe('syncSpouses', () => {
   test('a spouse takes the head\'s Married or Live-in status', () => {

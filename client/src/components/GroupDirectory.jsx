@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { PageHeader, PageBody, FilterSelect, EmptyState, ErrorState, LoadingState, Pagination, rowActivationProps } from './admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, EmptyState, ErrorState, LoadingState, Pagination, rowActivationProps } from './admin.jsx';
 import { ageFromDob } from '../constants.js';
 import { memberFullName } from '../lib/util.js';
 import { PrimaryButton, TextInput } from './ui.jsx';
@@ -20,6 +20,8 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun }
   const [tabs, setTabs] = useState([]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [gkk, setGkk] = useState('All');
+  const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounced(search);
   const [activeTab, setActiveTab] = useState('');
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
@@ -42,7 +44,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun }
   }, [gkk, refreshKey]);
 
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, []);
-  useEffect(() => { setPage(1); }, [gkk, activeTab]);
+  useEffect(() => { setPage(1); }, [gkk, activeTab, debouncedSearch]);
 
   // Roster for the active group — filtered and paginated server-side, so this
   // stays correct no matter how large the parish grows.
@@ -50,12 +52,12 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun }
     if (!activeTab) { setRows([]); setTotal(0); setLoading(false); return; }
     setLoading(true);
     setError('');
-    api.listMembers({ ministry: activeTab, groupColumn: column, gkk, page, pageSize, sortKey: 'name', sortDir: 'asc' })
+    api.listMembers({ ministry: activeTab, groupColumn: column, gkk, search: debouncedSearch, page, pageSize, sortKey: 'name', sortDir: 'asc' })
       .then((res) => { setRows(res.rows); setTotal(res.total); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }
-  useEffect(() => { reload(); }, [activeTab, gkk, page, pageSize, refreshKey]);
+  useEffect(() => { reload(); }, [activeTab, gkk, debouncedSearch, page, pageSize, refreshKey]);
 
   const refresh = () => setRefreshKey((k) => k + 1);
 
@@ -80,9 +82,10 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun }
   return (
     <>
       <PageHeader title={title} subtitle={subtitle}>
-        <FilterSelect value={gkk} onChange={(e) => setGkk(e.target.value)}>
+        <FilterSelect value={gkk} onChange={(e) => setGkk(e.target.value)} aria-label="Filter by GKK">
           <option value="All">All GKKs</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
         </FilterSelect>
+        <SearchInput placeholder={`Search this ${noun}'s members…`} aria-label="Search members" value={search} onChange={(e) => setSearch(e.target.value)} />
       </PageHeader>
       <PageBody>
         {!tabs.length && <EmptyState title={`No ${title.toLowerCase()} match this filter`} />}
@@ -157,7 +160,11 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun }
               </div>
               {loading && <LoadingState label="Loading roster…" />}
               {!loading && error && <ErrorState message={error} onRetry={reload} />}
-              {!loading && !error && !rows.length && <EmptyState title="No members in this group yet" subtitle={`Use “Add member” to put someone on this ${noun}'s roster.`} />}
+              {!loading && !error && !rows.length && (
+                debouncedSearch
+                  ? <EmptyState title={`No members match “${debouncedSearch}”`} subtitle="Try a different name, household, or contact number." />
+                  : <EmptyState title="No members in this group yet" subtitle={`Use “Add member” to put someone on this ${noun}'s roster.`} />
+              )}
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
             </div>
           </>

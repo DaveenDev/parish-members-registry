@@ -1,5 +1,35 @@
 import { PARTNERED_STATUSES } from '../constants.js';
 
+/**
+ * Group member rows (from members_with_household, already sorted by
+ * household) into consecutive runs: [{ householdId, name, gkk, members }].
+ */
+export function groupByHousehold(rows) {
+  const groups = [];
+  for (const m of rows) {
+    const last = groups[groups.length - 1];
+    if (last && last.householdId === m.household_id) last.members.push(m);
+    else groups.push({ householdId: m.household_id, name: m.household_name, gkk: m.household_gkk, members: [m] });
+  }
+  return groups;
+}
+
+/**
+ * Group member rows (already sorted by GKK) into consecutive runs:
+ * [{ gkk, members }]. Members whose household has no GKK share one group
+ * with gkk = null.
+ */
+export function groupByGkk(rows) {
+  const groups = [];
+  for (const m of rows) {
+    const gkk = m.household_gkk || null;
+    const last = groups[groups.length - 1];
+    if (last && last.gkk === gkk) last.members.push(m);
+    else groups.push({ gkk, members: [m] });
+  }
+  return groups;
+}
+
 export const WEDDING_FIELDS = ['matType', 'hasMatrimony', 'matDate', 'matChurch'];
 
 /**

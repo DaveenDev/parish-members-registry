@@ -1,4 +1,5 @@
 import React from 'react';
+import { pageWindow } from '../lib/paging.js';
 
 export function PageHeader({ title, subtitle, children }) {
   return (
@@ -117,12 +118,14 @@ export function EmptyState({ title, subtitle }) {
 }
 
 export function Pagination({ page, pageSize, total, onPage, onPageSize }) {
-  if (total <= pageSize) return null;
+  // Hide only when everything fits on the smallest page size; otherwise keep
+  // the size picker reachable even if the current size shows it all.
+  if (total <= Math.min(pageSize, 10)) return null;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);
-  const buttons = [];
-  for (let i = 1; i <= pageCount; i++) buttons.push(i);
+  // 1 … 4 5 [6] 7 8 … 60 rather than a button for every page.
+  const buttons = pageWindow(page, pageCount);
 
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-t border-[#f1e8d5] flex-wrap">
@@ -134,9 +137,13 @@ export function Pagination({ page, pageSize, total, onPage, onPageSize }) {
       </div>
       <div className="flex items-center gap-1.5">
         <button onClick={() => onPage(Math.max(1, page - 1))} disabled={page === 1} className="appearance-none cursor-pointer px-3 py-1.5 rounded-lg border-[1.5px] border-parish-borderSoft font-semibold text-[13px] bg-white disabled:opacity-50">Prev</button>
-        {buttons.map((n) => (
+        {buttons.map((n, i) => n === 'gap' ? (
+          <span key={`gap-${i}`} className="px-1 text-parish-muted" aria-hidden>…</span>
+        ) : (
           <button
             key={n} onClick={() => onPage(n)}
+            aria-label={`Page ${n}`}
+            aria-current={n === page ? 'page' : undefined}
             className="appearance-none cursor-pointer min-w-[34px] px-2.5 py-1.5 rounded-lg font-semibold text-[13px] border-[1.5px]"
             style={{ borderColor: n === page ? 'var(--p-blue)' : '#e0d6c1', background: n === page ? 'var(--p-blue)' : '#fff', color: n === page ? '#fff' : '#17263f' }}
           >

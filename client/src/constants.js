@@ -14,6 +14,21 @@ export const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
 export const HEAD = 'Head of Household';
 
+// Sacraments and the member columns that hold each claim. `key` is what
+// sacrament_verifications.sacrament stores (0005 migration).
+export const SACRAMENTS = [
+  { key: 'baptism', label: 'Baptism', has: 'has_baptism', date: 'baptism_date', church: 'baptism_church', defaultSource: 'Baptismal certificate' },
+  { key: 'communion', label: 'First Communion', has: 'has_communion', date: 'communion_date', church: 'communion_church', defaultSource: 'First Communion certificate' },
+  { key: 'confirmation', label: 'Confirmation', has: 'has_confirmation', date: 'conf_date', church: 'conf_church', defaultSource: 'Confirmation certificate' },
+  { key: 'matrimony', label: 'Matrimony', has: 'has_matrimony', date: 'mat_date', church: 'mat_church', defaultSource: 'Marriage contract / certificate' },
+];
+
+// Keep in sync with sacrament_verification_sources() in the 0005 migration.
+export const VERIFICATION_SOURCES = [
+  'Baptismal certificate', 'First Communion certificate', 'Confirmation certificate',
+  'Marriage contract / certificate', 'Parish register entry', 'Other document',
+];
+
 export const FAMILY_GROUPINGS = Array.from({ length: 10 }, (_, i) => `FG ${i + 1}`);
 
 // Tribe pick-list (members.tribe stays free text, so "Other…" can hold anything else).

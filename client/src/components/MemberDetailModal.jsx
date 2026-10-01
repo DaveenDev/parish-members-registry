@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, ageFromDob } from '../constants.js';
+import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, ageFromDob } from '../constants.js';
+import SacramentVerifyDialog, { SacramentChip } from './SacramentVerifyDialog.jsx';
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -14,23 +15,50 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   const [orgList, setOrgList] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [saved, setSaved] = useState(null); // the member as stored, before any unsaved edits
+  const [verifications, setVerifications] = useState({});
+  const [verifying, setVerifying] = useState(null); // a SACRAMENTS entry while its dialog is open
+
+  function loadVerifications() {
+    api.getSacramentVerifications(memberId).then(setVerifications).catch(() => setVerifications({}));
+  }
 
   useEffect(() => {
     if (!memberId) return;
     setMember(null);
-    api.getMember(memberId).then((res) => setMember(res.member)).catch((e) => setError(e.message));
+    api.getMember(memberId).then((res) => { setMember(res.member); setSaved(res.member); }).catch((e) => setError(e.message));
     api.listMinistries().then((res) => setMinistryList(res.rows.map((r) => r.name))).catch(() => {});
     api.listOrganizations().then((res) => setOrgList(res.rows.map((r) => r.name))).catch(() => {});
+    loadVerifications();
   }, [memberId]);
 
   useEffect(() => {
     if (!memberId) return;
-    const onKey = (e) => e.key === 'Escape' && onClose();
+    // Escape belongs to the verify dialog while it's open on top of this one.
+    const onKey = (e) => e.key === 'Escape' && !verifying && onClose();
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
-  }, [memberId, onClose]);
+  }, [memberId, onClose, verifying]);
 
   if (!memberId) return null;
+
+  /**
+   * Verification status shown beside a sacrament. Staff can only verify a
+   * claim that's already saved, and unticking a verified one warns that
+   * saving drops the verification (the 0005 trigger removes it).
+   */
+  function verifyStatus(key) {
+    const s = SACRAMENTS.find((x) => x.key === key);
+    const savedClaim = !!saved?.[s.has];
+    const verified = !!verifications[key];
+    if (!member[s.has]) {
+      return savedClaim && verified
+        ? <span className="text-[12px] font-semibold text-[#a1762b]">Saving will remove its verification</span>
+        : null;
+    }
+    if (!savedClaim) return <span className="text-[12px] text-parish-muted">Save first, then verify</span>;
+    return <SacramentChip claimed verified={verified} label={s.label} onClick={() => setVerifying(s)} />;
+  }
 
   function set(field, value) {
     setMember((m) => ({ ...m, [field]: value }));
@@ -150,7 +178,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
 
             <SectionLabel>Sacraments received</SectionLabel>
             <div className="flex flex-col gap-2.5 mb-5">
-              <SacRow label="Baptism" checked={member.has_baptism} onCheck={(v) => set('has_baptism', v)}>
+              <SacRow label="Baptism" status={verifyStatus('baptism')} checked={member.has_baptism} onCheck={(v) => set('has_baptism', v)}>
                 {member.has_baptism && (
                   <>
                     <TextInput type="date" value={member.baptism_date ? String(member.baptism_date).slice(0, 10) : ''} onChange={(e) => set('baptism_date', e.target.value)} />
@@ -158,7 +186,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                   </>
                 )}
               </SacRow>
-              <SacRow label="First Communion" checked={member.has_communion} onCheck={(v) => set('has_communion', v)}>
+              <SacRow label="First Communion" status={verifyStatus('communion')} checked={member.has_communion} onCheck={(v) => set('has_communion', v)}>
                 {member.has_communion && (
                   <>
                     <TextInput type="date" value={member.communion_date ? String(member.communion_date).slice(0, 10) : ''} onChange={(e) => set('communion_date', e.target.value)} />
@@ -166,7 +194,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                   </>
                 )}
               </SacRow>
-              <SacRow label="Confirmation" checked={member.has_confirmation} onCheck={(v) => set('has_confirmation', v)}>
+              <SacRow label="Confirmation" status={verifyStatus('confirmation')} checked={member.has_confirmation} onCheck={(v) => set('has_confirmation', v)}>
                 {member.has_confirmation && (
                   <>
                     <TextInput type="date" value={member.conf_date ? String(member.conf_date).slice(0, 10) : ''} onChange={(e) => set('conf_date', e.target.value)} />
@@ -176,7 +204,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                   </>
                 )}
               </SacRow>
-              <SacRow label="Matrimony" checked={member.has_matrimony} onCheck={(v) => set('has_matrimony', v)}>
+              <SacRow label="Matrimony" status={verifyStatus('matrimony')} checked={member.has_matrimony} onCheck={(v) => set('has_matrimony', v)}>
                 {member.has_matrimony && (
                   <>
                     <TextInput type="date" value={member.mat_date ? String(member.mat_date).slice(0, 10) : ''} onChange={(e) => set('mat_date', e.target.value)} />
@@ -206,6 +234,15 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
           </div>
         )}
       </div>
+      {verifying && saved && (
+        <SacramentVerifyDialog
+          member={saved}
+          sacrament={verifying}
+          verification={verifications[verifying.key] || null}
+          onClose={() => setVerifying(null)}
+          onChanged={() => { loadVerifications(); onChanged && onChanged(); }}
+        />
+      )}
     </div>
   );
 }
@@ -219,13 +256,16 @@ function SectionLabel({ children }) {
   );
 }
 
-function SacRow({ label, checked, onCheck, children }) {
+function SacRow({ label, checked, onCheck, status, children }) {
   return (
     <div className="border border-[#eee3ce] rounded-xl px-3.5 py-3 bg-[#fdfbf6]">
-      <label className="flex items-center gap-2.5 cursor-pointer">
-        <Checkbox checked={!!checked} onChange={(e) => onCheck(e.target.checked)} />
-        <span className="font-semibold text-[14px] text-parish-navy">{label}</span>
-      </label>
+      <div className="flex items-center justify-between gap-2.5 flex-wrap">
+        <label className="flex items-center gap-2.5 cursor-pointer">
+          <Checkbox checked={!!checked} onChange={(e) => onCheck(e.target.checked)} />
+          <span className="font-semibold text-[14px] text-parish-navy">{label}</span>
+        </label>
+        {status}
+      </div>
       {children && <div className="grid gap-2.5 mt-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>{children}</div>}
     </div>
   );

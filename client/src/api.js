@@ -3,7 +3,7 @@
 // the admin pages and the public registration wizard already call, so this
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
-import { ageFromDob, PARTICIPATION_ITEMS, HELP_WAYS } from './constants.js';
+import { ageFromDob, PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS } from './constants.js';
 import { initials, memberFullName } from './lib/util.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
 
@@ -100,6 +100,12 @@ export const api = {
     if (error) throw mapError(error, { fallback: 'Household not found' });
     const { data: members, error: mErr } = await supabase.from('members').select('*').eq('household_id', id).order('id');
     if (mErr) throw mapError(mErr);
+    // Attach staff verifications ({ baptism: true, … }) for the print sheet.
+    // Before the 0005 migration the table doesn't exist; just skip it.
+    const { data: checks } = await supabase.from('sacrament_verifications').select('member_id, sacrament').in('member_id', members.map((m) => m.id));
+    for (const m of members) {
+      m.verified = Object.fromEntries((checks || []).filter((c) => c.member_id === m.id).map((c) => [c.sacrament, true]));
+    }
     return { household, members };
   },
 
@@ -147,6 +153,8 @@ export const api = {
       age = 'All', blood = 'All', gkk = 'All', search = '',
       baptism = 'All', communion = 'All', confirmation = 'All', matrimony = 'All',
       sortKey = 'name', sortDir = 'asc', groupColumn,
+      groupBy, // 'gkk': rows come out GKK by GKK, with the chosen sort inside each
+      memberOrder = 'id', // within a household: 'id' (head first) or 'name'
     } = params;
     const { page, pageSize, from, to } = clampPaging(params);
 
@@ -160,10 +168,15 @@ export const api = {
     if (gkk !== 'All') q = q.eq('household_gkk', gkk);
     if (sacrament !== 'All' && SACRAMENT_COLUMNS[sacrament]) q = q.eq(SACRAMENT_COLUMNS[sacrament], true);
 
+    // Per-sacrament filters: Yes (claimed) / No / Unverified (claimed, not yet
+    // checked by staff) / Verified. The *_verified flags come from the view.
     for (const [key, value] of Object.entries({ baptism, communion, confirmation, matrimony })) {
       if (value === 'All') continue;
       const col = SACRAMENT_COLUMNS[key[0].toUpperCase() + key.slice(1)];
-      if (col) q = q.eq(col, value === 'Yes');
+      if (!col) continue;
+      if (value === 'Verified') q = q.eq(`${key}_verified`, true);
+      else if (value === 'Unverified') q = q.eq(col, true).eq(`${key}_verified`, false);
+      else q = q.eq(col, value === 'Yes');
     }
 
     if (ministry !== 'All' && GROUP_COLUMNS.includes(groupColumn)) {
@@ -189,8 +202,16 @@ export const api = {
 
     const ascending = sortDir !== 'desc';
     const sortCol = { name: 'first_name', household: 'household_name', age: 'age', status: 'household_status' }[sortKey] || 'first_name';
+    // Members without a GKK sort last, under their own "No GKK" heading.
+    if (groupBy === 'gkk') q = q.order('household_gkk', { ascending: true, nullsFirst: false });
     q = q.order(sortCol, { ascending, nullsFirst: false });
     if (sortKey === 'name') q = q.order('last_name', { ascending });
+    // Keep each household's members together even when two share a name;
+    // within a household, id order puts the head (entered first) on top.
+    if (sortKey === 'household') {
+      q = q.order('household_id', { ascending });
+      if (memberOrder === 'name') q = q.order('first_name', { ascending: true }).order('last_name', { ascending: true });
+    }
     q = q.order('id', { ascending: true }).range(from, to);
 
     const { data, error, count } = await q;
@@ -214,6 +235,47 @@ export const api = {
     const { error } = await supabase.from('members').delete().eq('id', id);
     if (error) throw mapError(error);
     return null;
+  },
+
+  // ---- sacrament verification (admin) --------------------------------
+  /** Staff verifications for one member, keyed by sacrament ('baptism', …). */
+  async getSacramentVerifications(memberId) {
+    const { data, error } = await supabase.from('sacrament_verifications').select('*').eq('member_id', memberId);
+    if (error) throw mapError(error);
+    return Object.fromEntries((data || []).map((v) => [v.sacrament, v]));
+  },
+
+  async verifySacrament(memberId, sacrament, source, reference) {
+    const { data, error } = await supabase.rpc('verify_sacrament', {
+      p_member_id: memberId, p_sacrament: sacrament, p_source: source, p_reference: reference || null,
+    });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async unverifySacrament(memberId, sacrament) {
+    const { error } = await supabase.rpc('unverify_sacrament', { p_member_id: memberId, p_sacrament: sacrament });
+    if (error) throw mapError(error);
+    return null;
+  },
+
+  /** { baptism: { claimed, verified }, … } — count-only queries, no rows downloaded. */
+  async sacramentVerificationCounts({ gkk = 'All' } = {}) {
+    const count = async (filter) => {
+      let q = supabase.from('members_with_household').select('id', { count: 'exact', head: true });
+      if (gkk !== 'All') q = q.eq('household_gkk', gkk);
+      const { count: n, error } = await filter(q);
+      if (error) throw mapError(error);
+      return n || 0;
+    };
+    const entries = await Promise.all(SACRAMENTS.map(async (s) => {
+      const [claimed, verified] = await Promise.all([
+        count((q) => q.eq(s.has, true)),
+        count((q) => q.eq(`${s.key}_verified`, true)),
+      ]);
+      return [s.key, { claimed, verified }];
+    }));
+    return Object.fromEntries(entries);
   },
 
   // ---- ministry / organization membership (admin) -------------------
@@ -546,6 +608,7 @@ export async function downloadWithAuth(path, filename) {
         { label: 'Confirmation', value: (r) => (r.has_confirmation ? 'Yes' : 'No') },
         { label: 'Matrimony', value: (r) => (r.has_matrimony ? 'Yes' : 'No') },
         { label: 'Wedding Type', value: 'mat_type' },
+        ...SACRAMENTS.map((s) => ({ label: `${s.label} Verified`, value: (r) => (r[`${s.key}_verified`] ? 'Yes' : 'No') })),
         { label: 'GKK Responsibility', value: 'gkk_role' },
         { label: 'Ministries', value: (r) => (r.ministries || []).join('; ') },
         { label: 'Organizations', value: (r) => (r.organizations || []).join('; ') },
