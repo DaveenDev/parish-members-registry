@@ -19,20 +19,15 @@ export const NAV_GROUPS = [
       { to: '/admin/members', label: 'Members', need: 'registry' },
       { to: '/admin/sacraments', label: 'Sacraments', need: 'registry', badge: 'sacraments', badgeLabel: 'claims to verify' },
       { to: '/admin/census', label: 'Census', need: 'census', badge: 'census', badgeLabel: 'online updates to review' },
+      { to: '/admin/blood', label: 'Blood Types', need: 'registry' },
     ],
   },
   {
     label: 'Parish life',
     items: [
+      { to: '/admin/requests', label: 'Requests', need: 'requests', badge: 'requests', badgeLabel: 'waiting' },
       { to: '/admin/ministries', label: 'Ministry rosters', need: 'registry' },
       { to: '/admin/organizations', label: 'Organization rosters', need: 'registry' },
-    ],
-  },
-  {
-    label: 'Outreach',
-    items: [
-      { to: '/admin/requests', label: 'Requests', need: 'requests', badge: 'requests', badgeLabel: 'waiting' },
-      { to: '/admin/blood', label: 'Blood Types', need: 'registry' },
     ],
   },
   {
