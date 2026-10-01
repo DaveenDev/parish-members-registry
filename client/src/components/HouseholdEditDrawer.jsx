@@ -10,6 +10,9 @@ import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
+import { useAuth } from '../AuthContext.jsx';
+import { can } from '../lib/access.js';
+import ActivityList from './ActivityList.jsx';
 
 const REQUIRED = [
   ['household_name', 'Family (household) name'],
@@ -47,6 +50,8 @@ const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' };
 export default function HouseholdEditDrawer({ household, gkkOptions = [], onClose, onSaved, onMembersChanged }) {
   const toast = useToast();
   const confirm = useConfirm();
+  const { user } = useAuth();
+  const [historyKey, setHistoryKey] = useState(0);
   const titleId = useId();
   const initial = useRef(formFrom(household));
   const [form, setForm] = useState(initial.current);
@@ -113,6 +118,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
     try {
       await api.updateHousehold(household.id, form);
       toast.success('Household updated');
+      setHistoryKey((k) => k + 1);
       initial.current = form;
       onSaved();
     } catch (e) {
@@ -124,6 +130,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
 
   function membersChanged() {
     loadMembers();
+    setHistoryKey((k) => k + 1);
     onMembersChanged && onMembersChanged();
   }
 
@@ -137,15 +144,22 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
     const ok = await confirm({
       title: `Remove ${name}?`,
       message: isHead
-        ? `${name} is the Household Head. After removing them, edit another member and set their relationship to "${HEAD}". This permanently deletes their record, including sacraments.`
-        : 'This permanently deletes the member record, including their sacramental details. This cannot be undone.',
+        ? `${name} is the Household Head. After removing them, edit another member and set their relationship to "${HEAD}". Their record moves to the Trash, where it can be restored for 30 days.`
+        : 'The member record moves to the Trash, where it can be restored for 30 days.',
       confirmLabel: 'Remove member',
       tone: 'danger',
     });
     if (!ok) return;
     try {
-      await api.deleteMember(m.id);
-      toast.success(`${name} removed`);
+      const trashId = await api.deleteMember(m.id);
+      toast.success(`${name} moved to the trash`, trashId ? {
+        action: {
+          label: 'Undo',
+          onClick: () => api.restoreDeleted(trashId)
+            .then(() => { toast.success(`${name} restored`); membersChanged(); })
+            .catch((e) => toast.error(e.message || 'Could not restore')),
+        },
+      } : undefined);
       membersChanged();
     } catch (e) {
       toast.error(e.message || 'Could not remove this member');
@@ -266,6 +280,17 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
               />
             )}
           </div>
+
+          {can(user, 'activity') && (
+            <details className="group">
+              <summary className="cursor-pointer list-none flex items-center gap-2.5 mb-3">
+                <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">History</span>
+                <span className="text-[12px] text-parish-muted group-open:hidden">Changes to this household and its members</span>
+                <span className="flex-1 h-px bg-[#f0e8d6]" />
+              </summary>
+              <ActivityList householdId={household.id} reloadKey={historyKey} />
+            </details>
+          )}
         </div>
 
         <footer className="flex items-center gap-2.5 justify-end px-5 sm:px-7 py-3.5 border-t border-[#f0e8d6] bg-[#fffdf8]">

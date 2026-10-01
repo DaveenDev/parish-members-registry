@@ -8,6 +8,9 @@ import { useConfirm } from './ConfirmDialog.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
 import { STATUS_TONES } from '../lib/census.js';
+import { useAuth } from '../AuthContext.jsx';
+import { can } from '../lib/access.js';
+import ActivityList from './ActivityList.jsx';
 
 // Stored columns for the wedding the Household Head and a married Spouse share.
 const WEDDING_COLUMNS = ['has_matrimony', 'mat_date', 'mat_church', 'mat_type'];
@@ -16,6 +19,8 @@ const wedding = (m) => Object.fromEntries(WEDDING_COLUMNS.map((c) => [c, c === '
 export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   const toast = useToast();
   const confirm = useConfirm();
+  const { user } = useAuth();
+  const canEdit = can(user, 'editRegistry');
   const [member, setMember] = useState(null);
   const [ministryList, setMinistryList] = useState([]);
   const [orgList, setOrgList] = useState([]);
@@ -139,7 +144,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
     const name = [member?.first_name, member?.last_name].filter(Boolean).join(' ') || 'this member';
     const ok = await confirm({
       title: `Remove ${name}?`,
-      message: 'This permanently deletes the member record, including their sacramental details. This cannot be undone.',
+      message: 'The member record moves to the Trash, where it can be restored for 30 days.',
       confirmLabel: 'Remove member',
       tone: 'danger',
     });
@@ -147,8 +152,15 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
 
     setSaving(true);
     try {
-      await api.deleteMember(memberId);
-      toast.success('Member removed');
+      const trashId = await api.deleteMember(memberId);
+      toast.success(`${name} moved to the trash`, trashId ? {
+        action: {
+          label: 'Undo',
+          onClick: () => api.restoreDeleted(trashId)
+            .then(() => { toast.success(`${name} restored`); onChanged && onChanged(); })
+            .catch((e) => toast.error(e.message || 'Could not restore')),
+        },
+      } : undefined);
       onChanged && onChanged();
       onClose();
     } catch (e) {
@@ -286,11 +298,25 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
             <SectionLabel>Organizations</SectionLabel>
             <GroupChecks options={orgList} selected={member.organizations || []} onToggle={(name) => toggleGroup('organizations', name)} />
 
-            <div className="flex items-center justify-between gap-2.5 mt-[26px]" style={{ marginTop: '28px' }}>
-              <button onClick={remove} disabled={saving} className="appearance-none border-none bg-parish-errorBg text-parish-error cursor-pointer font-semibold text-[13px] px-4 py-2.5 rounded-lg">Delete member</button>
-              <div className="flex gap-2.5">
-                <GhostButton onClick={onClose} className="px-5 py-2.5 text-[14px]">Cancel</GhostButton>
-                <PrimaryButton onClick={save} disabled={saving} className="px-6 py-2.5 text-[14px]">{saving ? 'Saving…' : 'Save changes'}</PrimaryButton>
+            {can(user, 'activity') && (
+              <details className="mt-1 group">
+                <summary className="cursor-pointer list-none flex items-center gap-2.5 mb-2.5">
+                  <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">History</span>
+                  <span className="text-[12px] text-parish-muted group-open:hidden">Show who changed this record</span>
+                  <span className="flex-1 h-px bg-[#f0e8d6]" />
+                </summary>
+                <ActivityList memberId={memberId} />
+              </details>
+            )}
+
+            <div className="flex items-center justify-between gap-2.5 mt-[26px] flex-wrap" style={{ marginTop: '28px' }}>
+              {can(user, 'deleteRecords')
+                ? <button onClick={remove} disabled={saving} className="appearance-none border-none bg-parish-errorBg text-parish-error cursor-pointer font-semibold text-[13px] px-4 py-2.5 rounded-lg">Delete member</button>
+                : <span />}
+              <div className="flex gap-2.5 items-center">
+                {!canEdit && <span className="text-[12.5px] text-parish-muted">View only</span>}
+                <GhostButton onClick={onClose} className="px-5 py-2.5 text-[14px]">{canEdit ? 'Cancel' : 'Close'}</GhostButton>
+                {canEdit && <PrimaryButton onClick={save} disabled={saving} className="px-6 py-2.5 text-[14px]">{saving ? 'Saving…' : 'Save changes'}</PrimaryButton>}
               </div>
             </div>
           </div>

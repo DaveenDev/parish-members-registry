@@ -38,6 +38,17 @@ async function fetchAll(build) {
   return data;
 }
 
+/** True when a Postgres function doesn't exist yet (its migration hasn't been run). */
+function isMissingFunction(error) {
+  return error?.code === 'PGRST202' || error?.code === '42883';
+}
+
+/** A missing table is a migration that hasn't been run; say which one. */
+function migrationError(error, table) {
+  if (error?.code === '42P01' || error?.code === 'PGRST205') return new Error(`Run the 0014_roles_activity_trash.sql migration in Supabase to use this page (${table} is missing)`);
+  return mapError(error);
+}
+
 function cleanPatch(patch) {
   const out = {};
   for (const [key, value] of Object.entries(patch || {})) out[key] = value === '' ? null : value;
@@ -185,9 +196,16 @@ export const api = {
     return { household: data };
   },
 
+  /**
+   * Move a household (and its members) to the trash. Resolves to the trash
+   * entry's id, for Undo, or null before 0014, when it's deleted outright.
+   */
   async deleteHousehold(id) {
-    const { error } = await supabase.from('households').delete().eq('id', id);
-    if (error) throw mapError(error);
+    const { data, error } = await supabase.rpc('trash_household', { p_id: id });
+    if (!error) return data;
+    if (!isMissingFunction(error)) throw mapError(error);
+    const { error: delError } = await supabase.from('households').delete().eq('id', id);
+    if (delError) throw mapError(delError);
     return null;
   },
 
@@ -290,10 +308,93 @@ export const api = {
     return { member: data };
   },
 
+  /** Move a member to the trash; like deleteHousehold. */
   async deleteMember(id) {
-    const { error } = await supabase.from('members').delete().eq('id', id);
-    if (error) throw mapError(error);
+    const { data, error } = await supabase.rpc('trash_member', { p_id: id });
+    if (!error) return data;
+    if (!isMissingFunction(error)) throw mapError(error);
+    const { error: delError } = await supabase.from('members').delete().eq('id', id);
+    if (delError) throw mapError(delError);
     return null;
+  },
+
+  // ---- trash and activity log (0014 migration) -------------------------
+  async listTrash() {
+    const { data, error } = await supabase.from('deleted_records')
+      .select('id, kind, record_id, label, detail, deleted_at, deleted_by_name')
+      .order('deleted_at', { ascending: false }).limit(500);
+    if (error) throw migrationError(error, 'deleted_records');
+    return { rows: data || [] };
+  },
+  /** Put a trash entry back. Resolves to { kind, record_id, household_id }. */
+  async restoreDeleted(id) {
+    const { data, error } = await supabase.rpc('restore_deleted', { p_id: id });
+    if (error) throw mapError(error);
+    return data;
+  },
+  async purgeDeleted(id) {
+    const { error } = await supabase.rpc('purge_deleted', { p_id: id });
+    if (error) throw mapError(error);
+  },
+
+  /**
+   * Activity log entries, newest first. Narrow with householdId, memberId,
+   * table ('households' | 'members' | 'sacrament_verifications'), actor
+   * (a staff name, or 'online' for the family's own changes) and search
+   * (the household or member name).
+   */
+  async listActivity({ householdId, memberId, table, actor, search, page = 1, pageSize = 20 } = {}) {
+    const p = clampPaging({ page, pageSize });
+    let q = supabase.from('activity_log').select('*', { count: 'exact' });
+    if (householdId) q = q.eq('household_id', householdId);
+    if (memberId) q = q.eq('member_id', memberId);
+    if (table && table !== 'All') q = q.eq('table_name', table);
+    if (actor === 'online') q = q.is('actor_name', null);
+    else if (actor && actor !== 'All') q = q.eq('actor_name', actor);
+    if (search && search.trim()) q = q.ilike('label', `%${search.trim().replace(/[%_,()]/g, ' ')}%`);
+    const { data, error, count } = await q.order('at', { ascending: false }).order('id', { ascending: false }).range(p.from, p.to);
+    if (error) throw migrationError(error, 'activity_log');
+    return { rows: data || [], total: count || 0, page: p.page, pageSize: p.pageSize };
+  },
+
+  /**
+   * Requests whose reference number or names match `text`, a few of each
+   * kind, for the quick search: [{ kind, id, ref_no, title, status }].
+   */
+  async searchRequests(text) {
+    const t = String(text || '').trim().replace(/[%_,()]/g, ' ');
+    if (t.length < 2) return [];
+    const like = `%${t}%`;
+    const kinds = [
+      ['certificates', 'certificate_requests', 'id, ref_no, status, subject_first_name, subject_last_name, requester_name',
+        `ref_no.ilike.${like},subject_first_name.ilike.${like},subject_last_name.ilike.${like},requester_name.ilike.${like}`,
+        (r) => `${r.subject_first_name} ${r.subject_last_name}`],
+      ['prayers', 'prayer_requests', 'id, ref_no, status, for_name, requester_name, intention_type',
+        `ref_no.ilike.${like},for_name.ilike.${like},requester_name.ilike.${like}`,
+        (r) => r.for_name || r.intention_type],
+      ['blood', 'blood_requests', 'id, ref_no, status, patient_name, blood_type',
+        `ref_no.ilike.${like},patient_name.ilike.${like}`,
+        (r) => `${r.patient_name} (${r.blood_type})`],
+    ];
+    const results = await Promise.all(kinds.map(async ([kind, table, cols, filter, title]) => {
+      const { data, error } = await supabase.from(table).select(cols).or(filter).order('created_at', { ascending: false }).limit(4);
+      if (error) return [];
+      return (data || []).map((r) => ({ kind, id: r.id, ref_no: r.ref_no, status: r.status, title: title(r) }));
+    }));
+    return results.flat();
+  },
+
+  /** What's waiting for staff, for the sidebar badges. */
+  async navCounts() {
+    const { data, error } = await supabase.rpc('admin_nav_counts');
+    if (!error) return data;
+    if (!isMissingFunction(error)) throw mapError(error);
+    // Before 0014: pending households and the request queues only.
+    const [pending, requests] = await Promise.all([
+      supabase.from('households').select('id', { count: 'exact', head: true }).eq('status', 'Pending'),
+      api.requestInboxCounts().catch(() => null),
+    ]);
+    return { pending_households: pending.count || 0, requests };
   },
 
   // ---- sacrament verification (admin) --------------------------------
@@ -341,8 +442,8 @@ export const api = {
   // Runs in the manage-staff Edge Function, which holds the service-role key.
   staff: {
     list: () => callStaffFunction({ action: 'list' }).then((r) => r.staff || []),
-    create: ({ name, email, role, isAdmin, password }) => callStaffFunction({ action: 'create', name, email, role, is_admin: !!isAdmin, password }),
-    update: (id, { name, role, isAdmin }) => callStaffFunction({ action: 'update', id, name, role, is_admin: !!isAdmin }),
+    create: ({ name, email, role, isAdmin, access, accessGkk, password }) => callStaffFunction({ action: 'create', name, email, role, is_admin: !!isAdmin, access, access_gkk: accessGkk, password }),
+    update: (id, { name, role, isAdmin, access, accessGkk }) => callStaffFunction({ action: 'update', id, name, role, is_admin: !!isAdmin, access, access_gkk: accessGkk }),
     resetPassword: (id, password) => callStaffFunction({ action: 'reset_password', id, password }),
     setDisabled: (id, disabled) => callStaffFunction({ action: disabled ? 'disable' : 'enable', id }),
   },
