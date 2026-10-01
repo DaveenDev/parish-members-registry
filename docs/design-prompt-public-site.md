@@ -168,5 +168,114 @@ The admin panel already exists (attached `Admin Panel.dc.html`): dark themed sid
 2. Admin: Website content editor (Mass schedule + Announcement), Requests inbox + detail drawer, Blood call matching.
 3. For every data-driven component, show **loading, empty, "fewer than 5", and error** states.
 4. A short component inventory: nav, stat card, schedule row, progress bar, person card (opted-in), status chip, request form step, banner.
-5. Check every screen in at least two themes (Gold & Navy and one other, e.g. Emerald & Champagne) to prove the accent variables are used correctly.
+5. Check every screen in at least two themes (Gold & Navy and Emerald & Champagne; values in Appendix A) to prove the accent variables are used correctly.
 6. Accessibility: WCAG AA contrast on parchment, visible focus rings, labels on every input, no information conveyed by colour alone.
+
+---
+
+## Appendix A: Theme palettes
+
+Every theme sets the same nine CSS variables. Design with **Gold & Navy** and check with **Emerald & Champagne**; the other six are listed so you can spot-check.
+
+| Variable | Used for | Gold & Navy (default) | Emerald & Champagne (second) |
+|---|---|---|---|
+| `--p-blue` | primary buttons, links, stat numbers | `#34589c` | `#1f6d4c` |
+| `--p-blue-deep` | button hover/pressed, strong headings | `#26436f` | `#155038` |
+| `--p-blue-light` | secondary accents, chart fills | `#4a71b8` | `#3f9c74` |
+| `--p-navy` | page titles, darkest brand text | `#1a2b4a` | `#123726` |
+| `--p-gold` | cross/logo, highlights, badges | `#c39b4e` | `#c2a45a` |
+| `--p-gold-light` | soft highlights, celebration accents | `#e4c06a` | `#e6c97e` |
+| `--p-gold-deep` | eyebrow labels (gold text on parchment) | `#a98a3f` | `#96793a` |
+| `--p-sidebar-a` | admin sidebar gradient top | `#20406b` | `#12432f` |
+| `--p-sidebar-b` | admin sidebar gradient bottom | `#152c4c` | `#0c2e20` |
+
+Derived tints (computed from the theme, so they follow it automatically):
+- `--p-blue-tint` = 9% `--p-blue` mixed into white (selected rows, soft panels)
+- `--p-blue-tint-strong` = 16% `--p-blue` into white
+- `--p-blue-border` = 40% `--p-blue` into white
+- `--p-gold-tint` = 14% `--p-gold` into white
+
+Other themes (`--p-blue` / `--p-blue-deep` / `--p-blue-light` / `--p-navy` / `--p-gold` / `--p-gold-light` / `--p-gold-deep` / `--p-sidebar-a` / `--p-sidebar-b`):
+
+| Theme | Values |
+|---|---|
+| Burgundy & Champagne | `#7a2e3a` `#5c2029` `#a85361` `#3a151b` `#c9a45c` `#e8c886` `#a17d3d` `#5c1d27` `#3a121a` |
+| Royal Purple & Gold | `#5b3a8a` `#402768` `#8163b3` `#2c1a4d` `#c9a24c` `#e8c977` `#a17c34` `#3f2668` `#28174a` |
+| Ocean Teal & Sand | `#14707a` `#0d525a` `#3f97a1` `#0c3a40` `#c79a5a` `#e6c185` `#9c7638` `#0d525a` `#083a40` |
+| Terracotta & Sage | `#b0563a` `#8a3f28` `#cd7a5d` `#5c2c1c` `#8a9a5b` `#aebd7e` `#657240` `#8a3f28` `#5c2c1c` |
+| Slate & Copper | `#3d5166` `#2b3a4a` `#66809c` `#1e2833` `#b5651d` `#d98a44` `#8a4c15` `#2b3a4a` `#1a232c` |
+| Rose & Charcoal | `#9c3f60` `#742c47` `#c06e8b` `#3f1926` `#b99a6a` `#d9c093` `#8f7449` `#742c47` `#4a1c2d` |
+
+Note: in Terracotta & Sage the "gold" slot is a sage green, so never write copy or meaning that depends on the accent being literally gold.
+
+Fixed colours (the same in every theme):
+
+| Token | Value | Use |
+|---|---|---|
+| page background | `#f7f2e8` | parchment page |
+| hero gradient | `radial-gradient(120% 90% at 50% -10%, #fefcf7 0%, #f7f2e8 55%, #f1ead9 100%)` | landing hero |
+| card | `#fffdf8` | cards and panels |
+| border | `#ece2cd` (soft: `#e0d6c1`, landing cards: `#e7dcc4`) | card and divider lines |
+| ink | `#17263f` | body text |
+| text 2 | `#6b6552` | secondary text |
+| muted | `#8a836f` | captions, labels |
+| success | text `#2f6b48`, bg `#eaf4ee`, border `#bfe0cc` | Verified, Open now |
+| error | text `#a13d29`, bg `#fbeeea`, border `#f0cec3` | errors, urgent |
+| card shadow | `0 12px 34px -22px rgba(23,38,63,.35)` | cards |
+| button shadow | `0 10px 22px -10px rgba(52,88,156,.6)` | primary button |
+
+There is no amber/warning token yet. Propose one for "Needs correction" and "Pending" that sits well on parchment, and show it in the component inventory.
+
+---
+
+## Appendix B: Real content to use
+
+These lists come from the live parish database (the admin Settings pages). Use them exactly as written, including the spacing and hyphens.
+
+**Parish**
+- Name: **Our Lady of Guadalupe Quasi-Parish**
+- Address: Purok 3, Mua-an, Kidapawan City, North Cotabato
+- Landing eyebrow: "Rehistro sa mga Miyembro sa Parokya"
+- Landing subtitle: "Quasi-Parish · Mua-an"
+- Landing welcome text: "Maayong pag-abot! Irehistro ang inyong pamilya sa parokya aron kita magpabiling magkasinabot, magkauban sa pagsaulog sa mga sakramento, ug mag-alagaray sa usag usa diha sa pagtuo."
+- Phone, email, office hours, Facebook page: **not yet in the database.** Use clearly fake placeholders (e.g. `0900 000 0000`) and label them as placeholders.
+
+**GKKs (16).** Each name is "Patron saint / title -Area". The part after the hyphen is the barangay or sitio, so the GKK directory can **group GKKs by area** and use the area for the "Asa ka nagpuyo?" search:
+
+| Area | GKKs |
+|---|---|
+| Mua-an | Birhen sa Fatima -Mua-an · Birhen sa Lourdes -Mua-an · Immaculada Conception -Mua-an |
+| Balabag | San Pedro Calungsod -Balabag · Sto. Niño -Balabag |
+| Birada Center | San Isidro Labrador -Birada Center · Sr. San Roque -Birada Center |
+| Birada Martinez | Santa Monica -Birada Martinez · Sto. Niño -Birada Martinez |
+| Ginatilan | San Jose -Ginatilan · Sto. Niño -Ginatilan |
+| Meohao | San Juan Bautista -Meohao · Santo Rosario -Meohao · Sr. San Roque -Meohao |
+| Lumot | Inahan sa Kanunayng Panabang -Lumot |
+| Ilomavis | Sagrada Pamilya -Ilomavis |
+
+Note that several patrons repeat across areas (three "Sto. Niño", two "Sr. San Roque"), so cards must always show the area, not just the patron.
+
+**Ministries (7)** (the starting list; the live list may have changed in admin Settings): Choir · Lector & Commentator · Catechist · Altar Servers · Ushers & Collectors · Sacristan / Money Counters · Kaabag
+
+**Organizations (8):** Catholic Women's League · Couples for Christ (CFC) · KFC -CFC · Knights of Columbus · Legion of Mary · Parish Pastoral Council · SFC -CFC · YFC -CFC
+
+(KFC, SFC and YFC are the Kids, Singles and Youth branches of Couples for Christ, so the design can group them under CFC.)
+
+**Parish organization structure: positions (13)**
+- Leadership: PPC President · PPC Vice-President · PPC Secretary · PPC Treasurer · PPC Officer
+- Commission heads: Worship Head · Formation Head · Service Head · Bible Apostolate Head · Family & Life Apostolate Head
+- Coordinators: Catechist Diocese Coordinator · Youth Diocese Coordinator · GKK Cluster Head
+
+Put the Parish Priest / Administrator above the PPC President. There is no name for this person in the database; use a placeholder.
+
+**Sacraments recorded in the registry:** Bunyag (Baptism) · Unang Kalawat (First Communion) · Kumpil (Confirmation) · Kasal (Matrimony). Wedding types: "Kasal sa Simbahang Katoliko", "Kasal sa Huwes (Civil)", "Kasal sa Laing Relihiyon".
+
+**Census member statuses** (staff-only; never shown publicly, listed so you know what the census progress counts): Active, Inactive, Moved away, Deceased, Left the Church.
+
+**Numbers:** the live database only has test registrations so far (3 households), so use these realistic sample figures and label them as sample data:
+- Members 2,340 · Households 612 · GKKs 16 · Ministries 7 · Organizations 8 · Registered this year 148
+- Census progress: overall 62%; per-GKK values between 18% and 100%, with at least one GKK at 100% and one below 25%
+- Sacraments this year: 84 Bunyag · 37 Unang Kalawat · 140 Kumpil · 23 Kasal
+- At least one GKK household count of 3 so the "Ubos sa 5" state is visible
+
+**No real data exists yet for:** Mass and confession times, chapels, announcements, events, sacrament requirements, fees, office hours or ministry descriptions. Write plausible Philippine-parish placeholder content (e.g. Sunday Masses 6:00 AM Bisaya, 8:00 AM English, 5:00 PM Bisaya; chapels named after the GKK areas above; Fiesta of Our Lady of Guadalupe on 12 December with a 9-day novena from 3 December; Simbang Gabi 16–24 December) and mark it as placeholder.
