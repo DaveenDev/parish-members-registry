@@ -53,14 +53,14 @@ export function ConfirmProvider({ children }) {
       {children}
       {dialog && (
         <div
-          className="fixed inset-0 z-[90] bg-parish-navy/45 backdrop-blur-sm flex items-center justify-center p-5"
+          className="fixed inset-0 z-[90] bg-parish-scrim/45 backdrop-blur-sm flex items-center justify-center p-5"
           onClick={() => close(false)}
         >
           <div
             role="alertdialog"
             aria-modal="true"
             aria-label={dialog.title}
-            className="bg-white rounded-2xl max-w-[420px] w-full shadow-2xl p-6 animate-fadeUp"
+            className="bg-parish-surface rounded-2xl max-w-[420px] w-full shadow-2xl p-6 animate-fadeUp"
             onClick={(e) => e.stopPropagation()}
           >
             <h3 className="font-serif text-[24px] font-semibold m-0 mb-2 text-parish-navy">{dialog.title}</h3>

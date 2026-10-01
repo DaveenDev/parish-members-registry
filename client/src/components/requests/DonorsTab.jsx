@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { fmtDate, BLOOD_TYPES } from '../../constants.js';
-import { useClientList } from '../../hooks.js';
+import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { Field, TextInput, Select, Checkbox, Badge, OptionSelect } from '../ui.jsx';
@@ -10,10 +10,16 @@ import { SidePanel, TextArea, RowButton, Panel, TabIntro, AddButton } from '../p
 import { useRows, ContactLinks, FilterChips } from './common.jsx';
 import { donorAvailability, AVAILABILITY_TONES } from '../../lib/requests.js';
 
+const URL_DEFAULTS = { view: 'Available', type: 'All', q: '', page: 1, size: 20 };
+const URL_ALLOWED = { view: ['Available', 'Resting', 'Opted out', 'All'], type: ['All', ...BLOOD_TYPES, 'Unknown'], size: [10, 20, 50] };
+
 export default function DonorsTab() {
   const list = useRows(api.listBloodDonors);
-  const [view, setView] = useState('Available');
-  const [type, setType] = useState('All');
+  // View, blood type, search and page live in the address bar (see useUrlState).
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { view, type } = url;
+  const setView = (v) => setUrl({ view: v });
+  const setType = (v) => setUrl({ type: v });
   const [editing, setEditing] = useState(null);
   const [gkks, setGkks] = useState([]);
 
@@ -22,7 +28,7 @@ export default function DonorsTab() {
   const rows = list.rows.map((d) => ({ ...d, availability: donorAvailability(d) }));
   const count = (s) => rows.filter((d) => d.availability.state === s).length;
   const filtered = rows.filter((d) => (view === 'All' || d.availability.state === view) && (type === 'All' || (type === 'Unknown' ? !d.blood_type : d.blood_type === type)));
-  const page = useClientList(filtered, (d) => `${d.full_name} ${d.mobile} ${d.gkk || ''}`, 20);
+  const page = urlListPage(filtered, (d) => `${d.full_name} ${d.mobile} ${d.gkk || ''}`, url, setUrl);
 
   return (
     <>
@@ -49,7 +55,7 @@ export default function DonorsTab() {
         ) : (
           page.rows.map((d) => (
             <div key={d.id} {...rowActivationProps(() => setEditing(d), `Edit donor ${d.full_name}`)}
-              className="flex items-center gap-3 px-5 py-3 border-b border-[#f1e8d5] last:border-b-0 flex-wrap cursor-pointer hover:bg-[#fbf7ee] focus-visible:bg-[#fbf7ee] outline-none">
+              className="flex items-center gap-3 px-5 py-3 border-b border-parish-line last:border-b-0 flex-wrap cursor-pointer hover:bg-parish-field focus-visible:bg-parish-field outline-none">
               <div className="w-[48px] text-center font-serif font-bold text-[20px] text-parish-error">{d.blood_type || '?'}</div>
               <div className="flex-1 min-w-[180px]">
                 <div className="font-semibold text-[14.5px] text-parish-navy">{d.full_name}</div>
@@ -126,7 +132,7 @@ function DonorForm({ row, gkks, onClose, onSaved, onDeleted }) {
         </>
       )}
     >
-      {row.opted_out_at && <div className="px-4 py-2.5 rounded-xl bg-[#efebe1] text-parish-text2 text-[13.5px] font-semibold">Opted out on {fmtDate(String(row.opted_out_at).slice(0, 10))}. Not shown in blood request matches.</div>}
+      {row.opted_out_at && <div className="px-4 py-2.5 rounded-xl bg-parish-sunk text-parish-text2 text-[13.5px] font-semibold">Opted out on {fmtDate(String(row.opted_out_at).slice(0, 10))}. Not shown in blood request matches.</div>}
       <Field label="Full name" required><TextInput value={form.full_name} onChange={set('full_name')} /></Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Mobile" required><TextInput type="tel" value={form.mobile} onChange={set('mobile')} placeholder="09xx xxx xxxx" /></Field>

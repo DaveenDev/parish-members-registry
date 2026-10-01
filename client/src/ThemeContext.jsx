@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { api } from './api.js';
 
 export const THEMES = [
   { id: 'classic', label: 'Gold & Navy', swatch: ['#34589c', '#c39b4e'] },
@@ -13,28 +14,76 @@ export const THEMES = [
 
 const DEFAULT_THEME = 'classic';
 const STORAGE_KEY = 'pmr_theme';
+const MODE_KEY = 'pmr_mode';
+export const MODES = [['light', 'Light'], ['dark', 'Dark'], ['system', 'Auto']];
 
 const ThemeContext = createContext(null);
 
+// Storage can be blocked (private windows, strict settings); fall back to defaults.
+const read = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
+const write = (key, value) => { try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* not saved */ } };
+const isTheme = (id) => THEMES.some((t) => t.id === id);
+
+/**
+ * Color theme and light/dark mode. The theme is the one chosen on this
+ * device, else the parish default from Parish Config (0014 migration), else
+ * Gold & Navy. Dark mode only applies inside the admin panel, which calls
+ * useAdminColorMode(); the public pages stay light.
+ */
 export function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return THEMES.some((t) => t.id === saved) ? saved : DEFAULT_THEME;
-  });
+  const [deviceTheme, setDeviceTheme] = useState(() => (isTheme(read(STORAGE_KEY)) ? read(STORAGE_KEY) : null));
+  const [parishTheme, setParishTheme] = useState(null);
+  const [mode, setModeState] = useState(() => (MODES.some(([k]) => k === read(MODE_KEY)) ? read(MODE_KEY) : 'light'));
+  const theme = deviceTheme || parishTheme || DEFAULT_THEME;
+
+  useEffect(() => {
+    api.publicParishTheme().then((t) => { if (isTheme(t)) setParishTheme(t); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
   }, [theme]);
 
   function setTheme(id) {
-    if (!THEMES.some((t) => t.id === id)) return;
-    localStorage.setItem(STORAGE_KEY, id);
-    setThemeState(id);
+    if (!isTheme(id)) return;
+    write(STORAGE_KEY, id);
+    setDeviceTheme(id);
+  }
+  /** Forget this device's choice and follow the parish default again. */
+  function followParishTheme() {
+    write(STORAGE_KEY, null);
+    setDeviceTheme(null);
+  }
+  function setMode(m) {
+    write(MODE_KEY, m);
+    setModeState(m);
   }
 
-  return <ThemeContext.Provider value={{ theme, setTheme, themes: THEMES }}>{children}</ThemeContext.Provider>;
+  return (
+    <ThemeContext.Provider value={{ theme, setTheme, themes: THEMES, deviceTheme, parishTheme, setParishTheme, followParishTheme, mode, setMode }}>
+      {children}
+    </ThemeContext.Provider>
+  );
 }
 
 export function useTheme() {
   return useContext(ThemeContext);
+}
+
+/** Apply the chosen light/dark mode to <html> while the calling component (the admin layout) is mounted. */
+export function useAdminColorMode() {
+  const { mode } = useTheme();
+  useEffect(() => {
+    const media = window.matchMedia?.('(prefers-color-scheme: dark)');
+    const apply = () => {
+      const dark = mode === 'dark' || (mode === 'system' && !!media?.matches);
+      document.documentElement.setAttribute('data-mode', dark ? 'dark' : 'light');
+    };
+    apply();
+    media?.addEventListener?.('change', apply);
+    return () => {
+      media?.removeEventListener?.('change', apply);
+      document.documentElement.removeAttribute('data-mode');
+    };
+  }, [mode]);
 }

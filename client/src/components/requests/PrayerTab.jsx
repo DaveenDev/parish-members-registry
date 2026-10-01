@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { fmtDate } from '../../constants.js';
-import { useClientList } from '../../hooks.js';
+import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { Field, TextInput, Select, Checkbox, Badge } from '../ui.jsx';
@@ -14,13 +14,19 @@ import { todayIso } from '../../lib/website.js';
 
 const TYPE_TONES = { 'For the sick': 'blue', Thanksgiving: 'gold', 'For the departed': 'gray', 'Special intention': 'green' };
 
+const URL_DEFAULTS = { view: 'New', type: 'All', q: '', page: 1, size: 20 };
+const URL_ALLOWED = { view: ['New', 'Prayed for', 'Archived', 'All'], type: ['All', ...PRAYER_TYPES], size: [10, 20, 50] };
+
 export default function PrayerTab({ onCountsChanged }) {
   const toast = useToast();
   const confirm = useConfirm();
   const layout = useOutletContext();
   const list = useRows(api.listPrayerRequests);
-  const [view, setView] = useState('New');
-  const [type, setType] = useState('All');
+  // View, type, search and page live in the address bar (see useUrlState).
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { view, type } = url;
+  const setView = (v) => setUrl({ view: v });
+  const setType = (v) => setUrl({ type: v });
   const [selected, setSelected] = useState(() => new Set());
   const [offeredOn, setOfferedOn] = useState(todayIso());
   const [busy, setBusy] = useState(false);
@@ -29,7 +35,7 @@ export default function PrayerTab({ onCountsChanged }) {
   const filtered = list.rows
     .filter((r) => (view === 'All' || r.status === view) && (type === 'All' || r.intention_type === type))
     .sort((a, b) => (view === 'New' ? 1 : -1) * a.created_at.localeCompare(b.created_at));
-  const page = useClientList(filtered, (r) => `${r.ref_no} ${r.intention} ${r.for_name || ''} ${r.requester_name || ''}`, 20);
+  const page = urlListPage(filtered, (r) => `${r.ref_no} ${r.intention} ${r.for_name || ''} ${r.requester_name || ''}`, url, setUrl);
   const newCount = list.rows.filter((r) => r.status === 'New').length;
 
   function toggle(id) {
@@ -103,7 +109,7 @@ export default function PrayerTab({ onCountsChanged }) {
           </label>
           <span className="text-[13px] text-parish-text2 ml-auto">Prayed for at the Mass on</span>
           <input type="date" aria-label="Mass date" value={offeredOn} onChange={(e) => setOfferedOn(e.target.value)}
-            className="px-2.5 py-1.5 text-[14px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none" />
+            className="px-2.5 py-1.5 text-[14px] bg-parish-surface border-[1.5px] border-parish-borderSoft rounded-lg outline-none" />
           <RowButton tone="green" disabled={busy || !selected.size} onClick={() => markPrayed([...selected])}>
             Mark {selected.size || ''} prayed for
           </RowButton>
@@ -115,7 +121,7 @@ export default function PrayerTab({ onCountsChanged }) {
           <EmptyState title={list.rows.length ? 'Nothing here' : 'No prayer requests yet'} subtitle={view === 'New' && list.rows.length ? 'All intentions have been prayed for.' : undefined} />
         ) : (
           page.rows.map((r) => (
-            <div key={r.id} className="flex items-start gap-3 px-5 py-3.5 border-b border-[#f1e8d5] last:border-b-0">
+            <div key={r.id} className="flex items-start gap-3 px-5 py-3.5 border-b border-parish-line last:border-b-0">
               {r.status === 'New' && <Checkbox aria-label={`Select ${r.ref_no}`} checked={selected.has(r.id)} onChange={() => toggle(r.id)} className="mt-1" />}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -125,7 +131,7 @@ export default function PrayerTab({ onCountsChanged }) {
                   {r.show_publicly && <Badge tone="green">On the website</Badge>}
                 </div>
                 {r.for_name && <div className="font-semibold text-[14.5px] text-parish-navy">For {r.for_name}</div>}
-                <div className="text-[14px] text-[#3f3b2f] whitespace-pre-line">{r.intention}</div>
+                <div className="text-[14px] text-parish-text3 whitespace-pre-line">{r.intention}</div>
                 <div className="text-[12.5px] text-parish-muted mt-1">
                   {[r.ref_no, r.requester_name && `from ${r.requester_name}`, receivedText(r.created_at), r.offered_on && `prayed for ${fmtDate(r.offered_on)}`].filter(Boolean).join(' · ')}
                 </div>

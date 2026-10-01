@@ -34,7 +34,7 @@ function LinkedMember({ member, sacrament, onUnlink, busy }) {
   useEffect(load, [member.id, sacrament.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="border-[1.5px] border-[#cdd7e8] rounded-xl bg-[#f8faff] px-4 py-3 flex flex-col gap-2">
+    <div className="border-[1.5px] border-parish-focusLine rounded-xl bg-parish-fillSoft px-4 py-3 flex flex-col gap-2">
       <div className="flex items-start justify-between gap-2 flex-wrap">
         <div>
           <div className="font-semibold text-[15px] text-parish-navy">{memberFullName(member)}</div>
@@ -52,10 +52,10 @@ function LinkedMember({ member, sacrament, onUnlink, busy }) {
         <div className="text-[13px] text-parish-text2">
           {[member[sacrament.date] && fmtDate(member[sacrament.date]), member[sacrament.church]].filter(Boolean).join(' · ') || 'No date or church recorded.'}
           {verification && <div className="text-parish-ok font-semibold mt-0.5">Verified: {[verification.source, verification.reference].filter(Boolean).join(' · ')}</div>}
-          {verification === null && <div className="text-[#a1762b] font-semibold mt-0.5">Not verified yet. Check the parish register, then click “Claimed” to record it.</div>}
+          {verification === null && <div className="text-parish-warn font-semibold mt-0.5">Not verified yet. Check the parish register, then click “Claimed” to record it.</div>}
         </div>
       ) : (
-        <div className="text-[13px] text-[#a1762b] font-semibold">
+        <div className="text-[13px] text-parish-warn font-semibold">
           This member has no {sacrament.label.toLowerCase()} on record. Check the parish register; if it's there, add it to their member record first.
         </div>
       )}
@@ -97,7 +97,7 @@ function MemberSearch({ initial, sacrament, onPick, busy }) {
         <div className="text-[13px] text-parish-muted">No registered member matches. The person may not be in the registry; check the parish register directly.</div>
       )}
       {state.rows.map((m) => (
-        <div key={m.id} className="flex items-center gap-3 border border-[#f0e8d6] rounded-xl bg-[#fdfbf6] px-3.5 py-2.5 flex-wrap">
+        <div key={m.id} className="flex items-center gap-3 border border-parish-line2 rounded-xl bg-parish-field px-3.5 py-2.5 flex-wrap">
           <div className="flex-1 min-w-[180px]">
             <div className="font-semibold text-[14px] text-parish-navy">{memberFullName(m)}</div>
             <div className="text-[12.5px] text-parish-muted">

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, EmptyState, ErrorState, LoadingState, Pagination, rowActivationProps } from './admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, EmptyState, ErrorState, LoadingState, Pagination, rowActivationProps, Panel } from './admin.jsx';
 import { ageFromDob } from '../constants.js';
 import { memberFullName } from '../lib/util.js';
 import { groupByGkk } from '../lib/household.js';
@@ -121,17 +121,17 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                   key={t.key} onClick={() => setActiveTab(t.key)}
                   className="appearance-none cursor-pointer px-3.5 py-2 rounded-full border-[1.5px] font-semibold text-[13px] flex items-center gap-1.5 whitespace-nowrap"
                   style={{
-                    borderColor: activeTab === t.key ? 'var(--p-blue)' : '#e6dcc7',
-                    background: activeTab === t.key ? 'var(--p-blue)' : '#fff',
-                    color: activeTab === t.key ? '#fff' : '#3f3b2f',
+                    borderColor: activeTab === t.key ? 'var(--p-blue)' : 'rgb(var(--c-border-strong))',
+                    background: activeTab === t.key ? 'var(--p-blue)' : 'rgb(var(--c-surface))',
+                    color: activeTab === t.key ? 'rgb(var(--c-surface))' : 'rgb(var(--c-text3))',
                   }}
                 >
                   {t.label}<span className="font-bold text-[11.5px] opacity-80">{t.count}</span>
                 </button>
               ))}
             </div>
-            <div className="bg-[#fffdf8] border border-parish-border rounded-2xl overflow-hidden shadow-cardSm">
-              <div className="px-[18px] py-3.5 border-b border-[#f1e8d5] flex items-center gap-3 flex-wrap">
+            <Panel className="overflow-hidden">
+              <div className="px-[18px] py-3.5 border-b border-parish-line flex items-center gap-3 flex-wrap">
                 <div className="font-serif text-[19px] font-semibold text-parish-navy">
                   {activeLabel}
                   <span className="font-sans text-[13px] font-semibold text-parish-muted"> · {total} member(s)</span>
@@ -149,7 +149,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
               <div className="overflow-x-auto">
                 <table className="w-full border-collapse" style={{ minWidth: 720 }}>
                   <thead>
-                    <tr className="bg-[#f4efe3]">
+                    <tr className="bg-parish-sunk">
                       {columns.map((h) => (
                         <th key={h} className="text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2">{h}</th>
                       ))}
@@ -159,7 +159,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                   <tbody>
                     {groupByGkk(rows).map((g, gi) => (
                       <React.Fragment key={g.gkk || 'no-gkk'}>
-                        <tr className={`bg-[#f4efe3] ${gi ? 'border-t-2 border-[#e7dcc4]' : ''}`}>
+                        <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
                           <th scope="colgroup" colSpan={5} className="text-left px-4 py-2">
                             <span className="flex items-center gap-2 flex-wrap">
                               <span className="font-serif text-[16.5px] font-semibold text-parish-navy">{g.gkk || 'No GKK'}</span>
@@ -172,10 +172,10 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                           </th>
                         </tr>
                         {g.members.map((m) => (
-                      <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
+                      <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-parish-line cursor-pointer hover:bg-parish-hover focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2.5">
-                            <div className="w-[30px] h-[30px] rounded-full bg-[#f1e8d5] text-[#7a6a3e] flex items-center justify-center font-bold text-[11px] flex-none">
+                            <div className="w-[30px] h-[30px] rounded-full bg-parish-track text-parish-chip flex items-center justify-center font-bold text-[11px] flex-none">
                               {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
                             </div>
                             <div>
@@ -185,9 +185,9 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                           </div>
                         </td>
                         {isParish && <td className="px-4 py-3"><Badge tone="gold" title={PARISH_LABEL}>{m.parish_role}</Badge></td>}
-                        <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{ageFromDob(m.dob) ?? '—'}</td>
+                        <td className="px-4 py-3 text-[14px] text-parish-text3">{ageFromDob(m.dob) ?? '—'}</td>
                         <td className="px-4 py-3 text-[14px] text-parish-text2">{[m.street, m.barangay, m.city].filter(Boolean).join(', ')}</td>
-                        <td className="px-4 py-3 text-[14px] text-[#3f3b2f] whitespace-nowrap">{m.contact || '—'}</td>
+                        <td className="px-4 py-3 text-[14px] text-parish-text3 whitespace-nowrap">{m.contact || '—'}</td>
                         {!isParish && <td className="px-4 py-3 text-right">
                           <button
                             onClick={(e) => { e.stopPropagation(); removeFromGroup(m); }}
@@ -214,7 +214,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                     : <EmptyState title="No members in this group yet" subtitle={`Use “Add member” to put someone on this ${noun}'s roster.`} />
               )}
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
-            </div>
+            </Panel>
           </>
         )}
       </PageBody>
@@ -273,8 +273,8 @@ function AddToGroupModal({ group, column, onClose, onAdded }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-parish-navy/45 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 sm:p-5" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-label={`Add a member to ${group}`} className="bg-white rounded-2xl max-w-[560px] w-full shadow-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-parish-scrim/45 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 sm:p-5" onClick={onClose}>
+      <div role="dialog" aria-modal="true" aria-label={`Add a member to ${group}`} className="bg-parish-surface rounded-2xl max-w-[560px] w-full shadow-2xl max-h-[85vh] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="p-5 sm:p-6 pb-3">
           <div className="flex items-center justify-between mb-1">
             <h3 className="font-serif text-[23px] font-semibold m-0 text-parish-navy">Add to {group}</h3>
@@ -289,7 +289,7 @@ function AddToGroupModal({ group, column, onClose, onAdded }) {
           {results.map((m) => {
             const isMember = (m[column] || []).includes(group) || added.includes(m.id);
             return (
-              <div key={m.id} className="flex items-center gap-3 border border-[#f0e8d6] rounded-xl px-3.5 py-2.5 bg-[#fdfbf6]">
+              <div key={m.id} className="flex items-center gap-3 border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field">
                 <div className="min-w-0 flex-1">
                   <div className="text-[14px] font-semibold text-parish-navy truncate">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
                   <div className="text-[12px] text-parish-muted truncate">{[m.household_name, m.household_gkk].filter(Boolean).join(' · ')}</div>

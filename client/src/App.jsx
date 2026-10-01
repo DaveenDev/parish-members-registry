@@ -32,6 +32,8 @@ import ManageMinistries from './pages/admin/ManageMinistries.jsx';
 import ManageOrgs from './pages/admin/ManageOrgs.jsx';
 import ManageStaff from './pages/admin/ManageStaff.jsx';
 import AdminNotFound from './pages/admin/NotFound.jsx';
+import ActivityLog from './pages/admin/ActivityLog.jsx';
+import Trash from './pages/admin/Trash.jsx';
 
 function RequireAuth({ children }) {
   const { user, ready } = useAuth();
@@ -92,6 +94,8 @@ export default function App() {
           <Route path="settings/ministries" element={<ManageMinistries />} />
           <Route path="settings/organizations" element={<ManageOrgs />} />
           <Route path="settings/staff" element={<ManageStaff />} />
+          <Route path="settings/activity" element={<ActivityLog />} />
+          <Route path="settings/trash" element={<Trash />} />
           {/* A mistyped admin URL stays inside the admin, not on the public home page. */}
           <Route path="*" element={<AdminNotFound />} />
         </Route>

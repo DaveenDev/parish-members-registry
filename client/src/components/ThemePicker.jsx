@@ -1,8 +1,25 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useTheme } from '../ThemeContext.jsx';
+import { useTheme, MODES } from '../ThemeContext.jsx';
+
+/** Light / Dark / Auto segmented control for the admin panel. */
+export function ModeSwitch() {
+  const { mode, setMode } = useTheme();
+  return (
+    <div role="radiogroup" aria-label="Light or dark" className="inline-flex rounded-lg border-[1.5px] border-parish-borderSoft overflow-hidden bg-parish-field">
+      {MODES.map(([k, label]) => (
+        <button
+          key={k} type="button" role="radio" aria-checked={mode === k} onClick={() => setMode(k)}
+          className={`appearance-none border-none cursor-pointer px-3 py-1.5 font-semibold text-[12.5px] ${mode === k ? 'bg-parish-fill text-white' : 'bg-transparent text-parish-text2'}`}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 /** Trigger button + popover panel — used on the landing page and the admin sidebar. */
-export function ThemePickerPopover({ align = 'right', placement = 'down', dark = false, label = 'Theme' }) {
+export function ThemePickerPopover({ align = 'right', placement = 'down', dark = false, label = 'Theme', showMode = false }) {
   const { theme, setTheme, themes } = useTheme();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
@@ -32,7 +49,7 @@ export function ThemePickerPopover({ align = 'right', placement = 'down', dark =
         title="Change color theme"
         aria-expanded={open}
         className={`flex items-center gap-2 rounded-full pl-1.5 pr-3 py-1.5 transition ${
-          dark ? 'bg-white/10 hover:bg-white/15 text-white/85' : 'bg-white/70 hover:bg-white shadow-cardSm text-parish-ink'
+          dark ? 'bg-white/10 hover:bg-white/15 text-white/85' : 'bg-white/70 hover:bg-parish-surface shadow-cardSm text-parish-ink'
         }`}
       >
         <span className="w-5 h-5 rounded-full overflow-hidden flex-none border border-black/10">
@@ -46,11 +63,12 @@ export function ThemePickerPopover({ align = 'right', placement = 'down', dark =
 
       {open && (
         <div
-          className={`absolute z-50 w-[230px] max-h-[70vh] overflow-auto bg-white rounded-2xl shadow-2xl border border-parish-border p-2 ${
+          className={`absolute z-50 w-[230px] max-h-[70vh] overflow-auto bg-parish-surface rounded-2xl shadow-2xl border border-parish-border p-2 ${
             placement === 'up' ? 'mb-2' : 'mt-2'
           }`}
           style={{ [align]: 0, [placement === 'up' ? 'bottom' : 'top']: '100%' }}
         >
+          {showMode && <div className="px-1 pt-1 pb-2.5 mb-1 border-b border-parish-line2"><ModeSwitch /></div>}
           {themes.map((t) => {
             const active = theme === t.id;
             return (
@@ -89,8 +107,8 @@ export function ThemePickerGrid() {
             onClick={() => setTheme(t.id)}
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition"
             style={{
-              border: active ? '2px solid var(--p-blue)' : '2px solid #e0d6c1',
-              background: active ? 'var(--p-blue-tint)' : '#fdfbf6',
+              border: active ? '2px solid var(--p-blue)' : '2px solid rgb(var(--c-border-soft))',
+              background: active ? 'var(--p-blue-tint)' : 'rgb(var(--c-field))',
             }}
           >
             <span className="w-8 h-8 rounded-full flex-none overflow-hidden border border-black/10">

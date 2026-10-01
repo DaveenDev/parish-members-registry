@@ -12,6 +12,21 @@ export const RELIGIONS = ['Roman Catholic', 'Iglesia ni Cristo', 'Protestant', '
 
 export const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 
+// Age filters on the Members and Blood Types pages, as "lo-hi" in whole years.
+export const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
+// The Dashboard's age chart buckets (admin_dashboard_stats in 0010), so its
+// bars can open the matching Members list.
+export const DASHBOARD_AGE_OPTS = [['0-9', '0–9'], ['10-19', '10–19'], ['20-34', '20–34'], ['35-49', '35–49'], ['50-64', '50–64'], ['65-200', '65 & above']];
+
+/** [lo, hi] for an age filter value like "18-30", or null if it isn't one. */
+export function parseAgeRange(value) {
+  const m = /^(\d{1,3})-(\d{1,3})$/.exec(String(value || ''));
+  if (!m) return null;
+  const lo = Number(m[1]);
+  const hi = Number(m[2]);
+  return lo <= hi ? [lo, hi] : null;
+}
+
 export const HEAD = 'Head of Household';
 
 // Sacraments and the member columns that hold each claim. `key` is what

@@ -6,8 +6,10 @@ const AuthContext = createContext(null);
 async function loadProfile(session) {
   if (!session?.user) return null;
   const byId = (cols) => supabase.from('profiles').select(cols).eq('id', session.user.id).single();
-  let { data, error } = await byId('name, role, is_admin');
-  // Before the 0010 migration there's no is_admin column; still load the rest.
+  let { data, error } = await byId('name, role, is_admin, access, access_gkk');
+  // Before 0014 there are no access columns, and before 0010 no is_admin;
+  // still load the rest.
+  if (error && /access/.test(error.message || '')) ({ data, error } = await byId('name, role, is_admin'));
   if (error && /is_admin/.test(error.message || '')) ({ data } = await byId('name, role'));
   return {
     id: session.user.id,
@@ -15,6 +17,8 @@ async function loadProfile(session) {
     name: data?.name || session.user.email,
     role: data?.role || '',
     isAdmin: !!data?.is_admin,
+    access: data?.access || 'full',
+    accessGkk: data?.access_gkk || null,
   };
 }
 

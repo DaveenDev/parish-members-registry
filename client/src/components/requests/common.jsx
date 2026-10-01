@@ -38,7 +38,7 @@ export function FilterChips({ options, value, onChange, label }) {
       {options.map(([k, text, count]) => (
         <button
           key={k} type="button" aria-pressed={value === k} onClick={() => onChange(k)}
-          className={`appearance-none cursor-pointer px-3.5 py-2 rounded-full font-semibold text-[13px] border-[1.5px] ${value === k ? 'bg-parish-blue border-parish-blue text-white' : 'bg-[#fffdf8] border-parish-borderSoft text-parish-text2'}`}
+          className={`appearance-none cursor-pointer px-3.5 py-2 rounded-full font-semibold text-[13px] border-[1.5px] ${value === k ? 'bg-parish-fill border-parish-blue text-white' : 'bg-parish-card border-parish-borderSoft text-parish-text2'}`}
         >
           {text}{count ? <span className={`ml-1.5 ${value === k ? 'text-white/80' : 'text-parish-muted'}`}>{count}</span> : null}
         </button>

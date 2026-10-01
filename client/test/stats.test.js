@@ -44,6 +44,15 @@ describe('shapeDashboard', () => {
     assert.deepEqual(ministryBreak.map((g) => g.w), ['100%', '25%']);
   });
 
+  test('age bars and top ministry rows link to the filtered members list', () => {
+    const { ageBuckets, ministryBreak } = shapeDashboard({
+      ...raw,
+      age_buckets: [{ label: '0-9', n: 10 }, { label: '65+', n: 4 }, { label: 'odd', n: 1 }],
+    });
+    assert.deepEqual(ageBuckets.map((b) => b.to), ['/admin/members?age=0-9', '/admin/members?age=65-200', null]);
+    assert.equal(ministryBreak[0].to, '/admin/members?ministry=Choir');
+  });
+
   test('sacrament tiles and the action counts', () => {
     const d = shapeDashboard(raw);
     assert.deepEqual(d.sacStats.map((s) => s.n), [3000, 2000, 1000, 500]);

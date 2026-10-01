@@ -3,18 +3,22 @@ import { api } from '../../api.js';
 import { Field, TextInput } from '../ui.jsx';
 import { Pagination, EmptyState, LoadingState, ErrorState } from '../admin.jsx';
 import { fmtDate } from '../../constants.js';
-import { useClientList } from '../../hooks.js';
+import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { sundayOf, todayIso, addDays } from '../../lib/website.js';
 import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton } from './shared.jsx';
 
 const describe = (r) => `Bulletin for ${fmtDate(r.week_of)}`;
 
+const URL_DEFAULTS = { q: '', page: 1, size: 10 };
+const URL_ALLOWED = { size: [10, 20, 50] };
+
 export default function BulletinTab() {
   const list = useContentList({ table: 'bulletins', load: api.listBulletins, remove: api.deleteBulletin, describe });
   const [editing, setEditing] = useState(null);
   const sorted = [...list.rows].sort((a, b) => b.week_of.localeCompare(a.week_of));
-  const page = useClientList(sorted, (r) => `${r.title} ${r.body || ''}`);
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const page = urlListPage(sorted, (r) => `${r.title} ${r.body || ''}`, url, setUrl);
   const latest = sorted[0];
 
   function newBulletin(copyFrom) {
@@ -40,7 +44,7 @@ export default function BulletinTab() {
           <EmptyState title="No bulletins yet" subtitle="Type in this week's bulletin." />
         ) : (
           page.rows.map((r) => (
-            <div key={r.id} className="flex items-center gap-3 px-5 py-4 border-b border-[#f1e8d5] last:border-b-0 flex-wrap">
+            <div key={r.id} className="flex items-center gap-3 px-5 py-4 border-b border-parish-line last:border-b-0 flex-wrap">
               <div className="w-[120px]">
                 <div className="font-bold text-[11px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Week of</div>
                 <div className="font-serif text-[18px] font-semibold text-parish-blue">{fmtDate(r.week_of)}</div>

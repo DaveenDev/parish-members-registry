@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useUrlState } from '../../hooks.js';
 import { api } from '../../api.js';
 import { Field, TextInput, Select, Badge, OptionSelect } from '../ui.jsx';
 import { FilterSelect, EmptyState, LoadingState, ErrorState } from '../admin.jsx';
@@ -20,11 +21,16 @@ function whenText(r) {
   return days + times;
 }
 
+const URL_DEFAULTS = { when: 'upcoming', type: 'All' };
+const URL_ALLOWED = { when: ['upcoming', 'past'], type: ['All', ...EVENT_TYPES] };
+
 export default function EventsTab() {
   const list = useContentList({ table: 'events', load: api.listEvents, remove: api.deleteEvent, describe });
   const [editing, setEditing] = useState(null);
-  const [when, setWhen] = useState('upcoming');
-  const [type, setType] = useState('All');
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { when, type } = url;
+  const setWhen = (v) => setUrl({ when: v });
+  const setType = (v) => setUrl({ type: v });
   const [gkks, setGkks] = useState([]);
   const today = todayIso();
 
@@ -59,11 +65,11 @@ export default function EventsTab() {
       </TabIntro>
 
       <div className="flex gap-2.5 flex-wrap mb-4">
-        <div role="group" aria-label="Upcoming or past events" className="inline-flex rounded-lg border-[1.5px] border-parish-borderSoft overflow-hidden bg-[#fffdf8]">
+        <div role="group" aria-label="Upcoming or past events" className="inline-flex rounded-lg border-[1.5px] border-parish-borderSoft overflow-hidden bg-parish-card">
           {[['upcoming', 'Upcoming'], ['past', 'Past']].map(([k, label]) => (
             <button
               key={k} type="button" aria-pressed={when === k} onClick={() => setWhen(k)}
-              className={`appearance-none border-none cursor-pointer px-4 py-2 font-semibold text-[13.5px] ${when === k ? 'bg-parish-blue text-white' : 'bg-transparent text-parish-text2'}`}
+              className={`appearance-none border-none cursor-pointer px-4 py-2 font-semibold text-[13.5px] ${when === k ? 'bg-parish-fill text-white' : 'bg-transparent text-parish-text2'}`}
             >
               {label}
             </button>
@@ -82,7 +88,7 @@ export default function EventsTab() {
           <EmptyState title={when === 'upcoming' ? 'No upcoming events' : 'No past events'} subtitle={type !== 'All' ? `for ${type}` : undefined} />
         ) : (
           months.map((m) => (
-            <section key={m.label} className="border-b border-[#f1e8d5] last:border-b-0">
+            <section key={m.label} className="border-b border-parish-line last:border-b-0">
               <div className="px-5 pt-4 pb-1 font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{m.label}</div>
               {m.rows.map((r) => (
                 <div key={r.id} className="flex items-start gap-3 px-5 py-3 flex-wrap">

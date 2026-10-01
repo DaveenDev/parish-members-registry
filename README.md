@@ -25,7 +25,14 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 - Parish configuration: parish name, logo, GKK list, ministries, and organizations management
 - Parish website content: one page with tabs for the Mass & confession schedule, sacrament guides (steps, documents, fees), announcements, the weekly bulletin, the events calendar, and office hours / contact details / map. Every item is a draft until staff publish it
 - Requests: staff queues for certificate requests (linked to the member record and its sacrament verification, tracked from Received to Released), prayer intentions (printable list for Mass, bulk "prayed for"), and blood calls (compatible donors listed with their rest period, a call/text contact log). Donors opt in; the blood type directory stays staff-only. The public forms submit through rate-limited database functions that return a reference number
-- Staff accounts (staff admins only): add staff with a temporary password, reset passwords, disable/enable accounts
+- Staff accounts (staff admins only): add staff with a temporary password, reset passwords, disable/enable accounts, and choose each account's access level (see [Staff access levels](#staff-access-levels))
+- Activity log: who added, changed or deleted each household, member and sacrament verification, with the old and new values; also shown as History in the member window and the household panel
+- Trash: deleted households and members are kept for 30 days and can be restored with everything attached to them; deleting shows an Undo
+- Quick search (Ctrl+K / ⌘K) across pages, households, members and requests
+- Dashboard "Today" panel with what's waiting (requests, census, sacraments to verify, the week's events and bulletin), and sidebar badges for each queue
+- Households: sortable columns, bulk Verify / Print / Export for selected rows; Members: removable filter chips and Export this view; phone-friendly card layouts
+- Dark mode for the admin panel (Light / Dark / Auto, per device) and a parish-wide default color theme
+- Staff are signed out after 20 minutes without activity, after a one-minute warning
 - List filters, search and page are kept in the address bar, so refresh, Back and shared links keep the view
 
 ## Tech stack
@@ -56,7 +63,7 @@ project/               Original Claude Design source files this app was built fr
 Follow [`guadalupe-registry-deployment-guide.md`](guadalupe-registry-deployment-guide.md) Part 1, or in short:
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations. Then run each later migration in order ([`0002_head_first_registration.sql`](supabase/migrations/0002_head_first_registration.sql) adds the Household Head fields, the participation survey, and the public GKK list; [`0003_public_stats_groups_names.sql`](supabase/migrations/0003_public_stats_groups_names.sql) adds the homepage stats, the public organization list, unique household names, and fixes renaming ministries/organizations; [`0004_public_parish_logo.sql`](supabase/migrations/0004_public_parish_logo.sql) lets the public registration site show the uploaded parish logo; [`0005_sacrament_verification.sql`](supabase/migrations/0005_sacrament_verification.sql) lets staff mark self-reported sacraments as verified against a certificate or the parish register; [`0006_parish_positions.sql`](supabase/migrations/0006_parish_positions.sql) adds the Parish Organization Structure list and each member's "Katungdanan sa Parish"; [`0007_census.sql`](supabase/migrations/0007_census.sql) adds the parish census; [`0008_census_portal.sql`](supabase/migrations/0008_census_portal.sql) adds the census family portal; [`0009_admin_household_wizard.sql`](supabase/migrations/0009_admin_household_wizard.sql) lets the admin New Household panel save the participation survey, volunteer, consent and religion; [`0010_admin_tools.sql`](supabase/migrations/0010_admin_tools.sql) records who verified a household and when, adds "last updated" times, computes dashboard/report totals in the database, adds the duplicate-member finder, and adds the staff-admin flag — every account that exists when it runs becomes a staff admin; [`0011_website_content.sql`](supabase/migrations/0011_website_content.sql) adds the parish website content: Mass schedule, sacrament guides, announcements, bulletins, events, and office hours/contact details; [`0012_requests.sql`](supabase/migrations/0012_requests.sql) adds certificate requests, prayer requests, blood requests and the blood donor list, with the public submit functions; [`0013_public_site.sql`](supabase/migrations/0013_public_site.sql) adds the public website's "Latest updates" articles, the GKK directory, census progress and the registration status lookup; [`0014_staff_hardening.sql`](supabase/migrations/0014_staff_hardening.sql) stops signed-out visitors from calling the staff functions and leaves staff with read-only access to staff profiles). Existing projects only need the migrations they haven't run yet.
+2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations. Then run each later migration in order ([`0002_head_first_registration.sql`](supabase/migrations/0002_head_first_registration.sql) adds the Household Head fields, the participation survey, and the public GKK list; [`0003_public_stats_groups_names.sql`](supabase/migrations/0003_public_stats_groups_names.sql) adds the homepage stats, the public organization list, unique household names, and fixes renaming ministries/organizations; [`0004_public_parish_logo.sql`](supabase/migrations/0004_public_parish_logo.sql) lets the public registration site show the uploaded parish logo; [`0005_sacrament_verification.sql`](supabase/migrations/0005_sacrament_verification.sql) lets staff mark self-reported sacraments as verified against a certificate or the parish register; [`0006_parish_positions.sql`](supabase/migrations/0006_parish_positions.sql) adds the Parish Organization Structure list and each member's "Katungdanan sa Parish"; [`0007_census.sql`](supabase/migrations/0007_census.sql) adds the parish census; [`0008_census_portal.sql`](supabase/migrations/0008_census_portal.sql) adds the census family portal; [`0009_admin_household_wizard.sql`](supabase/migrations/0009_admin_household_wizard.sql) lets the admin New Household panel save the participation survey, volunteer, consent and religion; [`0010_admin_tools.sql`](supabase/migrations/0010_admin_tools.sql) records who verified a household and when, adds "last updated" times, computes dashboard/report totals in the database, adds the duplicate-member finder, and adds the staff-admin flag — every account that exists when it runs becomes a staff admin; [`0011_website_content.sql`](supabase/migrations/0011_website_content.sql) adds the parish website content: Mass schedule, sacrament guides, announcements, bulletins, events, and office hours/contact details; [`0012_requests.sql`](supabase/migrations/0012_requests.sql) adds certificate requests, prayer requests, blood requests and the blood donor list, with the public submit functions; [`0013_public_site.sql`](supabase/migrations/0013_public_site.sql) adds what the public website reads; [`0014_roles_activity_trash.sql`](supabase/migrations/0014_roles_activity_trash.sql) adds staff access levels, the activity log, the trash, the sidebar counts and the parish default theme — every account that exists when it runs keeps full access; [`0015_staff_hardening.sql`](supabase/migrations/0015_staff_hardening.sql) stops signed-out visitors from calling the staff functions and leaves staff with read-only access to staff profiles). Existing projects only need the migrations they haven't run yet.
 3. Create your first admin: **Authentication → Users → Add user**, then, with that user's UUID, run:
    ```sql
    insert into profiles (id, name, role, is_admin)
@@ -104,6 +111,26 @@ npm run dev
 npm run db:demo    # insert six fictional sample households
 npm run db:reset   # delete every household (and, via cascade, every member)
 ```
+
+## Staff access levels
+
+Staff admins set each account's access under **Settings → Staff** (after the
+0014 migration). The database enforces it: row level security limits what an
+account can read, and a trigger on each table refuses changes the account
+isn't allowed to make, with a message saying why.
+
+| Access | Can see | Can change |
+|---|---|---|
+| Full access | Everything | Everything (the only level that can delete, restore from the Trash, verify sacraments, run the census and edit settings) |
+| Read only | Every page except the Trash | Nothing |
+| GKK leader | The households and members of one GKK | Those households and members, but can't delete them |
+| Website & requests | The registry (to match certificate requests), the Parish Website and Requests | The Parish Website and Requests |
+
+Staff admins always have full access. The registration and census portals
+aren't affected: they don't sign in as staff.
+
+If the `manage-staff` Edge Function was deployed before 0014, deploy it again
+(step 6 above) so Settings → Staff can save access levels.
 
 ## Running a parish census
 

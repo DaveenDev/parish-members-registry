@@ -9,6 +9,14 @@ const BLOOD_ORDER = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const GROUP_COLORS = ['#34589c', '#c39b4e', '#2f7a52', '#a13d29', '#7a6a3e', '#8a5fb0'];
 
 const num = (v) => Number(v) || 0;
+
+/** Members-page age filter for a Dashboard bucket label: "20-34" as is, "65+" as "65-200". */
+function ageFilterFor(label) {
+  const s = String(label || '');
+  if (/^\d+-\d+$/.test(s)) return s;
+  const plus = /^(\d+)\+$/.exec(s);
+  return plus ? `${plus[1]}-200` : null;
+}
 const pct = (n, of) => `${Math.round((n / Math.max(1, of)) * 100)}%`;
 
 /** Bar heights for a vertical chart: the tallest is 100%, none shorter than 6%. */
@@ -48,9 +56,12 @@ export function shapeDashboard(raw = {}) {
       label: MONTH_NAMES[Number(String(m.month).slice(5, 7)) - 1] || m.month,
       n: num(m.n),
     }))),
-    ageBuckets: withHeights((raw.age_buckets || []).map((b) => ({ label: b.label, n: num(b.n) }))),
+    ageBuckets: withHeights((raw.age_buckets || []).map((b) => {
+      const age = ageFilterFor(b.label);
+      return { label: b.label, n: num(b.n), to: age ? `/admin/members?age=${age}` : null };
+    })),
     gkkBreak: withWidths((raw.by_gkk || []).map((g) => ({ label: g.label, n: num(g.n), to: `/admin/households?gkk=${encodeURIComponent(g.label)}` }))),
-    ministryBreak: withWidths((raw.top_groups || []).map((g) => ({ label: g.label, n: num(g.n) }))),
+    ministryBreak: withWidths((raw.top_groups || []).map((g) => ({ label: g.label, n: num(g.n), to: `/admin/members?ministry=${encodeURIComponent(g.label)}` }))),
     sacStats: [
       { label: 'Baptism', n: num(sac.baptism), to: '/admin/sacraments?baptism=Yes' },
       { label: 'First Communion', n: num(sac.communion), to: '/admin/sacraments?communion=Yes' },

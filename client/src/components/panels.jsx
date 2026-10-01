@@ -30,16 +30,16 @@ export function SidePanel({ title, subtitle, onClose, onSave, saving, saveLabel 
 
   return (
     <div className="fixed inset-0 z-[45] flex justify-end">
-      <div className="absolute inset-0 bg-parish-navy/35 backdrop-blur-[2px] animate-fadeIn" onClick={onClose} />
+      <div className="absolute inset-0 bg-parish-scrim/35 backdrop-blur-[2px] animate-fadeIn" onClick={onClose} />
       <form
         ref={ref}
         onSubmit={submit}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative h-full w-full sm:w-[min(100%,620px)] lg:w-[46vw] lg:min-w-[580px] bg-white shadow-2xl flex flex-col animate-slideInRight"
+        className="relative h-full w-full sm:w-[min(100%,620px)] lg:w-[46vw] lg:min-w-[580px] bg-parish-surface shadow-2xl flex flex-col animate-slideInRight"
       >
-        <header className="flex items-start justify-between gap-3 px-5 sm:px-7 pt-5 pb-4 border-b border-[#f0e8d6]">
+        <header className="flex items-start justify-between gap-3 px-5 sm:px-7 pt-5 pb-4 border-b border-parish-line2">
           <div className="min-w-0">
             <h3 id={titleId} className="font-serif text-[24px] font-semibold m-0 text-parish-navy truncate">{title}</h3>
             {subtitle && <p className="text-[13px] text-parish-muted m-0">{subtitle}</p>}
@@ -52,7 +52,7 @@ export function SidePanel({ title, subtitle, onClose, onSave, saving, saveLabel 
           {error && <div className="text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
         </div>
 
-        <footer className="flex items-center gap-2.5 justify-end px-5 sm:px-7 py-3.5 border-t border-[#f0e8d6] bg-[#fffdf8] flex-wrap">
+        <footer className="flex items-center gap-2.5 justify-end px-5 sm:px-7 py-3.5 border-t border-parish-line2 bg-parish-card flex-wrap">
           {footerStart && <div className="mr-auto flex items-center gap-2 flex-wrap">{footerStart}</div>}
           <GhostButton type="button" onClick={onClose} className="px-5 py-2.5 text-[14px]">{onSave ? 'Cancel' : 'Close'}</GhostButton>
           {onSave && <PrimaryButton type="submit" disabled={saving} className="px-6 py-2.5 text-[14px]">{saving ? 'Saving…' : saveLabel}</PrimaryButton>}
@@ -66,7 +66,7 @@ export function SectionLabel({ children }) {
   return (
     <div className="flex items-center gap-2.5 mt-1">
       <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{children}</span>
-      <span className="flex-1 h-px bg-[#f0e8d6]" />
+      <span className="flex-1 h-px bg-parish-track" />
     </div>
   );
 }
@@ -76,7 +76,7 @@ export const TextArea = React.forwardRef(function TextArea({ className = '', ...
     <textarea
       ref={ref}
       {...props}
-      className={`w-full px-3.5 py-3 text-[15px] leading-relaxed text-parish-ink bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15 ${className}`}
+      className={`w-full px-3.5 py-3 text-[15px] leading-relaxed text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15 ${className}`}
     />
   );
 });
@@ -86,7 +86,7 @@ export function RowButton({ tone = 'blue', className = '', ...props }) {
   const tones = {
     blue: 'bg-[var(--p-blue-tint)] text-parish-blue',
     red: 'bg-parish-errorBg text-parish-error',
-    gray: 'bg-[#f4efe3] text-parish-text2',
+    gray: 'bg-parish-sunk text-parish-text2',
     green: 'bg-parish-okBg text-parish-ok',
   };
   return (
@@ -98,10 +98,8 @@ export function RowButton({ tone = 'blue', className = '', ...props }) {
   );
 }
 
-/** Card wrapper for a tab's list. */
-export function Panel({ children, className = '' }) {
-  return <div className={`bg-[#fffdf8] border border-parish-border rounded-2xl shadow-cardSm ${className}`}>{children}</div>;
-}
+/** Card wrapper for a tab's list (defined with the other admin building blocks). */
+export { Panel } from './admin.jsx';
 
 /** Heading row above a tab's list: short explanation on the left, actions on the right. */
 export function TabIntro({ text, children }) {

@@ -190,14 +190,14 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
 
   return (
     <div className="fixed inset-0 z-[45] flex justify-end">
-      <div className="absolute inset-0 bg-parish-navy/35 backdrop-blur-[2px] animate-fadeIn" onClick={requestClose} />
+      <div className="absolute inset-0 bg-parish-scrim/35 backdrop-blur-[2px] animate-fadeIn" onClick={requestClose} />
       <aside
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative h-full w-full sm:w-[min(100%,640px)] lg:w-[48vw] lg:min-w-[600px] bg-white shadow-2xl flex flex-col animate-slideInRight"
+        className="relative h-full w-full sm:w-[min(100%,640px)] lg:w-[48vw] lg:min-w-[600px] bg-parish-surface shadow-2xl flex flex-col animate-slideInRight"
       >
-        <header className="flex items-start justify-between gap-3 px-5 sm:px-7 pt-5 pb-4 border-b border-[#f0e8d6]">
+        <header className="flex items-start justify-between gap-3 px-5 sm:px-7 pt-5 pb-4 border-b border-parish-line2">
           <div className="min-w-0">
             <h3 id={titleId} className="font-serif text-[24px] font-semibold m-0 text-parish-navy truncate">
               {data ? data.household.household_name : 'Census'}
@@ -229,7 +229,7 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
                 </div>
               )}
               {!editable && (
-                <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-[#fdf1de] text-[#7a5a1f] text-[13.5px]">
+                <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13.5px]">
                   The {cycle.label} is closed. Reopen it on the Census page to change answers.
                 </div>
               )}
@@ -267,7 +267,7 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
               {editable && !adding && (
                 <button
                   onClick={() => setAdding(true)}
-                  className="mt-3 w-full appearance-none cursor-pointer py-3 font-bold text-[14px] text-parish-blue bg-white border-[1.5px] border-dashed border-[#b9c6de] rounded-xl hover:bg-[#f4f7fc] hover:border-parish-blue transition"
+                  className="mt-3 w-full appearance-none cursor-pointer py-3 font-bold text-[14px] text-parish-blue bg-parish-surface border-[1.5px] border-dashed border-parish-focusLine rounded-xl hover:bg-parish-fillSoft hover:border-parish-blue transition"
                 >
                   + Add a new member (newborn, new spouse, …)
                 </button>
@@ -288,7 +288,7 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
               )}
 
               {editable && (
-                <div className="mt-6 pt-4 border-t border-[#f0e8d6]">
+                <div className="mt-6 pt-4 border-t border-parish-line2">
                   <button onClick={openSurvey} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[14px] text-parish-blue">
                     {surveyOpen ? '▾' : '▸'} Also update the household participation survey
                   </button>
@@ -310,8 +310,8 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
           )}
         </div>
 
-        <footer className="flex items-center gap-2.5 justify-end px-5 sm:px-7 py-3.5 border-t border-[#f0e8d6] bg-[#fffdf8]">
-          {dirty && <span className="mr-auto text-[12.5px] font-semibold text-[#a1762b]">Unsaved answers</span>}
+        <footer className="flex items-center gap-2.5 justify-end px-5 sm:px-7 py-3.5 border-t border-parish-line2 bg-parish-card">
+          {dirty && <span className="mr-auto text-[12.5px] font-semibold text-parish-warn">Unsaved answers</span>}
           <GhostButton onClick={requestClose} className="px-5 py-2.5 text-[14px]">Close</GhostButton>
           {editable && (
             <PrimaryButton onClick={save} disabled={saving || !dirty} className="px-6 py-2.5 text-[14px]">
@@ -338,7 +338,7 @@ function MemberCensusRow({ member: m, row, former, editable, onChange, onEdit, o
   const age = ageFromDob(m.dob);
 
   return (
-    <div className={`border rounded-xl px-4 py-3.5 ${former ? 'bg-[#f7f5ef] border-[#ebe5d6] opacity-80' : 'bg-[#fdfbf6] border-[#f0e8d6]'}`}>
+    <div className={`border rounded-xl px-4 py-3.5 ${former ? 'bg-parish-field border-parish-line2 opacity-80' : 'bg-parish-field border-parish-line2'}`}>
       <div className="flex items-start gap-3 flex-wrap">
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold text-parish-navy">{name}</div>
@@ -383,7 +383,7 @@ function MemberCensusRow({ member: m, row, former, editable, onChange, onEdit, o
                     disabled={!editable}
                     onClick={() => onChange({ participation: { ...row.participation, [key]: on ? undefined : level } })}
                     className={`appearance-none cursor-pointer w-7 h-7 rounded-md border-[1.5px] text-[12px] font-bold disabled:cursor-default ${
-                      on ? 'bg-parish-blue border-parish-blue text-white' : 'bg-white border-parish-borderSoft text-parish-text2'
+                      on ? 'bg-parish-fill border-parish-blue text-white' : 'bg-parish-surface border-parish-borderSoft text-parish-text2'
                     }`}
                   >
                     {SHORT_LEVEL[level]}

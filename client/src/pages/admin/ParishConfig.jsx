@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, SearchInput, Pagination, Tabs } from '../../components/admin.jsx';
-import { useClientList } from '../../hooks.js';
+import { PageHeader, PageBody, Tabs, Panel } from '../../components/admin.jsx';
+import { ManageListCard } from '../../components/ManageList.jsx';
+import { useAuth } from '../../AuthContext.jsx';
+import { can } from '../../lib/access.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
-import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
+import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
+import { useTheme, THEMES } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
-import { useConfirm } from '../../components/ConfirmDialog.jsx';
 
 const MAX_LOGO_BYTES = 500 * 1024;
 
@@ -62,13 +64,13 @@ function LogoCard({ settings, onSaved }) {
   }
 
   return (
-    <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+    <Panel className="p-6">
       <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Parish logo</div>
       <div className="text-[13.5px] text-parish-muted mb-4">
         Shown on the sign-in screen, the sidebar, and printed household sheets. PNG or JPG, ideally square, under 500&nbsp;KB.
       </div>
       <div className="flex items-center gap-5 flex-wrap">
-        <div className="w-24 h-24 rounded-[18px] border-2 border-dashed border-[#d9cdb4] bg-[#fdfbf6] flex items-center justify-center overflow-hidden flex-none">
+        <div className="w-24 h-24 rounded-[18px] border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center overflow-hidden flex-none">
           {settings.logo ? (
             <img src={settings.logo} alt="Current parish logo" className="w-full h-full object-contain" />
           ) : (
@@ -78,7 +80,7 @@ function LogoCard({ settings, onSaved }) {
           )}
         </div>
         <div className="flex flex-col gap-2.5 items-start">
-          <label className={`cursor-pointer px-[18px] py-2.5 font-semibold text-[14px] text-white bg-parish-blue rounded-xl inline-block ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
+          <label className={`cursor-pointer px-[18px] py-2.5 font-semibold text-[14px] text-white bg-parish-fill rounded-xl inline-block ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
             {busy ? 'Uploading…' : settings.logo ? 'Replace logo' : 'Upload logo'}
             <input type="file" accept="image/*" onChange={onFile} className="hidden" disabled={busy} />
           </label>
@@ -89,7 +91,7 @@ function LogoCard({ settings, onSaved }) {
           )}
         </div>
       </div>
-    </div>
+    </Panel>
   );
 }
 
@@ -120,7 +122,7 @@ function ChangePasswordCard() {
   }
 
   return (
-    <form onSubmit={submit} className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+    <form onSubmit={submit} className="bg-parish-card border border-parish-border rounded-2xl p-6 shadow-cardSm">
       <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Change password</div>
       <div className="text-[13.5px] text-parish-muted mb-4">Use at least 10 characters. You stay signed in on this device.</div>
       {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
@@ -139,11 +141,13 @@ function ChangePasswordCard() {
 function ProfileTab() {
   const toast = useToast();
   const layout = useOutletContext();
+  const { user } = useAuth();
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { api.getSettings().then((r) => setSettings(r.settings)).catch((e) => toast.error(e.message)); }, []);
   if (!settings) return null;
+  const canEdit = can(user, 'settings');
 
   function set(field, value) { setSettings((s) => ({ ...s, [field]: value })); }
 
@@ -168,7 +172,8 @@ function ProfileTab() {
 
   return (
     <div className="flex flex-col gap-[18px]">
-      <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+      {canEdit && (
+      <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-[18px]">Parish profile</div>
         <div className="flex flex-col gap-4">
           <Field label="Parish name"><TextInput value={settings.name || ''} onChange={(e) => set('name', e.target.value)} /></Field>
@@ -182,24 +187,73 @@ function ProfileTab() {
             {saving ? 'Saving…' : 'Save changes'}
           </PrimaryButton>
         </div>
-      </div>
+      </Panel>
 
-      <LogoCard settings={settings} onSaved={applySaved} />
+      )}
+
+      {canEdit && <LogoCard settings={settings} onSaved={applySaved} />}
 
       <ChangePasswordCard />
 
-      <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+      <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>
         <div className="text-[13.5px] text-parish-muted mb-4">Choose a color theme for the registration portal and admin panel. Saved on this device.</div>
         <ThemePickerGrid />
-      </div>
-      <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
+        <ParishThemeRow canEdit={canEdit} onSaved={applySaved} />
+        <div className="mt-5 flex items-center gap-3 flex-wrap">
+          <span className="font-semibold text-[13.5px] text-parish-text2">Admin panel</span>
+          <ModeSwitch />
+          <span className="text-[12.5px] text-parish-muted">Auto follows this device's light or dark setting.</span>
+        </div>
+      </Panel>
+      <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3.5">Data &amp; privacy</div>
         <div className="flex gap-2.5 items-start text-[13.5px] text-parish-text2 leading-relaxed">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p-blue)" strokeWidth="1.7" className="flex-none mt-px"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
           <span>Member information is confidential and accessible only to authorized parish staff. All exports and printed sheets should be handled in accordance with the Data Privacy Act of 2012.</span>
         </div>
-      </div>
+      </Panel>
+    </div>
+  );
+}
+
+/**
+ * The parish default theme: what the public site and every device that
+ * hasn't picked its own theme use. Staff with full access can set it to the
+ * theme chosen above.
+ */
+function ParishThemeRow({ canEdit, onSaved }) {
+  const toast = useToast();
+  const { theme, deviceTheme, parishTheme, setParishTheme, followParishTheme } = useTheme();
+  const [busy, setBusy] = useState(false);
+  const label = (id) => THEMES.find((t) => t.id === id)?.label || 'Gold & Navy';
+
+  async function makeDefault() {
+    setBusy(true);
+    try {
+      const res = await api.updateSettings({ theme });
+      if (res.settings.theme !== theme) throw new Error('Run the 0014_roles_activity_trash.sql migration in Supabase to save a parish theme');
+      setParishTheme(theme);
+      onSaved(res.settings);
+      toast.success(`${label(theme)} is now the parish theme`);
+    } catch (e) {
+      toast.error(e.message || 'Could not save the parish theme');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 flex items-center gap-3 flex-wrap text-[13px] text-parish-text2">
+      <span>Parish theme: <strong className="text-parish-navy">{label(parishTheme)}</strong>{deviceTheme ? ' · this device uses its own choice' : ''}</span>
+      {canEdit && theme !== (parishTheme || 'classic') && (
+        <button type="button" onClick={makeDefault} disabled={busy} className="appearance-none border-none cursor-pointer px-3 py-1.5 rounded-lg bg-[var(--p-blue-tint)] font-semibold text-[12.5px] text-parish-blue disabled:opacity-60">
+          {busy ? 'Saving…' : `Make ${label(theme)} the parish theme`}
+        </button>
+      )}
+      {deviceTheme && (
+        <button type="button" onClick={followParishTheme} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[12.5px] text-parish-blue">Use the parish theme on this device</button>
+      )}
     </div>
   );
 }
@@ -208,7 +262,9 @@ const CONFIG_TABS = [['config', 'Parish Config'], ['gkk', 'Parish GKK']];
 
 export default function ParishConfig() {
   const [params, setParams] = useSearchParams();
-  const tab = CONFIG_TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : CONFIG_TABS[0][0];
+  const { user } = useAuth();
+  const tabs = can(user, 'settings') ? CONFIG_TABS : CONFIG_TABS.slice(0, 1);
+  const tab = tabs.some(([k]) => k === params.get('tab')) ? params.get('tab') : tabs[0][0];
   const setTab = (k) => setParams(k === CONFIG_TABS[0][0] ? {} : { tab: k }, { replace: true });
 
   return (
@@ -216,92 +272,19 @@ export default function ParishConfig() {
       <PageHeader title="Parish Config" subtitle="Profile, privacy & GKK settings" />
       <PageBody>
         <div className="max-w-[720px]">
-          <Tabs tabs={CONFIG_TABS} value={tab} onChange={setTab} />
+          {tabs.length > 1 && <Tabs tabs={tabs} value={tab} onChange={setTab} />}
           {tab === 'config' && <ProfileTab />}
           {tab === 'gkk' && (
-            <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">
-              <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Basic Ecclesial Communities (GKK)</div>
-              <div className="text-[13.5px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Add, rename, or remove the parish's GKKs. A GKK currently assigned to a household cannot be deleted.</div>
-              <GkkList />
-            </div>
+            <ManageListCard
+              heading="Basic Ecclesial Communities (GKK)"
+              description="Add, rename, or remove the parish's GKKs. A GKK currently assigned to a household cannot be deleted."
+              itemNoun="GKK" placeholder="New GKK name (e.g. GKK San Pedro Calungsod)"
+              listFn={api.listGkks} addFn={api.addGkk} renameFn={api.renameGkk} deleteFn={api.deleteGkk}
+              lockInUse countLabel={(n) => `${n} household(s)`} lockedHint="Move them to another GKK first."
+            />
           )}
         </div>
       </PageBody>
-    </>
-  );
-}
-
-function GkkList() {
-  const [rows, setRows] = useState([]);
-  const [newName, setNewName] = useState('');
-  const [editing, setEditing] = useState(null);
-  const [editValue, setEditValue] = useState('');
-  const [error, setError] = useState('');
-  const confirm = useConfirm();
-  const list = useClientList(rows, (r) => r.name);
-
-  function reload() { api.listGkks().then((r) => setRows(r.rows)); }
-  useEffect(() => { reload(); }, []);
-
-  async function add() {
-    if (!newName.trim()) return;
-    setError('');
-    try { await api.addGkk(newName.trim()); setNewName(''); reload(); } catch (e) { setError(e.message || 'Could not add this GKK'); }
-  }
-  async function save() {
-    if (!editValue.trim()) return;
-    setError('');
-    try { await api.renameGkk(editing, editValue.trim()); setEditing(null); reload(); } catch (e) { setError(e.message || 'Could not rename this GKK'); }
-  }
-  async function remove(name) {
-    const ok = await confirm({
-      title: `Delete “${name}”?`,
-      message: "This removes the GKK from the list. It can't be undone, but you can add it again later.",
-      confirmLabel: 'Delete GKK',
-      tone: 'danger',
-    });
-    if (!ok) return;
-    setError('');
-    try { await api.deleteGkk(name); reload(); } catch (e) { setError(e.message || 'Could not delete this GKK'); }
-  }
-
-  return (
-    <>
-      {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
-      <div className="flex gap-2 mb-4">
-        <TextInput placeholder="New GKK name (e.g. GKK San Pedro Calungsod)" value={newName} onChange={(e) => setNewName(e.target.value)} />
-        <PrimaryButton onClick={add} className="px-[22px] py-2.5 text-[14px] whitespace-nowrap" style={{ padding: '11px 22px' }}>Add</PrimaryButton>
-      </div>
-      {rows.length > 0 && (
-        <div className="mb-3">
-          <SearchInput placeholder="Search GKK names…" aria-label="Search GKK names" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
-        </div>
-      )}
-      <div className="flex flex-col gap-2">
-        {list.rows.map((r) => (
-          <div key={r.name} className="flex items-center gap-2.5 border border-[#f0e8d6] rounded-xl px-3.5 py-2.5 bg-[#fdfbf6]">
-            {editing === r.name ? (
-              <>
-                <TextInput value={editValue} onChange={(e) => setEditValue(e.target.value)} className="flex-1 !py-2.5 !bg-white !border-parish-blue" />
-                <button onClick={save} className="appearance-none border-none bg-parish-blue text-white cursor-pointer px-4 py-2 rounded-lg font-bold text-[12.5px]">Save</button>
-                <button onClick={() => setEditing(null)} className="appearance-none border-none bg-[#f4efe3] text-parish-text2 cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Cancel</button>
-              </>
-            ) : (
-              <>
-                <span className="flex-1 font-semibold text-[14.5px] text-parish-navy">{r.name}</span>
-                <span className="font-semibold text-[12px] text-parish-muted">{r.count} household(s)</span>
-                <button onClick={() => { setEditing(r.name); setEditValue(r.name); }} className="appearance-none border-none bg-[var(--p-blue-tint)] text-parish-blue cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Edit</button>
-                <button onClick={() => remove(r.name)} className="appearance-none border-none bg-parish-errorBg text-parish-error cursor-pointer px-3.5 py-2 rounded-lg font-semibold text-[12.5px]">Delete</button>
-              </>
-            )}
-          </div>
-        ))}
-        {!rows.length && <div className="text-[13.5px] text-parish-muted">No GKKs added yet.</div>}
-        {!!rows.length && !list.total && <div className="text-[13.5px] text-parish-muted">No GKK matches “{list.query}”.</div>}
-      </div>
-      <div className="-mx-6 -mb-6 mt-4">
-        <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
-      </div>
     </>
   );
 }

@@ -1,0 +1,39 @@
+// What each staff access level may do in the admin panel (profiles.access,
+// from 0014_roles_activity_trash.sql). The database enforces the same rules;
+// this only decides which pages, buttons and links to show.
+
+export const ACCESS_LEVELS = [
+  { key: 'full', label: 'Full access', note: 'Everything in the admin panel.' },
+  { key: 'read_only', label: 'Read only', note: 'Sees every record, changes nothing.' },
+  { key: 'gkk_leader', label: 'GKK leader', note: 'Sees and updates the households and members of one GKK.' },
+  { key: 'website', label: 'Website & requests', note: 'Runs the Parish Website and the Requests queues; can look up members.' },
+];
+
+export const accessLabel = (key) => ACCESS_LEVELS.find((a) => a.key === key)?.label || 'Full access';
+
+const RULES = {
+  // see
+  registry: ['full', 'read_only', 'gkk_leader', 'website'],
+  requests: ['full', 'read_only', 'website'],
+  website: ['full', 'read_only', 'website'],
+  census: ['full', 'read_only'],
+  reports: ['full', 'read_only', 'gkk_leader'],
+  exports: ['full', 'read_only'],
+  activity: ['full', 'read_only'],
+  // change
+  editRegistry: ['full', 'gkk_leader'],
+  editRequests: ['full', 'website'],
+  editWebsite: ['full', 'website'],
+  editCensus: ['full'],
+  verify: ['full'],
+  deleteRecords: ['full'],
+  manageLists: ['full'],
+  settings: ['full'],
+  trash: ['full'],
+};
+
+/** True when `user` (from useAuth) may do `what` (a RULES key). Unknown users get full access, as before 0014. */
+export function can(user, what) {
+  const level = user?.access || 'full';
+  return (RULES[what] || []).includes(level);
+}

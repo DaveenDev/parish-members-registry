@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api, triggerDownload } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote } from '../../components/admin.jsx';
+import { useAuth } from '../../AuthContext.jsx';
+import { can } from '../../lib/access.js';
 import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
 import CensusHouseholdDrawer from '../../components/CensusHouseholdDrawer.jsx';
 import CensusPrintSheet from '../../components/CensusPrintSheet.jsx';
@@ -18,20 +20,22 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 function Tile({ label, value, note, accent }) {
   return (
-    <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[18px] py-4 shadow-cardSm min-w-0">
+    <Panel className="px-[18px] py-4 min-w-0">
       <div className="flex items-center gap-2 mb-2" style={{ color: accent }}>
         <span className="w-2 h-2 rounded-full" style={{ background: accent }} />
         <span className="font-semibold text-[12px] tracking-wide uppercase text-parish-muted">{label}</span>
       </div>
       <div className="font-serif text-[32px] font-semibold leading-none text-parish-navy">{value}</div>
       {note && <div className="text-[12.5px] text-parish-muted mt-1.5">{note}</div>}
-    </div>
+    </Panel>
   );
 }
 
 export default function Census() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { user } = useAuth();
+  const canEdit = can(user, 'editCensus');
   const [cycles, setCycles] = useState(null);
   const [cyclesError, setCyclesError] = useState('');
   const [cycleId, setCycleId] = useState(null);
@@ -122,10 +126,11 @@ export default function Census() {
             {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
           </FilterSelect>
         )}
-        {!openCycle && !starting && <PrimaryButton onClick={() => setStarting(true)} className="px-4 py-2.5 text-[14px]">Start a new census</PrimaryButton>}
+        {!openCycle && !starting && canEdit && <PrimaryButton onClick={() => setStarting(true)} className="px-4 py-2.5 text-[14px]">Start a new census</PrimaryButton>}
       </PageHeader>
       <PageBody>
-        <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-5 py-4 shadow-cardSm mb-5 flex flex-wrap items-center gap-x-6 gap-y-3">
+        {!canEdit && <ViewOnlyNote />}
+        <Panel className="px-5 py-4 mb-5 flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-2.5">
             <span className="text-[13.5px] text-parish-text2 font-semibold">Schedule</span>
             <FilterSelect aria-label="Census schedule" value={interval} onChange={(e) => changeInterval(e.target.value)}>
@@ -139,7 +144,7 @@ export default function Census() {
                 ? <>Next census due around <strong className="text-parish-navy">{fmtDate(due)}</strong>{due <= today() && ' — it is time to start one.'}</>
                 : 'No census has been held yet.'}
           </div>
-        </div>
+        </Panel>
 
         {starting && (
           <StartCensusForm
@@ -149,9 +154,9 @@ export default function Census() {
         )}
 
         {!cycle && !starting && (
-          <div className="bg-[#fffdf8] border border-parish-border rounded-2xl shadow-cardSm">
+          <Panel>
             <EmptyState title="No census yet" subtitle="Start a census, print the pre-filled forms by GKK, and record the answers as they come back." />
-          </div>
+          </Panel>
         )}
 
         {cycle && (
@@ -206,7 +211,7 @@ function StartCensusForm({ onCancel, onStarted }) {
   }
 
   return (
-    <div className="bg-[#f8faff] border-[1.5px] border-[#cdd7e8] rounded-2xl px-5 py-5 mb-5">
+    <div className="bg-parish-fillSoft border-[1.5px] border-parish-focusLine rounded-2xl px-5 py-5 mb-5">
       <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">Start a new census</div>
       <p className="text-[13px] text-parish-muted mt-0 mb-4">
         Every current member starts as “not confirmed”. Nothing changes in the records until staff save a household's answers.
@@ -281,8 +286,8 @@ function HouseholdsTab({ cycle, parish, refreshKey, onChanged }) {
     <>
       <div className="grid gap-3.5 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(170px,100%),1fr))' }}>
         <Tile label="Members confirmed" value={t ? `${t.pct}%` : '—'} note={t ? `${t.confirmed} of ${t.total} members` : ''} accent="#34589c" />
-        <Tile label="Active" value={t ? t.counts.Active : '—'} note={t ? `${t.counts.Inactive} inactive · ${t.counts['Left the Church']} left the Church` : ''} accent="#2f7a52" />
-        <Tile label="Moved / deceased" value={t ? t.counts['Moved away'] + t.counts.Deceased : '—'} note={t ? `${t.counts['Moved away']} moved · ${t.counts.Deceased} deceased` : ''} accent="#7a6a3e" />
+        <Tile label="Active" value={t ? t.counts.Active : '—'} note={t ? `${t.counts.Inactive} inactive · ${t.counts['Left the Church']} left the Church` : ''} accent="rgb(var(--c-ok-text))" />
+        <Tile label="Moved / deceased" value={t ? t.counts['Moved away'] + t.counts.Deceased : '—'} note={t ? `${t.counts['Moved away']} moved · ${t.counts.Deceased} deceased` : ''} accent="rgb(var(--c-chip))" />
         <Tile label="Households done" value={counts ? counts.Confirmed : '—'} note={counts ? `${counts['Partly confirmed']} partly · ${counts['Not started']} not started` : ''} accent="#c39b4e" />
       </div>
 
@@ -322,13 +327,13 @@ function HouseholdsTab({ cycle, parish, refreshKey, onChanged }) {
         }
       >
         {!loading && rows.map((r) => (
-          <tr key={r.household_id} className="border-t border-[#f1e8d5]">
+          <tr key={r.household_id} className="border-t border-parish-line">
             <td className="px-4 py-3">
               <div className="font-semibold text-[14.5px] text-parish-navy">{r.household_name}</div>
               <div className="text-[12.5px] text-parish-muted">{[r.head_name, r.ref_no].filter(Boolean).join(' · ')}</div>
             </td>
             <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.gkk || '—'}</td>
-            <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{r.members_confirmed} of {r.members_expected}</td>
+            <td className="px-4 py-3 text-[14px] text-parish-text3">{r.members_confirmed} of {r.members_expected}</td>
             <td className="px-4 py-3">
               <div className="flex flex-wrap gap-1.5">
                 <Badge tone={PROGRESS_TONES[r.progress]}>{r.progress}</Badge>
@@ -338,7 +343,7 @@ function HouseholdsTab({ cycle, parish, refreshKey, onChanged }) {
             <td className="px-4 py-3">
               <div className="flex gap-1.5 justify-end">
                 {open && (
-                  <button onClick={() => print({ householdIds: [r.household_id] })} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-[#f4efe3] rounded-lg whitespace-nowrap">Print form</button>
+                  <button onClick={() => print({ householdIds: [r.household_id] })} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg whitespace-nowrap">Print form</button>
                 )}
                 <button onClick={() => setOpenId(r.household_id)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
                   {open ? 'Record census' : 'View'}
@@ -401,14 +406,14 @@ function UpdatesTab({ cycle, refreshKey, onChanged }) {
           const d = diffSubmission(r);
           const answered = [...d.members, ...d.newMembers].filter((m) => m.status).length;
           return (
-            <tr key={r.id} className="border-t border-[#f1e8d5]">
+            <tr key={r.id} className="border-t border-parish-line">
               <td className="px-4 py-3">
                 <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
                 <div className="text-[12.5px] text-parish-muted">{r.households?.ref_no}</div>
               </td>
               <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.households?.gkk || '—'}</td>
               <td className="px-4 py-3 text-[13.5px] text-parish-text2 whitespace-nowrap">{new Date(r.submitted_at).toLocaleString()}</td>
-              <td className="px-4 py-3 text-[13.5px] text-[#3f3b2f]">
+              <td className="px-4 py-3 text-[13.5px] text-parish-text3">
                 {d.changeCount} change(s) · {answered} census answer(s){r.message ? ' · message' : ''}
                 {r.status !== 'Pending' && <div className="text-[12px] text-parish-muted">{r.status} by {r.reviewed_by_name || 'staff'}{r.review_note ? ` — ${r.review_note}` : ''}</div>}
               </td>
@@ -460,7 +465,7 @@ function ResultsTab({ cycle, refreshKey }) {
         <p className="text-[13px] text-parish-muted m-0">
           Members per status in the {cycle.label}. “Not confirmed” are current members with no answer in this census{cycle.status === 'Open' ? ' yet' : ''}.
         </p>
-        <button onClick={exportCsv} className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg whitespace-nowrap">Export CSV</button>
+        <button onClick={exportCsv} className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
       </div>
       <DataTable
         minWidth={820}
@@ -468,10 +473,10 @@ function ResultsTab({ cycle, refreshKey }) {
         footer={!summary.rows.length && <EmptyState title="No members yet" />}
       >
         {[...summary.rows, summary.total].map((r, i) => (
-          <tr key={r.label} className={`border-t border-[#f1e8d5] ${i === summary.rows.length ? 'bg-[#f4efe3] font-semibold' : ''}`}>
+          <tr key={r.label} className={`border-t border-parish-line ${i === summary.rows.length ? 'bg-parish-sunk font-semibold' : ''}`}>
             <td className="px-4 py-3 text-[14px] text-parish-navy whitespace-nowrap">{r.label}</td>
-            {cols.map((c) => <td key={c} className="px-4 py-3 text-[14px] text-right text-[#3f3b2f]">{r.counts[c]}</td>)}
-            <td className="px-4 py-3 text-[14px] text-right text-[#3f3b2f]">{r.total}</td>
+            {cols.map((c) => <td key={c} className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.counts[c]}</td>)}
+            <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.total}</td>
             <td className="px-4 py-3 text-[14px] text-right text-parish-navy">{r.pct}%</td>
           </tr>
         ))}

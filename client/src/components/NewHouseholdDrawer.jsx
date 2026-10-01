@@ -252,15 +252,15 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
 
   return (
     <div className="fixed inset-0 z-[45] flex justify-end">
-      <div className="absolute inset-0 bg-parish-navy/35 backdrop-blur-[2px] animate-fadeIn" onClick={requestClose} />
+      <div className="absolute inset-0 bg-parish-scrim/35 backdrop-blur-[2px] animate-fadeIn" onClick={requestClose} />
       <aside
         ref={panelRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative h-full w-[90vw] lg:w-[50vw] lg:min-w-[640px] max-w-full bg-white shadow-2xl flex flex-col animate-slideInRight"
+        className="relative h-full w-[90vw] lg:w-[50vw] lg:min-w-[640px] max-w-full bg-parish-surface shadow-2xl flex flex-col animate-slideInRight"
       >
-        <header className="px-5 sm:px-7 pt-5 pb-4 border-b border-[#f0e8d6]">
+        <header className="px-5 sm:px-7 pt-5 pb-4 border-b border-parish-line2">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <h3 id={titleId} className="font-serif text-[24px] font-semibold m-0 text-parish-navy truncate">New household</h3>
@@ -269,7 +269,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
             <button onClick={requestClose} aria-label="Close" className="appearance-none border-none bg-transparent cursor-pointer text-parish-muted text-2xl leading-none px-1">×</button>
           </div>
           <div className="hidden sm:block mt-3.5"><StepDots step={step} /></div>
-          <div className="h-[5px] bg-[#eaddc2] rounded-full mt-3 overflow-hidden">
+          <div className="h-[5px] bg-parish-borderStrong rounded-full mt-3 overflow-hidden">
             <div className="h-full rounded-full transition-all duration-500" style={{ width: `${(step / STEPS.length) * 100}%`, background: 'linear-gradient(90deg,var(--p-blue),var(--p-gold))' }} />
           </div>
         </header>
@@ -288,7 +288,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
           {step === 5 && <StepReview {...stepProps} />}
         </div>
 
-        <footer className="flex gap-2.5 justify-between items-center px-5 sm:px-7 py-3.5 border-t border-[#f0e8d6] bg-[#fffdf8]">
+        <footer className="flex gap-2.5 justify-between items-center px-5 sm:px-7 py-3.5 border-t border-parish-line2 bg-parish-card">
           <GhostButton onClick={step === 1 ? requestClose : () => goStep(step - 1)} className="px-5 py-2.5 text-[14px]">{step === 1 ? 'Cancel' : '← Back'}</GhostButton>
           {step < STEPS.length
             ? <PrimaryButton onClick={next} className="px-6 py-2.5 text-[14px]">Next →</PrimaryButton>
@@ -311,14 +311,14 @@ function StepDots({ step }) {
             <div
               className="w-[24px] h-[24px] rounded-full flex items-center justify-center font-bold text-[11.5px] border-2 transition-all"
               style={{
-                borderColor: active ? 'var(--p-blue)' : done ? '#c6d3ea' : '#e6dcc7',
-                background: active ? 'var(--p-blue)' : done ? 'var(--p-blue-tint)' : '#fff',
-                color: active ? '#fff' : done ? 'var(--p-blue)' : '#a79f8a',
+                borderColor: active ? 'var(--p-blue)' : done ? 'rgb(var(--c-focus-line))' : 'rgb(var(--c-border-strong))',
+                background: active ? 'var(--p-blue)' : done ? 'var(--p-blue-tint)' : 'rgb(var(--c-surface))',
+                color: active ? 'rgb(var(--c-surface))' : done ? 'var(--p-blue)' : 'rgb(var(--c-icon))',
               }}
             >
               {n}
             </div>
-            <span className="font-semibold text-[12px]" style={{ color: active || done ? 'var(--p-navy)' : '#a79f8a' }}>{label}</span>
+            <span className="font-semibold text-[12px]" style={{ color: active || done ? 'var(--p-navy)' : 'rgb(var(--c-icon))' }}>{label}</span>
           </div>
         );
       })}
@@ -328,7 +328,7 @@ function StepDots({ step }) {
 
 function Panel({ title, hint, children }) {
   return (
-    <section className="border border-[#eee3ce] rounded-2xl p-[clamp(16px,2.5vw,24px)] bg-[#fffdf8] mb-4">
+    <section className="border border-parish-edge rounded-2xl p-[clamp(16px,2.5vw,24px)] bg-parish-card mb-4">
       {title && <h4 className="font-serif text-[20px] font-semibold text-parish-navy m-0 mb-1">{title}</h4>}
       {hint && <p className="text-[13px] text-parish-muted m-0 mb-3.5">{hint}</p>}
       {!hint && title && <div className="mb-3" />}
@@ -372,9 +372,9 @@ function HouseholdNameField({ value, error, taken, onChange }) {
           aria-readonly={!editing}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => { if (editing && e.key === 'Enter') toggle(); }}
-          className={`flex-1 ${editing ? '' : '!bg-[#f4efe3] !text-parish-text2 cursor-default'}`}
+          className={`flex-1 ${editing ? '' : '!bg-parish-sunk !text-parish-text2 cursor-default'}`}
         />
-        <GhostButton type="button" onClick={toggle} className="px-4 text-[13.5px] flex-none !border-[#cdd7e8] !text-parish-blue bg-white">
+        <GhostButton type="button" onClick={toggle} className="px-4 text-[13.5px] flex-none !border-parish-focusLine !text-parish-blue bg-parish-surface">
           {editing ? 'Done' : 'Edit'}
         </GhostButton>
       </div>
@@ -499,7 +499,7 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }
   const others = memberViews.slice(1);
   return (
     <div className="animate-fadeUp">
-      <div className="flex items-center gap-2.5 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl px-4 py-3 mb-4 text-[#2b466f] text-[13.5px]">
+      <div className="flex items-center gap-2.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl px-4 py-3 mb-4 text-parish-info text-[13.5px]">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="flex-none"><path d="M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 20v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11" /></svg>
         <span>
           {others.length
@@ -510,13 +510,13 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }
       {others.map((mv) => (
         <Panel key={mv.mi}>
           <MemberHeading mv={mv}>
-            <button onClick={() => onRemoveMember(mv.mi)} className="border border-[#e7d5cf] bg-white text-parish-error cursor-pointer font-semibold text-[12.5px] px-3 py-1.5 rounded-lg flex-none">Remove</button>
+            <button onClick={() => onRemoveMember(mv.mi)} className="border border-parish-errorBorder bg-parish-surface text-parish-error cursor-pointer font-semibold text-[12.5px] px-3 py-1.5 rounded-lg flex-none">Remove</button>
           </MemberHeading>
           <MemberNameFields mv={mv} onField={onMemberField} />
           <div className="mt-4"><MemberFieldsGrid mv={mv} onField={onMemberField} /></div>
         </Panel>
       ))}
-      <button onClick={onAddMember} className="w-full appearance-none cursor-pointer py-3.5 font-bold text-[14.5px] text-parish-blue bg-white border-[1.5px] border-dashed border-[#b9c6de] rounded-2xl flex items-center justify-center gap-2.5 hover:bg-[#f4f7fc] hover:border-parish-blue transition">
+      <button onClick={onAddMember} className="w-full appearance-none cursor-pointer py-3.5 font-bold text-[14.5px] text-parish-blue bg-parish-surface border-[1.5px] border-dashed border-parish-focusLine rounded-2xl flex items-center justify-center gap-2.5 hover:bg-parish-fillSoft hover:border-parish-blue transition">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12h14" /></svg>Add Another Member
       </button>
     </div>
@@ -527,7 +527,7 @@ function SacramentBlock({ mv, field, dateField, churchField, label, extra, onFie
   const checked = mv[field];
   const set = (f) => (e) => onField(mv.mi, f, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
   return (
-    <div className="border border-[#eee3ce] rounded-xl px-3.5 py-1.5 bg-white">
+    <div className="border border-parish-edge rounded-xl px-3.5 py-1.5 bg-parish-surface">
       <label className="flex items-center gap-2.5 cursor-pointer min-h-[40px]">
         <Checkbox checked={checked} onChange={set(field)} />
         <span className="font-semibold text-[14px] text-parish-navy">{label}</span>
@@ -551,11 +551,11 @@ function WeddingBlock({ mv, sharedWith, onField }) {
     onField(mv.mi, 'hasMatrimony', type === 'Catholic Marriage');
   }
   return (
-    <div className="border border-[#eee3ce] rounded-xl px-3.5 py-3 bg-white">
+    <div className="border border-parish-edge rounded-xl px-3.5 py-3 bg-parish-surface">
       <div className="font-semibold text-[14px] text-parish-navy">Matrimony</div>
       <div className="text-[12.5px] text-parish-muted mb-2.5">What kind of wedding?</div>
       {sharedWith && (
-        <div className="text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-lg px-3 py-2 mb-2.5">
+        <div className="text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-lg px-3 py-2 mb-2.5">
           Same wedding as <strong>{sharedWith}</strong>: the type, date and parish entered here are copied to their record too.
         </div>
       )}
@@ -566,7 +566,7 @@ function WeddingBlock({ mv, sharedWith, onField }) {
             <label
               key={type}
               className={`cursor-pointer select-none px-3.5 py-2 rounded-full border-[1.5px] text-[13px] font-semibold transition focus-within:ring-2 focus-within:ring-parish-blue/30 ${
-                checked ? 'bg-parish-blue border-parish-blue text-white' : 'bg-white border-parish-borderSoft text-parish-text2 hover:border-parish-blue'
+                checked ? 'bg-parish-fill border-parish-blue text-white' : 'bg-parish-surface border-parish-borderSoft text-parish-text2 hover:border-parish-blue'
               }`}
             >
               <input type="radio" name={`nh-wedding-${mv.mi}`} value={type} checked={checked} onChange={() => choose(type)} className="sr-only" />
@@ -633,7 +633,7 @@ function GroupChecks({ options, selected, onToggle }) {
       {options.map((name) => {
         const checked = (selected || []).includes(name);
         return (
-          <label key={name} className="flex items-center gap-2 cursor-pointer border-[1.5px] rounded-lg px-2.5 py-2" style={{ borderColor: checked ? '#9db9e0' : '#e0d6c1', background: checked ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
+          <label key={name} className="flex items-center gap-2 cursor-pointer border-[1.5px] rounded-lg px-2.5 py-2" style={{ borderColor: checked ? 'rgb(var(--c-focus-line))' : 'rgb(var(--c-border-soft))', background: checked ? 'var(--p-blue-tint)' : 'rgb(var(--c-field))' }}>
             <Checkbox checked={checked} onChange={() => onToggle(name)} className="w-4 h-4 flex-none" />
             <span className="font-medium text-[13.5px] text-parish-ink">{name}</span>
           </label>
@@ -704,13 +704,13 @@ function StepParticipation({
             </Select>
           </Field>
         </div>
-        <label className="flex items-start gap-3 cursor-pointer p-3.5 border border-[#eee3ce] rounded-xl bg-[#fdfbf6] mb-3">
+        <label className="flex items-start gap-3 cursor-pointer p-3.5 border border-parish-edge rounded-xl bg-parish-field mb-3">
           <Checkbox checked={notifyOptin} onChange={(e) => setNotifyOptin(e.target.checked)} className="mt-0.5" />
-          <span className="text-[14px] leading-relaxed text-[#3f3b2f]">Add the family to the parish email list for Mass schedules, feasts and announcements.</span>
+          <span className="text-[14px] leading-relaxed text-parish-text3">Add the family to the parish email list for Mass schedules, feasts and announcements.</span>
         </label>
-        <label className="flex items-start gap-3 cursor-pointer p-3.5 rounded-xl border-[1.5px] transition" style={{ borderColor: consent ? '#9db9e0' : '#e0d6c1', background: consent ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
+        <label className="flex items-start gap-3 cursor-pointer p-3.5 rounded-xl border-[1.5px] transition" style={{ borderColor: consent ? 'rgb(var(--c-focus-line))' : 'rgb(var(--c-border-soft))', background: consent ? 'var(--p-blue-tint)' : 'rgb(var(--c-field))' }}>
           <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
-          <span className="text-[14px] leading-relaxed text-[#3f3b2f]">
+          <span className="text-[14px] leading-relaxed text-parish-text3">
             <strong className="text-parish-navy">Data privacy consent</strong> — the family agreed that the parish may collect and keep this information, visible only to authorized parish staff, under the Data Privacy Act.
           </span>
         </label>
@@ -759,7 +759,7 @@ function StepReview({ household, memberViews, status, volunteer, notifyOptin, co
 
       <ReviewCard title={`Members (${memberViews.length})`} onEdit={() => onGoStep(2)}>
         {memberViews.map((m) => (
-          <div key={m.mi} className="border border-[#f0e8d6] rounded-xl px-4 py-3.5 bg-white">
+          <div key={m.mi} className="border border-parish-line2 rounded-xl px-4 py-3.5 bg-parish-surface">
             <div className="flex items-start justify-between gap-3">
               <div className="font-serif text-[18px] font-semibold text-parish-navy mb-1">{fullName(m) || m.displayName}</div>
               <button onClick={() => onGoStep(3)} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[12.5px] text-parish-blue px-2 py-1 -mr-2 rounded-lg hover:bg-[var(--p-blue-tint)] flex-none">Sacraments</button>
@@ -808,7 +808,7 @@ function ReviewCard({ title, onEdit, children }) {
 
 function ReviewRow({ label, value }) {
   return (
-    <div className="flex flex-col sm:flex-row gap-0.5 sm:gap-3.5 text-[14px] border-b border-[#f4eddd] pb-2">
+    <div className="flex flex-col sm:flex-row gap-0.5 sm:gap-3.5 text-[14px] border-b border-parish-line2 pb-2">
       <span className="sm:flex-none sm:w-[130px] text-parish-muted font-semibold text-[13px]">{label}</span>
       <span className="text-parish-ink break-words">{value}</span>
     </div>

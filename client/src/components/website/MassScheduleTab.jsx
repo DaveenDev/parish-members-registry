@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { useUrlState } from '../../hooks.js';
 import { api } from '../../api.js';
 import { Field, TextInput, Select, ComboInput, Badge } from '../ui.jsx';
 import { FilterSelect, EmptyState, LoadingState, ErrorState } from '../admin.jsx';
@@ -8,11 +9,16 @@ import { useContentList, SidePanel, PublishSwitch, StateBadge, RowButton, Panel,
 
 const describe = (r) => `${DAYS[r.day_of_week]} ${fmtTime(r.start_time)} ${r.kind}`;
 
+const URL_DEFAULTS = { location: 'All', language: 'All' };
+const URL_ALLOWED = { language: ['All', ...MASS_LANGUAGES] };
+
 export default function MassScheduleTab() {
   const list = useContentList({ table: 'mass_schedules', load: api.listMassSchedules, remove: api.deleteMassSchedule, describe });
   const [editing, setEditing] = useState(null);
-  const [location, setLocation] = useState('All');
-  const [language, setLanguage] = useState('All');
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { location, language } = url;
+  const setLocation = (v) => setUrl({ location: v });
+  const setLanguage = (v) => setUrl({ language: v });
 
   const locations = useMemo(() => {
     const set = new Set([DEFAULT_LOCATION, ...list.rows.map((r) => r.location).filter(Boolean)]);
@@ -53,7 +59,7 @@ export default function MassScheduleTab() {
           <EmptyState title="Nothing matches these filters" />
         ) : (
           byDay.map(({ day, rows }) => (
-            <section key={day} className="border-b border-[#f1e8d5] last:border-b-0">
+            <section key={day} className="border-b border-parish-line last:border-b-0">
               <div className="px-5 pt-4 pb-1 font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{day}</div>
               {rows.map((r) => (
                 <div key={r.id} className="flex items-center gap-3 px-5 py-3 flex-wrap">

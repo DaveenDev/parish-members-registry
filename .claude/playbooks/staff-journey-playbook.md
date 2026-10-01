@@ -332,7 +332,7 @@ npm run install:all
    - root `.env` has `PLAYBOOK_TEST_PROJECT=yes`;
    - **the schema exists:** `curl -s "$SUPABASE_URL/rest/v1/articles?select=id&limit=1" -H "apikey: $SUPABASE_SERVICE_ROLE_KEY"`
      answers `[]` or rows. A `PGRST205` *Could not find the table* means the
-     migrations haven't run (`articles` comes from 0013). Also check the last one, 0014, ran: an anon
+     migrations haven't run (`articles` comes from 0013). Also check the last one, 0015, ran: an anon
      `POST $SUPABASE_URL/rest/v1/rpc/delete_gkk` `{"target_name":"x"}` must answer *permission denied* (42501), not 204/400.
      Record `BLOCKED u0-schema` and ask the user to run them in the SQL editor;
    - **`manage-staff` is deployed:** `curl -s -o /dev/null -w "%{http_code}" -X POST "$SUPABASE_URL/functions/v1/manage-staff" -H "apikey: $VITE_SUPABASE_ANON_KEY"`
@@ -733,9 +733,9 @@ Lito's own id is the `sub` in the access token
 |---|---|---|
 | `s-api-profiles-read-all` | `GET /rest/v1/profiles?select=*` | exactly **one** row — Lito's own (`profiles_select_own`); the admin's row must not appear |
 | `s-api-profiles-read-admin` | `GET /rest/v1/profiles?id=eq.<adminId>` | `[]` |
-| `s-api-profiles-promote` | `PATCH /rest/v1/profiles?id=eq.<own id>` body `{"is_admin":true}` | refused: 403 *permission denied for table profiles* (0014 revokes writes; before 0014 it was 200 `[]`, stopped by RLS only). Then **reload `/admin`**: Staff must still be absent from the nav. A silent success is **P0** |
-| `s-api-profiles-insert` | `POST /rest/v1/profiles` body `{"id":"00000000-0000-0000-0000-000000000001","name":"x","is_admin":true}` | refused — *permission denied* (0014), not an RLS violation |
-| `s-api-profiles-delete` | `DELETE /rest/v1/profiles?id=eq.<adminId>` | refused — *permission denied* (0014); the admin can still sign in |
+| `s-api-profiles-promote` | `PATCH /rest/v1/profiles?id=eq.<own id>` body `{"is_admin":true}` | refused: 403 *permission denied for table profiles* (0015 revokes writes; before 0015 it was 200 `[]`, stopped by RLS only). Then **reload `/admin`**: Staff must still be absent from the nav. A silent success is **P0** |
+| `s-api-profiles-insert` | `POST /rest/v1/profiles` body `{"id":"00000000-0000-0000-0000-000000000001","name":"x","is_admin":true}` | refused — *permission denied* (0015), not an RLS violation |
+| `s-api-profiles-delete` | `DELETE /rest/v1/profiles?id=eq.<adminId>` | refused — *permission denied* (0015); the admin can still sign in |
 
 ### s-api-staff-allowed · Things staff *must* be able to do over the API
 A refusal here is a bug too (a page would break for every non-admin):
@@ -813,10 +813,10 @@ Verify that first with `GET /auth/v1/user` (must be 401/403).
 | `a-rpc-approve` | `census_approve_submission` `{"p_id":<submissionId>}` (the portal update approved in `s-census-portal-approve`) | refused |
 | `a-rpc-verify-sacr` | `verify_sacrament` `{"p_member_id":<memberId>,"p_sacrament":"baptism","p_source":"x"}` | refused |
 | `a-rpc-census-open` | `census_open_cycle` `{"p_label":"Leak SV1001"}` | refused |
-| `a-rpc-create-hh` | `create_household` `{"payload":{}}` | refused (*permission denied*, 42501). 0014 revokes these staff functions from `public, anon` (hardening note H1 of the 2026-10-01 run); a 400 validation error means 0014 hasn't run — record it as a P2. A row actually created is **P0** |
-| `a-rpc-rename-gkk` | `rename_gkk` `{"old_name":"GKK San Isidro","new_name":"Leak SV1001"}` | refused (*permission denied*, 0014). **Read the body.** Confirm afterwards (service key) that the GKK name is unchanged |
-| `a-rpc-delete-gkk` | `delete_gkk` `{"target_name":"GKK Sto. Niño"}` | refused (*permission denied*, 0014). The GKK must still exist afterwards. Use a GKK no household uses, so the function's own in-use guard is not what stops it |
-| `a-rpc-census-progress` | `census_household_progress` `{"p_cycle_id":<cycleId>}` and `census_summary` `{"p_cycle_id":<cycleId>}` | refused — *permission denied for function* (0014); never per-household names |
+| `a-rpc-create-hh` | `create_household` `{"payload":{}}` | refused (*permission denied*, 42501). 0015 revokes these staff functions from `public, anon` (hardening note H1 of the 2026-10-01 run); a 400 validation error means 0015 hasn't run — record it as a P2. A row actually created is **P0** |
+| `a-rpc-rename-gkk` | `rename_gkk` `{"old_name":"GKK San Isidro","new_name":"Leak SV1001"}` | refused (*permission denied*, 0015). **Read the body.** Confirm afterwards (service key) that the GKK name is unchanged |
+| `a-rpc-delete-gkk` | `delete_gkk` `{"target_name":"GKK Sto. Niño"}` | refused (*permission denied*, 0015). The GKK must still exist afterwards. Use a GKK no household uses, so the function's own in-use guard is not what stops it |
+| `a-rpc-census-progress` | `census_household_progress` `{"p_cycle_id":<cycleId>}` and `census_summary` `{"p_cycle_id":<cycleId>}` | refused — *permission denied for function* (0015); never per-household names |
 
 ### a-api-public · What anon *may* call returns no PII
 | ID | Call | Expected |

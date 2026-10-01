@@ -1,6 +1,8 @@
 import React from 'react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
-import { PageHeader, PageBody, Tabs } from '../../components/admin.jsx';
+import { PageHeader, PageBody, Tabs, ViewOnlyNote } from '../../components/admin.jsx';
+import { useAuth } from '../../AuthContext.jsx';
+import { can } from '../../lib/access.js';
 import CertificatesTab from '../../components/requests/CertificatesTab.jsx';
 import PrayerTab from '../../components/requests/PrayerTab.jsx';
 import BloodRequestsTab from '../../components/requests/BloodRequestsTab.jsx';
@@ -21,6 +23,7 @@ export default function Requests() {
   const current = TABS.find(([k]) => k === params.get('tab')) || TABS[0];
   const setTab = (k) => setParams(k === TABS[0][0] ? {} : { tab: k }, { replace: true });
   const Tab = current[2];
+  const { user } = useAuth();
 
   const tabs = TABS.map(([k, label, , countOf]) => {
     const n = counts ? countOf(counts) : 0;
@@ -31,6 +34,7 @@ export default function Requests() {
     <>
       <PageHeader title="Requests" subtitle="Certificates, prayer intentions and blood calls from parishioners" />
       <PageBody>
+        {!can(user, 'editRequests') && <ViewOnlyNote />}
         <Tabs tabs={tabs} value={current[0]} onChange={setTab} />
         <Tab key={current[0]} onCountsChanged={() => layout?.refreshRequestCounts?.()} />
       </PageBody>

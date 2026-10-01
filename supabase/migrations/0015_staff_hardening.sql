@@ -1,13 +1,13 @@
 -- Hardening from the staff journey run of 2026-10-01 (notes H1 and H2): take
 -- away privileges the signed-out public never needed, so the staff/public
 -- boundary no longer rests on row-level security alone. Nothing the app does
--- changes. Run after 0013_public_site.sql. Safe to re-run.
+-- changes. Run after 0014_roles_activity_trash.sql. Safe to re-run.
 
 -- Stop early, naming the missing file, if an earlier migration hasn't run.
 do $$
 begin
-  if to_regprocedure('public.registration_status(text)') is null then
-    raise exception 'Run 0013_public_site.sql before this migration';
+  if to_regprocedure('public.staff_access()') is null then
+    raise exception 'Run 0014_roles_activity_trash.sql before this migration';
   end if;
 end;
 $$;
