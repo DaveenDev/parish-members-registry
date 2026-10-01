@@ -149,56 +149,13 @@ export const api = {
   // ---- members -------------------------------------------------------
   async listMembers(params = {}) {
     const {
-      status = 'All', civil = 'All', sacrament = 'All', ministry = 'All',
-      age = 'All', blood = 'All', gkk = 'All', search = '',
-      baptism = 'All', communion = 'All', confirmation = 'All', matrimony = 'All',
-      sortKey = 'name', sortDir = 'asc', groupColumn,
+      sortKey = 'name', sortDir = 'asc',
       groupBy, // 'gkk': rows come out GKK by GKK, with the chosen sort inside each
       memberOrder = 'id', // within a household: 'id' (head first) or 'name'
     } = params;
     const { page, pageSize, from, to } = clampPaging(params);
 
-    const SACRAMENT_COLUMNS = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' };
-    const AGE_RANGES = { '0-17': [0, 17], '18-30': [18, 30], '31-59': [31, 59], '60-200': [60, 200] };
-
-    let q = supabase.from('members_with_household').select('*', { count: 'exact' });
-
-    if (status !== 'All') q = q.eq('household_status', status);
-    if (civil !== 'All') q = q.eq('civil_status', civil);
-    if (gkk !== 'All') q = q.eq('household_gkk', gkk);
-    if (sacrament !== 'All' && SACRAMENT_COLUMNS[sacrament]) q = q.eq(SACRAMENT_COLUMNS[sacrament], true);
-
-    // Per-sacrament filters: Yes (claimed) / No / Unverified (claimed, not yet
-    // checked by staff) / Verified. The *_verified flags come from the view.
-    for (const [key, value] of Object.entries({ baptism, communion, confirmation, matrimony })) {
-      if (value === 'All') continue;
-      const col = SACRAMENT_COLUMNS[key[0].toUpperCase() + key.slice(1)];
-      if (!col) continue;
-      if (value === 'Verified') q = q.eq(`${key}_verified`, true);
-      else if (value === 'Unverified') q = q.eq(col, true).eq(`${key}_verified`, false);
-      else q = q.eq(col, value === 'Yes');
-    }
-
-    if (ministry !== 'All' && GROUP_COLUMNS.includes(groupColumn)) {
-      q = q.contains(groupColumn, [ministry]);
-    } else if (ministry !== 'All') {
-      const escaped = String(ministry).replace(/"/g, '\\"');
-      q = q.or(`ministries.cs.{"${escaped}"},organizations.cs.{"${escaped}"}`);
-    }
-
-    if (blood !== 'All') {
-      q = blood === 'Unknown' ? q.is('blood_type', null) : q.eq('blood_type', blood);
-    }
-
-    if (age !== 'All' && AGE_RANGES[age]) {
-      const [lo, hi] = AGE_RANGES[age];
-      q = q.not('age', 'is', null).gte('age', lo).lte('age', hi);
-    }
-
-    if (search && search.trim()) {
-      const s = `%${search.trim()}%`;
-      q = q.or(`full_name.ilike.${s},household_name.ilike.${s},contact.ilike.${s}`);
-    }
+    let q = applyMemberFilters(supabase.from('members_with_household').select('*', { count: 'exact' }), params);
 
     const ascending = sortDir !== 'desc';
     const sortCol = { name: 'first_name', household: 'household_name', age: 'age', status: 'household_status' }[sortKey] || 'first_name';
@@ -217,6 +174,26 @@ export const api = {
     const { data, error, count } = await q;
     if (error) throw mapError(error);
     return { rows: data, total: count, page, pageSize };
+  },
+
+  /**
+   * How many members match `params` in each GKK: { 'GKK San Isidro': 12, …,
+   * null: 3 } (null = households with no GKK). Uses count-only queries per
+   * GKK, so totals are exact however many members there are.
+   */
+  async memberCountsByGkk(params = {}) {
+    const { data: gkks, error } = await supabase.from('gkks').select('name');
+    if (error) throw mapError(error);
+    const count = async (gkk) => {
+      let q = applyMemberFilters(supabase.from('members_with_household').select('id', { count: 'exact', head: true }), { ...params, gkk: 'All' });
+      q = gkk === null ? q.is('household_gkk', null) : q.eq('household_gkk', gkk);
+      const { count: n, error: e } = await q;
+      if (e) throw mapError(e);
+      return n || 0;
+    };
+    const names = params.gkk && params.gkk !== 'All' ? [params.gkk] : [...gkks.map((g) => g.name), null];
+    const counts = await Promise.all(names.map(count));
+    return new Map(names.map((name, i) => [name, counts[i]]));
   },
 
   async getMember(id) {
@@ -530,6 +507,59 @@ export const api = {
 };
 
 const GROUP_COLUMNS = ['ministries', 'organizations'];
+
+/**
+ * The member-list filters shared by listMembers and memberCountsByGkk, so a
+ * list and its group counts always agree. `q` is a members_with_household query.
+ */
+function applyMemberFilters(q, params = {}) {
+  const {
+    status = 'All', civil = 'All', sacrament = 'All', ministry = 'All',
+    age = 'All', blood = 'All', gkk = 'All', search = '',
+    baptism = 'All', communion = 'All', confirmation = 'All', matrimony = 'All',
+    groupColumn,
+  } = params;
+  const SACRAMENT_COLUMNS = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' };
+  const AGE_RANGES = { '0-17': [0, 17], '18-30': [18, 30], '31-59': [31, 59], '60-200': [60, 200] };
+
+  if (status !== 'All') q = q.eq('household_status', status);
+  if (civil !== 'All') q = q.eq('civil_status', civil);
+  if (gkk !== 'All') q = q.eq('household_gkk', gkk);
+  if (sacrament !== 'All' && SACRAMENT_COLUMNS[sacrament]) q = q.eq(SACRAMENT_COLUMNS[sacrament], true);
+
+  // Per-sacrament filters: Yes (claimed) / No / Unverified (claimed, not yet
+  // checked by staff) / Verified. The *_verified flags come from the view.
+  for (const [key, value] of Object.entries({ baptism, communion, confirmation, matrimony })) {
+    if (value === 'All') continue;
+    const col = SACRAMENT_COLUMNS[key[0].toUpperCase() + key.slice(1)];
+    if (!col) continue;
+    if (value === 'Verified') q = q.eq(`${key}_verified`, true);
+    else if (value === 'Unverified') q = q.eq(col, true).eq(`${key}_verified`, false);
+    else q = q.eq(col, value === 'Yes');
+  }
+
+  if (ministry !== 'All' && GROUP_COLUMNS.includes(groupColumn)) {
+    q = q.contains(groupColumn, [ministry]);
+  } else if (ministry !== 'All') {
+    const escaped = String(ministry).replace(/"/g, '\\"');
+    q = q.or(`ministries.cs.{"${escaped}"},organizations.cs.{"${escaped}"}`);
+  }
+
+  if (blood !== 'All') {
+    q = blood === 'Unknown' ? q.is('blood_type', null) : q.eq('blood_type', blood);
+  }
+
+  if (age !== 'All' && AGE_RANGES[age]) {
+    const [lo, hi] = AGE_RANGES[age];
+    q = q.not('age', 'is', null).gte('age', lo).lte('age', hi);
+  }
+
+  if (search && search.trim()) {
+    const s = `%${search.trim()}%`;
+    q = q.or(`full_name.ilike.${s},household_name.ilike.${s},contact.ilike.${s}`);
+  }
+  return q;
+}
 
 async function changeGroupMembership(memberId, column, name, join) {
   if (!GROUP_COLUMNS.includes(column)) throw new Error(`Unknown group column: ${column}`);

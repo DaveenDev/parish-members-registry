@@ -3,7 +3,8 @@ import { api } from '../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, EmptyState, ErrorState, LoadingState, Pagination, rowActivationProps } from './admin.jsx';
 import { ageFromDob } from '../constants.js';
 import { memberFullName } from '../lib/util.js';
-import { PrimaryButton, TextInput } from './ui.jsx';
+import { groupByGkk } from '../lib/household.js';
+import { PrimaryButton, TextInput, Badge } from './ui.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -30,6 +31,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun }
   const [openMemberId, setOpenMemberId] = useState(null);
   const [adding, setAdding] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [gkkCounts, setGkkCounts] = useState(null); // Map of GKK (or null) -> member count
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -52,10 +54,14 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun }
     if (!activeTab) { setRows([]); setTotal(0); setLoading(false); return; }
     setLoading(true);
     setError('');
-    api.listMembers({ ministry: activeTab, groupColumn: column, gkk, search: debouncedSearch, page, pageSize, sortKey: 'name', sortDir: 'asc' })
+    // Same layout as the Members page: GKK by GKK, then household, then name.
+    const filter = { ministry: activeTab, groupColumn: column, gkk, search: debouncedSearch };
+    api.listMembers({ ...filter, page, pageSize, sortKey: 'household', sortDir: 'asc', groupBy: 'gkk', memberOrder: 'name' })
       .then((res) => { setRows(res.rows); setTotal(res.total); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+    // Full per-GKK totals for the badges, not just what's on this page.
+    api.memberCountsByGkk(filter).then(setGkkCounts).catch(() => setGkkCounts(null));
   }
   useEffect(() => { reload(); }, [activeTab, gkk, debouncedSearch, page, pageSize, refreshKey]);
 
@@ -128,7 +134,21 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun }
                     </tr>
                   </thead>
                   <tbody>
-                    {rows.map((m) => (
+                    {groupByGkk(rows).map((g, gi) => (
+                      <React.Fragment key={g.gkk || 'no-gkk'}>
+                        <tr className={`bg-[#f4efe3] ${gi ? 'border-t-2 border-[#e7dcc4]' : ''}`}>
+                          <th scope="colgroup" colSpan={5} className="text-left px-4 py-2">
+                            <span className="flex items-center gap-2 flex-wrap">
+                              <span className="font-serif text-[16.5px] font-semibold text-parish-navy">{g.gkk || 'No GKK'}</span>
+                              {gkkCounts?.has(g.gkk) && (
+                                <Badge tone="blue" title={`${activeTab} members in ${g.gkk || 'households with no GKK'}`}>
+                                  {gkkCounts.get(g.gkk)} member{gkkCounts.get(g.gkk) === 1 ? '' : 's'}
+                                </Badge>
+                              )}
+                            </span>
+                          </th>
+                        </tr>
+                        {g.members.map((m) => (
                       <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
                         <td className="px-4 py-2.5">
                           <div className="flex items-center gap-2.5">
@@ -154,6 +174,8 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun }
                           </button>
                         </td>
                       </tr>
+                        ))}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>
