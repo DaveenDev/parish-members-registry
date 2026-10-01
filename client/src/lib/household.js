@@ -32,26 +32,39 @@ export function groupByGkk(rows) {
 
 export const WEDDING_FIELDS = ['matType', 'hasMatrimony', 'matDate', 'matChurch'];
 
+/** Indexes of the members who share the head's wedding: married Spouses, while the head is married. */
+export function weddingPartners(members) {
+  const head = members[0];
+  if (!head || head.civilStatus !== 'Married') return [];
+  return members.flatMap((m, idx) => (idx > 0 && m.relationship === 'Spouse' && m.civilStatus === 'Married' ? [idx] : []));
+}
+
 /**
- * Keep each Spouse in step with the head (members[0]): they share the head's
- * Married / Live-in status and, when both are married, the same wedding. The
- * `civilFromHead` / `weddingFromHead` flags mark values that were filled in
- * automatically; once the spouse's own answer is edited by hand it's left
- * alone. Returns the same member objects when nothing needs to change.
+ * Keep each Spouse in step with the head (members[0]). A Spouse takes the
+ * head's Married / Live-in status (`civilFromHead` marks a value filled in
+ * automatically; once edited by hand it's left alone). When both are married
+ * they share one wedding — type, date and parish — so an edit on either side
+ * is copied to the other. `source` is the index of the member just edited;
+ * otherwise the head's wedding wins, falling back to a spouse's when the head
+ * has none yet. Returns the same member objects when nothing needs to change.
  */
-export function syncSpouses(members) {
+export function syncSpouses(members, source = -1) {
   const head = members[0];
   if (!head) return members;
-  return members.map((m, idx) => {
+  const synced = members.map((m, idx) => {
     if (idx === 0 || m.relationship !== 'Spouse') return m;
-    let next = m;
     if (PARTNERED_STATUSES.includes(head.civilStatus) && (m.civilFromHead || !m.civilStatus) && m.civilStatus !== head.civilStatus) {
-      next = { ...next, civilStatus: head.civilStatus, civilFromHead: true };
+      return { ...m, civilStatus: head.civilStatus, civilFromHead: true };
     }
-    if (head.civilStatus === 'Married' && next.civilStatus === 'Married' && head.matType && (next.weddingFromHead || !next.matType)) {
-      const differs = WEDDING_FIELDS.some((f) => next[f] !== head[f]);
-      if (differs) next = { ...next, ...Object.fromEntries(WEDDING_FIELDS.map((f) => [f, head[f]])), weddingFromHead: true };
-    }
-    return next;
+    return m;
   });
+  const partners = weddingPartners(synced);
+  if (!partners.length) return synced;
+  const sharing = [0, ...partners];
+  const from = sharing.includes(source) ? source : (head.matType ? 0 : partners.find((idx) => synced[idx].matType));
+  if (from === undefined) return synced;
+  const wedding = Object.fromEntries(WEDDING_FIELDS.map((f) => [f, synced[from][f]]));
+  return synced.map((m, idx) => (
+    sharing.includes(idx) && WEDDING_FIELDS.some((f) => m[f] !== wedding[f]) ? { ...m, ...wedding } : m
+  ));
 }

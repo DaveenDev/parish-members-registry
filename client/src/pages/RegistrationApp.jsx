@@ -3,17 +3,17 @@ import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { useDebounced } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
-import { syncSpouses, WEDDING_FIELDS } from '../lib/household.js';
+import { syncSpouses, weddingPartners, WEDDING_FIELDS } from '../lib/household.js';
 import {
   bis, serverErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS,
 } from '../lib/bisaya.js';
 import {
   blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
-  PARTICIPATION_ITEMS, HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate,
+  HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate,
 } from '../constants.js';
 import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
-import ParticipationSurvey from '../components/ParticipationSurvey.jsx';
+import ParticipationSurvey, { ParticipationReview } from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 
@@ -226,9 +226,8 @@ export default function RegistrationApp() {
       const next = { ...m, [field]: value };
       if (i > 0 && field === 'relationship') next.civilFromHead = value === 'Spouse';
       if (i > 0 && field === 'civilStatus') next.civilFromHead = false;
-      if (i > 0 && WEDDING_FIELDS.includes(field)) next.weddingFromHead = false;
       return next;
-    })));
+    }), WEDDING_FIELDS.includes(field) ? i : -1));
     // Picking "Spouse" may fill civil status in, so clear that error too.
     const cleared = field === 'relationship' ? [field, 'civilStatus'] : [field];
     setMemberErr((me) => me.map((e, idx) => (idx === i && e ? { ...e, ...Object.fromEntries(cleared.map((f) => [f, ''])) } : e)));
@@ -821,6 +820,9 @@ function SacramentBlock({ mv, field, dateField, churchField, label, extra, onFie
 }
 
 function StepSacraments({ memberViews, onMemberField }) {
+  // The head and a married Spouse share one wedding; each card names the other.
+  const partners = weddingPartners(memberViews);
+  const sharedWith = (i) => (i === 0 ? partners.map((idx) => memberViews[idx].displayName).join(' ug ') : partners.includes(i) ? memberViews[0].displayName : '');
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Mga Sakramento</h2>
@@ -845,7 +847,7 @@ function StepSacraments({ memberViews, onMemberField }) {
                 )}
               />
               {mv.civilStatus === 'Married'
-                ? <WeddingBlock mv={mv} onField={onMemberField} />
+                ? <WeddingBlock mv={mv} sharedWith={sharedWith(i)} onField={onMemberField} />
                 : <SacramentBlock mv={mv} field="hasMatrimony" dateField="matDate" churchField="matChurch" label="Kasal (Matrimony)" onField={onMemberField} />}
             </div>
           </Card>
@@ -855,8 +857,11 @@ function StepSacraments({ memberViews, onMemberField }) {
   );
 }
 
-/** Married members say how they were wed; only a Catholic marriage counts as the sacrament. */
-function WeddingBlock({ mv, onField }) {
+/**
+ * Married members say how they were wed; only a Catholic marriage counts as
+ * the sacrament. `sharedWith` names the spouse whose wedding is the same one.
+ */
+function WeddingBlock({ mv, sharedWith, onField }) {
   const set = (f) => (e) => onField(mv.mi, f, e.target.value);
   function choose(type) {
     onField(mv.mi, 'matType', type);
@@ -867,6 +872,11 @@ function WeddingBlock({ mv, onField }) {
     <div className="border border-[#eee3ce] rounded-xl px-4 py-3.5 bg-[#fdfbf6]">
       <div className="font-semibold text-[15px] text-parish-navy">Kasal (Matrimony)</div>
       <div className="text-[13px] text-parish-muted mb-3">Unsang klase sa kasal?</div>
+      {sharedWith && (
+        <div className="text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-lg px-3 py-2 mb-3">
+          Parehas ang kasal ninyo ni <strong>{sharedWith}</strong>: ang klase, petsa ug parokya nga isulat dinhi mausab usab sa iyang rekord.
+        </div>
+      )}
       <div role="radiogroup" aria-label={`Klase sa kasal ni ${mv.displayName}`} className="flex flex-wrap gap-2">
         {WEDDING_TYPES.map((type) => {
           const checked = mv.matType === type;
@@ -988,7 +998,6 @@ function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrgani
 
 function StepReview({ household, memberViews, volunteer, notifyOptin, consent, onGoStep }) {
   const addr = [household.street, household.barangay, household.city, household.province, household.zip].filter(Boolean).join(', ') || '—';
-  const participation = household.participation || {};
   const householdReview = [
     ['Ulo sa pamilya', fullName(memberViews[0]) || '—'],
     ['Ngalan sa pamilya', household.householdName || '—'],
@@ -997,8 +1006,6 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
     ['Family Grouping', household.familyGrouping || '—'],
     ['Kontak', household.contact || '—'],
     ['Email', household.email || '—'],
-    ['Partisipasyon', PARTICIPATION_ITEMS.filter(([k]) => participation[k]).map(([k, label]) => `${label}: ${participation[k]}`).join('  ·  ') || '—'],
-    ['Paagi sa pagtabang', HELP_WAYS.filter(([k]) => (household.helpWays || []).includes(k)).map(([, label]) => label).join(' ') || '—'],
   ];
   const engReview = [
     ['Boluntaryo', bis(VOLUNTEER_LABELS, volunteer) || '—'],
@@ -1026,6 +1033,7 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
 
       <ReviewCard title="Pamilya" onEdit={() => onGoStep(1)}>
         {householdReview.map(([label, value]) => <ReviewRow key={label} label={label} value={value} />)}
+        <ParticipationReview participation={household.participation} helpWays={household.helpWays} />
       </ReviewCard>
 
       <ReviewCard title={`Mga Miyembro (${memberViews.length})`} onEdit={() => onGoStep(2)}>
