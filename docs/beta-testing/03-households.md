@@ -187,19 +187,37 @@ to the office in person.
 
 ## Registering a family on their behalf
 
-### HH-15 — The New Household form
+### HH-15 — The New Household panel
 **Steps**
 1. Click **New Household**.
+2. Press **Next** without filling anything in.
+3. Type the head's last name (`Bautista`) and look at the household name.
+4. On step 2 add a member, and set **Relationship to head** to Spouse while the
+   head is Married.
+5. On step 3 pick a wedding type for the head, then change it on the Spouse.
 
 **Expected**
-- A form for staff to enter a family who came to the office.
-- The same required fields as the public wizard: family name, street, barangay,
-  city, province, ZIP, and at least one member.
-- Staff can set the status directly rather than everything starting as Pending.
+- A panel slides in from the right, like **Edit** on a household: half the
+  screen on a computer, almost the full width on a phone.
+- It follows the public wizard's five steps, in English: Household & Head →
+  Members → Sacraments → Participation → Review.
+- Step 2 of the test is refused with English messages, and the first missing
+  field is focused.
+- The household name fills in as `Bautista Family` and stays locked until
+  **Edit** is pressed. A name another household already uses is refused.
+- A new member starts with the head's last name. The Spouse takes the head's
+  civil status.
+- The head and the Spouse share one wedding: a change on either is copied to the
+  other, and only a Catholic wedding asks for a date and parish.
+- Step 4 has organizations, ministries, GKK and parish roles, volunteering, the
+  email list, an optional data-privacy consent tick, and the registration status,
+  so staff can set Verified directly.
+- The review shows everything, with **Edit** links back to each step.
+- Closing the panel after typing anything asks before discarding.
 
 ### HH-16 — Creating a household as staff
 **Steps**
-1. Fill in the form with a distinctive family name — use `Bautista, Jr. Family`
+1. Fill in the panel with a distinctive family name — use `Bautista, Jr. Family`
    so you also test a comma.
 2. Add two members, one with sacraments ticked.
 3. Save.
@@ -254,7 +272,7 @@ to the office in person.
 | HH-12 | Edit validation | |
 | HH-13 | Add a member | |
 | HH-14 | Delete cascades | |
-| HH-15 | New Household form | |
+| HH-15 | New Household panel | |
 | HH-16 | Create as staff | |
 | HH-17 | Staff form validation | |
 | HH-18 | Special characters | |

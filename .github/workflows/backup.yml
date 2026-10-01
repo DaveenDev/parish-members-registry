@@ -1,0 +1,72 @@
+# Weekly off-site backup of the whole database (the free Supabase plan has
+# no backups of its own). The dump holds parishioners' personal data, so it is
+# encrypted before it leaves the runner and is only ever stored encrypted, as
+# a workflow artifact kept for 90 days.
+#
+# Needs two repository secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_DB_URL    Supabase → Connect → "Session pooler" connection string,
+#                      with the database password filled in
+#   BACKUP_PASSPHRASE  a long passphrase; keep a copy somewhere safe offline —
+#                      without it the backups cannot be opened
+#
+# Restore: download the artifact, then
+#   gpg --decrypt parish-backup-YYYY-MM-DD.tar.gz.gpg | tar -xz
+# and load roles.sql, schema.sql and data.sql (in that order) into a new
+# project with psql. See README → "Backups".
+name: Encrypted database backup
+
+on:
+  schedule:
+    - cron: '41 2 * * 0' # Sundays, 02:41 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_PASSPHRASE: ${{ secrets.BACKUP_PASSPHRASE }}
+    steps:
+      - name: Check secrets
+        id: check
+        run: |
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_PASSPHRASE" ]; then
+            echo "::notice::Add the SUPABASE_DB_URL and BACKUP_PASSPHRASE repository secrets to turn on weekly backups."
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: supabase/setup-cli@v1
+        if: steps.check.outputs.skip != 'true'
+        with:
+          version: latest
+
+      - name: Dump roles, schema and data
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          mkdir -p backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f backup/data.sql
+          ls -l backup
+
+      - name: Encrypt
+        if: steps.check.outputs.skip != 'true'
+        run: |
+          name="parish-backup-$(date -u +%F).tar.gz.gpg"
+          tar -czf - -C backup . \
+            | gpg --batch --yes --pinentry-mode loopback --symmetric --cipher-algo AES256 \
+                  --passphrase-file <(printf '%s' "$BACKUP_PASSPHRASE") -o "$name"
+          rm -rf backup
+          echo "BACKUP_FILE=$name" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        if: steps.check.outputs.skip != 'true'
+        with:
+          name: ${{ env.BACKUP_FILE }}
+          path: ${{ env.BACKUP_FILE }}
+          retention-days: 90
+          if-no-files-found: error

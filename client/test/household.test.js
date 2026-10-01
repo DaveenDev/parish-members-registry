@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { syncSpouses, groupByHousehold, groupByGkk } from '../src/lib/household.js';
+import { syncSpouses, groupByHousehold, groupByGkk, toPayloadMember } from '../src/lib/household.js';
 import { blankMember } from '../src/constants.js';
 
 const head = (over = {}) => ({ ...blankMember(), relationship: 'Head of Household', ...over });
@@ -73,7 +73,7 @@ describe('syncSpouses', () => {
     assert.equal(ms[1], child, 'non-spouse members are returned untouched');
   });
 
-  test('a married spouse shares the head\'s wedding until edited by hand', () => {
+  test('a married spouse shares the head\'s wedding, and an edit on either side is copied to the other', () => {
     const wedding = { matType: 'Catholic Marriage', hasMatrimony: true, matDate: '2006-02-11', matChurch: 'OLG' };
     const [, spouse] = syncSpouses([head({ civilStatus: 'Married', ...wedding }), member({ relationship: 'Spouse', civilFromHead: true })]);
     assert.deepEqual(
@@ -81,8 +81,31 @@ describe('syncSpouses', () => {
       wedding,
     );
 
-    const edited = member({ relationship: 'Spouse', civilStatus: 'Married', matType: 'Civil Wedding', weddingFromHead: false });
-    const [, kept] = syncSpouses([head({ civilStatus: 'Married', ...wedding }), edited]);
+    const edited = member({ relationship: 'Spouse', civilStatus: 'Married', matType: 'Civil Wedding', hasMatrimony: false });
+    const [h, kept] = syncSpouses([head({ civilStatus: 'Married', ...wedding }), edited], 1);
     assert.equal(kept.matType, 'Civil Wedding');
+    assert.equal(h.matType, 'Civil Wedding');
+  });
+});
+
+describe('toPayloadMember', () => {
+  test('tidies names and drops the wizard-only flags', () => {
+    const p = toPayloadMember(member({ firstName: 'jUAN', lastName: 'dela cruz', suffix: 'jr', civilFromHead: true, weddingFromHead: true }));
+    assert.equal(p.firstName, 'Juan');
+    assert.equal(p.lastName, 'Dela Cruz');
+    assert.equal(p.suffix, 'Jr.');
+    assert.equal('civilFromHead' in p, false);
+    assert.equal('weddingFromHead' in p, false);
+  });
+
+  test('a married member keeps the wedding; only a Catholic one is the sacrament', () => {
+    assert.equal(toPayloadMember(member({ civilStatus: 'Married', matType: 'Catholic Marriage' })).hasMatrimony, true);
+    const civil = toPayloadMember(member({ civilStatus: 'Married', matType: 'Civil Wedding', hasMatrimony: true }));
+    assert.equal(civil.hasMatrimony, false);
+    assert.equal(civil.matType, 'Civil Wedding');
+  });
+
+  test('a wedding type is dropped once the member is no longer married', () => {
+    assert.equal(toPayloadMember(member({ civilStatus: 'Widowed', matType: 'Civil Wedding' })).matType, '');
   });
 });

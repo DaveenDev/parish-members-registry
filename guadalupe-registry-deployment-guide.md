@@ -159,7 +159,7 @@ create policy "admins full access ministries"
 
 1. In the dashboard go to **Authentication → Users → Add user**.
 2. Enter the parish admin's email and a strong temporary password.
-3. In the SQL editor, give that account a profile and make it a staff admin (after running every migration in `supabase/migrations/`, including `0007_admin_tools.sql`):
+3. In the SQL editor, give that account a profile and make it a staff admin (after running every migration in `supabase/migrations/`, including `0010_admin_tools.sql`):
    ```sql
    insert into profiles (id, name, role, is_admin)
    values ('<the new user''s UUID>', 'Ma. Assumpta R.', 'Parish Secretary', true);

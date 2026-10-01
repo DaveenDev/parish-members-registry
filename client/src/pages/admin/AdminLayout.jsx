@@ -13,6 +13,7 @@ const NAV_MAIN = [
   { to: '/admin/blood', label: 'Blood Types' },
   { to: '/admin/organizations', label: 'Organizations' },
   { to: '/admin/ministries', label: 'Ministries' },
+  { to: '/admin/census', label: 'Census' },
   { to: '/admin/reports', label: 'Reports' },
   { to: '/admin/exports', label: 'Exports' },
 ];

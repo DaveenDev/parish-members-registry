@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
-import { StatusPill } from '../../components/ui.jsx';
+import { StatusPill, Badge } from '../../components/ui.jsx';
 import { ageFromDob, CIVIL_STATUSES } from '../../constants.js';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useDebounced, useUrlState } from '../../hooks.js';
 import { groupByGkk } from '../../lib/household.js';
 import { bis, RELATIONSHIP_LABELS, CIVIL_STATUS_LABELS } from '../../lib/bisaya.js';
+import { MEMBERSHIP_STATUSES, STATUS_TONES } from '../../lib/census.js';
 
 const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
 const BLOOD_OPTS = ['All', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
-const DEFAULT_FILTERS = { status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All' };
+const DEFAULT_FILTERS = { status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All', membership: 'Current', census: 'All' };
 // Rows are grouped under GKK headings; inside each GKK the default order is
 // household name, then member name. Column headers re-sort within the GKKs.
 const URL_DEFAULTS = { ...DEFAULT_FILTERS, q: '', sort: 'household', dir: 'asc', page: 1, size: 10 };
@@ -18,6 +19,8 @@ const URL_ALLOWED = {
   status: ['All', 'Verified', 'Pending'],
   age: AGE_OPTS.map(([v]) => v),
   blood: BLOOD_OPTS,
+  membership: ['Current', 'All', ...MEMBERSHIP_STATUSES, 'Not assessed'],
+  census: ['All', 'Confirmed', 'Not confirmed'],
   sort: ['name', 'household', 'age', 'status'],
   dir: ['asc', 'desc'],
   size: [10, 20, 50],
@@ -97,6 +100,15 @@ export default function Members() {
           <FilterSelect value={filters.gkk} onChange={(e) => setFilter('gkk', e.target.value)}>
             <option value="All">All GKKs</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </FilterSelect>
+          <FilterSelect aria-label="Membership status" value={filters.membership} onChange={(e) => setFilter('membership', e.target.value)}>
+            <option value="Current">Current members</option>
+            <option value="All">Everyone (incl. moved / deceased)</option>
+            {MEMBERSHIP_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+            <option value="Not assessed">Not yet assessed</option>
+          </FilterSelect>
+          <FilterSelect aria-label="Census" value={filters.census} onChange={(e) => setFilter('census', e.target.value)}>
+            <option value="All">Any census</option><option value="Confirmed">Confirmed in census</option><option value="Not confirmed">Not confirmed in census</option>
+          </FilterSelect>
           <button onClick={() => setUrl({ ...DEFAULT_FILTERS, q: '' })} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>
           <div className="ml-auto text-[13px] text-parish-muted">{total} member(s)</div>
         </div>
@@ -142,6 +154,7 @@ export default function Members() {
                       {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
                     </div>
                     <span className="font-semibold text-[14.5px] text-parish-navy whitespace-nowrap">{m.first_name} {m.last_name}</span>
+                    {m.membership_status && <Badge tone={STATUS_TONES[m.membership_status]} title={m.last_census_label ? `From the ${m.last_census_label}` : undefined}>{m.membership_status}</Badge>}
                   </div>
                 </td>
                 <td className="px-4 py-3 text-[14px] text-[#3f3b2f] whitespace-nowrap">{m.household_name}</td>

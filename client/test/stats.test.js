@@ -5,7 +5,7 @@ import { shapeDashboard, shapeReport } from '../src/lib/stats.js';
 
 describe('shapeDashboard', () => {
   const raw = {
-    households: 1500, verified: 1000, pending: 500, members: 3200, gkks: 4,
+    households: 1500, verified: 1000, pending: 500, members: 3200, gkks: 4, active: 2800, inactive: 300, unassessed: 100,
     reg_months: [{ month: '2026-05', n: 0 }, { month: '2026-06', n: 50 }, { month: '2026-10', n: 100 }],
     age_buckets: [{ label: '0-9', n: 10 }, { label: '10-19', n: 40 }],
     by_gkk: [{ label: 'GKK Sto. Niño', n: 20 }, { label: 'GKK San Isidro', n: 10 }],
@@ -22,6 +22,13 @@ describe('shapeDashboard', () => {
     assert.equal(byLabel.Members.value, 3200);
     assert.equal(byLabel.Pending.to, '/admin/households?status=Pending');
     assert.equal(byLabel.Verified.to, '/admin/households?status=Verified');
+  });
+
+  test('the census card counts active members and links to them', () => {
+    const card = shapeDashboard(raw).statCards.find((c) => c.label === 'Active Catholics');
+    assert.equal(card.value, 2800);
+    assert.equal(card.note, '300 inactive · 100 not yet assessed');
+    assert.equal(card.to, '/admin/members?membership=Active');
   });
 
   test('month labels and bar heights (tallest 100%, none under 6%)', () => {

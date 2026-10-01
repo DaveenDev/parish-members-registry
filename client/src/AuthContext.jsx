@@ -7,7 +7,7 @@ async function loadProfile(session) {
   if (!session?.user) return null;
   const byId = (cols) => supabase.from('profiles').select(cols).eq('id', session.user.id).single();
   let { data, error } = await byId('name, role, is_admin');
-  // Before the 0007 migration there's no is_admin column; still load the rest.
+  // Before the 0010 migration there's no is_admin column; still load the rest.
   if (error && /is_admin/.test(error.message || '')) ({ data } = await byId('name, role'));
   return {
     id: session.user.id,

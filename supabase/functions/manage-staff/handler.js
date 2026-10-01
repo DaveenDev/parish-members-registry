@@ -5,7 +5,7 @@
 // Edge Function. index.ts wires it to Deno; this file is plain JavaScript
 // with its dependencies passed in, so it can be unit tested under Node.
 //
-// Only staff admins (profiles.is_admin, added in 0007_admin_tools.sql) may
+// Only staff admins (profiles.is_admin, added in 0010_admin_tools.sql) may
 // call it, and a disabled account is refused even while its last access
 // token is still valid. Guards: nobody can disable or remove admin rights
 // from their own account, and the last active admin can't be disabled or

@@ -9,6 +9,7 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
+import { MEMBERSHIP_STATUSES, censusResponsesPayload } from './lib/census.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -51,6 +52,27 @@ export const api = {
     });
     if (error) throw mapError(error);
     return data; // { refNo, householdId }
+  },
+
+  // ---- census family portal (0008 migration) --------------------------
+  /** { open, label } — whether a census is open for online updates. */
+  async portalStatus() {
+    const { data, error } = await supabase.rpc('portal_status');
+    if (error) throw mapError(error);
+    return data || { open: false };
+  },
+
+  /** The household's census form, or { ok: false, error: 'invalid' | 'locked' | 'closed' }. */
+  async portalOpen(refNo, code) {
+    const { data, error } = await supabase.rpc('portal_open', { p_ref: refNo, p_code: code });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async portalSubmit(refNo, code, payload) {
+    const { data, error } = await supabase.rpc('portal_submit', { p_ref: refNo, p_code: code, p_payload: payload });
+    if (error) throw mapError(error);
+    return data;
   },
 
   async listPublicGkks() {
@@ -137,8 +159,22 @@ export const api = {
     return { household, members };
   },
 
-  async createHousehold({ household, members }) {
-    const { data, error } = await supabase.rpc('create_household', { payload: { household, members } });
+  /**
+   * Staff registering a family (admin New Household). Takes the public
+   * wizard's household / member shapes and maps them to the keys
+   * create_household reads; the survey, volunteer, consent and religion need
+   * the 0009 migration.
+   */
+  async createHousehold({ household, status, members, volunteer, notifyOptin, consent }) {
+    const { householdName, familyGrouping, ...rest } = household;
+    const payload = {
+      household: { ...rest, name: householdName, grouping: familyGrouping, status },
+      members: members.map(({ firstName, middleName, lastName, relationship, placeOfBirth, civilStatus, ...m }) => ({
+        ...m, first: firstName, middle: middleName, last: lastName, rel: relationship, pob: placeOfBirth, civil: civilStatus,
+      })),
+      volunteer, notifyOptin, consent,
+    };
+    const { data, error } = await supabase.rpc('create_household', { payload });
     if (error) throw mapError(error);
     return { id: data };
   },
@@ -285,7 +321,7 @@ export const api = {
   /** { baptism: { claimed, verified }, … } — count-only queries, no rows downloaded. */
   async sacramentVerificationCounts({ gkk = 'All' } = {}) {
     const count = async (filter) => {
-      let q = supabase.from('members_with_household').select('id', { count: 'exact', head: true });
+      let q = supabase.from('members_with_household').select('id', { count: 'exact', head: true }).eq('is_current', true);
       if (gkk !== 'All') q = q.eq('household_gkk', gkk);
       const { count: n, error } = await filter(q);
       if (error) throw mapError(error);
@@ -394,6 +430,190 @@ export const api = {
     return { settings: data };
   },
 
+  // ---- parish census (0007 migration) --------------------------------
+  /** Every census, newest first. */
+  async listCensusCycles() {
+    const { data, error } = await supabase.from('census_cycles').select('*').order('id', { ascending: false });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async openCensusCycle({ label, startsOn, endsOn }) {
+    const { data, error } = await supabase.rpc('census_open_cycle', {
+      p_label: label, p_starts_on: startsOn || null, p_ends_on: endsOn || null,
+    });
+    if (error) throw mapError(error, { dupLabel: 'A census with this name' });
+    return data;
+  },
+
+  async closeCensusCycle(id) {
+    const { data, error } = await supabase.rpc('census_close_cycle', { p_cycle_id: id });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async reopenCensusCycle(id) {
+    const { data, error } = await supabase.rpc('census_reopen_cycle', { p_cycle_id: id });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async setCensusInterval(months) {
+    const { error } = await supabase.from('parish_settings').update({ census_interval_months: Number(months) }).eq('id', 1);
+    if (error) throw mapError(error);
+    return { ok: true };
+  },
+
+  /** Households with how many of their members are confirmed in this census. */
+  async listCensusHouseholds(cycleId, params = {}) {
+    const { gkk = 'All', progress = 'All', search = '' } = params;
+    const { page, pageSize, from, to } = clampPaging(params);
+    let q = supabase.rpc('census_household_progress', { p_cycle_id: cycleId }, { count: 'exact' });
+    if (gkk === 'None') q = q.is('gkk', null);
+    else if (gkk !== 'All') q = q.eq('gkk', gkk);
+    if (progress !== 'All') q = q.eq('progress', progress);
+    if (search && search.trim()) {
+      const s = `%${search.trim()}%`;
+      q = q.or(`household_name.ilike.${s},head_name.ilike.${s},ref_no.ilike.${s}`);
+    }
+    q = q.order('household_name').order('household_id').range(from, to);
+    const { data, error, count } = await q;
+    if (error) throw mapError(error);
+    return { rows: data, total: count, page, pageSize };
+  },
+
+  /** { 'Not started': n, 'Partly confirmed': n, Confirmed: n } households. */
+  async censusHouseholdProgressCounts(cycleId) {
+    const { data, error } = await supabase.rpc('census_household_progress', { p_cycle_id: cycleId }).select('progress');
+    if (error) throw mapError(error);
+    const counts = { 'Not started': 0, 'Partly confirmed': 0, Confirmed: 0 };
+    for (const r of data) counts[r.progress] = (counts[r.progress] || 0) + 1;
+    return counts;
+  },
+
+  /** census_summary() rows: { gkk, status, members }. */
+  async censusSummary(cycleId) {
+    const { data, error } = await supabase.rpc('census_summary', { p_cycle_id: cycleId });
+    if (error) throw mapError(error);
+    return data || [];
+  },
+
+  /**
+   * A household with each member's answer in this census (`census`) and in
+   * the census before it (`previous`), for the census entry panel.
+   */
+  async getHouseholdCensus(cycleId, householdId) {
+    const { household, members } = await api.getHousehold(householdId);
+    const { data, error } = await supabase
+      .from('census_member_responses')
+      .select('*, census_cycles(label)')
+      .in('member_id', members.map((m) => m.id))
+      .order('cycle_id', { ascending: false });
+    if (error) throw mapError(error);
+    for (const m of members) {
+      const mine = data.filter((r) => r.member_id === m.id);
+      m.census = mine.find((r) => r.cycle_id === cycleId) || null;
+      m.previous = mine.find((r) => r.cycle_id < cycleId) || null;
+    }
+    return { household, members };
+  },
+
+  /**
+   * Save a household's census answers. `rows` is [{ memberId, status,
+   * participation, notes }]; members without a status are left unconfirmed.
+   */
+  async recordHouseholdCensus(cycleId, householdId, { rows, source, participation, helpWays }) {
+    const { data, error } = await supabase.rpc('census_record_household', {
+      p_cycle_id: cycleId,
+      p_household_id: householdId,
+      p_responses: censusResponsesPayload(rows),
+      p_source: source,
+      p_household_participation: participation || null,
+      p_help_ways: helpWays || null,
+    });
+    if (error) throw mapError(error);
+    return { saved: data };
+  },
+
+  async clearMemberCensus(cycleId, memberId) {
+    const { error } = await supabase.rpc('census_clear_member', { p_cycle_id: cycleId, p_member_id: memberId });
+    if (error) throw mapError(error);
+    return null;
+  },
+
+  /** Online updates families sent in this census (Pending by default). */
+  async listCensusSubmissions(cycleId, status = 'Pending') {
+    const { data, error } = await supabase
+      .from('census_submissions')
+      .select('*, households(household_name, ref_no, gkk)')
+      .eq('cycle_id', cycleId)
+      .eq('status', status)
+      .order('submitted_at', { ascending: true });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async approveCensusSubmission(id) {
+    const { data, error } = await supabase.rpc('census_approve_submission', { p_id: id });
+    if (error) throw mapError(error);
+    return { saved: data };
+  },
+
+  async rejectCensusSubmission(id, note) {
+    const { error } = await supabase.rpc('census_reject_submission', { p_id: id, p_note: note || null });
+    if (error) throw mapError(error);
+    return null;
+  },
+
+  /** { [householdId]: 'XXXXXXXX' }, issuing codes to households that have none. */
+  async censusAccessCodes(householdIds) {
+    const { data, error } = await supabase.rpc('census_access_codes', { p_household_ids: householdIds });
+    if (error) throw mapError(error);
+    return Object.fromEntries((data || []).map((r) => [r.household_id, r.code]));
+  },
+
+  async resetAccessCode(householdId) {
+    const { data, error } = await supabase.rpc('census_reset_access_code', { p_household_id: householdId });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  /** One member's answers across every census, newest first. */
+  async memberCensusHistory(memberId) {
+    const { data, error } = await supabase
+      .from('census_member_responses')
+      .select('*, census_cycles(label, status)')
+      .eq('member_id', memberId)
+      .order('cycle_id', { ascending: false });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  /**
+   * Households and their current members for the printed census form —
+   * either one GKK ('None' = households without one) or the given ids.
+   */
+  async censusPrintData({ gkk, householdIds }) {
+    let hq = supabase.from('households').select('*').order('household_name');
+    let mq = supabase.from('members_with_household').select('*').eq('is_current', true).order('id');
+    if (householdIds) {
+      hq = hq.in('id', householdIds);
+      mq = mq.in('household_id', householdIds);
+    } else if (gkk === 'None') {
+      hq = hq.is('gkk', null);
+      mq = mq.is('household_gkk', null);
+    } else {
+      hq = hq.eq('gkk', gkk);
+      mq = mq.eq('household_gkk', gkk);
+    }
+    const [{ data: households, error: hErr }, { data: members, error: mErr }] = await Promise.all([hq, mq]);
+    if (hErr) throw mapError(hErr);
+    if (mErr) throw mapError(mErr);
+    // Online access codes (0008). Without that migration the forms print without them.
+    const codes = await api.censusAccessCodes(households.map((h) => h.id)).catch(() => ({}));
+    return households.map((h) => ({ household: h, code: codes[h.id] || null, members: members.filter((m) => m.household_id === h.id) }));
+  },
+
   // ---- dashboard ---------------------------------------------------------
   async dashboardStats() {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
@@ -419,7 +639,7 @@ export const api = {
 
   async generateReport({ source, type, gkk = 'All', status = 'All', dateFrom, dateTo, sacrament, group }) {
     if (source === 'Members') {
-      let list = await fetchAll(() => supabase.from('members_with_household').select('*').order('household_name').order('id'));
+      let list = await fetchAll(() => supabase.from('members_with_household').select('*').eq('is_current', true).order('household_name').order('id'));
       if (gkk && gkk !== 'All') list = list.filter((m) => m.household_gkk === gkk);
       if (type === 'By Sacrament' && sacrament) {
         const key = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' }[sacrament];
@@ -474,12 +694,19 @@ function applyMemberFilters(q, params = {}) {
     status = 'All', civil = 'All', sacrament = 'All', ministry = 'All',
     age = 'All', blood = 'All', gkk = 'All', search = '',
     baptism = 'All', communion = 'All', confirmation = 'All', matrimony = 'All',
+    // Moved away / deceased members drop out of every list unless asked for.
+    membership = 'Current', census = 'All',
     groupColumn,
   } = params;
   const SACRAMENT_COLUMNS = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' };
   const AGE_RANGES = { '0-17': [0, 17], '18-30': [18, 30], '31-59': [31, 59], '60-200': [60, 200] };
 
   if (status !== 'All') q = q.eq('household_status', status);
+  if (membership === 'Current') q = q.eq('is_current', true);
+  else if (membership === 'Not assessed') q = q.is('membership_status', null);
+  else if (MEMBERSHIP_STATUSES.includes(membership)) q = q.eq('membership_status', membership);
+  if (census === 'Confirmed') q = q.eq('census_confirmed', true);
+  else if (census === 'Not confirmed') q = q.eq('census_confirmed', false);
   if (civil !== 'All') q = q.eq('civil_status', civil);
   if (gkk !== 'All') q = q.eq('household_gkk', gkk);
   if (sacrament !== 'All' && SACRAMENT_COLUMNS[sacrament]) q = q.eq(SACRAMENT_COLUMNS[sacrament], true);
@@ -611,6 +838,8 @@ export async function downloadWithAuth(path, filename) {
       { label: 'Parish Responsibility', value: 'parish_role' },
       { label: 'Ministries', value: (r) => (r.ministries || []).join('; ') },
       { label: 'Organizations', value: (r) => (r.organizations || []).join('; ') },
+      { label: 'Membership Status', value: (r) => r.membership_status || 'Not assessed' },
+      { label: 'Last Census', value: 'last_census_label' },
     ]);
   } else if (path === '/exports/households.csv') {
     const data = await fetchAll(() => supabase.from('households_with_count').select('*').order('household_name').order('id'));
@@ -634,7 +863,7 @@ export async function downloadWithAuth(path, filename) {
       { label: 'Registered', value: (r) => new Date(r.created_at).toISOString().slice(0, 10) },
     ]);
   } else if (path === '/exports/blood.csv') {
-    const data = await fetchAll(() => supabase.from('members_with_household').select('*').not('blood_type', 'is', null).order('blood_type').order('id'));
+    const data = await fetchAll(() => supabase.from('members_with_household').select('*').not('blood_type', 'is', null).eq('is_current', true).order('blood_type').order('id'));
     downloadCsv(filename, data, [
       { label: 'Name', value: (r) => `${r.first_name} ${r.last_name}` },
       { label: 'Blood Type', value: 'blood_type' },

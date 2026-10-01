@@ -1,6 +1,8 @@
 // Turns the raw counts from the admin_dashboard_stats / admin_report_stats
 // database functions into what the Dashboard and Reports pages draw: labels,
 // bar heights and widths, percentages. Pure, so it can be unit tested.
+// Member figures leave out members who moved away or died (the census rule);
+// the database applies it.
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const BLOOD_ORDER = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
@@ -31,6 +33,13 @@ export function shapeDashboard(raw = {}) {
     statCards: [
       { label: 'Households', value: households, note: `${verified} verified · ${pending} pending`, accent: '#34589c', to: '/admin/households' },
       { label: 'Members', value: num(raw.members), note: 'across all households', accent: '#c39b4e', to: '/admin/members' },
+      {
+        label: 'Active Catholics',
+        value: num(raw.active),
+        note: `${num(raw.inactive)} inactive · ${num(raw.unassessed)} not yet assessed`,
+        accent: '#2f7a52',
+        to: '/admin/members?membership=Active',
+      },
       { label: 'Verified', value: verified, note: 'households confirmed', accent: '#2f7a52', to: '/admin/households?status=Verified' },
       { label: 'Pending', value: pending, note: 'awaiting verification', accent: '#a13d29', to: '/admin/households?status=Pending' },
       { label: 'GKKs', value: num(raw.gkks), note: 'basic ecclesial communities', accent: '#7a6a3e', to: '/admin/settings?tab=gkk' },

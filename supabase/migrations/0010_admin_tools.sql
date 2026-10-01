@@ -1,18 +1,34 @@
 -- Admin tools: who verified a household and when, "last updated" times,
 -- registry totals computed in the database, a duplicate-member finder, and
 -- a staff-admin flag for managing staff accounts. Run after
--- 0006_parish_positions.sql. Safe to re-run.
+-- 0009_admin_household_wizard.sql. Safe to re-run.
+--
+-- Totals follow the census rules from 0007_census.sql: members who moved
+-- away or died stay on record but are left out of the figures.
 
 -- Stop early, naming the missing file, if an earlier migration hasn't run.
 do $$
 begin
-  if to_regclass('public.sacrament_verifications') is null then
-    raise exception 'Run 0005_sacrament_verification.sql (then 0006) before this migration';
-  end if;
   if to_regclass('public.parish_positions') is null then
-    raise exception 'Run 0006_parish_positions.sql before this migration';
+    raise exception 'Run 0006_parish_positions.sql (then 0007, 0008, 0009) before this migration';
+  end if;
+  if to_regprocedure('public.census_member_statuses()') is null then
+    raise exception 'Run 0007_census.sql (then 0008, 0009) before this migration';
+  end if;
+  if to_regclass('public.household_access_codes') is null then
+    raise exception 'Run 0008_census_portal.sql (then 0009) before this migration';
+  end if;
+  if not exists (select 1 from pg_proc where proname = 'create_household' and prosrc like '%religion%') then
+    raise exception 'Run 0009_admin_household_wizard.sql before this migration';
   end if;
 end;
+$$;
+
+-- Still on the household roster: not moved away or deceased. The same rule
+-- as members_with_household.is_current (0007_census.sql).
+create or replace function public.member_is_current(p_status text) returns boolean
+language sql immutable as $$
+  select coalesce(p_status not in ('Moved away', 'Deceased'), true);
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -109,7 +125,7 @@ for each row execute function public.members_touch_updated_at();
 
 -- ---------------------------------------------------------------------------
 -- Views: `h.*` / `m.*` are expanded when a view is created, so both are
--- rebuilt to pick up the new columns. Same definitions as 0002 / 0006.
+-- rebuilt to pick up the new columns. Same definitions as 0002 / 0007_census.
 -- ---------------------------------------------------------------------------
 
 drop view if exists households_with_count;
@@ -138,9 +154,25 @@ select
   exists (select 1 from sacrament_verifications v where v.member_id = m.id and v.sacrament = 'baptism') as baptism_verified,
   exists (select 1 from sacrament_verifications v where v.member_id = m.id and v.sacrament = 'communion') as communion_verified,
   exists (select 1 from sacrament_verifications v where v.member_id = m.id and v.sacrament = 'confirmation') as confirmation_verified,
-  exists (select 1 from sacrament_verifications v where v.member_id = m.id and v.sacrament = 'matrimony') as matrimony_verified
+  exists (select 1 from sacrament_verifications v where v.member_id = m.id and v.sacrament = 'matrimony') as matrimony_verified,
+  -- Still part of the household roster (not moved away or deceased).
+  coalesce(m.membership_status not in ('Moved away', 'Deceased'), true) as is_current,
+  last_r.cycle_id as last_census_cycle_id,
+  last_r.label as last_census_label,
+  last_r.confirmed_at as last_confirmed_at,
+  exists (
+    select 1 from census_member_responses r
+    where r.member_id = m.id and r.cycle_id = census_reference_cycle_id()
+  ) as census_confirmed
 from members m
-join households h on h.id = m.household_id;
+join households h on h.id = m.household_id
+left join lateral (
+  select r.cycle_id, c.label, r.confirmed_at
+  from census_member_responses r join census_cycles c on c.id = r.cycle_id
+  where r.member_id = m.id
+  order by r.cycle_id desc
+  limit 1
+) last_r on true;
 
 grant select on households_with_count to authenticated;
 grant select on members_with_household to authenticated;
@@ -251,13 +283,18 @@ begin
     'households', (select count(*) from households),
     'verified',   (select count(*) from households where status = 'Verified'),
     'pending',    (select count(*) from households where status = 'Pending'),
-    'members',    (select count(*) from members),
+    'members',    (select count(*) from members where member_is_current(membership_status)),
+    -- Census status of current members (0007_census).
+    'active',     (select count(*) from members where membership_status = 'Active'),
+    'inactive',   (select count(*) from members where membership_status = 'Inactive'),
+    'unassessed', (select count(*) from members where membership_status is null),
     'gkks',       (select count(distinct gkk) from households where gkk is not null),
     'reg_months', (
       select jsonb_agg(jsonb_build_object(
                'month', to_char(mo, 'YYYY-MM'),
                'n', (select count(*) from members m
-                      where m.created_at >= (mo at time zone tz)
+                      where member_is_current(m.membership_status)
+                        and m.created_at >= (mo at time zone tz)
                         and m.created_at < ((mo + interval '1 month') at time zone tz)))
              order by mo)
       from generate_series(this_month - interval '5 months', this_month, interval '1 month') as mo
@@ -268,7 +305,8 @@ begin
              as b(label, lo, hi)
       left join lateral (
         select count(*) as n from members m
-        where m.dob is not null and date_part('year', age(m.dob)) between b.lo and b.hi
+        where member_is_current(m.membership_status)
+          and m.dob is not null and date_part('year', age(m.dob)) between b.lo and b.hi
       ) c on true
     ),
     'by_gkk', (
@@ -280,6 +318,7 @@ begin
       from (
         select g, count(distinct m.id) as n
         from members m, unnest(m.ministries || m.organizations) as g
+        where member_is_current(m.membership_status)
         group by g order by n desc, g limit 6
       ) t
     ),
@@ -289,7 +328,7 @@ begin
         'communion', count(*) filter (where has_communion),
         'confirmation', count(*) filter (where has_confirmation),
         'matrimony', count(*) filter (where has_matrimony))
-      from members
+      from members where member_is_current(membership_status)
     ),
     'duplicate_groups', jsonb_array_length(find_duplicate_members())
   );
@@ -302,7 +341,7 @@ language sql stable set search_path = public as $$
     'households', (select count(*) from households),
     'verified',   (select count(*) from households where status = 'Verified'),
     'pending',    (select count(*) from households where status = 'Pending'),
-    'members',    (select count(*) from members),
+    'members',    (select count(*) from members where member_is_current(membership_status)),
     'by_gkk', (
       select coalesce(jsonb_agg(jsonb_build_object('label', t.gkk, 'verified', t.verified, 'pending', t.pending) order by t.gkk), '[]'::jsonb)
       from (
@@ -316,27 +355,31 @@ language sql stable set search_path = public as $$
         'communion', count(*) filter (where has_communion),
         'confirmation', count(*) filter (where has_confirmation),
         'matrimony', count(*) filter (where has_matrimony))
-      from members
+      from members where member_is_current(membership_status)
     ),
     'participation', (
       select coalesce(jsonb_agg(jsonb_build_object('label', t.g, 'n', t.n) order by t.n desc, t.g), '[]'::jsonb)
       from (
         select g, count(distinct m.id) as n
         from members m, unnest(m.ministries || m.organizations) as g
+        where member_is_current(m.membership_status)
         group by g
       ) t
     ),
-    'any_group', (select count(*) from members where cardinality(ministries) > 0 or cardinality(organizations) > 0),
+    'any_group', (select count(*) from members
+                  where member_is_current(membership_status) and (cardinality(ministries) > 0 or cardinality(organizations) > 0)),
     'blood', (
       select coalesce(jsonb_object_agg(blood_type, n), '{}'::jsonb)
-      from (select blood_type, count(*) as n from members where coalesce(blood_type, '') <> '' group by blood_type) t
+      from (select blood_type, count(*) as n from members
+            where member_is_current(membership_status) and coalesce(blood_type, '') <> '' group by blood_type) t
     ),
-    'blood_unknown', (select count(*) from members where coalesce(blood_type, '') = '')
+    'blood_unknown', (select count(*) from members where member_is_current(membership_status) and coalesce(blood_type, '') = '')
   );
 $$;
 
 -- How many households use each GKK, or how many members are in each
--- ministry / organization (optionally within one GKK) / parish position.
+-- ministry / organization (current members, optionally within one GKK, to
+-- match the rosters) / parish position.
 -- Every configured name is listed, including ones nobody uses yet.
 create or replace function public.admin_list_counts(p_list text, p_gkk text default null)
 returns table (name text, n integer)
@@ -349,7 +392,8 @@ begin
   elsif p_list in ('ministries', 'organizations') then
     return query execute format(
       'select l.name, (select count(*)::int from members m join households h on h.id = m.household_id
-                        where l.name = any(m.%I) and ($1 is null or h.gkk = $1))
+                        where l.name = any(m.%I) and member_is_current(m.membership_status)
+                          and ($1 is null or h.gkk = $1))
        from %I l order by l.name', p_list, p_list)
       using p_gkk;
   elsif p_list = 'parish_positions' then

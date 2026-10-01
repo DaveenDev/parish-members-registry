@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { useDebounced } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
-import { syncSpouses, weddingPartners, WEDDING_FIELDS } from '../lib/household.js';
+import { syncSpouses, weddingPartners, toPayloadMember, WEDDING_FIELDS } from '../lib/household.js';
 import {
   bis, serverErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS,
 } from '../lib/bisaya.js';
@@ -49,20 +49,6 @@ function blankHead() {
 
 function fullName(m) {
   return [m.firstName, m.middleName, m.lastName, m.suffix].filter(Boolean).join(' ');
-}
-
-/**
- * What actually gets sent for a member: names in Capitalized case, and the
- * wedding type only while Married.
- */
-function toPayloadMember({ civilFromHead, weddingFromHead, ...m }) {
-  const named = {
-    ...m,
-    firstName: toNameCase(m.firstName), middleName: toNameCase(m.middleName),
-    lastName: toNameCase(m.lastName), suffix: toSuffixCase(m.suffix),
-  };
-  if (m.civilStatus === 'Married') return { ...named, hasMatrimony: m.matType === 'Catholic Marriage' };
-  return { ...named, matType: WEDDING_TYPES.includes(m.matType) ? '' : m.matType };
 }
 
 /** Alternatives offered when the household name is already taken. */
@@ -398,8 +384,11 @@ export default function RegistrationApp() {
 function Landing({ onStart }) {
   const [stats, setStats] = useState(null);
   const [logo, setLogo] = useState(null);
+  const [census, setCensus] = useState(null);
   useEffect(() => {
     api.publicStats().then(setStats).catch(() => {});
+    // Before 0008 is run this fails; the census button just stays hidden.
+    api.portalStatus().then(setCensus).catch(() => {});
     // Before 0004 is run (or with no logo uploaded) this fails or is null — keep the cross.
     api.publicParishLogo().then(setLogo).catch(() => {});
   }, []);
@@ -429,6 +418,13 @@ function Landing({ onStart }) {
           </div>
         )}
         <PrimaryButton onClick={onStart} className="px-10 py-[18px] text-[17px]">Irehistro ang Inyong Pamilya</PrimaryButton>
+        {census?.open && (
+          <div className="mt-4">
+            <Link to="/census" className="inline-block px-6 py-3 rounded-xl border-[1.5px] border-[#cdd7e8] bg-white font-semibold text-[15px] text-parish-blue">
+              Narehistro na? I-update ang inyong rekord ({census.label}) →
+            </Link>
+          </div>
+        )}
         <div className="mt-7 inline-flex items-center gap-2 text-[13.5px] text-parish-muted">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
           <span>Pribado ang inyong impormasyon — makita lamang sa awtorisadong kawani sa parokya.</span>

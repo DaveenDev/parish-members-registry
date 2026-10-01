@@ -72,14 +72,14 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
  * Read-only copy of the survey answers for the wizard's review step: every
  * choice shown as a disabled checkbox, ticked where it was picked.
  */
-export function ParticipationReview({ participation = {}, helpWays = [] }) {
+export function ParticipationReview({ participation = {}, helpWays = [], english = false }) {
   const box = 'w-[17px] h-[17px] accent-parish-blue flex-none disabled:cursor-default disabled:opacity-100';
   // Browsers grey out disabled boxes, so the picked answers are also set in bold.
   const picked = 'text-parish-ink font-semibold';
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <div className="text-parish-muted font-semibold text-[13px] sm:text-[15px] mb-2">Partisipasyon</div>
+        <div className="text-parish-muted font-semibold text-[13px] sm:text-[15px] mb-2">{english ? 'Participation' : 'Partisipasyon'}</div>
         <div className="flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-[#fdfbf6]">
           {PARTICIPATION_ITEMS.map(([key, label]) => (
             <div key={key} role="group" aria-label={label} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-2.5">
@@ -97,7 +97,7 @@ export function ParticipationReview({ participation = {}, helpWays = [] }) {
         </div>
       </div>
       <div>
-        <div className="text-parish-muted font-semibold text-[13px] sm:text-[15px] mb-2">Paagi sa pagtabang</div>
+        <div className="text-parish-muted font-semibold text-[13px] sm:text-[15px] mb-2">{english ? 'Ways to help' : 'Paagi sa pagtabang'}</div>
         <div className="grid gap-x-4 gap-y-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
           {HELP_WAYS.map(([key, label]) => (
             <label key={key} className="flex items-start gap-2.5">
