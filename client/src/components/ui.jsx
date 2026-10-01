@@ -5,6 +5,8 @@ import { TRIBES, FAMILY_GROUPINGS } from '../constants.js';
  * Label + control + error. The label is linked to the control so tapping it
  * focuses the field and screen readers announce it, and an error marks the
  * control aria-invalid (which the wizard also uses to find the first error).
+ * A required field marks the control aria-required; the "*" itself is hidden
+ * from screen readers, so the field's name is just its label.
  *
  * The control is the first element child. When that isn't the input itself
  * (e.g. a row holding an input and a button), pass `inputId` and put that id
@@ -19,6 +21,7 @@ export function Field({ label, required, error, children, inputId }) {
   const content = target < 0 ? children : items.map((c, i) => (
     i !== target ? c : React.cloneElement(c, {
       id: controlId,
+      'aria-required': required ? true : undefined,
       'aria-invalid': error ? true : undefined,
       'aria-describedby': error ? errorId : undefined,
     })
@@ -27,7 +30,7 @@ export function Field({ label, required, error, children, inputId }) {
     <div>
       {label && (
         <label htmlFor={controlId} className="block font-semibold text-[12.5px] text-parish-ink mb-1.5 tracking-wide">
-          {label} {required && <span className="text-parish-gold">*</span>}
+          {label} {required && <span className="text-parish-gold" aria-hidden="true">*</span>}
         </label>
       )}
       {content}

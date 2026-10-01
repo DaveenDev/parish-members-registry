@@ -197,6 +197,7 @@ npm install @supabase/supabase-js
 In the Supabase dashboard → **Authentication → Providers / Sign In**:
 - Keep **Email** enabled (for admin login).
 - **Disable "Enable new user signups"** so the public cannot create accounts. Admins are created manually (Part 1.4). This is what makes the "every authenticated user is admin" model safe.
+- Optional: under **Authentication → Sessions / JWT expiry**, shorten the access-token lifetime if needed. Disabling a staff account stops new sign-ins at once, but a session already open keeps working until its token expires (up to an hour by default).
 
 ### 2.3 Add a Supabase client file
 

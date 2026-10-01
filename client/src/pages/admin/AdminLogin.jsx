@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { IDLE_LIMIT_MINUTES } from '../../lib/idle.js';
 import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
+import { adminReturnPath } from '../../lib/util.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
 
@@ -10,6 +11,8 @@ export default function AdminLogin() {
   const { user, ready, login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  // The admin page that sent the person here (see RequireAuth), else the Dashboard.
+  const dest = adminReturnPath(location.state?.from);
   const signedOutIdle = location.state?.reason === 'idle';
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -24,15 +27,16 @@ export default function AdminLogin() {
   // The name from Parish Config. Before 0013 is run this fails quietly and the default shows.
   useEffect(() => { api.publicOfficeDetails().then((d) => setParishName(d?.name || '')).catch(() => {}); }, []);
 
-  if (ready && user) return <Navigate to="/admin" replace />;
+  if (ready && user) return <Navigate to={dest} replace />;
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (!email.trim() || !password) { setError('Enter your email and password.'); return; }
     setLoading(true);
     setError('');
     try {
       await login(email, password);
-      navigate('/admin', { replace: true });
+      navigate(dest, { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid email or password');
     } finally {

@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { toNameCase, toSuffixCase, initials, inDateRange, generateTempPassword } from '../src/lib/util.js';
+import { toNameCase, toSuffixCase, initials, inDateRange, generateTempPassword, adminReturnPath } from '../src/lib/util.js';
 
 describe('toNameCase', () => {
   test('capitalizes the first letter of each word only', () => {
@@ -97,5 +97,26 @@ describe('generateTempPassword', () => {
     // 255 is above the rejection limit, so only the 0s are used.
     const pw = generateTempPassword(4, (n) => new Uint8Array(n).map((_, i) => (i % 2 ? 255 : 0)));
     assert.equal(pw, 'AAAA');
+  });
+});
+
+describe('adminReturnPath', () => {
+  test('returns the admin page the person asked for, with its query and hash', () => {
+    assert.equal(adminReturnPath('/admin/members'), '/admin/members');
+    assert.equal(adminReturnPath('/admin/requests?tab=donors'), '/admin/requests?tab=donors');
+    assert.equal(adminReturnPath('/admin'), '/admin');
+    assert.equal(adminReturnPath('/admin?x=1#top'), '/admin?x=1#top');
+  });
+
+  test('falls back to the Dashboard for anything else', () => {
+    assert.equal(adminReturnPath(undefined), '/admin');
+    assert.equal(adminReturnPath(null), '/admin');
+    assert.equal(adminReturnPath({ pathname: '/admin/members' }), '/admin');
+    assert.equal(adminReturnPath('/admin/login'), '/admin');
+    assert.equal(adminReturnPath('/admin/login?next=1'), '/admin');
+    assert.equal(adminReturnPath('/administrator'), '/admin');
+    assert.equal(adminReturnPath('/register'), '/admin');
+    assert.equal(adminReturnPath('https://evil.example/admin'), '/admin');
+    assert.equal(adminReturnPath('//evil.example/admin'), '/admin');
   });
 });
