@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { api, downloadWithAuth, triggerDownload } from '../../api.js';
+import { Link } from 'react-router-dom';
+import { api, triggerDownload } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination } from '../../components/admin.jsx';
 import { useClientList } from '../../hooks.js';
 import { PrimaryButton, GhostButton } from '../../components/ui.jsx';
@@ -35,8 +36,6 @@ const SOURCE_META = {
 export default function Reports() {
   const [tab, setTab] = useState('stats');
   const [stats, setStats] = useState(null);
-  const [bloodType, setBloodType] = useState('All');
-  const [bloodRows, setBloodRows] = useState([]);
 
   const [genSource, setGenSource] = useState('');
   const [genType, setGenType] = useState('');
@@ -44,11 +43,9 @@ export default function Reports() {
   const [ministryOptions, setMinistryOptions] = useState([]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [report, setReport] = useState(null);
-  const bloodList = useClientList(bloodRows, (b) => [b.name, b.household, b.gkk, b.contact, b.bloodType].join(' '));
   const reportList = useClientList(report?.rows || [], (row) => row.cells.join(' '));
 
   useEffect(() => { api.reportStats().then(setStats); }, []);
-  useEffect(() => { api.bloodReport(bloodType).then((r) => setBloodRows(r.rows)); }, [bloodType]);
   useEffect(() => {
     Promise.all([api.listMinistries(), api.listOrganizations()]).then(([m, o]) => setMinistryOptions([...m.rows.map((x) => x.name), ...o.rows.map((x) => x.name)]));
   }, []);
@@ -117,47 +114,13 @@ export default function Reports() {
 
               <div className="bg-[#fffdf8] border border-parish-border rounded-2xl px-[22px] py-[22px] shadow-cardSm" style={{ padding: '22px 24px' }}>
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
-                  <div className="font-serif text-[21px] font-semibold text-parish-navy">Blood Type Directory</div>
-                  <button onClick={() => downloadWithAuth('/exports/blood.csv', 'blood-directory.csv')} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg">Export CSV</button>
+                  <div className="font-serif text-[21px] font-semibold text-parish-navy">Blood types</div>
+                  <Link to="/admin/blood" className="px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-blue rounded-lg no-underline">Open Blood Types page →</Link>
                 </div>
-                <p className="text-[13px] text-parish-muted mb-4">For locating potential blood donors quickly in an emergency. {stats.unknownBlood} member(s) have no blood type on file.</p>
-                <div className="flex flex-wrap gap-2 mb-4">
+                <p className="text-[13px] text-parish-muted mb-4">The directory for finding blood donors now has its own page, with search, filters and click-to-call. {stats.unknownBlood} member(s) have no blood type on file.</p>
+                <div className="flex flex-wrap gap-2">
                   {stats.bloodCounts.map((b) => <span key={b.label} className="font-bold text-[12.5px] bg-parish-errorBg text-parish-error px-3.5 py-1.5 rounded-full">{b.label} · {b.n}</span>)}
                 </div>
-                <div className="flex flex-wrap items-center gap-2.5 mb-3.5">
-                  <FilterSelect value={bloodType} onChange={(e) => setBloodType(e.target.value)} aria-label="Filter by blood type">
-                    <option value="All">All blood types</option>
-                    {['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((b) => <option key={b} value={b}>{b}</option>)}
-                  </FilterSelect>
-                  <SearchInput placeholder="Search name, household, GKK, contact…" aria-label="Search blood directory" value={bloodList.query} onChange={(e) => bloodList.setQuery(e.target.value)} />
-                </div>
-                {!bloodRows.length && <div className="py-7 px-4 text-center text-parish-muted text-[14px]">No members with a recorded blood type for this filter.</div>}
-                {!!bloodRows.length && !bloodList.total && <div className="py-7 px-4 text-center text-parish-muted text-[14px]">No donors match “{bloodList.query}”.</div>}
-                {!!bloodList.total && (
-                  <div className="border border-[#f0e8d6] rounded-xl overflow-hidden">
-                    <div className="overflow-x-auto">
-                      <table className="w-full border-collapse" style={{ minWidth: 560 }}>
-                        <thead><tr className="bg-[#f4efe3]">{['Member', 'Blood Type', 'Age', 'GKK', 'Contact'].map((h) => <th key={h} className="text-left px-3.5 py-2.5 font-bold text-[11.5px] tracking-wide uppercase text-parish-text2">{h}</th>)}</tr></thead>
-                        <tbody>
-                          {bloodList.rows.map((b) => (
-                            <tr key={b.mid} className="border-t border-[#f1e8d5]">
-                              <td className="px-3.5 py-2.5">
-                                <div className="flex items-center gap-2.5"><div className="w-7 h-7 rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[11px] flex-none">{b.initials}</div>
-                                  <div><div className="text-[13.5px] font-semibold text-parish-navy whitespace-nowrap">{b.name}</div><div className="text-[11.5px] text-parish-muted">{b.household}</div></div>
-                                </div>
-                              </td>
-                              <td className="px-3.5 py-2.5"><span className="font-bold text-[12px] bg-parish-errorBg text-parish-error px-2.5 py-1 rounded-full">{b.bloodType}</span></td>
-                              <td className="px-3.5 py-2.5 text-[13.5px] text-[#3f3b2f]">{b.age ?? '—'}</td>
-                              <td className="px-3.5 py-2.5 text-[13.5px] text-parish-text2 whitespace-nowrap">{b.gkk || '—'}</td>
-                              <td className="px-3.5 py-2.5 text-[13.5px] text-[#3f3b2f] whitespace-nowrap">{b.contact || '—'}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                    <Pagination page={bloodList.page} pageSize={bloodList.pageSize} total={bloodList.total} onPage={bloodList.setPage} onPageSize={bloodList.setPageSize} />
-                  </div>
-                )}
               </div>
             </div>
           )}

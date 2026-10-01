@@ -4,7 +4,7 @@ import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState } from '../../components/admin.jsx';
 import { StatusPill, PrimaryButton, Badge } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
-import HouseholdEditModal from '../../components/HouseholdEditModal.jsx';
+import HouseholdEditDrawer from '../../components/HouseholdEditDrawer.jsx';
 import PrintSheet, { printHouseholdSheet } from '../../components/PrintSheet.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
@@ -59,6 +59,29 @@ export default function Households() {
       } catch (e) {
         toast.error(e.message || 'Could not load household members');
       }
+    }
+  }
+
+  /**
+   * Re-fetch the member lists of expanded households (or just `onlyId`) after
+   * members change, so open rows show the new names instead of going blank.
+   */
+  function refreshExpanded(onlyId) {
+    const ids = Object.keys(expanded).filter((id) => expanded[id] && (onlyId === undefined || String(onlyId) === id));
+    // Drop caches that might be stale so collapsed rows refetch when reopened;
+    // expanded rows keep showing their list until the fresh one arrives.
+    setExpandedMembers((m) => {
+      const next = { ...m };
+      for (const id of Object.keys(next)) {
+        const affected = onlyId === undefined || String(onlyId) === id;
+        if (affected && !expanded[id]) delete next[id];
+      }
+      return next;
+    });
+    for (const id of ids) {
+      api.getHousehold(id)
+        .then((res) => setExpandedMembers((m) => ({ ...m, [id]: res.members })))
+        .catch(() => {});
     }
   }
 
@@ -206,15 +229,16 @@ export default function Households() {
         <MemberDetailModal
           memberId={openMemberId}
           onClose={() => setOpenMemberId(null)}
-          onChanged={() => { reload(); setExpandedMembers({}); }}
+          onChanged={() => { reload(); refreshExpanded(); }}
         />
       )}
       {editing && (
-        <HouseholdEditModal
+        <HouseholdEditDrawer
           household={editing}
           gkkOptions={gkkOptions}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); reload(); }}
+          onMembersChanged={() => { reload(); refreshExpanded(editing.id); }}
         />
       )}
       <PrintSheet data={printData} />

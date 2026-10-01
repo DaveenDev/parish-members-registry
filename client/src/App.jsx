@@ -9,6 +9,7 @@ import Households from './pages/admin/Households.jsx';
 import NewHousehold from './pages/admin/NewHousehold.jsx';
 import Members from './pages/admin/Members.jsx';
 import Sacraments from './pages/admin/Sacraments.jsx';
+import BloodTypes from './pages/admin/BloodTypes.jsx';
 import Ministries from './pages/admin/Ministries.jsx';
 import Organizations from './pages/admin/Organizations.jsx';
 import Reports from './pages/admin/Reports.jsx';
@@ -43,6 +44,7 @@ export default function App() {
           <Route path="households/new" element={<NewHousehold />} />
           <Route path="members" element={<Members />} />
           <Route path="sacraments" element={<Sacraments />} />
+          <Route path="blood" element={<BloodTypes />} />
           <Route path="ministries" element={<Ministries />} />
           <Route path="organizations" element={<Organizations />} />
           <Route path="reports" element={<Reports />} />

@@ -38,9 +38,13 @@ export default {
       keyframes: {
         fadeUp: { from: { opacity: 0, transform: 'translateY(14px)' }, to: { opacity: 1, transform: 'none' } },
         spin: { to: { transform: 'rotate(360deg)' } },
+        slideInRight: { from: { transform: 'translateX(100%)' }, to: { transform: 'none' } },
+        fadeIn: { from: { opacity: 0 }, to: { opacity: 1 } },
       },
       animation: {
         fadeUp: 'fadeUp .5s ease both',
+        slideInRight: 'slideInRight .28s cubic-bezier(.2,.8,.2,1) both',
+        fadeIn: 'fadeIn .2s ease both',
         spinSlow: 'spin .7s linear infinite',
       },
     },

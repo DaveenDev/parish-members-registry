@@ -9,6 +9,7 @@ const NAV_MAIN = [
   { to: '/admin/households', label: 'Households' },
   { to: '/admin/members', label: 'Members' },
   { to: '/admin/sacraments', label: 'Sacraments' },
+  { to: '/admin/blood', label: 'Blood Types' },
   { to: '/admin/organizations', label: 'Organizations' },
   { to: '/admin/ministries', label: 'Ministries' },
   { to: '/admin/reports', label: 'Reports' },

@@ -3,8 +3,8 @@
 // the admin pages and the public registration wizard already call, so this
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
-import { ageFromDob, PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS } from './constants.js';
-import { initials, memberFullName } from './lib/util.js';
+import { ageFromDob, PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES } from './constants.js';
+import { memberFullName } from './lib/util.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
 
 const MAX_PAGE_SIZE = 100;
@@ -135,6 +135,7 @@ export const api = {
         first_name: member.firstName,
         middle_name: member.middleName || null,
         last_name: member.lastName,
+        suffix: member.suffix || null,
         relationship: member.relationship || null,
         sex: member.sex || null,
         dob: member.dob || null,
@@ -158,11 +159,13 @@ export const api = {
     let q = applyMemberFilters(supabase.from('members_with_household').select('*', { count: 'exact' }), params);
 
     const ascending = sortDir !== 'desc';
-    const sortCol = { name: 'first_name', household: 'household_name', age: 'age', status: 'household_status' }[sortKey] || 'first_name';
+    const sortCol = { name: 'first_name', household: 'household_name', age: 'age', status: 'household_status', blood: 'blood_type' }[sortKey] || 'first_name';
     // Members without a GKK sort last, under their own "No GKK" heading.
     if (groupBy === 'gkk') q = q.order('household_gkk', { ascending: true, nullsFirst: false });
     q = q.order(sortCol, { ascending, nullsFirst: false });
     if (sortKey === 'name') q = q.order('last_name', { ascending });
+    // Within a blood type, alphabetical by name.
+    if (sortKey === 'blood') q = q.order('first_name', { ascending: true }).order('last_name', { ascending: true });
     // Keep each household's members together even when two share a name;
     // within a household, id order puts the head (entered first) on top.
     if (sortKey === 'household') {
@@ -194,6 +197,21 @@ export const api = {
     const names = params.gkk && params.gkk !== 'All' ? [params.gkk] : [...gkks.map((g) => g.name), null];
     const counts = await Promise.all(names.map(count));
     return new Map(names.map((name, i) => [name, counts[i]]));
+  },
+
+  /**
+   * Members per blood type under the given filters (gkk, age, search…), for
+   * the Blood Types page tiles: { 'A+': 4, …, Unknown: 9 }. Count-only queries.
+   */
+  async bloodTypeCounts(params = {}) {
+    const keys = [...BLOOD_TYPES, 'Unknown'];
+    const counts = await Promise.all(keys.map(async (blood) => {
+      const q = applyMemberFilters(supabase.from('members_with_household').select('id', { count: 'exact', head: true }), { ...params, blood });
+      const { count, error } = await q;
+      if (error) throw mapError(error);
+      return count || 0;
+    }));
+    return Object.fromEntries(keys.map((k, i) => [k, counts[i]]));
   },
 
   async getMember(id) {
@@ -436,18 +454,6 @@ export const api = {
     };
   },
 
-  async bloodReport(type = 'All') {
-    const { data, error } = await supabase.from('members_with_household').select('*').not('blood_type', 'is', null);
-    if (error) throw mapError(error);
-    const filtered = type === 'All' ? data : data.filter((m) => m.blood_type === type);
-    return {
-      rows: filtered.map((m) => ({
-        mid: m.id, name: memberFullName(m), initials: initials(m.first_name, m.last_name),
-        household: m.household_name, bloodType: m.blood_type, age: m.age, gkk: m.household_gkk, contact: m.contact,
-      })),
-    };
-  },
-
   async reportSources() {
     const types = {
       Members: { types: ['By GKK', 'By Sacrament', 'By Ministry / Organization'] },
@@ -545,8 +551,11 @@ function applyMemberFilters(q, params = {}) {
     q = q.or(`ministries.cs.{"${escaped}"},organizations.cs.{"${escaped}"}`);
   }
 
+  // 'Recorded' = any blood type on file; 'Unknown' = none on file.
   if (blood !== 'All') {
-    q = blood === 'Unknown' ? q.is('blood_type', null) : q.eq('blood_type', blood);
+    if (blood === 'Unknown') q = q.is('blood_type', null);
+    else if (blood === 'Recorded') q = q.not('blood_type', 'is', null);
+    else q = q.eq('blood_type', blood);
   }
 
   if (age !== 'All' && AGE_RANGES[age]) {
