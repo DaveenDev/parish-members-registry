@@ -1,20 +1,26 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { useAuth } from '../../AuthContext.jsx';
 import { PageHeader, PageBody, EmptyState, ErrorState, LoadingState, Panel, Modal } from '../../components/admin.jsx';
-import { Field, TextInput, Checkbox, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
+import { Field, TextInput, Checkbox, Select, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
 import { useAsyncData } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { fmtDateTime } from '../../constants.js';
 import { generateTempPassword } from '../../lib/util.js';
+import { ACCESS_LEVELS, accessLabel } from '../../lib/access.js';
 
-const EMPTY_FORM = { name: '', email: '', role: 'Parish Staff', isAdmin: false };
+const EMPTY_FORM = { name: '', email: '', role: 'Parish Staff', isAdmin: false, access: 'full', accessGkk: '' };
 
 /** Add or edit form. Email is fixed once an account exists. */
-function StaffForm({ initial, isNew, busy, error, onSubmit, onCancel }) {
+function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
   const [form, setForm] = useState(initial);
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
+  const set = (key) => (e) => setForm((f) => {
+    const value = e.target.type === 'checkbox' ? e.target.checked : e.target.value;
+    // Staff admins always have full access.
+    if (key === 'isAdmin' && value) return { ...f, isAdmin: true, access: 'full' };
+    return { ...f, [key]: value };
+  });
   return (
     <form onSubmit={(e) => { e.preventDefault(); onSubmit(form); }} className="flex flex-col gap-4">
       {error && <div className="text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
@@ -23,9 +29,26 @@ function StaffForm({ initial, isNew, busy, error, onSubmit, onCancel }) {
         ? <Field label="Email" required><TextInput type="email" value={form.email} onChange={set('email')} autoComplete="off" /></Field>
         : <div className="text-[13.5px] text-parish-text2"><span className="font-semibold">Email:</span> {form.email}</div>}
       <Field label="Role / title"><TextInput value={form.role} onChange={set('role')} placeholder="e.g. Parish Secretary" /></Field>
+      <fieldset className="border-none p-0 m-0 flex flex-col gap-2">
+        <legend className="font-semibold text-[13px] text-parish-ink mb-1.5">Access</legend>
+        {ACCESS_LEVELS.map((a) => (
+          <label key={a.key} className={`flex items-start gap-2.5 text-[13.5px] text-parish-text2 ${form.isAdmin && a.key !== 'full' ? 'opacity-50' : 'cursor-pointer'}`}>
+            <input type="radio" name="access" value={a.key} checked={form.access === a.key} onChange={set('access')} disabled={form.isAdmin && a.key !== 'full'} className="mt-1 accent-parish-blue" />
+            <span><strong className="text-parish-navy">{a.label}</strong>: {a.note}</span>
+          </label>
+        ))}
+        {form.access === 'gkk_leader' && (
+          <Field label="GKK" required>
+            <Select value={form.accessGkk || ''} onChange={set('accessGkk')}>
+              <option value="">Choose the GKK…</option>
+              {gkks.map((g) => <option key={g} value={g}>{g}</option>)}
+            </Select>
+          </Field>
+        )}
+      </fieldset>
       <label className="flex items-start gap-2.5 cursor-pointer text-[13.5px] text-parish-text2">
         <Checkbox checked={form.isAdmin} onChange={set('isAdmin')} className="mt-0.5" />
-        <span><strong className="text-parish-navy">Staff admin</strong>: can add, reset and disable staff accounts.</span>
+        <span><strong className="text-parish-navy">Staff admin</strong>: can add, reset and disable staff accounts, and set their access. Always full access.</span>
       </label>
       <div className="flex gap-2.5 justify-end mt-1">
         <GhostButton type="button" onClick={onCancel} className="px-5 py-2.5 text-[14px]">Cancel</GhostButton>
@@ -73,6 +96,8 @@ export default function ManageStaff() {
   const [busy, setBusy] = useState(false);
   const [formError, setFormError] = useState('');
   const [rowBusy, setRowBusy] = useState(null);
+  const [gkks, setGkks] = useState([]);
+  useEffect(() => { api.listGkks().then((r) => setGkks(r.rows.map((g) => g.name))).catch(() => {}); }, []);
 
   if (!user?.isAdmin) {
     return (
@@ -172,7 +197,7 @@ export default function ManageStaff() {
       <PageBody>
         <div className="max-w-[920px]">
           <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl text-[13.5px] text-[#2b466f] leading-relaxed">
-            Every staff account can see and change all registry records. Keep this list to people who need it, and disable accounts when someone leaves.
+            Choose each account's access: full, read only, one GKK, or the website and requests. Keep this list to people who need it, and disable accounts when someone leaves.
             New accounts and password resets get a temporary password for you to pass on.
           </div>
           <Panel className="overflow-hidden">
@@ -196,6 +221,7 @@ export default function ManageStaff() {
                           <div className="font-semibold text-[14.5px] text-parish-navy flex items-center gap-2 flex-wrap">
                             {s.name || <span className="text-parish-muted">No name</span>}
                             {s.is_admin && <Badge tone="gold">Admin</Badge>}
+                            {s.access && s.access !== 'full' && <Badge tone="gray" title={s.access_gkk || undefined}>{accessLabel(s.access)}{s.access_gkk ? `: ${s.access_gkk}` : ''}</Badge>}
                             {isSelf && <Badge tone="blue">You</Badge>}
                           </div>
                           <div className="text-[12.5px] text-parish-muted">{s.email}</div>
@@ -236,14 +262,14 @@ export default function ManageStaff() {
 
       {dialog?.kind === 'add' && (
         <Modal title="Add staff" onClose={close}>
-          <StaffForm initial={EMPTY_FORM} isNew busy={busy} error={formError} onSubmit={create} onCancel={close} />
+          <StaffForm initial={EMPTY_FORM} isNew busy={busy} error={formError} gkks={gkks} onSubmit={create} onCancel={close} />
         </Modal>
       )}
       {dialog?.kind === 'edit' && (
         <Modal title="Edit staff" onClose={close}>
           <StaffForm
-            initial={{ name: dialog.target.name, email: dialog.target.email, role: dialog.target.role, isAdmin: dialog.target.is_admin }}
-            busy={busy} error={formError}
+            initial={{ name: dialog.target.name, email: dialog.target.email, role: dialog.target.role, isAdmin: dialog.target.is_admin, access: dialog.target.access || 'full', accessGkk: dialog.target.access_gkk || '' }}
+            busy={busy} error={formError} gkks={gkks}
             onSubmit={(form) => update(dialog.target, form)} onCancel={close}
           />
         </Modal>

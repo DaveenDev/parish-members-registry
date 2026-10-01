@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { pageWindow } from '../lib/paging.js';
 
 export function PageHeader({ title, subtitle, children }) {
@@ -22,11 +23,11 @@ export function PageBody({ children }) {
   return <div className="p-4 sm:p-[26px] flex-1">{children}</div>;
 }
 
-export function FilterSelect(props) {
+export function FilterSelect({ className = '', ...props }) {
   return (
     <select
       {...props}
-      className="px-3 py-2.5 text-[13.5px] text-parish-ink bg-[#fffdf8] border-[1.5px] border-parish-borderSoft rounded-lg outline-none cursor-pointer"
+      className={`px-3 py-2.5 text-[13.5px] text-parish-ink bg-[#fffdf8] border-[1.5px] border-parish-borderSoft rounded-lg outline-none cursor-pointer ${className}`}
     />
   );
 }
@@ -45,20 +46,28 @@ export function SearchInput(props) {
   );
 }
 
-export function DataTable({ columns, children, minWidth = 700, footer }) {
+/**
+ * Table on a Panel. `mobile`, when given, replaces the table below the md
+ * breakpoint (cards read better than a sideways-scrolling table on a phone).
+ */
+export function DataTable({ columns, children, minWidth = 700, footer, mobile }) {
   return (
     <Panel className="overflow-hidden">
-      <div className="overflow-x-auto">
+      {mobile && <div className="md:hidden">{mobile}</div>}
+      <div className={`overflow-x-auto ${mobile ? 'hidden md:block' : ''}`}>
         <table className="w-full border-collapse" style={{ minWidth }}>
           <thead>
             <tr className="bg-[#f4efe3]">
               {columns.map((c) => (
                 <th
                   key={c.key || c.label}
-                  onClick={c.onSort}
-                  className={`text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2 whitespace-nowrap ${c.onSort ? 'cursor-pointer' : ''} ${c.align === 'center' ? 'text-center' : c.align === 'right' ? 'text-right' : ''}`}
+                  scope="col"
+                  aria-sort={c.onSort ? (c.arrow === '↑' ? 'ascending' : c.arrow === '↓' ? 'descending' : 'none') : undefined}
+                  className={`text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2 whitespace-nowrap ${c.align === 'center' ? 'text-center' : c.align === 'right' ? 'text-right' : ''} ${c.className || ''}`}
                 >
-                  {c.label} {c.arrow || ''}
+                  {c.header || (c.onSort
+                    ? <button type="button" onClick={c.onSort} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-bold text-[12px] tracking-wide uppercase text-parish-text2">{c.label} <span aria-hidden>{c.arrow || ''}</span></button>
+                    : c.label)}
                 </th>
               ))}
             </tr>
@@ -209,5 +218,97 @@ export function Modal({ title, onClose, children, maxWidth = 480, z = 'z-50' }) 
         {children}
       </div>
     </div>
+  );
+}
+
+/** Banner for pages the signed-in account can look at but not change. */
+export function ViewOnlyNote({ children = 'Your account can view this page but not change it.' }) {
+  return (
+    <div role="note" className="mb-4 px-4 py-3 rounded-xl border border-[#ecd3a6] bg-[#fdf6e8] text-[#7a5a1e] text-[13.5px] font-medium">
+      {children}
+    </div>
+  );
+}
+
+/**
+ * "⋯" button with a small menu of row actions. `items` is a list of
+ * { label, onClick, tone: 'danger' }; falsy entries are skipped. The menu
+ * is fixed-positioned in a portal so a scrolling table can't clip it.
+ * Arrow keys move, Escape or a click outside closes.
+ */
+export function ActionMenu({ label = 'More actions', items }) {
+  const shown = items.filter(Boolean);
+  const [pos, setPos] = useState(null);
+  const btnRef = useRef(null);
+  const menuRef = useRef(null);
+  const menuId = useId();
+  const open = !!pos;
+
+  function toggle() {
+    if (open) { setPos(null); return; }
+    const r = btnRef.current.getBoundingClientRect();
+    const below = window.innerHeight - r.bottom > 44 * shown.length + 16;
+    setPos({ right: Math.max(8, window.innerWidth - r.right), ...(below ? { top: r.bottom + 6 } : { bottom: window.innerHeight - r.top + 6 }) });
+  }
+
+  useEffect(() => {
+    if (!open) return;
+    menuRef.current?.querySelector('[role="menuitem"]')?.focus();
+    const close = (e) => {
+      if (e.type === 'keydown' && e.key !== 'Escape') return;
+      if (e.type === 'mousedown' && (menuRef.current?.contains(e.target) || btnRef.current?.contains(e.target))) return;
+      setPos(null);
+      if (e.type === 'keydown') btnRef.current?.focus();
+    };
+    const closeNow = () => setPos(null);
+    document.addEventListener('mousedown', close);
+    document.addEventListener('keydown', close);
+    window.addEventListener('resize', closeNow);
+    window.addEventListener('scroll', closeNow, true);
+    return () => {
+      document.removeEventListener('mousedown', close);
+      document.removeEventListener('keydown', close);
+      window.removeEventListener('resize', closeNow);
+      window.removeEventListener('scroll', closeNow, true);
+    };
+  }, [open]);
+
+  function onMenuKey(e) {
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(e.key)) return;
+    e.preventDefault();
+    const els = [...menuRef.current.querySelectorAll('[role="menuitem"]')];
+    const i = els.indexOf(document.activeElement);
+    const next = e.key === 'Home' ? 0 : e.key === 'End' ? els.length - 1 : (i + (e.key === 'ArrowDown' ? 1 : -1) + els.length) % els.length;
+    els[next]?.focus();
+  }
+
+  if (!shown.length) return null;
+  return (
+    <>
+      <button
+        ref={btnRef} type="button" onClick={toggle}
+        aria-label={label} aria-haspopup="menu" aria-expanded={open} aria-controls={open ? menuId : undefined}
+        className="appearance-none border-none cursor-pointer w-9 h-9 rounded-lg bg-[#f4efe3] text-parish-text2 font-bold text-[16px] leading-none flex items-center justify-center"
+      >
+        <span aria-hidden>⋯</span>
+      </button>
+      {open && createPortal(
+        <div ref={menuRef} id={menuId} role="menu" aria-label={label} onKeyDown={onMenuKey}
+          className="fixed z-[60] min-w-[170px] bg-white border border-parish-border rounded-xl shadow-card p-1.5 flex flex-col"
+          style={pos}
+        >
+          {shown.map((it) => (
+            <button
+              key={it.label} type="button" role="menuitem"
+              onClick={() => { setPos(null); it.onClick(); }}
+              className={`appearance-none border-none bg-transparent cursor-pointer text-left px-3 py-2.5 rounded-lg font-semibold text-[13.5px] hover:bg-[#f7f2e6] focus:bg-[#f7f2e6] outline-none ${it.tone === 'danger' ? 'text-parish-error' : 'text-parish-navy'}`}
+            >
+              {it.label}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </>
   );
 }

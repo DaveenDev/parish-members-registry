@@ -142,6 +142,23 @@ export default function BloodTypes() {
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
             </>
           }
+          mobile={
+            <ul className="list-none m-0 p-0 divide-y divide-[#f1e8d5]">
+              {rows.map((m) => {
+                const tel = m.contact && String(m.contact).replace(/[^\d+]/g, '');
+                return (
+                  <li key={m.id} className="px-4 py-3 flex items-center gap-3">
+                    <button type="button" onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-left min-w-0 flex-1">
+                      <div className="font-semibold text-[14.5px] text-parish-navy">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
+                      <div className="text-[12.5px] text-parish-muted truncate">{[m.age != null && `${m.age} yrs`, m.household_gkk, m.household_name].filter(Boolean).join(' · ')}</div>
+                    </button>
+                    {m.blood_type ? <BloodBadge type={m.blood_type} /> : <span className="text-[12px] text-[#c4bba4]">—</span>}
+                    {tel && <a href={`tel:${tel}`} aria-label={`Call ${m.first_name} ${m.last_name} at ${m.contact}`} className="px-3 py-2 rounded-lg font-semibold text-[12.5px] no-underline bg-[var(--p-blue-tint)] text-parish-blue">Call</a>}
+                  </li>
+                );
+              })}
+            </ul>
+          }
         >
           {rows.map((m) => (
             <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-[#f1e8d5] cursor-pointer hover:bg-[#f7f2e6] focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">

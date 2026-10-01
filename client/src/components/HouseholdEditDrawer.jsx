@@ -251,13 +251,13 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
                       </div>
                     </div>
                     <button onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">Edit</button>
-                    <button onClick={() => removeMember(m)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-error bg-parish-errorBg rounded-lg">Remove</button>
+                    {can(user, 'deleteRecords') && <button onClick={() => removeMember(m)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-error bg-parish-errorBg rounded-lg">Remove</button>}
                   </div>
                 ))}
               </div>
             )}
 
-            {members && !adding && (
+            {members && !adding && can(user, 'editRegistry') && (
               <button
                 onClick={() => setAdding(true)}
                 className="mt-3 w-full appearance-none cursor-pointer py-3 font-bold text-[14px] text-parish-blue bg-white border-[1.5px] border-dashed border-[#b9c6de] rounded-xl flex items-center justify-center gap-2 hover:bg-[#f4f7fc] hover:border-parish-blue transition"
@@ -296,9 +296,11 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
         <footer className="flex items-center gap-2.5 justify-end px-5 sm:px-7 py-3.5 border-t border-[#f0e8d6] bg-[#fffdf8]">
           {dirty && <span className="mr-auto text-[12.5px] font-semibold text-[#a1762b]">Unsaved changes</span>}
           <GhostButton onClick={requestClose} className="px-5 py-2.5 text-[14px]">Close</GhostButton>
-          <PrimaryButton onClick={save} disabled={saving || !dirty} className="px-6 py-2.5 text-[14px]">
-            {saving ? 'Saving…' : 'Save changes'}
-          </PrimaryButton>
+          {can(user, 'editRegistry') && (
+            <PrimaryButton onClick={save} disabled={saving || !dirty} className="px-6 py-2.5 text-[14px]">
+              {saving ? 'Saving…' : 'Save changes'}
+            </PrimaryButton>
+          )}
         </footer>
       </aside>
 

@@ -4,6 +4,8 @@ import { VERIFICATION_SOURCES, fmtDate } from '../constants.js';
 import { Field, TextInput, Select, PrimaryButton, GhostButton } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
+import { useAuth } from '../AuthContext.jsx';
+import { can } from '../lib/access.js';
 
 /**
  * A sacrament's status at a glance: "—" (not claimed), amber "Claimed"
@@ -61,6 +63,8 @@ export default function SacramentVerifyDialog({ member, sacrament, verification,
   const toast = useToast();
   const confirm = useConfirm();
   const titleId = useId();
+  const { user } = useAuth();
+  const canVerify = can(user, 'verify');
   const [editing, setEditing] = useState(!verification);
   const [source, setSource] = useState(verification?.source || sacrament.defaultSource);
   const [reference, setReference] = useState(verification?.reference || '');
@@ -132,7 +136,7 @@ export default function SacramentVerifyDialog({ member, sacrament, verification,
           </div>
         )}
 
-        {editing && (
+        {editing && canVerify && (
           <div className="flex flex-col gap-4 mb-5">
             <Field label="How was this verified?" required>
               <Select value={source} onChange={(e) => setSource(e.target.value)}>
@@ -145,7 +149,13 @@ export default function SacramentVerifyDialog({ member, sacrament, verification,
           </div>
         )}
 
-        <div className="flex flex-wrap gap-2.5 justify-end">
+        {!canVerify && (
+          <div className="flex flex-wrap gap-2.5 justify-end items-center">
+            <span className="mr-auto text-[12.5px] text-parish-muted">Only staff with full access can verify sacraments.</span>
+            <PrimaryButton onClick={onClose} className="px-6 py-2.5 text-[14px]">Close</PrimaryButton>
+          </div>
+        )}
+        {canVerify && <div className="flex flex-wrap gap-2.5 justify-end">
           {verification && !editing && (
             <>
               <button onClick={remove} disabled={saving} className="mr-auto appearance-none border-none bg-parish-errorBg text-parish-error cursor-pointer font-semibold text-[13px] px-4 py-2.5 rounded-lg">Remove verification</button>
@@ -159,7 +169,7 @@ export default function SacramentVerifyDialog({ member, sacrament, verification,
               <PrimaryButton onClick={save} disabled={saving} className="px-6 py-2.5 text-[14px]">{saving ? 'Saving…' : 'Mark as verified'}</PrimaryButton>
             </>
           )}
-        </div>
+        </div>}
       </div>
     </div>
   );

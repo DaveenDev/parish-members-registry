@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api, triggerDownload } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote } from '../../components/admin.jsx';
+import { useAuth } from '../../AuthContext.jsx';
+import { can } from '../../lib/access.js';
 import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
 import CensusHouseholdDrawer from '../../components/CensusHouseholdDrawer.jsx';
 import CensusPrintSheet from '../../components/CensusPrintSheet.jsx';
@@ -32,6 +34,8 @@ function Tile({ label, value, note, accent }) {
 export default function Census() {
   const toast = useToast();
   const confirm = useConfirm();
+  const { user } = useAuth();
+  const canEdit = can(user, 'editCensus');
   const [cycles, setCycles] = useState(null);
   const [cyclesError, setCyclesError] = useState('');
   const [cycleId, setCycleId] = useState(null);
@@ -122,9 +126,10 @@ export default function Census() {
             {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
           </FilterSelect>
         )}
-        {!openCycle && !starting && <PrimaryButton onClick={() => setStarting(true)} className="px-4 py-2.5 text-[14px]">Start a new census</PrimaryButton>}
+        {!openCycle && !starting && canEdit && <PrimaryButton onClick={() => setStarting(true)} className="px-4 py-2.5 text-[14px]">Start a new census</PrimaryButton>}
       </PageHeader>
       <PageBody>
+        {!canEdit && <ViewOnlyNote />}
         <Panel className="px-5 py-4 mb-5 flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-2.5">
             <span className="text-[13.5px] text-parish-text2 font-semibold">Schedule</span>

@@ -8,6 +8,8 @@ import { useAsyncData } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { fmtDate, fmtDateTime } from '../../constants.js';
+import { useAuth } from '../../AuthContext.jsx';
+import { can } from '../../lib/access.js';
 import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 
 const fullName = (m) => [m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ');
@@ -24,6 +26,7 @@ export default function Duplicates() {
   const { data: groups, loading, error, reload } = useAsyncData(() => api.findDuplicateMembers(), []);
   const [openMemberId, setOpenMemberId] = useState(null);
   const [busyKey, setBusyKey] = useState(null);
+  const { user } = useAuth();
 
   async function dismiss(group) {
     const first = group.members[0];
@@ -76,13 +79,13 @@ export default function Duplicates() {
                           <div className="text-[12.5px] text-parish-muted">Born {fmtDate(first.dob)} · {g.members.length} records</div>
                         </div>
                         <Badge tone={g.same_household ? 'gold' : 'blue'}>{g.same_household ? 'Same household' : 'Different households'}</Badge>
-                        <button
+                        {can(user, 'deleteRecords') && <button
                           onClick={() => dismiss(g)}
                           disabled={busyKey === g.key}
                           className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-text2 bg-[#f4efe3] rounded-lg whitespace-nowrap disabled:opacity-60"
                         >
                           {busyKey === g.key ? 'Saving…' : 'Not duplicates'}
-                        </button>
+                        </button>}
                       </div>
                       <div className="grid gap-px bg-[#f1e8d5]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
                         {g.members.map((m) => (

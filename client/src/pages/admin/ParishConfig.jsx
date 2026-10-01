@@ -3,6 +3,8 @@ import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, Tabs, Panel } from '../../components/admin.jsx';
 import { ManageListCard } from '../../components/ManageList.jsx';
+import { useAuth } from '../../AuthContext.jsx';
+import { can } from '../../lib/access.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
 import { useToast } from '../../ToastContext.jsx';
@@ -137,11 +139,13 @@ function ChangePasswordCard() {
 function ProfileTab() {
   const toast = useToast();
   const layout = useOutletContext();
+  const { user } = useAuth();
   const [settings, setSettings] = useState(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => { api.getSettings().then((r) => setSettings(r.settings)).catch((e) => toast.error(e.message)); }, []);
   if (!settings) return null;
+  const canEdit = can(user, 'settings');
 
   function set(field, value) { setSettings((s) => ({ ...s, [field]: value })); }
 
@@ -166,6 +170,7 @@ function ProfileTab() {
 
   return (
     <div className="flex flex-col gap-[18px]">
+      {canEdit && (
       <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-[18px]">Parish profile</div>
         <div className="flex flex-col gap-4">
@@ -182,7 +187,9 @@ function ProfileTab() {
         </div>
       </Panel>
 
-      <LogoCard settings={settings} onSaved={applySaved} />
+      )}
+
+      {canEdit && <LogoCard settings={settings} onSaved={applySaved} />}
 
       <ChangePasswordCard />
 
@@ -206,7 +213,9 @@ const CONFIG_TABS = [['config', 'Parish Config'], ['gkk', 'Parish GKK']];
 
 export default function ParishConfig() {
   const [params, setParams] = useSearchParams();
-  const tab = CONFIG_TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : CONFIG_TABS[0][0];
+  const { user } = useAuth();
+  const tabs = can(user, 'settings') ? CONFIG_TABS : CONFIG_TABS.slice(0, 1);
+  const tab = tabs.some(([k]) => k === params.get('tab')) ? params.get('tab') : tabs[0][0];
   const setTab = (k) => setParams(k === CONFIG_TABS[0][0] ? {} : { tab: k }, { replace: true });
 
   return (
@@ -214,7 +223,7 @@ export default function ParishConfig() {
       <PageHeader title="Parish Config" subtitle="Profile, privacy & GKK settings" />
       <PageBody>
         <div className="max-w-[720px]">
-          <Tabs tabs={CONFIG_TABS} value={tab} onChange={setTab} />
+          {tabs.length > 1 && <Tabs tabs={tabs} value={tab} onChange={setTab} />}
           {tab === 'config' && <ProfileTab />}
           {tab === 'gkk' && (
             <ManageListCard

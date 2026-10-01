@@ -5,6 +5,8 @@ import { PageHeader, PageBody, ErrorState, LoadingState, Panel } from '../../com
 import { useAsyncData } from '../../hooks.js';
 import { daysAgo } from '../../constants.js';
 import { useToast } from '../../ToastContext.jsx';
+import { useAuth } from '../../AuthContext.jsx';
+import { can } from '../../lib/access.js';
 
 const CARD = 'bg-[#fffdf8] border border-parish-border rounded-2xl shadow-cardSm';
 const LINK_FOCUS = 'no-underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue';
@@ -73,6 +75,8 @@ function PendingQueue({ pendingCount, onVerified }) {
   const toast = useToast();
   const queue = useAsyncData(() => api.listHouseholds({ status: 'Pending', pageSize: 8 }), []);
   const [busyId, setBusyId] = useState(null);
+  const { user } = useAuth();
+  const canVerify = can(user, 'editRegistry');
 
   async function verify(h) {
     setBusyId(h.id);
@@ -112,13 +116,13 @@ function PendingQueue({ pendingCount, onVerified }) {
                 </div>
               </div>
               <Link to={`/admin/households?status=Pending&q=${encodeURIComponent(h.household_name)}`} className="px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-[#f4efe3] rounded-lg no-underline">Open</Link>
-              <button
+              {canVerify && <button
                 onClick={() => verify(h)}
                 disabled={busyId === h.id}
                 className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap disabled:opacity-60"
               >
                 {busyId === h.id ? 'Verifying…' : 'Verify'}
-              </button>
+              </button>}
             </li>
           ))}
         </ul>
