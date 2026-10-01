@@ -20,6 +20,7 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 - Reports: registration status by GKK, sacramental completion, ministry/org participation, blood type directory, and an ad-hoc report builder
 - CSV exports for members, households, and blood type directory
 - Parish census: start a census whenever the parish decides (yearly, every two years…), print pre-filled census forms by GKK, record each member's participation and status (Active, Inactive, Moved away, Deceased, Left the Church), and see results by GKK
+- Census family portal: families update their record online at `/census` with the reference number and access code from their census form; staff review and approve each update
 - Parish configuration: profile details, GKK list, ministries, and organizations management
 
 ## Tech stack
@@ -48,7 +49,7 @@ project/               Original Claude Design source files this app was built fr
 Follow [`guadalupe-registry-deployment-guide.md`](guadalupe-registry-deployment-guide.md) Part 1, or in short:
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations. Then run each later migration in order ([`0002_head_first_registration.sql`](supabase/migrations/0002_head_first_registration.sql) adds the Household Head fields, the participation survey, and the public GKK list; [`0003_public_stats_groups_names.sql`](supabase/migrations/0003_public_stats_groups_names.sql) adds the homepage stats, the public organization list, unique household names, and fixes renaming ministries/organizations; [`0004_public_parish_logo.sql`](supabase/migrations/0004_public_parish_logo.sql) lets the public registration site show the uploaded parish logo; [`0005_sacrament_verification.sql`](supabase/migrations/0005_sacrament_verification.sql) lets staff mark self-reported sacraments as verified against a certificate or the parish register; [`0006_parish_positions.sql`](supabase/migrations/0006_parish_positions.sql) adds the Parish Organization Structure list and each member's "Katungdanan sa Parish"; [`0007_census.sql`](supabase/migrations/0007_census.sql) adds the parish census). Existing projects only need the migrations they haven't run yet.
+2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations. Then run each later migration in order ([`0002_head_first_registration.sql`](supabase/migrations/0002_head_first_registration.sql) adds the Household Head fields, the participation survey, and the public GKK list; [`0003_public_stats_groups_names.sql`](supabase/migrations/0003_public_stats_groups_names.sql) adds the homepage stats, the public organization list, unique household names, and fixes renaming ministries/organizations; [`0004_public_parish_logo.sql`](supabase/migrations/0004_public_parish_logo.sql) lets the public registration site show the uploaded parish logo; [`0005_sacrament_verification.sql`](supabase/migrations/0005_sacrament_verification.sql) lets staff mark self-reported sacraments as verified against a certificate or the parish register; [`0006_parish_positions.sql`](supabase/migrations/0006_parish_positions.sql) adds the Parish Organization Structure list and each member's "Katungdanan sa Parish"; [`0007_census.sql`](supabase/migrations/0007_census.sql) adds the parish census; [`0008_census_portal.sql`](supabase/migrations/0008_census_portal.sql) adds the census family portal). Existing projects only need the migrations they haven't run yet.
 3. Create your first admin: **Authentication → Users → Add user**, then run the `insert into profiles (...)` statement at the bottom of the migration file with that user's UUID.
 4. **Authentication → Providers → Email → turn off "Allow new users to sign up."**
 5. Copy your **Project URL** and **anon/publishable key** from **Project Settings → API**.
@@ -103,16 +104,45 @@ The **Census** page in the admin panel replaces the hand-filled census sheet.
    all *Wala* suggests Inactive), but staff always choose it. Corrections to
    names, sacraments and so on use the usual member window, and new members
    can be added from the same panel.
-4. **Close the census** when forms stop coming in. Closing changes no data.
+4. **Or let families do it online.** Each printed form carries the household's
+   access code and the address of the portal (`<your site>/census`). The
+   family signs in with its reference number and that code, corrects its
+   details, answers the census for each member and can add new members.
+   Nothing changes in the registry until staff open **Census → Online
+   updates**, review what changed, and approve (or reject) it. Approval only
+   applies the fields the family changed, so corrections staff made in the
+   meantime are kept. Five wrong codes lock that household's sign-in for 15
+   minutes. If a form is lost, **New code** in the household's census panel
+   makes the old code stop working.
+5. **Close the census** when forms stop coming in. Closing changes no data.
    Members nobody confirmed show up under the *Not confirmed in census* filter
    on the Members page, and in the census results by GKK.
 
 The census is per member, not per household. Members marked *Moved away* or
 *Deceased* stay on record but drop out of lists, counts and the next census's
 forms. Before staff first change a household in a census, a snapshot of it is
-saved in `census_household_snapshots`. The free Supabase plan has no
-backups, so also export the Members and Households CSVs before starting each
-census.
+saved in `census_household_snapshots`.
+
+## Staying on the free tier: keep-alive and backups
+
+Two GitHub Actions workflows in `.github/workflows/` cover what the free
+Supabase plan doesn't. Each one does nothing (and says so in its log) until
+its secrets are added under **Settings → Secrets and variables → Actions**.
+
+| Workflow | What it does | Secrets |
+|---|---|---|
+| `keep-alive.yml` | Every 3 days, calls one tiny read-only function so the free project never hits Supabase's 7-days-idle pause | `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the same values as the website's) |
+| `backup.yml` | Every Sunday, dumps roles, schema and data, encrypts them with your passphrase (AES-256, `gpg`), and keeps the file as a workflow artifact for 90 days | `SUPABASE_DB_URL` (Supabase → **Connect** → *Session pooler* string, with the password), `BACKUP_PASSPHRASE` |
+
+Both can also be run by hand from the **Actions** tab. GitHub pauses scheduled
+workflows in repositories with no commits for 60 days. If that happens it
+emails the repository owner, and one click re-enables them.
+
+**Restoring a backup:** download the artifact from the workflow run, then run
+`gpg --decrypt parish-backup-YYYY-MM-DD.tar.gz.gpg | tar -xz`. Load
+`roles.sql`, then `schema.sql`, then `data.sql` into a new Supabase project with
+`psql "<connection string>" -f <file>`. Keep the passphrase somewhere safe
+offline: the backups can't be opened without it.
 
 ## Available scripts
 

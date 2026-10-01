@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { fmtDate, PARTICIPATION_ITEMS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
-import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS } from '../lib/census.js';
+import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, formatAccessCode } from '../lib/census.js';
 
 // Short column headings for the participation grid on paper.
 const ITEM_SHORT = {
@@ -37,7 +37,7 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
 
   return createPortal(
     <div id="print-sheet" aria-hidden style={{ fontSize: 11 }}>
-      {forms.map(({ household: h, members }) => (
+      {forms.map(({ household: h, members, code }) => (
         <section key={h.id} className="census-page">
           <header style={{ display: 'flex', alignItems: 'center', gap: 14, borderBottom: '2px solid #1a2b4a', paddingBottom: 8, marginBottom: 10 }}>
             {parish?.logo && <img src={parish.logo} alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />}
@@ -61,6 +61,14 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
             <strong> “Usba”</strong>. Lingini ang tubag sa matag miyembro: <strong>A</strong> = Aktibo, <strong>P</strong> = Panagsa,
             <strong> W</strong> = Wala.
           </p>
+
+          {code && (
+            <div style={{ border: '1.5px solid #34589c', borderRadius: 6, padding: '6px 10px', margin: '0 0 10px', fontSize: 10.5, color: '#1a2b4a' }}>
+              <strong>Mas sayon online:</strong> adto sa <strong>{window.location.origin}/census</strong> ug ibutang ang
+              Ref <strong>{h.ref_no}</strong> ug Code <strong style={{ fontSize: 12, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>{formatAccessCode(code)}</strong>.
+              Ayaw ipakita kini nga code sa uban.
+            </div>
+          )}
 
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, margin: '0 0 4px', color: '#1a2b4a' }}>Pamilya: {h.household_name}</h2>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>

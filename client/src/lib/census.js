@@ -115,3 +115,93 @@ export function summarizeCensus(rows) {
   for (const r of out) for (const c of columns) all[c] += r.counts[c];
   return { columns, rows: out, total: finish('All GKKs', all) };
 }
+
+// ---- family portal (0008 migration) -------------------------------------
+
+/** "ab3k-77xq " → "AB3K77XQ" (what census_normalize_code() compares). */
+export function normalizeAccessCode(code) {
+  return String(code || '').replace(/[^A-Za-z0-9]/g, '').toUpperCase();
+}
+
+/** "AB3K77XQ" → "AB3K-77XQ" for printing and display. */
+export function formatAccessCode(code) {
+  const c = normalizeAccessCode(code);
+  return c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : c;
+}
+
+// The fields a family can correct online (keys as stored in the database).
+export const PORTAL_HOUSEHOLD_FIELDS = [
+  ['street', 'Street / Purok'], ['barangay', 'Barangay'], ['city', 'City / Municipality'], ['province', 'Province'],
+  ['zip', 'ZIP code'], ['contact', 'Contact no.'], ['email', 'Email'],
+];
+export const PORTAL_MEMBER_FIELDS = [
+  ['first_name', 'First name'], ['middle_name', 'Middle name'], ['last_name', 'Last name'], ['suffix', 'Suffix'],
+  ['relationship', 'Relationship'], ['sex', 'Sex'], ['dob', 'Date of birth'], ['civil_status', 'Civil status'],
+  ['contact', 'Contact no.'],
+];
+
+const blankToNull = (v) => {
+  if (v === undefined || v === null) return null;
+  const t = String(v).trim();
+  return t === '' ? null : t;
+};
+
+function pickFields(source, fields) {
+  return Object.fromEntries(fields.map(([k]) => [k, blankToNull(source?.[k])]));
+}
+
+/**
+ * What the portal form sends to portal_submit(). New-member rows left
+ * completely empty are dropped; everything else goes to the server, which
+ * has the final say on what is valid.
+ */
+export function portalPayload({ household, members, newMembers, message, consent }) {
+  const answer = (m) => ({
+    status: MEMBERSHIP_STATUSES.includes(m.status) ? m.status : null,
+    participation: cleanParticipation(m.participation),
+    notes: blankToNull(m.notes),
+  });
+  return {
+    household: pickFields(household, PORTAL_HOUSEHOLD_FIELDS),
+    members: (members || []).map((m) => ({ id: m.id, ...pickFields(m, PORTAL_MEMBER_FIELDS), ...answer(m) })),
+    newMembers: (newMembers || [])
+      .filter((m) => PORTAL_MEMBER_FIELDS.some(([k]) => blankToNull(m[k])))
+      .map((m) => ({ ...pickFields(m, PORTAL_MEMBER_FIELDS), ...answer(m) })),
+    message: blankToNull(message),
+    consent: !!consent,
+  };
+}
+
+/**
+ * What a family's online update would change, for the staff review panel:
+ * household fields and member fields that differ from what was on record
+ * when the family sent it, the census answers, and any new members.
+ */
+export function diffSubmission({ before, proposed }) {
+  const changed = (fields, from = {}, to = {}) => fields
+    .filter(([k]) => blankToNull(from[k]) !== blankToNull(to[k]))
+    .map(([key, label]) => ({ key, label, from: blankToNull(from[key]), to: blankToNull(to[key]) }));
+  const fullName = (f = {}) => [f.first_name, f.middle_name, f.last_name, f.suffix].filter(Boolean).join(' ');
+
+  const household = changed(PORTAL_HOUSEHOLD_FIELDS, before?.household, proposed?.household);
+  const members = (proposed?.members || []).map((m) => {
+    const was = before?.members?.[String(m.id)] || {};
+    return {
+      id: m.id,
+      name: fullName(was) || fullName(m.fields),
+      changes: changed(PORTAL_MEMBER_FIELDS, was, m.fields),
+      status: m.status || null,
+      participation: m.participation || {},
+      notes: m.notes || null,
+    };
+  });
+  const newMembers = (proposed?.newMembers || []).map((m) => ({
+    name: fullName(m.fields),
+    fields: m.fields || {},
+    status: m.status || null,
+    participation: m.participation || {},
+    notes: m.notes || null,
+  }));
+  const changeCount = household.length + members.reduce((n, m) => n + m.changes.length, 0) + newMembers.length;
+  return { household, members, newMembers, changeCount };
+}

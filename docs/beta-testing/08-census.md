@@ -8,11 +8,13 @@ inactive members. Mistakes here change who the parish counts as an active
 Catholic, so the "nothing changes until you save" and "closing changes nothing"
 checks matter.
 
-- **URL:** `/admin/census`
-- **Sign-in needed:** yes
-- **Time:** 35 minutes
-- **Prerequisite:** sample data loaded, the `0007_census.sql` migration run, and
-  no census started yet. A printer or "Save as PDF" for CE-03.
+- **URLs:** `/admin/census` (staff), `/census` (family portal)
+- **Sign-in needed:** yes for staff; families use a reference number + code
+- **Time:** 55 minutes
+- **Prerequisite:** sample data loaded, the `0007_census.sql` and
+  `0008_census_portal.sql` migrations run, and no census started yet. A printer
+  or "Save as PDF" for CE-03. A phone (or a narrow browser window) for the
+  portal cases.
 
 ---
 
@@ -138,3 +140,101 @@ checks matter.
 - **Active Catholics** shows the number of members marked Active, with the
   inactive and "not yet assessed" counts underneath.
 - **Members** no longer counts members marked Moved away or Deceased.
+
+---
+
+## Family portal
+
+Run these while a census is **open** (reopen it after CE-08). Use a private
+window or a second browser for the family, so it is not signed in as staff.
+
+### CE-11 — The portal is only offered during a census
+**Steps**
+1. With no census open, open the registration home page, then `/census`.
+2. Open a census and reload both.
+
+**Expected**
+- With no census open: no update button on the home page, and `/census` says
+  there is no open census.
+- With a census open: the home page shows "Narehistro na? I-update ang inyong
+  rekord (… Census)", and `/census` asks for a reference number and code.
+
+### CE-12 — The printed form carries the online code
+**Steps**
+1. Print the forms for GKK San Isidro (CE-03), then print them again.
+
+**Expected**
+- Each page has a box with the portal address, the household's reference
+  number and an 8-character code (XXXX-XXXX).
+- Printing again shows the **same** codes.
+- **Record census** on that household shows the same code as "Online code".
+
+### CE-13 — Signing in
+**Steps**
+1. On `/census`, enter a household's reference number with a wrong code.
+2. Enter a reference number that doesn't exist.
+3. Enter the right code in lower case, with or without the dash.
+4. In a separate test, enter a wrong code five times, then the right one.
+
+**Expected**
+- Steps 1 and 2 show the same message: the reference number or code is wrong.
+  The page must not reveal which one is wrong.
+- Step 3 opens the household's form, showing only that household.
+- Step 4: the right code is refused for 15 minutes ("Daghan na kaayong sayop…").
+
+### CE-14 — A family sends an update
+**Steps**
+1. Sign in as the Dela Cruz Family. Change the contact number, mark the first
+   member's Mass as **Wala** and the second member's Mass as **Aktibo**.
+2. Add a new member (a newborn): name, relationship, sex, birth date, status
+   Aktibo.
+3. Write a message, and try to send without ticking the consent box. Then tick
+   it and send.
+4. Choose **Usba pag-usab**.
+
+**Expected**
+- The first member's status follows the answers (Dili aktibo / Aktibo) until
+  the family picks one.
+- Sending without consent is stopped with a message in Bisaya.
+- After sending: the thank-you page. On the staff side, **nothing** in Members or
+  Households has changed yet.
+- **Usba pag-usab** reopens the form with what was sent and a note that an
+  update is waiting for review. Sending again replaces the earlier one (staff
+  still see only one).
+
+### CE-15 — Staff review and approve
+**Steps**
+1. As staff, open **Census**. Look at the Dela Cruz row, then open
+   **Online updates**.
+2. Click **Review**. Before approving, edit the household's email on the
+   Households page.
+3. Approve.
+
+**Expected**
+- The row shows "Online update waiting", and the tab shows "Online updates (1)".
+- The review lists only what changed (old value struck through, new value
+  bold), each member's census answers, the new member and the message. A
+  member whose answers suggest a different status from the one chosen is
+  flagged.
+- After approving: the contact number changed, the email you edited in step 2
+  was **not** overwritten, the newborn is in the household, and the answered
+  members show **Confirmed** with source "Portal".
+- Under **Approved**, the update shows who approved it.
+
+### CE-16 — Reject, and a new code
+**Steps**
+1. Send another update as a different family, then **Reject…** it with a reason.
+2. In that household's census panel, click **New code**, then try the old code
+   on `/census`.
+
+**Expected**
+- The rejected update is listed under **Rejected** with the reason, and nothing
+  in the registry changed.
+- The old code no longer works. The new one does.
+
+### CE-17 — Closing the census closes the portal
+**Steps**
+1. Close the census, then try to sign in on `/census`.
+
+**Expected**
+- The portal says there is no open census, and the home page button is gone.

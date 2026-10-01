@@ -6,7 +6,7 @@ import MemberDetailModal from './MemberDetailModal.jsx';
 import { AddMemberForm } from './HouseholdEditDrawer.jsx';
 import { HEAD, HELP_WAYS, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, ageFromDob } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS } from '../lib/bisaya.js';
-import { MEMBERSHIP_STATUSES, FORMER_STATUSES, CENSUS_SOURCES, STATUS_TONES, cleanParticipation, suggestStatus } from '../lib/census.js';
+import { MEMBERSHIP_STATUSES, FORMER_STATUSES, CENSUS_SOURCES, STATUS_TONES, cleanParticipation, suggestStatus, formatAccessCode } from '../lib/census.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 
@@ -35,7 +35,7 @@ function sameAnswer(row, saved) {
  * member's participation answers and membership status. Member details are
  * corrected with the usual member window; new members are added here too.
  */
-export default function CensusHouseholdDrawer({ cycle, householdId, onClose, onSaved }) {
+export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdate = false, onClose, onSaved }) {
   const toast = useToast();
   const confirm = useConfirm();
   const titleId = useId();
@@ -50,6 +50,27 @@ export default function CensusHouseholdDrawer({ cycle, householdId, onClose, onS
   const [openMemberId, setOpenMemberId] = useState(null);
   const [adding, setAdding] = useState(false);
   const editable = cycle.status === 'Open';
+  const [accessCode, setAccessCode] = useState(null);
+
+  // The family's code for the online census form (0008); hidden without it.
+  useEffect(() => {
+    api.censusAccessCodes([householdId]).then((codes) => setAccessCode(codes[householdId] || null)).catch(() => setAccessCode(null));
+  }, [householdId]);
+
+  async function newCode() {
+    const ok = await confirm({
+      title: 'Give this family a new online code?',
+      message: 'The code on the form they already have stops working at once. Print a new form or tell them the new code.',
+      confirmLabel: 'New code',
+    });
+    if (!ok) return;
+    try {
+      setAccessCode(await api.resetAccessCode(householdId));
+      toast.success('New online code issued');
+    } catch (e) {
+      toast.error(e.message || 'Could not issue a new code');
+    }
+  }
 
   function load({ keepEdits = false } = {}) {
     setLoadError('');
@@ -194,6 +215,19 @@ export default function CensusHouseholdDrawer({ cycle, householdId, onClose, onS
 
           {data && (
             <>
+              {pendingUpdate && (
+                <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-[var(--p-blue-tint)] text-parish-navy text-[13.5px]">
+                  This family sent an update online. Review it under <strong>Online updates</strong> before entering paper answers,
+                  so one doesn't overwrite the other.
+                </div>
+              )}
+              {accessCode && (
+                <div className="mb-4 flex flex-wrap items-center gap-2 text-[13px] text-parish-text2">
+                  <span>Online code:</span>
+                  <code className="font-bold tracking-[.08em] text-parish-navy">{formatAccessCode(accessCode)}</code>
+                  {editable && <button onClick={newCode} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[12.5px] text-parish-blue">New code</button>}
+                </div>
+              )}
               {!editable && (
                 <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-[#fdf1de] text-[#7a5a1f] text-[13.5px]">
                   The {cycle.label} is closed. Reopen it on the Census page to change answers.

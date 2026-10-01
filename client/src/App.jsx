@@ -2,6 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import RegistrationApp from './pages/RegistrationApp.jsx';
+import CensusPortal from './pages/CensusPortal.jsx';
 import AdminLogin from './pages/admin/AdminLogin.jsx';
 import AdminLayout from './pages/admin/AdminLayout.jsx';
 import Dashboard from './pages/admin/Dashboard.jsx';
@@ -31,6 +32,7 @@ export default function App() {
     <AuthProvider>
       <Routes>
         <Route path="/" element={<RegistrationApp />} />
+        <Route path="/census" element={<CensusPortal />} />
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route
           path="/admin"

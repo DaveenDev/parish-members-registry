@@ -4,8 +4,9 @@ import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination,
 import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
 import CensusHouseholdDrawer from '../../components/CensusHouseholdDrawer.jsx';
 import CensusPrintSheet from '../../components/CensusPrintSheet.jsx';
+import CensusSubmissionDrawer from '../../components/CensusSubmissionDrawer.jsx';
 import { fmtDate } from '../../constants.js';
-import { defaultCensusLabel, nextCensusDue, summarizeCensus } from '../../lib/census.js';
+import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission } from '../../lib/census.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { useDebounced } from '../../hooks.js';
@@ -38,6 +39,7 @@ export default function Census() {
   const [starting, setStarting] = useState(false);
   const [tab, setTab] = useState('households');
   const [refreshKey, setRefreshKey] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   function loadCycles(selectId) {
     setCyclesError('');
@@ -60,6 +62,12 @@ export default function Census() {
   const interval = parish?.census_interval_months || 12;
   const due = nextCensusDue(latest?.starts_on, interval);
   const refresh = () => setRefreshKey((k) => k + 1);
+
+  // Before the 0008 migration there are no online updates; the count stays 0.
+  useEffect(() => {
+    if (!cycleId) return;
+    api.listCensusSubmissions(cycleId).then((rows) => setPendingCount(rows.length)).catch(() => setPendingCount(0));
+  }, [cycleId, refreshKey]);
 
   async function closeCycle() {
     const ok = await confirm({
@@ -162,10 +170,14 @@ export default function Census() {
               </div>
             </div>
 
-            <Tabs tabs={[['households', 'Households'], ['results', 'Results by GKK']]} value={tab} onChange={setTab} />
-            {tab === 'households'
-              ? <HouseholdsTab cycle={cycle} parish={parish} refreshKey={refreshKey} onChanged={refresh} />
-              : <ResultsTab cycle={cycle} refreshKey={refreshKey} />}
+            <Tabs
+              tabs={[['households', 'Households'], ['updates', `Online updates${pendingCount ? ` (${pendingCount})` : ''}`], ['results', 'Results by GKK']]}
+              value={tab}
+              onChange={setTab}
+            />
+            {tab === 'households' && <HouseholdsTab cycle={cycle} parish={parish} refreshKey={refreshKey} onChanged={refresh} />}
+            {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} />}
+            {tab === 'results' && <ResultsTab cycle={cycle} refreshKey={refreshKey} />}
           </>
         )}
       </PageBody>
@@ -317,7 +329,12 @@ function HouseholdsTab({ cycle, parish, refreshKey, onChanged }) {
             </td>
             <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.gkk || '—'}</td>
             <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{r.members_confirmed} of {r.members_expected}</td>
-            <td className="px-4 py-3"><Badge tone={PROGRESS_TONES[r.progress]}>{r.progress}</Badge></td>
+            <td className="px-4 py-3">
+              <div className="flex flex-wrap gap-1.5">
+                <Badge tone={PROGRESS_TONES[r.progress]}>{r.progress}</Badge>
+                {r.pending_update && <Badge tone="blue" title="The family sent an update online — see Online updates">Online update waiting</Badge>}
+              </div>
+            </td>
             <td className="px-4 py-3">
               <div className="flex gap-1.5 justify-end">
                 {open && (
@@ -332,8 +349,86 @@ function HouseholdsTab({ cycle, parish, refreshKey, onChanged }) {
         ))}
       </DataTable>
 
-      {openId && <CensusHouseholdDrawer cycle={cycle} householdId={openId} onClose={() => setOpenId(null)} onSaved={onChanged} />}
+      {openId && (
+        <CensusHouseholdDrawer
+          cycle={cycle}
+          householdId={openId}
+          pendingUpdate={!!rows.find((r) => r.household_id === openId)?.pending_update}
+          onClose={() => setOpenId(null)}
+          onSaved={onChanged}
+        />
+      )}
       <CensusPrintSheet forms={printForms} cycle={cycle} parish={parish} />
+    </>
+  );
+}
+
+function UpdatesTab({ cycle, refreshKey, onChanged }) {
+  const [status, setStatus] = useState('Pending');
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState('');
+  const [openRow, setOpenRow] = useState(null);
+
+  function load() {
+    setError('');
+    api.listCensusSubmissions(cycle.id, status).then(setRows).catch((e) => setError(e.message));
+  }
+  useEffect(() => { setRows(null); load(); }, [cycle.id, status, refreshKey]);
+
+  return (
+    <>
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        <p className="text-[13px] text-parish-muted m-0 flex-1 min-w-[240px]">
+          Families open their record at <strong className="text-parish-navy">{window.location.origin}/census</strong> with the reference number and
+          code printed on their census form. Nothing changes in the registry until you approve their update.
+        </p>
+        <FilterSelect aria-label="Update status" value={status} onChange={(e) => setStatus(e.target.value)}>
+          <option value="Pending">Waiting for review</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option>
+        </FilterSelect>
+      </div>
+      <DataTable
+        minWidth={680}
+        columns={[{ label: 'Household' }, { label: 'GKK' }, { label: 'Sent' }, { label: 'Changes' }, { label: '', key: 'actions' }]}
+        footer={
+          <>
+            {!rows && !error && <LoadingState label="Loading online updates…" />}
+            {error && <ErrorState message={error} onRetry={load} />}
+            {rows && !rows.length && <EmptyState title={status === 'Pending' ? 'No updates waiting' : `No ${status.toLowerCase()} updates`} />}
+          </>
+        }
+      >
+        {(rows || []).map((r) => {
+          const d = diffSubmission(r);
+          const answered = [...d.members, ...d.newMembers].filter((m) => m.status).length;
+          return (
+            <tr key={r.id} className="border-t border-[#f1e8d5]">
+              <td className="px-4 py-3">
+                <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
+                <div className="text-[12.5px] text-parish-muted">{r.households?.ref_no}</div>
+              </td>
+              <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.households?.gkk || '—'}</td>
+              <td className="px-4 py-3 text-[13.5px] text-parish-text2 whitespace-nowrap">{new Date(r.submitted_at).toLocaleString()}</td>
+              <td className="px-4 py-3 text-[13.5px] text-[#3f3b2f]">
+                {d.changeCount} change(s) · {answered} census answer(s){r.message ? ' · message' : ''}
+                {r.status !== 'Pending' && <div className="text-[12px] text-parish-muted">{r.status} by {r.reviewed_by_name || 'staff'}{r.review_note ? ` — ${r.review_note}` : ''}</div>}
+              </td>
+              <td className="px-4 py-3 text-right">
+                <button onClick={() => setOpenRow(r)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
+                  {r.status === 'Pending' ? 'Review' : 'View'}
+                </button>
+              </td>
+            </tr>
+          );
+        })}
+      </DataTable>
+      {openRow && (
+        <CensusSubmissionDrawer
+          submission={openRow}
+          cycle={cycle}
+          onClose={() => setOpenRow(null)}
+          onDone={() => { setOpenRow(null); onChanged(); }}
+        />
+      )}
     </>
   );
 }

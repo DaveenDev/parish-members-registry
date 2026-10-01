@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
   cleanParticipation, suggestStatus, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus,
+  normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
 } from '../src/lib/census.js';
 
 describe('suggestStatus', () => {
@@ -104,5 +105,77 @@ describe('summarizeCensus', () => {
     assert.deepEqual(rows, []);
     assert.equal(total.total, 0);
     assert.equal(total.pct, 0);
+  });
+});
+
+describe('access codes', () => {
+  test('normalize ignores case, dashes and spaces', () => {
+    assert.equal(normalizeAccessCode(' ab3k-77xq '), 'AB3K77XQ');
+    assert.equal(normalizeAccessCode(null), '');
+  });
+
+  test('format splits eight characters in two', () => {
+    assert.equal(formatAccessCode('ab3k77xq'), 'AB3K-77XQ');
+    assert.equal(formatAccessCode('AB3'), 'AB3');
+  });
+});
+
+describe('portalPayload', () => {
+  test('keeps only portal fields, blanks become null, empty new rows are dropped', () => {
+    const payload = portalPayload({
+      household: { street: ' 24 Rizal St. ', email: '', gkk: 'ignored', contact: '0917' },
+      members: [{ id: 1, first_name: 'Juan', middle_name: '', blood_type: 'O+', status: 'Inactive', participation: { mass: 'Wala', x: 'y' }, notes: ' ' }],
+      newMembers: [
+        { first_name: '', last_name: '', status: '' },
+        { first_name: 'Baby', last_name: 'Dela Cruz', relationship: 'Grandchild', status: 'Active' },
+      ],
+      message: '  ',
+      consent: true,
+    });
+    assert.equal(payload.household.street, '24 Rizal St.');
+    assert.equal(payload.household.email, null);
+    assert.equal('gkk' in payload.household, false);
+    assert.equal(payload.members[0].middle_name, null);
+    assert.equal('blood_type' in payload.members[0], false);
+    assert.deepEqual(payload.members[0].participation, { mass: 'Wala' });
+    assert.equal(payload.members[0].notes, null);
+    assert.equal(payload.newMembers.length, 1);
+    assert.equal(payload.newMembers[0].first_name, 'Baby');
+    assert.equal(payload.message, null);
+    assert.equal(payload.consent, true);
+  });
+
+  test('an unknown status is sent as null', () => {
+    const payload = portalPayload({ members: [{ id: 2, status: 'Maybe' }] });
+    assert.equal(payload.members[0].status, null);
+  });
+});
+
+describe('diffSubmission', () => {
+  const before = {
+    household: { street: '24 Rizal St.', contact: '0917', email: null },
+    members: { 1: { first_name: 'Juan', last_name: 'Dela Cruz', civil_status: 'Married', middle_name: null } },
+  };
+
+  test('lists only what changed, plus answers and new members', () => {
+    const d = diffSubmission({
+      before,
+      proposed: {
+        household: { street: '24 Rizal St.', contact: '0999', email: '' },
+        members: [{ id: 1, fields: { first_name: 'Juan', last_name: 'Dela Cruz', civil_status: 'Widowed', middle_name: '' }, status: 'Inactive', participation: { mass: 'Wala' } }],
+        newMembers: [{ fields: { first_name: 'Baby', last_name: 'Dela Cruz' }, status: 'Active' }],
+      },
+    });
+    assert.deepEqual(d.household, [{ key: 'contact', label: 'Contact no.', from: '0917', to: '0999' }]);
+    assert.equal(d.members[0].name, 'Juan Dela Cruz');
+    assert.deepEqual(d.members[0].changes, [{ key: 'civil_status', label: 'Civil status', from: 'Married', to: 'Widowed' }]);
+    assert.equal(d.members[0].status, 'Inactive');
+    assert.equal(d.newMembers[0].name, 'Baby Dela Cruz');
+    assert.equal(d.changeCount, 3);
+  });
+
+  test('no changes', () => {
+    const d = diffSubmission({ before, proposed: { household: before.household, members: [], newMembers: [] } });
+    assert.equal(d.changeCount, 0);
   });
 });

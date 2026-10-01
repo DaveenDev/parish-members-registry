@@ -68,6 +68,29 @@ export function serverErrorInBisaya(message) {
   return hit ? hit[1] : 'Dili mapadala ang rehistro. Palihug sulayi pag-usab.';
 }
 
+// Census portal: portal_open/portal_submit answer { ok: false, error } for
+// sign-in problems and raise English messages for form problems.
+const PORTAL_ERRORS = {
+  invalid: 'Sayop ang reference number o ang code. Susiha pag-usab ang inyong census form.',
+  locked: 'Daghan na kaayong sayop nga pagsulay. Palihug sulayi pag-usab human sa 15 minutos.',
+  closed: 'Wala pay bukas nga census karon. Palihug kontaka ang opisina sa parokya.',
+};
+const PORTAL_SERVER_ERRORS = [
+  [/consent/i, 'Kinahanglan ang inyong pagtugot sa data privacy.'],
+  [/not in your household/i, 'Adunay miyembro nga dili sakop sa inyong pamilya. Palihug i-reload ang panid.'],
+  [/first and last name/i, 'Ibutang ang pangalan ug apelyido sa matag bag-ong miyembro.'],
+  [/relationship is required/i, 'Pilia ang relasyon sa matag bag-ong miyembro.'],
+  [/Household Head/i, 'Ang bag-ong miyembro dili mahimong Ulo sa Pamilya.'],
+  [/at most/i, 'Sobra na ang gidaghanon sa miyembro.'],
+  [/failed to fetch|network/i, 'Walay koneksyon sa internet. Palihug sulayi pag-usab.'],
+];
+
+export function portalErrorInBisaya(codeOrMessage) {
+  if (PORTAL_ERRORS[codeOrMessage]) return PORTAL_ERRORS[codeOrMessage];
+  const hit = PORTAL_SERVER_ERRORS.find(([pattern]) => pattern.test(codeOrMessage || ''));
+  return hit ? hit[1] : 'Dili mapadala karon. Palihug sulayi pag-usab.';
+}
+
 /** The Bisaya label for a stored value, falling back to the value itself. */
 export function bis(labels, value) {
   return (value && labels[value]) || value || '';

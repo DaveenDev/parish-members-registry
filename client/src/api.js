@@ -39,6 +39,27 @@ export const api = {
     return data; // { refNo, householdId }
   },
 
+  // ---- census family portal (0008 migration) --------------------------
+  /** { open, label } — whether a census is open for online updates. */
+  async portalStatus() {
+    const { data, error } = await supabase.rpc('portal_status');
+    if (error) throw mapError(error);
+    return data || { open: false };
+  },
+
+  /** The household's census form, or { ok: false, error: 'invalid' | 'locked' | 'closed' }. */
+  async portalOpen(refNo, code) {
+    const { data, error } = await supabase.rpc('portal_open', { p_ref: refNo, p_code: code });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async portalSubmit(refNo, code, payload) {
+    const { data, error } = await supabase.rpc('portal_submit', { p_ref: refNo, p_code: code, p_payload: payload });
+    if (error) throw mapError(error);
+    return data;
+  },
+
   async listPublicGkks() {
     const { data, error } = await supabase.rpc('list_public_gkks');
     if (error) throw mapError(error);
@@ -476,6 +497,43 @@ export const api = {
     return null;
   },
 
+  /** Online updates families sent in this census (Pending by default). */
+  async listCensusSubmissions(cycleId, status = 'Pending') {
+    const { data, error } = await supabase
+      .from('census_submissions')
+      .select('*, households(household_name, ref_no, gkk)')
+      .eq('cycle_id', cycleId)
+      .eq('status', status)
+      .order('submitted_at', { ascending: true });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async approveCensusSubmission(id) {
+    const { data, error } = await supabase.rpc('census_approve_submission', { p_id: id });
+    if (error) throw mapError(error);
+    return { saved: data };
+  },
+
+  async rejectCensusSubmission(id, note) {
+    const { error } = await supabase.rpc('census_reject_submission', { p_id: id, p_note: note || null });
+    if (error) throw mapError(error);
+    return null;
+  },
+
+  /** { [householdId]: 'XXXXXXXX' }, issuing codes to households that have none. */
+  async censusAccessCodes(householdIds) {
+    const { data, error } = await supabase.rpc('census_access_codes', { p_household_ids: householdIds });
+    if (error) throw mapError(error);
+    return Object.fromEntries((data || []).map((r) => [r.household_id, r.code]));
+  },
+
+  async resetAccessCode(householdId) {
+    const { data, error } = await supabase.rpc('census_reset_access_code', { p_household_id: householdId });
+    if (error) throw mapError(error);
+    return data;
+  },
+
   /** One member's answers across every census, newest first. */
   async memberCensusHistory(memberId) {
     const { data, error } = await supabase
@@ -507,7 +565,9 @@ export const api = {
     const [{ data: households, error: hErr }, { data: members, error: mErr }] = await Promise.all([hq, mq]);
     if (hErr) throw mapError(hErr);
     if (mErr) throw mapError(mErr);
-    return households.map((h) => ({ household: h, members: members.filter((m) => m.household_id === h.id) }));
+    // Online access codes (0008). Without that migration the forms print without them.
+    const codes = await api.censusAccessCodes(households.map((h) => h.id)).catch(() => ({}));
+    return households.map((h) => ({ household: h, code: codes[h.id] || null, members: members.filter((m) => m.household_id === h.id) }));
   },
 
   // ---- dashboard ---------------------------------------------------------
