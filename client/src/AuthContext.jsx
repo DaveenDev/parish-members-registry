@@ -5,8 +5,17 @@ const AuthContext = createContext(null);
 
 async function loadProfile(session) {
   if (!session?.user) return null;
-  const { data } = await supabase.from('profiles').select('name, role').eq('id', session.user.id).single();
-  return { id: session.user.id, email: session.user.email, name: data?.name || session.user.email, role: data?.role || '' };
+  const byId = (cols) => supabase.from('profiles').select(cols).eq('id', session.user.id).single();
+  let { data, error } = await byId('name, role, is_admin');
+  // Before the 0007 migration there's no is_admin column; still load the rest.
+  if (error && /is_admin/.test(error.message || '')) ({ data } = await byId('name, role'));
+  return {
+    id: session.user.id,
+    email: session.user.email,
+    name: data?.name || session.user.email,
+    role: data?.role || '',
+    isAdmin: !!data?.is_admin,
+  };
 }
 
 export function AuthProvider({ children }) {

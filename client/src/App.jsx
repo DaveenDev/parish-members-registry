@@ -8,6 +8,7 @@ import Dashboard from './pages/admin/Dashboard.jsx';
 import Households from './pages/admin/Households.jsx';
 import NewHousehold from './pages/admin/NewHousehold.jsx';
 import Members from './pages/admin/Members.jsx';
+import Duplicates from './pages/admin/Duplicates.jsx';
 import Sacraments from './pages/admin/Sacraments.jsx';
 import BloodTypes from './pages/admin/BloodTypes.jsx';
 import Ministries from './pages/admin/Ministries.jsx';
@@ -17,6 +18,7 @@ import Exports from './pages/admin/Exports.jsx';
 import ParishConfig from './pages/admin/ParishConfig.jsx';
 import ManageMinistries from './pages/admin/ManageMinistries.jsx';
 import ManageOrgs from './pages/admin/ManageOrgs.jsx';
+import ManageStaff from './pages/admin/ManageStaff.jsx';
 
 function RequireAuth({ children }) {
   const { user, ready } = useAuth();
@@ -43,6 +45,7 @@ export default function App() {
           <Route path="households" element={<Households />} />
           <Route path="households/new" element={<NewHousehold />} />
           <Route path="members" element={<Members />} />
+          <Route path="duplicates" element={<Duplicates />} />
           <Route path="sacraments" element={<Sacraments />} />
           <Route path="blood" element={<BloodTypes />} />
           <Route path="ministries" element={<Ministries />} />
@@ -52,6 +55,7 @@ export default function App() {
           <Route path="settings" element={<ParishConfig />} />
           <Route path="settings/ministries" element={<ManageMinistries />} />
           <Route path="settings/organizations" element={<ManageOrgs />} />
+          <Route path="settings/staff" element={<ManageStaff />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

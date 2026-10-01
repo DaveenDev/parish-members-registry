@@ -4,28 +4,36 @@ import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination,
 import { StatusPill } from '../../components/ui.jsx';
 import { ageFromDob, CIVIL_STATUSES } from '../../constants.js';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
-import { useDebounced } from '../../hooks.js';
+import { useDebounced, useUrlState } from '../../hooks.js';
 import { groupByGkk } from '../../lib/household.js';
 import { bis, RELATIONSHIP_LABELS, CIVIL_STATUS_LABELS } from '../../lib/bisaya.js';
 
 const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
 const BLOOD_OPTS = ['All', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
 const DEFAULT_FILTERS = { status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All' };
+// Rows are grouped under GKK headings; inside each GKK the default order is
+// household name, then member name. Column headers re-sort within the GKKs.
+const URL_DEFAULTS = { ...DEFAULT_FILTERS, q: '', sort: 'household', dir: 'asc', page: 1, size: 10 };
+const URL_ALLOWED = {
+  status: ['All', 'Verified', 'Pending'],
+  age: AGE_OPTS.map(([v]) => v),
+  blood: BLOOD_OPTS,
+  sort: ['name', 'household', 'age', 'status'],
+  dir: ['asc', 'desc'],
+  size: [10, 20, 50],
+};
 
 export default function Members() {
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filters, setFilters] = useState(DEFAULT_FILTERS);
-  const [search, setSearch] = useState('');
+  // Filters, search, sort and page live in the address bar (see useUrlState).
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { q: search, sort: sortKey, dir: sortDir, page, size: pageSize } = url;
+  const filters = Object.fromEntries(Object.keys(DEFAULT_FILTERS).map((k) => [k, url[k]]));
+  const filterKey = JSON.stringify(filters);
   const debouncedSearch = useDebounced(search);
-  // Rows are grouped under GKK headings; inside each GKK the default order is
-  // household name, then member name. Column headers re-sort within the GKKs.
-  const [sortKey, setSortKey] = useState('household');
-  const [sortDir, setSortDir] = useState('asc');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [groupOptions, setGroupOptions] = useState([]);
   const [openMemberId, setOpenMemberId] = useState(null);
@@ -43,8 +51,7 @@ export default function Members() {
   // the register itself is empty, not the search.
   const isFiltered = !!debouncedSearch || Object.keys(DEFAULT_FILTERS).some((k) => filters[k] !== DEFAULT_FILTERS[k]);
 
-  useEffect(() => { reload(); }, [filters, debouncedSearch, sortKey, sortDir, page, pageSize]);
-  useEffect(() => { setPage(1); }, [filters, debouncedSearch, sortKey, sortDir]);
+  useEffect(() => { reload(); }, [filterKey, debouncedSearch, sortKey, sortDir, page, pageSize]);
   useEffect(() => {
     api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {});
     Promise.all([api.listMinistries(), api.listOrganizations()])
@@ -52,10 +59,13 @@ export default function Members() {
       .catch(() => {});
   }, []);
 
-  function setFilter(key, value) { setFilters((f) => ({ ...f, [key]: value })); }
+  function setFilter(key, value) { setUrl({ [key]: value }); }
+  const setSearch = (q) => setUrl({ q });
+  const setPage = (p) => setUrl({ page: p });
+  const setPageSize = (size) => setUrl({ size });
   function sort(key) {
-    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortKey(key); setSortDir('asc'); }
+    if (sortKey === key) setUrl({ dir: sortDir === 'asc' ? 'desc' : 'asc' });
+    else setUrl({ sort: key, dir: 'asc' });
   }
   function arrow(key) { return sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : ''; }
 
@@ -87,7 +97,7 @@ export default function Members() {
           <FilterSelect value={filters.gkk} onChange={(e) => setFilter('gkk', e.target.value)}>
             <option value="All">All GKKs</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
           </FilterSelect>
-          <button onClick={() => { setFilters(DEFAULT_FILTERS); setSearch(''); }} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>
+          <button onClick={() => setUrl({ ...DEFAULT_FILTERS, q: '' })} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>
           <div className="ml-auto text-[13px] text-parish-muted">{total} member(s)</div>
         </div>
 

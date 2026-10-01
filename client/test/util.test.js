@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { toNameCase, toSuffixCase, initials, inDateRange } from '../src/lib/util.js';
+import { toNameCase, toSuffixCase, initials, inDateRange, generateTempPassword } from '../src/lib/util.js';
 
 describe('toNameCase', () => {
   test('capitalizes the first letter of each word only', () => {
@@ -76,5 +76,26 @@ describe('inDateRange', () => {
   test('blank bounds keep everything; bad timestamps keep nothing', () => {
     assert.equal(inDateRange(at(2020, 1, 1), '', ''), true);
     assert.equal(inDateRange('not a date', '', ''), false);
+  });
+});
+
+describe('generateTempPassword', () => {
+  test('is 12 characters from the readable alphabet by default', () => {
+    const pw = generateTempPassword();
+    assert.equal(pw.length, 12);
+    assert.match(pw, /^[A-HJ-NP-Za-km-np-z2-9]+$/);
+    assert.doesNotMatch(pw, /[0O1lI]/);
+  });
+
+  test('passes the staff minimum of 10 characters and differs each time', () => {
+    const seen = new Set(Array.from({ length: 50 }, () => generateTempPassword()));
+    assert.equal(seen.size, 50);
+    for (const pw of seen) assert.ok(pw.length >= 10);
+  });
+
+  test('skips biased bytes instead of wrapping them', () => {
+    // 255 is above the rejection limit, so only the 0s are used.
+    const pw = generateTempPassword(4, (n) => new Uint8Array(n).map((_, i) => (i % 2 ? 255 : 0)));
+    assert.equal(pw, 'AAAA');
   });
 });

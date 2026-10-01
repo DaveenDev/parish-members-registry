@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { pageWindow, searchAndPage, fetchAllPages } from '../src/lib/paging.js';
+import { pageWindow, searchAndPage, fetchAllPages, readUrlState, writeUrlState } from '../src/lib/paging.js';
 
 describe('pageWindow', () => {
   test('shows every page when there are only a few', () => {
@@ -87,5 +87,40 @@ describe('fetchAllPages', () => {
     const { data, error } = await fetchAllPages(async () => (n++ ? { data: null, error: boom } : { data: source(10), error: null }), 10);
     assert.equal(data, null);
     assert.equal(error, boom);
+  });
+});
+
+describe('readUrlState / writeUrlState', () => {
+  const defaults = { status: 'All', gkk: 'All', q: '', page: 1, size: 10 };
+  const allowed = { status: ['All', 'Verified', 'Pending'], size: [10, 20, 50] };
+  const read = (qs) => readUrlState(new URLSearchParams(qs), defaults, allowed);
+
+  test('missing keys take their defaults', () => {
+    assert.deepEqual(read(''), defaults);
+  });
+
+  test('reads strings as-is and numbers as numbers', () => {
+    assert.deepEqual(read('status=Pending&gkk=GKK%20Sto.%20Ni%C3%B1o&q=dela%20cruz&page=3&size=20'),
+      { status: 'Pending', gkk: 'GKK Sto. Niño', q: 'dela cruz', page: 3, size: 20 });
+  });
+
+  test('invalid or disallowed values fall back to the default', () => {
+    assert.deepEqual(read('status=Bogus&page=-2&size=1000'), defaults);
+    assert.equal(read('page=abc').page, 1);
+    assert.equal(read('page=2.5').page, 1);
+  });
+
+  test('unknown keys are ignored', () => {
+    assert.deepEqual(read('evil=1&page=2'), { ...defaults, page: 2 });
+  });
+
+  test('writing leaves defaults out, so a clean page has a clean address', () => {
+    assert.deepEqual(writeUrlState(defaults, defaults), {});
+    assert.deepEqual(writeUrlState({ ...defaults, status: 'Pending', page: 2 }, defaults), { status: 'Pending', page: '2' });
+  });
+
+  test('a written state reads back the same', () => {
+    const state = { status: 'Verified', gkk: 'GKK San Isidro', q: 'juan', page: 4, size: 50 };
+    assert.deepEqual(read(new URLSearchParams(writeUrlState(state, defaults)).toString()), state);
   });
 });

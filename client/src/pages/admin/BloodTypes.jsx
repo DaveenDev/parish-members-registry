@@ -3,7 +3,15 @@ import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { BLOOD_TYPES } from '../../constants.js';
-import { useDebounced, useCsvExport } from '../../hooks.js';
+import { useDebounced, useCsvExport, useUrlState } from '../../hooks.js';
+
+const URL_DEFAULTS = { gkk: 'All', age: 'All', blood: 'Recorded', q: '', sort: 'blood', dir: 'asc', page: 1, size: 20 };
+const URL_ALLOWED = {
+  blood: [...BLOOD_TYPES, 'Recorded', 'Unknown'],
+  sort: ['name', 'blood', 'age'],
+  dir: ['asc', 'desc'],
+  size: [10, 20, 50],
+};
 
 const AGE_OPTS = [['All', 'All ages'], ['0-17', 'Under 18'], ['18-30', '18–30'], ['31-59', '31–59'], ['60-200', '60 & above']];
 
@@ -18,16 +26,18 @@ export default function BloodTypes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [gkkOptions, setGkkOptions] = useState([]);
-  const [gkk, setGkk] = useState('All');
-  const [age, setAge] = useState('All');
-  const [blood, setBlood] = useState('Recorded'); // a type, 'Recorded' (any on file), or 'Unknown'
-  const [search, setSearch] = useState('');
+  // Filters, search, sort and page live in the address bar (see useUrlState).
+  // `blood` is a type, 'Recorded' (any on file), or 'Unknown'.
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const { gkk, age, blood, q: search, sort: sortKey, dir: sortDir, page, size: pageSize } = url;
+  const setGkk = (v) => setUrl({ gkk: v });
+  const setAge = (v) => setUrl({ age: v });
+  const setBlood = (v) => setUrl({ blood: v });
+  const setSearch = (q) => setUrl({ q });
+  const setPage = (p) => setUrl({ page: p });
+  const setPageSize = (size) => setUrl({ size });
   const debouncedSearch = useDebounced(search);
   const csvExport = useCsvExport();
-  const [sortKey, setSortKey] = useState('blood');
-  const [sortDir, setSortDir] = useState('asc');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
   const [openMemberId, setOpenMemberId] = useState(null);
 
   // Everything except the blood type itself, so the tiles show how each type
@@ -35,7 +45,6 @@ export default function BloodTypes() {
   const scope = { gkk, age, search: debouncedSearch };
 
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, []);
-  useEffect(() => { setPage(1); }, [gkk, age, blood, debouncedSearch, sortKey, sortDir]);
 
   function reload() {
     setLoading(true);
@@ -52,8 +61,8 @@ export default function BloodTypes() {
   useEffect(() => { reloadCounts(); }, [gkk, age, debouncedSearch]);
 
   function sort(key) {
-    if (sortKey === key) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
-    else { setSortKey(key); setSortDir('asc'); }
+    if (sortKey === key) setUrl({ dir: sortDir === 'asc' ? 'desc' : 'asc' });
+    else setUrl({ sort: key, dir: 'asc' });
   }
   const arrow = (key) => (sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : '');
 
@@ -100,7 +109,7 @@ export default function BloodTypes() {
         <div className="flex flex-wrap items-center gap-3 mb-4">
           <div className="text-[13px] text-parish-muted">{total} member(s){blood !== 'Recorded' && blood !== 'Unknown' ? ` with blood type ${blood}` : blood === 'Unknown' ? ' with no blood type on file' : ''}</div>
           {isFiltered && (
-            <button onClick={() => { setGkk('All'); setAge('All'); setBlood('Recorded'); setSearch(''); }} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-1">Clear</button>
+            <button onClick={() => setUrl({ gkk: 'All', age: 'All', blood: 'Recorded', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-1">Clear</button>
           )}
           <button
             onClick={() => csvExport.run('/exports/blood.csv', 'blood-directory.csv')}

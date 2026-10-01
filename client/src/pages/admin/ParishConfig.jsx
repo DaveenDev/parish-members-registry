@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, SearchInput, Pagination, Tabs } from '../../components/admin.jsx';
 import { useClientList } from '../../hooks.js';
@@ -205,15 +205,19 @@ function ProfileTab() {
   );
 }
 
+const CONFIG_TABS = [['config', 'Parish Config'], ['gkk', 'Parish GKK']];
+
 export default function ParishConfig() {
-  const [tab, setTab] = useState('config');
+  const [params, setParams] = useSearchParams();
+  const tab = CONFIG_TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : CONFIG_TABS[0][0];
+  const setTab = (k) => setParams(k === CONFIG_TABS[0][0] ? {} : { tab: k }, { replace: true });
 
   return (
     <>
       <PageHeader title="Parish Config" subtitle="Profile, privacy & GKK settings" />
       <PageBody>
         <div className="max-w-[720px]">
-          <Tabs tabs={[['config', 'Parish Config'], ['gkk', 'Parish GKK']]} value={tab} onChange={setTab} />
+          <Tabs tabs={CONFIG_TABS} value={tab} onChange={setTab} />
           {tab === 'config' && <ProfileTab />}
           {tab === 'gkk' && (
             <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">

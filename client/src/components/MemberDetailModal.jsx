@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, GKK_ROLES, HEAD, ageFromDob } from '../constants.js';
+import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, GKK_ROLES, HEAD, ageFromDob, fmtDateTime } from '../constants.js';
 import SacramentVerifyDialog, { SacramentChip } from './SacramentVerifyDialog.jsx';
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect, ComboInput, OptionSelect } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
@@ -165,7 +165,10 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               <h3 className="font-serif text-[26px] font-semibold m-0 text-parish-navy">{member.first_name} {member.last_name}</h3>
               <button onClick={onClose} className="appearance-none border-none bg-none cursor-pointer text-parish-muted text-2xl leading-none">×</button>
             </div>
-            <div className="text-[13.5px] text-parish-muted mb-5">{member.household_name} · {ageFromDob(member.dob) ?? '—'} yrs old · {member.household_gkk || 'No GKK'}</div>
+            <div className="text-[13.5px] text-parish-muted mb-5">
+              {member.household_name} · {ageFromDob(member.dob) ?? '—'} yrs old · {member.household_gkk || 'No GKK'}
+              {saved?.updated_at && <span className="block text-[12px] mt-0.5">Last updated {fmtDateTime(saved.updated_at)}</span>}
+            </div>
 
             {error && <div className="mb-4 text-parish-error text-[13.5px] font-medium">{error}</div>}
 

@@ -12,28 +12,33 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 
 **Admin panel**
 - Staff sign-in (Supabase Auth)
-- Dashboard with registration trends, age distribution, GKK and ministry breakdowns, sacrament stats
-- Households: search, filter, expand members, verify/unverify, add new households on a family's behalf, print
+- Dashboard with registration trends, age distribution, GKK and ministry breakdowns, sacrament stats; every card links to the matching filtered list, plus a queue of households awaiting verification with one-click Verify
+- Households: search, filter, expand members, verify/unverify (recording who verified and when), add new households on a family's behalf, print
+- Possible duplicates: members who share a name and date of birth, to catch families who registered twice
 - Members: sortable/filterable directory with a full editable detail view (personal info, sacraments, ministries, organizations)
 - Sacraments overview table with per-sacrament filters
 - Ministry & organization directories with per-group rosters
 - Reports: registration status by GKK, sacramental completion, ministry/org participation, blood type directory, and an ad-hoc report builder
 - CSV exports for members, households, and blood type directory
 - Parish configuration: profile details, GKK list, ministries, and organizations management
+- Staff accounts (staff admins only): add staff with a temporary password, reset passwords, disable/enable accounts
+- List filters, search and page are kept in the address bar, so refresh, Back and shared links keep the view
 
 ## Tech stack
 
 | Layer    | Tech |
 |----------|------|
 | Frontend | React 18, React Router, Tailwind CSS, Vite |
-| Backend  | Supabase (Postgres, Row Level Security, Auth, Postgres functions) |
+| Backend  | Supabase (Postgres, Row Level Security, Auth, Postgres functions, one Edge Function for staff accounts) |
 | Hosting  | Vercel (frontend) + Supabase (database), both free-tier |
 
 ## Project structure
 
 ```
 supabase/migrations/  Schema, RLS policies, and Postgres functions (ref numbers,
-                       rename/delete-guard, public registration RPC)
+                       rename/delete-guard, public registration RPC, admin totals)
+supabase/functions/   manage-staff Edge Function (staff accounts; needs the
+                       service-role key, so it can't run in the browser)
 scripts/               Local demo/reset seeding against a Supabase project
 client/                React + Tailwind frontend (Vite), with its own package.json
 docs/                  Testing guide and browser beta-testing playbooks
@@ -47,10 +52,21 @@ project/               Original Claude Design source files this app was built fr
 Follow [`guadalupe-registry-deployment-guide.md`](guadalupe-registry-deployment-guide.md) Part 1, or in short:
 
 1. Create a project at [supabase.com](https://supabase.com).
-2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations. Then run each later migration in order ([`0002_head_first_registration.sql`](supabase/migrations/0002_head_first_registration.sql) adds the Household Head fields, the participation survey, and the public GKK list; [`0003_public_stats_groups_names.sql`](supabase/migrations/0003_public_stats_groups_names.sql) adds the homepage stats, the public organization list, unique household names, and fixes renaming ministries/organizations; [`0004_public_parish_logo.sql`](supabase/migrations/0004_public_parish_logo.sql) lets the public registration site show the uploaded parish logo; [`0005_sacrament_verification.sql`](supabase/migrations/0005_sacrament_verification.sql) lets staff mark self-reported sacraments as verified against a certificate or the parish register; [`0006_parish_positions.sql`](supabase/migrations/0006_parish_positions.sql) adds the Parish Organization Structure list and each member's "Katungdanan sa Parish"). Existing projects only need the migrations they haven't run yet.
-3. Create your first admin: **Authentication → Users → Add user**, then run the `insert into profiles (...)` statement at the bottom of the migration file with that user's UUID.
+2. Open the SQL editor and run [`supabase/migrations/0001_init.sql`](supabase/migrations/0001_init.sql) — this creates every table, view, RLS policy, and function, and seeds the default GKKs/ministries/organizations. Then run each later migration in order ([`0002_head_first_registration.sql`](supabase/migrations/0002_head_first_registration.sql) adds the Household Head fields, the participation survey, and the public GKK list; [`0003_public_stats_groups_names.sql`](supabase/migrations/0003_public_stats_groups_names.sql) adds the homepage stats, the public organization list, unique household names, and fixes renaming ministries/organizations; [`0004_public_parish_logo.sql`](supabase/migrations/0004_public_parish_logo.sql) lets the public registration site show the uploaded parish logo; [`0005_sacrament_verification.sql`](supabase/migrations/0005_sacrament_verification.sql) lets staff mark self-reported sacraments as verified against a certificate or the parish register; [`0006_parish_positions.sql`](supabase/migrations/0006_parish_positions.sql) adds the Parish Organization Structure list and each member's "Katungdanan sa Parish"; [`0007_admin_tools.sql`](supabase/migrations/0007_admin_tools.sql) records who verified a household and when, adds "last updated" times, computes dashboard/report totals in the database, adds the duplicate-member finder, and adds the staff-admin flag — every account that exists when it runs becomes a staff admin). Existing projects only need the migrations they haven't run yet.
+3. Create your first admin: **Authentication → Users → Add user**, then, with that user's UUID, run:
+   ```sql
+   insert into profiles (id, name, role, is_admin)
+   values ('<paste-uuid-here>', 'Ma. Assumpta R.', 'Parish Secretary', true);
+   ```
+   After that, staff admins add everyone else from **Settings → Staff** in the admin panel.
 4. **Authentication → Providers → Email → turn off "Allow new users to sign up."**
 5. Copy your **Project URL** and **anon/publishable key** from **Project Settings → API**.
+6. Deploy the staff-accounts Edge Function (needed for **Settings → Staff**; the rest of the app works without it):
+   ```bash
+   npx supabase login
+   npx supabase functions deploy manage-staff --project-ref <your-project-ref>
+   ```
+   Or, in the dashboard: **Edge Functions → Deploy a new function**, name it `manage-staff`, and paste in [`index.ts`](supabase/functions/manage-staff/index.ts) and [`handler.js`](supabase/functions/manage-staff/handler.js). Supabase provides the URL and service-role key to the function automatically; there's nothing to configure.
 
 ### 2. Install dependencies
 

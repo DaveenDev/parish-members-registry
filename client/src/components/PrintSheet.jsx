@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api.js';
+import { verifiedText } from './VerifiedLine.jsx';
 import { fmtDate, ageFromDob, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, HELP_WAYS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
 
@@ -138,6 +139,7 @@ export default function PrintSheet({ data }) {
         <div style={{ marginLeft: 'auto', textAlign: 'right', fontSize: 11, color: '#6b6552' }}>
           <div><strong>Ref:</strong> {h.ref_no || '—'}</div>
           <div><strong>Status:</strong> {h.status}</div>
+          {verifiedText(h) && <div>{verifiedText(h)}</div>}
           <div>Printed {new Date().toLocaleDateString()}</div>
         </div>
       </header>

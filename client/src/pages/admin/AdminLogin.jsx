@@ -75,9 +75,8 @@ export default function AdminLogin() {
             </div>
             {showHelp && (
               <div className="mb-4 px-3.5 py-3 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl text-[13px] text-[#2b466f] leading-relaxed">
-                There's no automated reset yet. Ask your system administrator to set a new password for your account in
-                the Supabase dashboard (<strong>Authentication → Users</strong>). Once you're signed in, you can change it
-                yourself under <strong>Parish Config → Change password</strong>.
+                Ask a staff admin to reset it from <strong>Settings → Staff</strong>. They'll give you a temporary password,
+                which you can change after signing in under <strong>Parish Config → Change password</strong>.
               </div>
             )}
             {error && <div className="mb-4 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}

@@ -54,3 +54,23 @@ export function inDateRange(value, dateFrom, dateTo) {
   if (to && t >= new Date(to.getFullYear(), to.getMonth(), to.getDate() + 1).getTime()) return false;
   return true;
 }
+
+// No 0/O, 1/l/I: easy to read aloud or copy from a screen.
+const TEMP_PASSWORD_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+
+/**
+ * A random temporary password for a new or reset staff account, from the
+ * browser's cryptographic random source. Rejection sampling keeps every
+ * character equally likely. `randomBytes(n)` is injectable for tests.
+ */
+export function generateTempPassword(length = 12, randomBytes = (n) => crypto.getRandomValues(new Uint8Array(n))) {
+  const n = TEMP_PASSWORD_ALPHABET.length;
+  const limit = 256 - (256 % n);
+  let out = '';
+  while (out.length < length) {
+    for (const b of randomBytes(length * 2)) {
+      if (b < limit && out.length < length) out += TEMP_PASSWORD_ALPHABET[b % n];
+    }
+  }
+  return out;
+}

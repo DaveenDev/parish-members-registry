@@ -2,9 +2,10 @@ import React, { useEffect, useId, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Field, TextInput, Select, PrimaryButton, GhostButton, HouseholdNameTakenNote, FamilyGroupingSelect } from './ui.jsx';
 import { useHouseholdNameTaken } from '../hooks.js';
+import { VerifiedLine } from './VerifiedLine.jsx';
 import ParticipationSurvey from './ParticipationSurvey.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
-import { HELP_WAYS, HEAD, RELATIONSHIPS, CIVIL_STATUSES, ageFromDob } from '../constants.js';
+import { HELP_WAYS, HEAD, RELATIONSHIPS, CIVIL_STATUSES, ageFromDob, fmtDateTime } from '../constants.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { useToast } from '../ToastContext.jsx';
@@ -166,6 +167,11 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
           <div className="min-w-0">
             <h3 id={titleId} className="font-serif text-[24px] font-semibold m-0 text-parish-navy truncate">Edit household</h3>
             <p className="text-[13px] text-parish-muted m-0">{household.household_name}{household.ref_no ? ` · ${household.ref_no}` : ''}</p>
+            <p className="text-[12px] text-parish-muted m-0 mt-0.5">
+              {[household.created_at && `Registered ${fmtDateTime(household.created_at, { time: false })}`,
+                household.updated_at && `Last updated ${fmtDateTime(household.updated_at)}`].filter(Boolean).join(' · ')}
+            </p>
+            <VerifiedLine household={household} className="text-[12px] text-[#2f7a52] mt-0.5" />
           </div>
           <button onClick={requestClose} aria-label="Close" className="appearance-none border-none bg-transparent cursor-pointer text-parish-muted text-2xl leading-none px-1">×</button>
         </header>
