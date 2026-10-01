@@ -155,3 +155,20 @@ export function Pagination({ page, pageSize, total, onPage, onPageSize }) {
     </div>
   );
 }
+
+/** Underlined tab bar. `tabs` is a list of [key, label]. */
+export function Tabs({ tabs, value, onChange }) {
+  return (
+    <div role="tablist" className="flex flex-wrap gap-1 mb-[22px] border-b border-parish-border">
+      {tabs.map(([k, label]) => (
+        <button
+          key={k} role="tab" aria-selected={value === k} onClick={() => onChange(k)}
+          className="appearance-none border-none bg-none cursor-pointer px-4 py-2.5 -mb-px font-semibold text-[15px]"
+          style={{ color: value === k ? 'var(--p-blue)' : '#8a836f', borderBottom: `2.5px solid ${value === k ? 'var(--p-blue)' : 'transparent'}` }}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}

@@ -50,6 +50,12 @@ export const api = {
     return data || [];
   },
 
+  async listPublicParishPositions() {
+    const { data, error } = await supabase.rpc('list_public_parish_positions');
+    if (error) throw mapError(error);
+    return data || [];
+  },
+
   async publicStats() {
     const { data, error } = await supabase.rpc('public_parish_stats');
     if (error) throw mapError(error);
@@ -319,6 +325,23 @@ export const api = {
   addOrganization: (name) => addGroup('organizations', name),
   renameOrganization: (oldName, newName) => renameGroup('rename_organization', oldName, newName, 'An item with this name'),
   deleteOrganization: (name) => deleteGroup('delete_organization', name),
+
+  // ---- parish positions (Parish Organization Structure) ----------------
+  // One position per member (members.parish_role), not an array like the above.
+  async listParishPositions() {
+    const [{ data: names, error }, { data: mem, error: mErr }] = await Promise.all([
+      supabase.from('parish_positions').select('name').order('name'),
+      supabase.from('members').select('parish_role').not('parish_role', 'is', null),
+    ]);
+    if (error) throw mapError(error);
+    if (mErr) throw mapError(mErr);
+    const counts = {};
+    for (const r of mem) counts[r.parish_role] = (counts[r.parish_role] || 0) + 1;
+    return { rows: names.map((r) => ({ name: r.name, count: counts[r.name] || 0 })) };
+  },
+  addParishPosition: (name) => addGroup('parish_positions', name),
+  renameParishPosition: (oldName, newName) => renameGroup('rename_parish_position', oldName, newName, 'A position with this name'),
+  deleteParishPosition: (name) => deleteGroup('delete_parish_position', name),
 
   // ---- parish settings ---------------------------------------------------
   async getSettings() {
@@ -650,6 +673,7 @@ export async function downloadWithAuth(path, filename) {
         { label: 'Wedding Type', value: (r) => bis(WEDDING_TYPE_LABELS, r.mat_type) },
         ...SACRAMENTS.map((s) => ({ label: `${s.label} Verified`, value: (r) => (r[`${s.key}_verified`] ? 'Yes' : 'No') })),
         { label: 'GKK Responsibility', value: 'gkk_role' },
+        { label: 'Parish Responsibility', value: 'parish_role' },
         { label: 'Ministries', value: (r) => (r.ministries || []).join('; ') },
         { label: 'Organizations', value: (r) => (r.organizations || []).join('; ') },
       ]);

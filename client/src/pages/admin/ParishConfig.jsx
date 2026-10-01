@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, SearchInput, Pagination } from '../../components/admin.jsx';
+import { PageHeader, PageBody, SearchInput, Pagination, Tabs } from '../../components/admin.jsx';
 import { useClientList } from '../../hooks.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import { ThemePickerGrid } from '../../components/ThemePicker.jsx';
@@ -212,17 +212,7 @@ export default function ParishConfig() {
       <PageHeader title="Parish Config" subtitle="Profile, privacy & GKK settings" />
       <PageBody>
         <div className="max-w-[720px]">
-          <div className="flex gap-1 mb-[22px] border-b border-parish-border" style={{ marginBottom: '22px' }}>
-            {[['config', 'Parish Config'], ['gkk', 'Parish GKK']].map(([k, label]) => (
-              <button
-                key={k} onClick={() => setTab(k)}
-                className="appearance-none border-none bg-none cursor-pointer px-4 py-2.5 -mb-px font-semibold text-[15px]"
-                style={{ color: tab === k ? 'var(--p-blue)' : '#8a836f', borderBottom: `2.5px solid ${tab === k ? 'var(--p-blue)' : 'transparent'}` }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <Tabs tabs={[['config', 'Parish Config'], ['gkk', 'Parish GKK']]} value={tab} onChange={setTab} />
           {tab === 'config' && <ProfileTab />}
           {tab === 'gkk' && (
             <div className="bg-[#fffdf8] border border-parish-border rounded-2xl p-6 shadow-cardSm">

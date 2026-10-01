@@ -9,6 +9,7 @@ import {
   HEAD,
   TRIBES,
   FAMILY_GROUPINGS,
+  GKK_ROLES,
   SACRAMENTS,
   VERIFICATION_SOURCES,
   WEDDING_TYPES,
@@ -23,7 +24,7 @@ import {
 
 describe('pick-lists', () => {
   test('have no blanks or duplicates', () => {
-    for (const [label, list] of Object.entries({ RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, TRIBES })) {
+    for (const [label, list] of Object.entries({ RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, TRIBES, GKK_ROLES })) {
       assert.ok(list.length > 0, `${label} is empty`);
       assert.equal(new Set(list).size, list.length, `${label} has duplicates`);
       assert.ok(list.every((v) => typeof v === 'string' && v.trim()), `${label} has a blank entry`);
@@ -123,7 +124,7 @@ describe('blankMember', () => {
 
   test('carries every field the API expects for a member', () => {
     const keys = Object.keys(blankMember());
-    for (const required of ['firstName', 'lastName', 'suffix', 'relationship', 'sex', 'dob', 'tribe', 'civilStatus', 'gkkRole']) {
+    for (const required of ['firstName', 'lastName', 'suffix', 'relationship', 'sex', 'dob', 'tribe', 'civilStatus', 'gkkRole', 'parishRole']) {
       assert.ok(keys.includes(required), `blankMember is missing ${required}`);
     }
   });

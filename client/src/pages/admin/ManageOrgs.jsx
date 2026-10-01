@@ -1,12 +1,41 @@
 import React from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
-import ManageList from '../../components/ManageList.jsx';
+import { PageHeader, PageBody, Tabs } from '../../components/admin.jsx';
+import { ManageListCard } from '../../components/ManageList.jsx';
+
+const TABS = [['structure', 'Parish Organization Structure'], ['lay', 'Lay Organizations']];
 
 export default function ManageOrgs() {
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : TABS[0][0];
+
   return (
-    <ManageList
-      title="Parish Organizations" subtitle="Lay organizations and movements active in the parish" itemNoun="organization"
-      listFn={api.listOrganizations} addFn={api.addOrganization} renameFn={api.renameOrganization} deleteFn={api.deleteOrganization}
-    />
+    <>
+      <PageHeader title="Parish Organizations" subtitle="Parish positions and the lay organizations active in the parish" />
+      <PageBody>
+        <div className="max-w-[720px]">
+          <Tabs tabs={TABS} value={tab} onChange={(k) => setParams({ tab: k }, { replace: true })} />
+          {tab === 'structure' && (
+            <ManageListCard
+              key="structure"
+              heading="Parish Organization Structure"
+              description="Parish-level positions (e.g. PPC President, GKK Cluster Head, FLA Coordinator). Registrants pick from this list under “Katungdanan sa Parish”. A position held by a member cannot be deleted."
+              itemNoun="position" placeholder="New position (e.g. PPC Officer)"
+              listFn={api.listParishPositions} addFn={api.addParishPosition} renameFn={api.renameParishPosition} deleteFn={api.deleteParishPosition}
+            />
+          )}
+          {tab === 'lay' && (
+            <ManageListCard
+              key="lay"
+              heading="Lay Organizations"
+              description="Lay organizations and movements active in the parish (e.g. CFC, Knights of Columbus). Registrants can tick the ones they belong to."
+              itemNoun="organization"
+              listFn={api.listOrganizations} addFn={api.addOrganization} renameFn={api.renameOrganization} deleteFn={api.deleteOrganization}
+            />
+          )}
+        </div>
+      </PageBody>
+    </>
   );
 }

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, ageFromDob } from '../constants.js';
+import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, GKK_ROLES, ageFromDob } from '../constants.js';
 import SacramentVerifyDialog, { SacramentChip } from './SacramentVerifyDialog.jsx';
-import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect } from './ui.jsx';
+import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect, ComboInput, OptionSelect } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
@@ -14,6 +14,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   const [member, setMember] = useState(null);
   const [ministryList, setMinistryList] = useState([]);
   const [orgList, setOrgList] = useState([]);
+  const [parishRoleList, setParishRoleList] = useState([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(null); // the member as stored, before any unsaved edits
@@ -30,6 +31,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
     api.getMember(memberId).then((res) => { setMember(res.member); setSaved(res.member); }).catch((e) => setError(e.message));
     api.listMinistries().then((res) => setMinistryList(res.rows.map((r) => r.name))).catch(() => {});
     api.listOrganizations().then((res) => setOrgList(res.rows.map((r) => r.name))).catch(() => {});
+    api.listParishPositions().then((res) => setParishRoleList(res.rows.map((r) => r.name))).catch(() => {});
     loadVerifications();
   }, [memberId]);
 
@@ -87,7 +89,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
         first_name: member.first_name, middle_name: member.middle_name, last_name: member.last_name, suffix: member.suffix,
         relationship: member.relationship, sex: member.sex, dob: member.dob, place_of_birth: member.place_of_birth, tribe: member.tribe,
         civil_status: member.civil_status, contact: member.contact, email: member.email, occupation: member.occupation,
-        blood_type: member.blood_type, gkk_role: member.gkk_role,
+        blood_type: member.blood_type, gkk_role: member.gkk_role, parish_role: member.parish_role,
         has_baptism: member.has_baptism, baptism_date: member.baptism_date, baptism_church: member.baptism_church,
         has_communion: member.has_communion, communion_date: member.communion_date, communion_church: member.communion_church,
         has_confirmation: member.has_confirmation, conf_date: member.conf_date, conf_church: member.conf_church, conf_name: member.conf_name, conf_sponsor: member.conf_sponsor,
@@ -174,7 +176,8 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                   <option value="">Unknown</option>{BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
                 </Select>
               </Field>
-              <Field label="Responsibility in GKK"><TextInput placeholder="Katungdanan sa GKK" value={member.gkk_role || ''} onChange={(e) => set('gkk_role', e.target.value)} /></Field>
+              <Field label="Responsibility in GKK"><ComboInput placeholder="Pick or type a role" options={GKK_ROLES} value={member.gkk_role} onChange={(v) => set('gkk_role', v)} /></Field>
+              <Field label="Responsibility in Parish"><OptionSelect placeholder="None" options={parishRoleList} value={member.parish_role} onChange={(v) => set('parish_role', v)} /></Field>
             </div>
 
             <SectionLabel>Sacraments received</SectionLabel>

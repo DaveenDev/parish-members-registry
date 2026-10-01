@@ -138,6 +138,7 @@ export default function PrintSheet({ data }) {
               m.dob && `b. ${fmtDate(m.dob)} (${ageFromDob(m.dob)} yrs)`,
               m.tribe && `Tribe: ${m.tribe}`,
               m.gkk_role && `GKK: ${m.gkk_role}`,
+              m.parish_role && `Parish: ${m.parish_role}`,
               m.blood_type && `Blood: ${m.blood_type}`,
               m.contact,
             ].filter(Boolean).join('  ·  ')}
