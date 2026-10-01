@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Navigate, useNavigate, useParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { BigButton, Spin } from '../../components/site/kit.jsx';
+import { BigButton, INNER, Spin } from '../../components/site/kit.jsx';
 import { api } from '../../api.js';
 import { validEmail, validMobile } from '../../lib/site.js';
 import { useSiteTitle } from './SiteLayout.jsx';
@@ -104,7 +104,7 @@ function FormFlow({ F }) {
 
   const pct = `${Math.round(((step + 1) / total) * 100)}%`;
   return (
-    <main className="px-4 pt-4 pb-7">
+    <main className="px-4 pt-4 pb-7 lg:max-w-[680px] lg:mx-auto lg:px-6 lg:pt-[18px] lg:pb-0">
       <div className="font-bold text-[12px] tracking-[.1em] uppercase text-[#4d4636] mb-1.5">Lakang {step + 1} sa {total}</div>
       <div className="h-[5px] bg-[#eaddc2] rounded-full overflow-hidden mb-4">
         <div className="h-full rounded-full transition-[width] duration-300" style={{ width: pct, background: 'linear-gradient(90deg,var(--p-blue),var(--p-gold))' }} />
@@ -112,12 +112,12 @@ function FormFlow({ F }) {
       {F.quiet ? (
         <div className="text-center px-2.5 pt-1 pb-2.5">
           <Icon name="cross" size={34} className="text-parish-gold" />
-          <h1 className="font-serif font-medium text-[30px] leading-[1.1] mt-1 mb-1.5 text-parish-navy">{F.title}</h1>
+          <h1 className="font-serif font-medium text-[30px] lg:text-[40px] leading-[1.1] lg:leading-[1.08] mt-1 mb-1.5 text-parish-navy">{F.title}</h1>
           <p className="m-0 text-[15.5px] leading-[1.55] text-[#4d4636]">{F.intro}</p>
         </div>
       ) : (
         <>
-          <h1 className="font-serif font-semibold text-[30px] leading-[1.1] m-0 mb-1 text-parish-navy">{F.title}</h1>
+          <h1 className="font-serif font-semibold text-[30px] lg:text-[40px] leading-[1.1] lg:leading-[1.08] m-0 mb-1 text-parish-navy">{F.title}</h1>
           <p className="m-0 text-[15px] leading-normal text-[#4d4636]">{F.intro}</p>
         </>
       )}
@@ -267,7 +267,7 @@ function FieldView({ f, value, error, onChange, gkks }) {
 
 function Done({ F, refNo }) {
   return (
-    <main className="px-4 pt-[18px] pb-7 text-center animate-fadeUp">
+    <main className={`${INNER} lg:max-w-[680px] text-center`}>
       <div className="w-[76px] h-[76px] rounded-full bg-parish-okBg text-parish-ok flex items-center justify-center mx-auto mb-4"><Icon name="check" size={38} /></div>
       <h1 className="font-serif font-semibold text-[32px] leading-[1.1] m-0 mb-2 text-parish-navy">Salamat! Nadawat na namo.</h1>
       {refNo && !F.noRef && (

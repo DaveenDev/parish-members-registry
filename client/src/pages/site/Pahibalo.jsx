@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { DataState, EmptyNote, Eyebrow, PageTitle, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
+import { DataState, EmptyNote, PAGE, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
 import { AnnouncementCard } from '../../components/site/cards.jsx';
 import { ANNOUNCEMENT_LABELS, fmtLong } from '../../lib/site.js';
 import { listState, useAnnouncements, useBulletins } from './data.js';
@@ -14,10 +14,10 @@ export default function Pahibalo() {
   const setView = (v) => setParams(v === 'bulletin' ? { view: 'bulletin' } : {}, { replace: true });
 
   return (
-    <main className="px-3.5 pt-4 pb-7 animate-fadeUp">
-      <Eyebrow>Mga Pahibalo</Eyebrow>
-      <PageTitle>Balita sa parokya</PageTitle>
-      <Segmented label="Pahibalo" options={[['list', 'Mga Pahibalo'], ['bulletin', 'Bulletin']]} value={view} onChange={setView} />
+    <main className={PAGE}>
+      <PageHeader eyebrow="Mga Pahibalo" title="Balita sa parokya">
+        <Segmented label="Pahibalo" options={[['list', 'Mga Pahibalo'], ['bulletin', 'Bulletin']]} value={view} onChange={setView} />
+      </PageHeader>
       {view === 'list' ? <Announcements /> : <Bulletins />}
     </main>
   );
@@ -32,15 +32,15 @@ function Announcements() {
 
   return (
     <>
-      {filters.length > 2 && <Pills scroll className="mb-3.5" options={filters} value={cat} onChange={setCat} />}
+      {filters.length > 2 && <Pills scroll className="mb-3.5 lg:mb-5" options={filters} value={cat} onChange={setCat} />}
       <DataState
         state={ann}
-        skeleton={<Skeletons n={2} h={120} />}
+        skeleton={<><div className="lg:hidden"><Skeletons n={2} h={120} /></div><div className="hidden lg:grid grid-cols-3 gap-4">{[0, 1, 2].map((i) => <Skeleton key={i} h={220} alt={i === 1} className="rounded-[18px]" />)}</div></>}
         errorText="Wala ma-load ang mga pahibalo."
         empty={ann.empty}
         emptyText="Wala pay pahibalo. Balik lang sunod semana."
       >
-        <div className="flex flex-col gap-2.5">{shown.map((a) => <AnnouncementCard key={a.id} a={a} full />)}</div>
+        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start">{shown.map((a) => <AnnouncementCard key={a.id} a={a} full />)}</div>
       </DataState>
     </>
   );
@@ -50,17 +50,17 @@ function Bulletins() {
   const bul = listState(useBulletins());
   return (
     <>
-      <p className="m-0 mb-3 text-[15px] leading-normal text-[#4d4636]">Ang semanal nga bulletin sa parokya. Basaha diri.</p>
+      <p className="m-0 mb-3 lg:mb-4 text-[15px] lg:text-[16px] leading-normal text-[#4d4636]">Ang semanal nga bulletin sa parokya. Basaha diri.</p>
       <DataState state={bul} skeleton={<Skeleton h={220} />} errorText="Wala ma-load ang bulletin." empty={bul.empty} emptyText="Wala pay bulletin nga gi-publish.">
         {!bul.rows.length ? <EmptyNote /> : (
-          <div className="bg-parish-card border border-parish-border rounded-2xl overflow-hidden">
+          <div className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] overflow-hidden lg:max-w-[820px]">
             {bul.rows.map((b) => (
-              <div key={b.id} className="flex items-center gap-2.5 py-3 pr-3 pl-3.5 border-b border-[#f0e8d6] last:border-b-0">
-                <div className="flex-1 min-w-0">
-                  <div className="font-serif text-[20px] font-bold text-parish-navy leading-tight">{b.title}</div>
-                  <div className="text-[13.5px] text-parish-text2">{fmtLong(b.week_of)}</div>
+              <div key={b.id} className="flex items-center gap-2.5 py-3 pr-3 pl-3.5 lg:gap-4 lg:py-3.5 lg:px-[18px] border-b border-[#f0e8d6] last:border-b-0">
+                <div className="flex-1 min-w-0 lg:flex lg:items-baseline lg:gap-4">
+                  <div className="font-serif text-[20px] lg:text-[22px] font-bold text-parish-navy leading-tight lg:min-w-[120px]">{b.title}</div>
+                  <div className="text-[13.5px] lg:text-[15px] text-parish-text2">{fmtLong(b.week_of)}</div>
                 </div>
-                <Link to={`/pahibalo/bulletin/${b.id}`} className="min-h-[44px] px-3 inline-flex items-center rounded-[10px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[14px]">
+                <Link to={`/pahibalo/bulletin/${b.id}`} className="min-h-[44px] lg:min-h-[42px] px-3 lg:px-4 inline-flex items-center rounded-[10px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[14px] lg:text-[14.5px] hover:bg-[var(--p-blue-tint)]">
                   Basaha
                 </Link>
               </div>

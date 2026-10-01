@@ -5,6 +5,9 @@ import { Icon, IconSprite } from '../../components/site/Icons.jsx';
 import { SiteToastContext } from '../../components/site/kit.jsx';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { api } from '../../api.js';
+import CreditFooter from '../../components/CreditFooter.jsx';
+import { officeHourRows } from '../../lib/site.js';
+import { useOffice } from './data.js';
 
 export const PARISH_NAME = 'Our Lady of Guadalupe';
 export const PARISH_SUB = 'Quasi-Parish · Mua-an';
@@ -19,6 +22,16 @@ const TABS = [
 ];
 
 const ROOTS = TABS.map((t) => t.to);
+
+// Desktop top navigation: the same sections with their full names, plus Kontak.
+const DESK_NAV = [
+  { to: '/', label: 'Home', match: (p) => p === '/' },
+  { to: '/misa', label: 'Misa ug Kalihokan', match: (p) => p.startsWith('/misa') },
+  { to: '/pahibalo', label: 'Mga Pahibalo', match: (p) => p.startsWith('/pahibalo') },
+  { to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad') },
+  { to: '/serbisyo', label: 'Mga Serbisyo', match: (p) => p.startsWith('/serbisyo') },
+  { to: '/kontak', label: 'Kontak', match: (p) => p.startsWith('/kontak') },
+];
 
 // Inner pages name themselves in the header with useSiteTitle('…').
 const TitleContext = createContext(() => {});
@@ -40,7 +53,9 @@ export function ParishMark({ size = 28, logo }) {
 /**
  * The public website shell, phone-first: a sticky header (parish name on the
  * five main pages, a back button and page title inside them), the Kolor theme
- * picker, and a bottom tab bar.
+ * picker, and a bottom tab bar. From `lg` up the header carries the full
+ * navigation instead of the tab bar, inner pages get a "Balik" link under it,
+ * and every page ends with the parish footer.
  */
 export default function SiteLayout() {
   const { pathname } = useLocation();
@@ -70,8 +85,9 @@ export default function SiteLayout() {
     <SiteToastContext.Provider value={say}>
       <TitleContext.Provider value={setTitle}>
         <IconSprite />
-        <div className="min-h-screen bg-parish-bg font-sans text-parish-ink max-w-[560px] mx-auto relative pb-[64px]">
-          <header className="sticky top-0 z-20 h-[58px] flex items-center gap-2 pl-1.5 pr-2.5 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.95)' }}>
+        <div className="min-h-screen bg-parish-bg font-sans text-parish-ink max-w-[560px] mx-auto relative pb-[64px] lg:max-w-none lg:pb-0 lg:flex lg:flex-col">
+          <DesktopHeader pathname={pathname} logo={logo} />
+          <header className="lg:hidden sticky top-0 z-20 h-[58px] flex items-center gap-2 pl-1.5 pr-2.5 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.95)' }}>
             {isRoot ? (
               <Link to="/" className="flex items-center gap-2 flex-1 min-w-0 pl-2">
                 <ParishMark logo={logo} />
@@ -91,16 +107,26 @@ export default function SiteLayout() {
             <ThemePickerPopover align="right" label="Kolor" />
           </header>
 
-          <Outlet />
+          {!isRoot && (
+            <div className="hidden lg:block w-full max-w-[1240px] mx-auto px-6 pt-[18px]">
+              <button type="button" onClick={back} className="min-h-[40px] inline-flex items-center gap-1.5 font-bold text-[15px] text-parish-blue hover:text-parish-blueDeep">
+                <Icon name="back" size={18} />Balik
+              </button>
+            </div>
+          )}
+
+          <div className="lg:flex-1"><Outlet /></div>
+
+          <DesktopFooter />
 
           {toast && (
-            <div role="status" className="fixed left-4 right-4 bottom-[78px] z-40 max-w-[528px] mx-auto bg-parish-navy text-white rounded-xl px-3.5 py-3 font-semibold text-[14px] leading-snug shadow-card animate-fadeUp">
+            <div role="status" className="fixed left-4 right-4 bottom-[78px] lg:bottom-7 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:w-max lg:max-w-[90vw] z-40 max-w-[528px] mx-auto bg-parish-navy text-white rounded-xl px-3.5 py-3 font-semibold text-[14px] leading-snug shadow-card animate-fadeUp">
               {toast}
             </div>
           )}
         </div>
 
-        <nav aria-label="Main" className="fixed bottom-0 inset-x-0 z-30 bg-parish-card border-t border-parish-border">
+        <nav aria-label="Main" className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-parish-card border-t border-parish-border">
           <div className="max-w-[560px] mx-auto h-16 grid grid-cols-5">
             {TABS.map((t) => {
               const on = t.match(pathname);
@@ -124,10 +150,77 @@ export default function SiteLayout() {
   );
 }
 
-/** Footer for the main pages: address and the staff sign-in link. */
+function DesktopHeader({ pathname, logo }) {
+  return (
+    <header className="hidden lg:block sticky top-0 z-20 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.96)' }}>
+      <div className="max-w-[1240px] mx-auto px-6 h-[76px] flex items-center gap-7">
+        <Link to="/" className="flex items-center gap-2.5 flex-none">
+          <ParishMark size={36} logo={logo} />
+          <span className="leading-[1.05]">
+            <span className="block font-serif text-[22px] font-bold text-parish-navy">{PARISH_NAME}</span>
+            <span className="block font-semibold text-[12.5px] text-parish-text2 tracking-[.04em]">{PARISH_SUB}</span>
+          </span>
+        </Link>
+        <nav aria-label="Main" className="flex items-stretch gap-0.5 ml-auto h-full">
+          {DESK_NAV.map((t) => {
+            const on = t.match(pathname);
+            return (
+              <NavLink
+                key={t.to}
+                to={t.to}
+                aria-current={on ? 'page' : undefined}
+                className={`relative flex items-center px-[13px] text-[15.5px] whitespace-nowrap hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`}
+              >
+                {t.label}
+                <span className="absolute left-[13px] right-[13px] -bottom-px h-[3px] rounded-t-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
+              </NavLink>
+            );
+          })}
+        </nav>
+        <ThemePickerPopover align="right" label="Kolor" />
+      </div>
+    </header>
+  );
+}
+
+/** Desktop footer on every page: parish, office, privacy note and staff sign-in. */
+function DesktopFooter() {
+  const o = useOffice().data || {};
+  const open = officeHourRows(o.office_hours).filter((r) => r.hours).slice(0, 2);
+  const phone = o.mobile || o.contact;
+  const logo = useParishLogo();
+  return (
+    <footer className="hidden lg:block mt-14 bg-[#f1ead9] border-t border-[#e7dcc4]">
+      <div className="max-w-[1240px] mx-auto px-6 py-8 grid grid-cols-[1.4fr_1fr_1fr] gap-8 items-start">
+        <div className="flex gap-3">
+          <span className="flex-none"><ParishMark size={34} logo={logo} /></span>
+          <div>
+            <div className="font-serif text-[21px] font-bold text-parish-navy">{PARISH_NAME} {PARISH_SUB.split(' · ')[0]}</div>
+            <div className="text-[14.5px] leading-normal text-[#4d4636] mt-0.5">{o.address || PARISH_ADDRESS}</div>
+          </div>
+        </div>
+        <div className="text-[14.5px] leading-[1.7] text-[#4d4636]">
+          <div className="font-bold text-[11.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)] mb-1">Opisina</div>
+          {open.map((r) => <div key={r.label}>{r.label} · {r.hours.join(', ')}</div>)}
+          {phone && <div>{phone}</div>}
+          {!open.length && !phone && <Link to="/kontak" className="font-semibold text-parish-blue">Tan-awa ang kontak</Link>}
+        </div>
+        <div className="flex flex-col gap-1.5 items-start">
+          <div className="flex gap-1.5 text-[13.5px] leading-[1.45] text-[#4d4636]">
+            <Icon name="lock" size={15} className="flex-none mt-0.5" />Pribado ang datos sa mga pamilya, sumala sa Data Privacy Act of 2012.
+          </div>
+          <Link to="/admin/login" className="min-h-[40px] inline-flex items-center font-bold text-[15px] text-parish-blue hover:text-parish-blueDeep">Kawani sa parokya? Mag-sign in</Link>
+          <CreditFooter inline />
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/** Phone footer for the main pages: address and the staff sign-in link. */
 export function SiteFooter({ address }) {
   return (
-    <footer className="mt-8 px-[18px] pt-[22px] pb-2 border-t border-[#e7dcc4] text-center">
+    <footer className="lg:hidden mt-8 px-[18px] pt-[22px] pb-2 border-t border-[#e7dcc4] text-center">
       <div className="text-[14px] text-[#4d4636] leading-normal">{address || PARISH_ADDRESS}</div>
       <Link to="/admin/login" className="inline-flex items-center min-h-[44px] mt-1.5 font-bold text-[14.5px] text-parish-blue">Kawani sa parokya? Mag-sign in</Link>
     </footer>

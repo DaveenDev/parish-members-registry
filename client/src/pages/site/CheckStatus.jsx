@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { BigButton, Spin } from '../../components/site/kit.jsx';
+import { BigButton, INNER, Spin } from '../../components/site/kit.jsx';
 import { api } from '../../api.js';
 import { certTypeLabel } from '../../lib/requests.js';
 import { fmtLong } from '../../lib/site.js';
@@ -51,8 +51,9 @@ export default function CheckStatus() {
   useEffect(() => { if (params.get('ref')) check(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <main className="px-4 pt-[18px] pb-7 animate-fadeUp">
-      <h1 className="font-serif font-semibold text-[31px] leading-[1.1] m-0 mb-1.5 text-parish-navy">Susiha ang inyong rehistro o hangyo</h1>
+    <main className={`${INNER} lg:max-w-[1080px] lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start`}>
+      <div>
+      <h1 className="font-serif font-semibold text-[31px] lg:text-[42px] leading-[1.1] lg:leading-[1.06] m-0 mb-1.5 lg:mb-2 text-parish-navy">Susiha ang inyong rehistro o hangyo</h1>
       <p className="m-0 mb-4 text-[15.5px] leading-normal text-[#4d4636]">Isulat ang reference number. Ang ngalan sa pamilya ug status lang ang ipakita.</p>
 
       <div aria-hidden="true" className="bg-white border border-parish-borderSoft rounded-xl px-3.5 py-3 mb-4 -rotate-1" style={{ boxShadow: '0 8px 18px -14px rgba(23,38,63,.4)' }}>
@@ -80,8 +81,9 @@ export default function CheckStatus() {
           {checking ? <><Spin />Gisusi…</> : 'Susiha'}
         </button>
       </form>
+      </div>
 
-      <div aria-live="polite" className="mt-[18px]">
+      <div aria-live="polite" className="mt-[18px] lg:mt-0 lg:pt-3 lg:min-h-[200px]">
         {result && <Result r={result} censusOpen={!!portal?.open} />}
       </div>
     </main>
