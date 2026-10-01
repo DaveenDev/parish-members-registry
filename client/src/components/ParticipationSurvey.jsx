@@ -67,3 +67,46 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
     </div>
   );
 }
+
+/**
+ * Read-only copy of the survey answers for the wizard's review step: every
+ * choice shown as a disabled checkbox, ticked where it was picked.
+ */
+export function ParticipationReview({ participation = {}, helpWays = [] }) {
+  const box = 'w-[17px] h-[17px] accent-parish-blue flex-none disabled:cursor-default disabled:opacity-100';
+  // Browsers grey out disabled boxes, so the picked answers are also set in bold.
+  const picked = 'text-parish-ink font-semibold';
+  return (
+    <div className="flex flex-col gap-4">
+      <div>
+        <div className="text-parish-muted font-semibold text-[13px] sm:text-[15px] mb-2">Partisipasyon</div>
+        <div className="flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-[#fdfbf6]">
+          {PARTICIPATION_ITEMS.map(([key, label]) => (
+            <div key={key} role="group" aria-label={label} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-2.5">
+              <span className="font-medium text-[14px] text-parish-ink">{label}</span>
+              <div className="flex gap-2">
+                {PARTICIPATION_LEVELS.map((level) => (
+                  <label key={level} className={`flex items-center gap-1.5 w-[78px] text-[13px] ${participation[key] === level ? picked : 'text-parish-text2'}`}>
+                    <input type="checkbox" disabled checked={participation[key] === level} readOnly className={box} />
+                    {level}
+                  </label>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="text-parish-muted font-semibold text-[13px] sm:text-[15px] mb-2">Paagi sa pagtabang</div>
+        <div className="grid gap-x-4 gap-y-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
+          {HELP_WAYS.map(([key, label]) => (
+            <label key={key} className="flex items-start gap-2.5">
+              <input type="checkbox" disabled checked={helpWays.includes(key)} readOnly className={`${box} mt-0.5`} />
+              <span className={`text-[14px] leading-snug ${helpWays.includes(key) ? picked : 'text-parish-text2'}`}>{label}</span>
+            </label>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}

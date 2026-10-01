@@ -1,12 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, GKK_ROLES, ageFromDob } from '../constants.js';
+import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, GKK_ROLES, HEAD, ageFromDob } from '../constants.js';
 import SacramentVerifyDialog, { SacramentChip } from './SacramentVerifyDialog.jsx';
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect, ComboInput, OptionSelect } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
+
+// Stored columns for the wedding the Household Head and a married Spouse share.
+const WEDDING_COLUMNS = ['has_matrimony', 'mat_date', 'mat_church', 'mat_type'];
+const wedding = (m) => Object.fromEntries(WEDDING_COLUMNS.map((c) => [c, c === 'has_matrimony' ? !!m[c] : (m[c] ? String(m[c]).slice(0, 10) : '')]));
 
 export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   const toast = useToast();
@@ -20,6 +24,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   const [saved, setSaved] = useState(null); // the member as stored, before any unsaved edits
   const [verifications, setVerifications] = useState({});
   const [verifying, setVerifying] = useState(null); // a SACRAMENTS entry while its dialog is open
+  const [housemates, setHousemates] = useState([]); // the household's members as stored, to find who shares this wedding
 
   function loadVerifications() {
     api.getSacramentVerifications(memberId).then(setVerifications).catch(() => setVerifications({}));
@@ -28,7 +33,11 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   useEffect(() => {
     if (!memberId) return;
     setMember(null);
-    api.getMember(memberId).then((res) => { setMember(res.member); setSaved(res.member); }).catch((e) => setError(e.message));
+    setHousemates([]);
+    api.getMember(memberId).then((res) => {
+      setMember(res.member); setSaved(res.member);
+      if (res.member.household_id) api.getHousehold(res.member.household_id).then((h) => setHousemates(h.members)).catch(() => {});
+    }).catch((e) => setError(e.message));
     api.listMinistries().then((res) => setMinistryList(res.rows.map((r) => r.name))).catch(() => {});
     api.listOrganizations().then((res) => setOrgList(res.rows.map((r) => r.name))).catch(() => {});
     api.listParishPositions().then((res) => setParishRoleList(res.rows.map((r) => r.name))).catch(() => {});
@@ -66,6 +75,17 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   function set(field, value) {
     setMember((m) => ({ ...m, [field]: value }));
   }
+
+  /** Who shares this member's wedding: the head and a married Spouse are wed to each other. */
+  function weddingPartners() {
+    if (!member || member.civil_status !== 'Married') return [];
+    const others = housemates.filter((h) => h.id !== memberId && h.civil_status === 'Married');
+    if (member.relationship === HEAD) return others.filter((h) => h.relationship === 'Spouse');
+    if (member.relationship === 'Spouse') return others.filter((h) => h.relationship === HEAD);
+    return [];
+  }
+  const partners = weddingPartners();
+  const partnerNames = partners.map((p) => [p.first_name, p.last_name].filter(Boolean).join(' ')).join(' and ');
   /** onBlur handler: tidy a name field to "Dela Cruz" style. */
   function tidy(field, format = toNameCase) {
     return (e) => {
@@ -97,7 +117,11 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
         ministries: member.ministries, organizations: member.organizations,
       };
       await api.updateMember(memberId, patch);
-      toast.success('Member updated');
+      // A wedding edit also goes to the spouse's record; unrelated edits leave it alone.
+      const edited = JSON.stringify(wedding(member)) !== JSON.stringify(wedding(saved));
+      const toUpdate = edited ? partners.filter((p) => JSON.stringify(wedding(p)) !== JSON.stringify(wedding(member))) : [];
+      await Promise.all(toUpdate.map((p) => api.updateMember(p.id, wedding(member))));
+      toast.success(toUpdate.length ? `Member and ${partnerNames} updated` : 'Member updated');
       onChanged && onChanged();
       onClose();
     } catch (e) {
@@ -208,6 +232,11 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
                   </>
                 )}
               </SacRow>
+              {!!partners.length && (
+                <div className="text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-lg px-3 py-2">
+                  Same wedding as <strong>{partnerNames}</strong>: saving a change to the matrimony details also updates their record.
+                </div>
+              )}
               <SacRow label="Matrimony" status={verifyStatus('matrimony')} checked={member.has_matrimony} onCheck={(v) => set('has_matrimony', v)}>
                 {member.has_matrimony && (
                   <>
