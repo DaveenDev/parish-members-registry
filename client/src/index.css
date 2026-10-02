@@ -240,7 +240,9 @@ select {
 
   /* Hide the app chrome without unmounting it, so print state is preserved. */
   body > #root { display: none !important; }
-  body { background: #fff !important; }
+  /* White paper whatever the theme: dark mode's color-scheme would tint the
+     page and the form controls (the survey checkboxes) dark. */
+  html, body, #print-sheet { background: #fff !important; color-scheme: light !important; }
 
   #print-sheet {
     position: static !important;
