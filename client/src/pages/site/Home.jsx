@@ -164,10 +164,11 @@ function MassToday({ mass }) {
   );
 }
 
-// Public totals, in order. `people` counts follow the under-5 rule; the rest
+// Public totals, in order. `people` counts under 5 aren't shown; the rest
 // (groups, Masses) aren't about individuals, so they show as they are.
 const STAT_TILES = [
-  { key: 'households', label: 'Pamilya', icon: 'home', people: true },
+  // A count of households doesn't point to anyone, so it always shows.
+  { key: 'households', label: 'Pamilya', icon: 'home' },
   { key: 'members', label: 'Miyembro', icon: 'people', people: true },
   { key: 'gkks', label: 'GKK', icon: 'ev-gkk' },
   { key: 'ministries', label: 'Ministry', icon: 'heart' },
@@ -178,8 +179,8 @@ const STAT_COLS = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'gr
 
 /**
  * "Parokya sa usa ka tan-aw": desktop only (kept off phones on purpose).
- * Totals only, never names. A count of people under 5 shows as "Ubos sa 5"
- * so a small group can't be singled out. Weekly Masses come from the public
+ * Totals only, never names. A count of people under 5 is left out so a
+ * small group can't be singled out. Weekly Masses come from the public
  * schedule. Hidden when the totals can't be loaded.
  */
 function ParishStats({ mass }) {
@@ -189,7 +190,8 @@ function ParishStats({ mass }) {
   // Each weekly row is one Mass a week (a Daily Mass has a row per day); dated ones are one-offs.
   const masses = mass.rows.filter((r) => !r.mass_date && /Mass/.test(massType(r))).length;
   const values = { ...s, masses: masses || null };
-  const tiles = s ? STAT_TILES.filter((t) => values[t.key] != null) : [];
+  // A people count under 5 is left out entirely, so a small group can't be singled out.
+  const tiles = s ? STAT_TILES.filter((t) => values[t.key] != null && !(t.people && values[t.key] < 5)) : [];
   const sub = (t) => (t.key === 'gkks' && s.oldest_gkk_year ? `Sukad ${s.oldest_gkk_year}` : null);
   return (
     <section className="hidden lg:block max-w-[1240px] mx-auto px-6 pt-11">
@@ -198,19 +200,17 @@ function ParishStats({ mass }) {
           <div className="font-bold text-[12px] tracking-[.18em] uppercase text-[var(--p-eyebrow)] mb-1">Parokya sa usa ka tan-aw</div>
           <h2 className="font-serif font-semibold text-[32px] m-0 text-parish-navy">Atong pamilya sa parokya</h2>
         </div>
-        <span className="text-[13.5px] text-parish-text2">Ihap lang, walay ngalan. Ang ihap sa tawo nga ubos sa 5 dili ipakita.</span>
+        <span className="text-[13.5px] text-parish-text2">Ihap lang, walay ngalan.</span>
       </div>
       <div className={`grid gap-3.5 ${q.loading ? 'grid-cols-6' : STAT_COLS[tiles.length] || 'grid-cols-6'}`}>
-        {q.loading ? [0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} h={138} className="rounded-[18px]" />) : tiles.map((t) => {
+        {q.loading ? [0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} h={168} className="rounded-[18px]" />) : tiles.map((t) => {
           const n = values[t.key];
           return (
-            <div key={t.key} className="bg-parish-card border border-parish-border rounded-[18px] shadow-cardSm p-[18px] min-h-[138px] flex flex-col">
-              <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)' }}>
-                <Icon name={t.icon} size={21} />
+            <div key={t.key} className="bg-parish-card border border-parish-border rounded-[18px] shadow-cardSm p-5 min-h-[168px] flex flex-col">
+              <span className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3.5 border" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)', borderColor: 'var(--p-blue-border)' }}>
+                <Icon name={t.icon} size={30} />
               </span>
-              {!t.people || n >= 5
-                ? <div className="font-serif text-[40px] font-bold text-parish-blue leading-none">{n.toLocaleString('en-US')}</div>
-                : <div className="font-serif text-[26px] font-bold text-[#4d4636] leading-[1.2]">Ubos sa 5</div>}
+              <div className="font-serif text-[40px] font-bold text-parish-blue leading-none">{n.toLocaleString('en-US')}</div>
               <div className="font-bold text-[11.5px] tracking-[.12em] uppercase text-parish-text2 mt-2 leading-[1.3]">{t.label}</div>
               {sub(t) && <div className="text-[12.5px] text-parish-text2 mt-0.5">{sub(t)}</div>}
             </div>
