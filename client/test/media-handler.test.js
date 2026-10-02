@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { handleMediaRequest, keyFromUrl, objectKey, MAX_BYTES, NOT_CONFIGURED } from '../../supabase/functions/media-upload/handler.js';
+import { handleMediaRequest, keyFromUrl, objectKey, r2Settings, MAX_BYTES, NOT_CONFIGURED } from '../../supabase/functions/media-upload/handler.js';
 
 const BASE = 'https://media.example.org';
 const NOW = new Date('2026-10-02T03:00:00Z');
@@ -95,5 +95,24 @@ describe('delete', () => {
   });
   test('keyFromUrl drops query strings', () => {
     assert.equal(keyFromUrl(`${BASE}/articles/a.jpg?v=2`, BASE), 'articles/a.jpg');
+  });
+});
+
+describe('r2Settings', () => {
+  const row = { account_id: 'acc', access_key_id: 'key', secret_access_key: 'secret', bucket: 'b', public_base_url: 'https://m.example.org' };
+  const env = { R2_ACCOUNT_ID: 'eacc', R2_ACCESS_KEY_ID: 'ekey', R2_SECRET_ACCESS_KEY: 'esecret', R2_BUCKET: 'eb', R2_PUBLIC_BASE_URL: 'https://e.example.org' };
+
+  test('the settings saved under Parish Config win when complete', () => {
+    assert.deepEqual(r2Settings(row, env), { accountId: 'acc', accessKeyId: 'key', secretAccessKey: 'secret', bucket: 'b', publicBase: 'https://m.example.org' });
+  });
+
+  test('falls back to the function secrets when the saved settings are missing or incomplete', () => {
+    assert.equal(r2Settings(null, env).accountId, 'eacc');
+    assert.equal(r2Settings({ ...row, secret_access_key: '  ' }, env).bucket, 'eb');
+  });
+
+  test('null when neither is complete', () => {
+    assert.equal(r2Settings({ ...row, bucket: '' }, { ...env, R2_BUCKET: '' }), null);
+    assert.equal(r2Settings(undefined, undefined), null);
   });
 });

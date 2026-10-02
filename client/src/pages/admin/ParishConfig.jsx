@@ -5,7 +5,7 @@ import { PageHeader, PageBody, Tabs, Panel } from '../../components/admin.jsx';
 import { GkkManager } from '../../components/GkkManager.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
-import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
+import { Field, TextInput, PrimaryButton, Badge } from '../../components/ui.jsx';
 import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
 import { useTheme, THEMES } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
@@ -166,6 +166,108 @@ function HeroImageCard({ settings, onSaved }) {
   );
 }
 
+const BLANK_STORAGE = { accountId: '', accessKeyId: '', secretAccessKey: '', bucket: '', publicBaseUrl: '' };
+const storageForm = (s) => ({
+  accountId: s?.account_id || '', accessKeyId: s?.access_key_id || '', secretAccessKey: '', bucket: s?.bucket || '', publicBaseUrl: s?.public_base_url || '',
+});
+
+/**
+ * Cloudflare R2 settings for Blog Article photos (staff admins only). The
+ * secret key is write-only: once saved it is never sent back to a browser.
+ */
+function PhotoStorageCard() {
+  const toast = useToast();
+  const [saved, setSaved] = useState(null);
+  const [form, setForm] = useState(BLANK_STORAGE);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api.getMediaStorage()
+      .then((s) => { setSaved(s); setForm(storageForm(s)); })
+      .catch((e) => setError(e.message));
+  }, []);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const complete = saved && saved.account_id && saved.access_key_id && saved.has_secret && saved.bucket && saved.public_base_url;
+
+  async function save() {
+    setBusy(true);
+    try {
+      const s = await api.saveMediaStorage(form);
+      setSaved(s);
+      setForm(storageForm(s));
+      toast.success('Photo storage settings saved');
+    } catch (e) {
+      toast.error(e.message || 'Could not save the settings');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function clear() {
+    if (!window.confirm('Remove the saved photo storage settings? Photo uploads stop working unless the media-upload function has its own R2 secrets.')) return;
+    setBusy(true);
+    try {
+      await api.clearMediaStorage();
+      setSaved({ has_secret: false });
+      setForm(BLANK_STORAGE);
+      toast.success('Photo storage settings removed');
+    } catch (e) {
+      toast.error(e.message || 'Could not remove the settings');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Panel className="p-6">
+      <div className="flex items-center gap-2.5 flex-wrap mb-1">
+        <div className="font-serif text-[22px] font-semibold text-parish-navy">Photo storage (Cloudflare R2)</div>
+        {saved && (
+          <Badge tone={complete ? 'green' : 'gold'}>{complete ? 'Set up' : 'Not set up'}</Badge>
+        )}
+      </div>
+      <div className="text-[13.5px] text-parish-muted mb-4">
+        Where Blog Article photos are stored. Only staff admins see this. The secret key is never shown again once saved;
+        leave it blank to keep the saved one. See <code>docs/media-storage.md</code> for creating the bucket and API token.
+      </div>
+      {error ? (
+        <div className="text-[13.5px] text-parish-error">{error}</div>
+      ) : saved && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="Account ID"><TextInput value={form.accountId} onChange={set('accountId')} autoComplete="off" spellCheck={false} /></Field>
+            <Field label="Bucket name"><TextInput value={form.bucket} onChange={set('bucket')} placeholder="parish-media" autoComplete="off" spellCheck={false} /></Field>
+            <Field label="Access Key ID"><TextInput value={form.accessKeyId} onChange={set('accessKeyId')} autoComplete="off" spellCheck={false} /></Field>
+            <Field label="Secret Access Key">
+              <TextInput
+                type="password"
+                value={form.secretAccessKey}
+                onChange={set('secretAccessKey')}
+                placeholder={saved.has_secret ? '•••••••• saved (leave blank to keep)' : ''}
+                autoComplete="new-password"
+                spellCheck={false}
+              />
+            </Field>
+            <div className="sm:col-span-2">
+              <Field label="Public URL"><TextInput value={form.publicBaseUrl} onChange={set('publicBaseUrl')} placeholder="https://media.yourparish.org" autoComplete="off" spellCheck={false} inputMode="url" /></Field>
+            </div>
+          </div>
+          <div className="flex items-center gap-4 mt-5 flex-wrap">
+            <PrimaryButton onClick={save} disabled={busy} className="px-[26px] py-3 text-[14.5px]">{busy ? 'Saving…' : 'Save storage settings'}</PrimaryButton>
+            {saved.updated_at && (
+              <button type="button" onClick={clear} disabled={busy} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-error p-0">
+                Remove saved settings
+              </button>
+            )}
+          </div>
+        </>
+      )}
+    </Panel>
+  );
+}
+
 function ChangePasswordCard() {
   const toast = useToast();
   return (
@@ -251,6 +353,8 @@ function ProfileTab() {
           <span className="text-[12.5px] text-parish-muted">Auto follows this device's light or dark setting.</span>
         </div>
       </Panel>
+
+      {user?.isAdmin && <PhotoStorageCard />}
 
       <ChangePasswordCard />
       </div>

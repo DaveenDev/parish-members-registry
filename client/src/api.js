@@ -588,6 +588,32 @@ export const api = {
     return { settings: data };
   },
 
+  // ---- photo storage, Cloudflare R2 (0025 migration; staff admins) ------
+  async getMediaStorage() {
+    const { data, error } = await supabase.rpc('media_storage_get');
+    if (error?.code === 'PGRST202') throw new Error('Run the 0025_media_storage_settings.sql migration in Supabase to set up photo storage here');
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  /** A blank `secretAccessKey` keeps the one already saved. */
+  async saveMediaStorage({ accountId, accessKeyId, secretAccessKey, bucket, publicBaseUrl }) {
+    const { data, error } = await supabase.rpc('media_storage_save', {
+      p_account_id: accountId || '',
+      p_access_key_id: accessKeyId || '',
+      p_secret_access_key: secretAccessKey || '',
+      p_bucket: bucket || '',
+      p_public_base_url: publicBaseUrl || '',
+    });
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async clearMediaStorage() {
+    const { error } = await supabase.rpc('media_storage_clear');
+    if (error) throw mapError(error);
+  },
+
   // ---- parish website content (0011 migration) ------------------------
   async listMassSchedules() {
     return listWebsite('mass_schedules', (q) => q.order('day_of_week').order('start_time'));

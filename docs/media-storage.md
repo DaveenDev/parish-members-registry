@@ -37,7 +37,21 @@ R2 → **Manage R2 API Tokens** → **Create API token**: permission **Object Re
 limited to this bucket. Copy the **Access Key ID** and **Secret Access Key** (shown once)
 and your **Account ID** (R2 overview page).
 
-## 3. Give them to the Edge Function
+## 3. Enter them under Parish Config
+
+Run [`0025_media_storage_settings.sql`](../supabase/migrations/0025_media_storage_settings.sql)
+in the SQL editor, then sign in as a **staff admin** and open
+**Parish Config → Photo storage (Cloudflare R2)**. Fill in the Account ID, bucket
+name, Access Key ID, Secret Access Key and public URL, and save. Changes apply
+to the next upload; no redeploy needed.
+
+The settings live in a table no browser can read (only the Edge Function, with
+the service role key). The secret key is write-only: after saving, the form only
+shows that one is saved; leave it blank to keep it, or type a new one to replace it.
+
+### Or: Edge Function secrets
+
+When the Parish Config settings aren't complete, the function uses its own secrets:
 
 ```bash
 npx supabase secrets set --project-ref <your-project-ref> R2_ACCOUNT_ID=... R2_ACCESS_KEY_ID=... R2_SECRET_ACCESS_KEY=... R2_BUCKET=parish-media R2_PUBLIC_BASE_URL=https://media.yourparish.org

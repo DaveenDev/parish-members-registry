@@ -18,7 +18,37 @@ export const MAX_BYTES = 10 * 1024 * 1024;
 export const FOLDERS = ['articles'];
 const TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const EDIT_WEBSITE = ['full', 'website'];
-export const NOT_CONFIGURED = "Photo storage isn't set up yet. Add the Cloudflare R2 settings to the media-upload function (see docs/media-storage.md).";
+export const NOT_CONFIGURED = "Photo storage isn't set up yet. A staff admin can add the Cloudflare R2 settings under Parish Config (see docs/media-storage.md).";
+
+const R2_FIELDS = ['accountId', 'accessKeyId', 'secretAccessKey', 'bucket', 'publicBase'];
+const trimmed = (v) => String(v ?? '').trim();
+
+/**
+ * Which R2 settings to use: the ones a staff admin saved under Parish Config
+ * (`row`, a media_storage_settings row, 0025 migration) when all five are
+ * filled in, otherwise the function's R2_* secrets (`env`). null when
+ * neither is complete.
+ */
+export function r2Settings(row, env = {}) {
+  const fromRow = {
+    accountId: trimmed(row?.account_id),
+    accessKeyId: trimmed(row?.access_key_id),
+    secretAccessKey: trimmed(row?.secret_access_key),
+    bucket: trimmed(row?.bucket),
+    publicBase: trimmed(row?.public_base_url),
+  };
+  const fromEnv = {
+    accountId: trimmed(env.R2_ACCOUNT_ID),
+    accessKeyId: trimmed(env.R2_ACCESS_KEY_ID),
+    secretAccessKey: trimmed(env.R2_SECRET_ACCESS_KEY),
+    bucket: trimmed(env.R2_BUCKET),
+    publicBase: trimmed(env.R2_PUBLIC_BASE_URL),
+  };
+  const complete = (s) => R2_FIELDS.every((k) => s[k]);
+  if (complete(fromRow)) return fromRow;
+  if (complete(fromEnv)) return fromEnv;
+  return null;
+}
 
 const ok = (body) => ({ status: 200, body: { ok: true, ...body } });
 const fail = (status, error) => ({ status, body: { error } });
