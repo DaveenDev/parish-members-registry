@@ -369,6 +369,23 @@ export function censusCountdown(endsOn, todayIsoStr, within = 7) {
   return `${days} ka adlaw na lang`;
 }
 
+/**
+ * How soon an event is, for its card: "Karon", "Ugma", "Karong Sabado"
+ * (this week), "Sa 12 ka adlaw" (within a month), "Adlaw 3 sa 9" while a
+ * multi-day event is on. null when it's further off or already over.
+ */
+export function eventCountdown(e, todayIsoStr) {
+  const start = daysUntil(e.start_date, todayIsoStr);
+  if (start === null) return null;
+  const end = daysUntil(e.end_date || e.start_date, todayIsoStr) ?? start;
+  if (end < 0) return null;
+  if (start <= 0) return eventDays(e) > 1 ? `Adlaw ${1 - start} sa ${eventDays(e)}` : 'Karon';
+  if (start === 1) return 'Ugma';
+  if (start < 7) return `Karong ${BIS_DAYS[parseIso(e.start_date).getDay()]}`;
+  if (start <= 30) return `Sa ${start} ka adlaw`;
+  return null;
+}
+
 // ---- GKKs -----------------------------------------------------------------
 
 /** "Sto. Niño -Balabag" → { patron: 'Sto. Niño', area: 'Balabag' }. */

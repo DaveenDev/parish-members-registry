@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { censusCountdown, daysUntil, eventsOnDay, monthCells, sortCensusGkks } from '../src/lib/site.js';
+import { censusCountdown, daysUntil, eventCountdown, eventsOnDay, monthCells, sortCensusGkks } from '../src/lib/site.js';
 
 describe('monthCells', () => {
   test('pads October 2026 to whole Sunday-first weeks', () => {
@@ -71,5 +71,29 @@ describe('census countdown', () => {
     assert.equal(censusCountdown('2026-10-30', '2026-10-30'), 'Karon na ang katapusang adlaw');
     assert.equal(censusCountdown('2026-10-30', '2026-10-31'), null);
     assert.equal(censusCountdown(null, '2026-10-02'), null);
+  });
+});
+
+describe('eventCountdown', () => {
+  // Friday 2 October 2026.
+  const TODAY = '2026-10-02';
+  const on = (start_date, end_date = '') => eventCountdown({ start_date, end_date }, TODAY);
+  test('today, tomorrow, this week, within a month', () => {
+    assert.equal(on('2026-10-02'), 'Karon');
+    assert.equal(on('2026-10-03'), 'Ugma');
+    assert.equal(on('2026-10-04'), 'Karong Domingo');
+    assert.equal(on('2026-10-08'), 'Karong Huwebes');
+    assert.equal(on('2026-10-09'), 'Sa 7 ka adlaw');
+    assert.equal(on('2026-11-01'), 'Sa 30 ka adlaw');
+  });
+  test('which day of a multi-day event is on', () => {
+    assert.equal(on('2026-09-30', '2026-10-08'), 'Adlaw 3 sa 9');
+    assert.equal(on('2026-10-02', '2026-10-10'), 'Adlaw 1 sa 9');
+  });
+  test('nothing when far off, over, or without a date', () => {
+    assert.equal(on('2026-11-02'), null);
+    assert.equal(on('2026-10-01'), null);
+    assert.equal(on('2026-09-25', '2026-10-01'), null);
+    assert.equal(on(''), null);
   });
 });

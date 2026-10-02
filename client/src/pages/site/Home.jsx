@@ -125,7 +125,7 @@ export default function Home() {
             <p className="m-0 text-white/75 text-[15px]">Wala pay pahibalo karong semanaha.</p>
           ) : (
             <div className={`flex flex-col gap-2.5 lg:grid lg:gap-5 lg:h-full ${single ? 'lg:grid-cols-1' : 'lg:grid-cols-2'}`}>
-              {latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}
+              {latest.map((a) => <AnnouncementCard key={a.id} a={a} fill />)}
             </div>
           )}
         </div>

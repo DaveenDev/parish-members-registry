@@ -2,10 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from './Icons.jsx';
 import { Chip, TONES, useShare } from './kit.jsx';
-import { EVENT_TONES } from '../../lib/website.js';
+import { EVENT_TONES, todayIso } from '../../lib/website.js';
 import {
   ANNOUNCEMENT_LABELS, ARTICLE_LABELS, EVENT_ICONS, EVENT_TYPE_LABELS, BIS_MONTHS_SHORT,
-  eventSpan, eventTime, excerpt, fmtShort, fmtTime12, massKindLabel, parseIso,
+  eventCountdown, eventSpan, eventTime, excerpt, fmtShort, fmtTime12, massKindLabel, parseIso,
 } from '../../lib/site.js';
 
 const ANN_TONES = { Parish: 'blue', GKK: 'gray', Ministry: 'gray', 'Schedule change': 'gold' };
@@ -19,16 +19,23 @@ export function ArticleChip({ a }) {
   return <Chip tone={a.tag === 'History' ? 'gold' : 'blue'}>{ARTICLE_LABELS[a.tag] || a.tag}</Chip>;
 }
 
-/** Announcement in a list. `full` adds the excerpt on phones; desktop cards always have it. */
-export function AnnouncementCard({ a, full = false }) {
+/**
+ * Announcement in a list. `full` adds the excerpt on phones; desktop cards
+ * always have it. `fill` (Home, beside the event card) stretches it to its
+ * grid cell, shows more of the text and pins "Basaha" to the bottom.
+ */
+export function AnnouncementCard({ a, full = false, fill = false }) {
   return (
-    <Link to={`/pahibalo/${a.id}`} className="block w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)]">
+    <Link to={`/pahibalo/${a.id}`} className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'flex flex-col h-full' : 'block'}`}>
       <div className="flex gap-2 items-center mb-1.5 lg:mb-2">
         <AnnouncementChip a={a} />
         <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.publish_on)}</span>
       </div>
       <div className={`font-serif font-bold leading-[1.2] lg:leading-[1.18] text-parish-navy lg:text-[23px] lg:mb-1.5 ${full ? 'text-[21px] mb-1' : 'text-[20px]'}`}>{a.title}</div>
-      {a.body && <div className={`text-[15px] leading-normal text-[#4d4636] ${full ? '' : 'hidden lg:block'}`}>{excerpt(a.body)}</div>}
+      {a.body && (
+        <div className={`text-[15px] leading-normal text-[#4d4636] ${full ? '' : 'hidden lg:block'} ${fill ? 'lg:line-clamp-6' : ''}`}>{excerpt(a.body, fill ? 360 : 140)}</div>
+      )}
+      {fill && <span className="hidden lg:inline-flex mt-auto pt-3 items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha<Icon name="chev" size={16} /></span>}
     </Link>
   );
 }
@@ -125,9 +132,14 @@ export function EventRow({ e, tinted = false, dark = false }) {
 export function EventCard({ e, showDate = false, fill = false }) {
   const tone = eventTone(e);
   const span = eventSpan(e);
+  const soon = eventCountdown(e, todayIso());
+  const start = parseIso(e.start_date);
   const details = (
     <>
-      <div className="font-bold text-[11.5px] tracking-[.06em] uppercase" style={{ color: tone.color }}>{EVENT_TYPE_LABELS[e.type] || e.type}</div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <div className="font-bold text-[11.5px] tracking-[.06em] uppercase" style={{ color: tone.color }}>{EVENT_TYPE_LABELS[e.type] || e.type}</div>
+        {soon && !e.photo_url && <span className="font-bold text-[11.5px] rounded-full px-2 py-px bg-[var(--p-gold-light)] text-parish-navy">{soon}</span>}
+      </div>
       <div className="font-semibold text-[15.5px] leading-[1.3] mt-px mb-[3px]">{e.title}</div>
       {showDate && <div className="text-[13.5px] font-semibold text-parish-navy">{fmtShort(e.start_date)}{e.end_date && e.end_date !== e.start_date ? ` – ${fmtShort(e.end_date)}` : ''}</div>}
       <div className="text-[13.5px] text-parish-text2">{[eventTime(e), e.location].filter(Boolean).join(' · ')}</div>
@@ -145,11 +157,17 @@ export function EventCard({ e, showDate = false, fill = false }) {
       <div className={`relative ${fill ? 'h-full' : ''}`}>
         <CardShare title={e.title} path={path} />
         <Link to={path} className={`block w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'h-full' : ''}`}>
-          <div className="relative h-[170px] lg:h-[200px] bg-[#efe6d3]">
-            <img src={e.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
-            <span className="absolute left-2.5 top-2.5 w-9 h-9 rounded-xl flex items-center justify-center shadow-cardSm" style={{ background: tone.background, color: tone.color }}>
-              <Icon name={EVENT_ICONS[e.type] || 'cal'} size={19} />
+          {/* The whole cover (posters keep their text) over a blurred copy that fills the sides. */}
+          <div className="relative h-[170px] lg:h-[200px] bg-[#efe6d3] overflow-hidden">
+            <img src={e.photo_url} alt="" aria-hidden loading="lazy" className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-70" />
+            <img src={e.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-contain" />
+            <span className="absolute left-2.5 top-2.5 w-12 rounded-xl overflow-hidden text-center bg-parish-card shadow-cardSm" aria-label={fmtShort(e.start_date)}>
+              <span className="block py-[3px] font-bold text-[10.5px] tracking-[.1em] uppercase text-white" style={{ background: tone.color }}>{BIS_MONTHS_SHORT[start.getMonth()]}</span>
+              <span className="block pt-0.5 pb-1 font-serif font-bold text-[22px] leading-none text-parish-navy">{start.getDate()}</span>
             </span>
+            {soon && (
+              <span className="absolute left-2.5 bottom-2.5 rounded-full px-2.5 py-1 font-bold text-[12px] bg-[var(--p-gold-light)] text-parish-navy shadow-cardSm">{soon}</span>
+            )}
           </div>
           <div className="p-3">{details}</div>
         </Link>
