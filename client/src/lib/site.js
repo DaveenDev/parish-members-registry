@@ -239,6 +239,51 @@ export function eventMonths(events, fromIso, max = 3) {
 
 export const monthLabel = (key) => BIS_MONTHS[Number(key.slice(5, 7)) - 1];
 
+/** "YYYY-MM" `n` months after `key`. */
+function addMonths(key, n) {
+  return isoOf(new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)) - 1 + n, 1)).slice(0, 7);
+}
+
+/**
+ * The months the calendar offers: this month and the next two (Masses fill
+ * every month), plus any later month with an event, up to `max`.
+ */
+export function calendarMonths(events, fromIso, max = 6) {
+  const first = fromIso.slice(0, 7);
+  const keys = new Set([0, 1, 2].map((n) => addMonths(first, n)));
+  for (const k of eventMonths(events, fromIso, max)) keys.add(k);
+  return [...keys].sort().slice(0, max);
+}
+
+/** The Masses held on `iso` (weekly ones on their weekday, dated ones on their dates), by time. */
+export function massesOnDay(rows, iso) {
+  return rows.filter((r) => massOnDate(r, iso)).sort(byTime);
+}
+
+/** A Mass's name in a calendar cell: "Misa" for Sunday and daily Masses, the feast for a Special Mass. */
+export function massShortLabel(r) {
+  const type = massType(r);
+  if (type === 'Regular Mass' || type === 'Daily Mass') return 'Misa';
+  return massKindLabel(r);
+}
+
+/**
+ * The month's agenda (phones), from `fromIso` on: every day with something,
+ * with its events (on their first visible day) and its Masses.
+ */
+export function agendaDays(events, masses, key, fromIso) {
+  const days = [];
+  const last = new Date(Number(key.slice(0, 4)), Number(key.slice(5, 7)), 0).getDate();
+  for (let d = 1; d <= last; d++) {
+    const iso = `${key}-${String(d).padStart(2, '0')}`;
+    if (iso < fromIso) continue;
+    const evs = events.filter((e) => (e.start_date < fromIso ? fromIso : e.start_date) === iso);
+    const ms = massesOnDay(masses, iso);
+    if (evs.length || ms.length) days.push({ date: iso, events: evs, masses: ms });
+  }
+  return days;
+}
+
 /** Events in month `key` (YYYY-MM), grouped by their (first visible) date. */
 export function groupEventsByDate(events, key, fromIso) {
   const groups = [];

@@ -4,10 +4,10 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { DataState, EmptyNote, PAGE, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
 import { EventCard, MassRow, eventTone } from '../../components/site/cards.jsx';
 import {
-  BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, eventMonths, eventsOnDay, groupEventsByDate, massSections,
-  massLocations, monthCells, monthLabel, parseIso,
+  BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, agendaDays, calendarMonths, eventsOnDay, fmtTime12,
+  massKindLabel, massLocations, massSections, massShortLabel, massesOnDay, monthCells, monthLabel, parseIso,
 } from '../../lib/site.js';
-import { EVENT_TYPES, todayIso } from '../../lib/website.js';
+import { EVENT_TYPES, massType, todayIso } from '../../lib/website.js';
 import { listState, useAnnouncements, useEvents, useMassSchedule } from './data.js';
 
 /** Misa ug Kalihokan: the weekly Mass schedule and the events agenda. */
@@ -128,26 +128,36 @@ function MassTag({ tone, children }) {
 
 function EventsAgenda() {
   const events = listState(useEvents());
+  // The Masses go on the calendar too; if they fail to load, the events still show.
+  const mass = listState(useMassSchedule());
+  const masses = mass.error ? [] : mass.rows;
   const today = todayIso();
-  const months = eventMonths(events.rows, today);
+  const months = calendarMonths(events.rows, today);
   const [month, setMonth] = useState('');
   useEffect(() => { if (months.length && !months.includes(month)) setMonth(months[0]); }, [months.join(), month]);
-  const groups = month ? groupEventsByDate(events.rows, month, today) : [];
+  const days = month ? agendaDays(events.rows, masses, month, today) : [];
   const types = EVENT_TYPES.filter((t) => events.rows.some((e) => e.type === t));
+  const state = { ...events, loading: events.loading || mass.loading };
 
   return (
     <DataState
-      state={events}
+      state={state}
       skeleton={<><div className="lg:hidden"><Skeletons n={2} h={84} /></div><Skeleton h={560} className="hidden lg:block rounded-[18px]" /></>}
       errorText="Wala ma-load ang kalendaryo."
-      empty={events.empty}
-      emptyText="Walay kalihokan nga naka-iskedyul."
+      empty={events.empty && !masses.length}
+      emptyText="Walay kalihokan o Misa nga naka-iskedyul."
     >
       <div className="lg:flex lg:items-center lg:gap-2 lg:mb-4">
         {months.length > 1 && (
           <Pills dark className="mb-4 lg:mb-0" options={months.map((m) => [m, <>{monthLabel(m)}<span className="hidden lg:inline"> {m.slice(0, 4)}</span></>])} value={month} onChange={setMonth} />
         )}
         <div className="hidden lg:flex flex-wrap gap-x-3.5 gap-y-1.5 ml-auto">
+          {masses.length > 0 && (
+            <span className="inline-flex items-center gap-[5px] font-semibold text-[13px] text-parish-blueDeep">
+              <span className="w-[22px] h-[22px] rounded-md flex items-center justify-center bg-[var(--p-blue-tint)]"><Icon name="church" size={13} /></span>
+              Misa
+            </span>
+          )}
           {types.map((t) => {
             const tone = eventTone({ type: t });
             return (
@@ -159,16 +169,24 @@ function EventsAgenda() {
           })}
         </div>
       </div>
-      {month && <MonthCalendar month={month} events={events.rows} today={today} />}
+      {month && <MonthCalendar month={month} events={events.rows} masses={masses} today={today} />}
       <div className="flex flex-col gap-[18px] lg:hidden">
-        {groups.map((g) => {
+        {days.map((g) => {
           const d = parseIso(g.date);
           return (
             <div key={g.date}>
               <h3 className="m-0 mb-2 font-bold text-[13px] tracking-[.1em] uppercase text-[#4d4636]">
                 {BIS_DAYS_SHORT[d.getDay()]}, {d.getDate()} {BIS_MONTHS_SHORT[d.getMonth()]}
+                {g.date === today && <span className="ml-1.5 text-parish-blueDeep">· Karon</span>}
               </h3>
-              <div className="flex flex-col gap-2">{g.items.map((e) => <EventCard key={e.id} e={e} />)}</div>
+              <div className="flex flex-col gap-2">
+                {g.events.map((e) => <EventCard key={e.id} e={e} />)}
+                {g.masses.length > 0 && (
+                  <div className="bg-parish-card border border-parish-border rounded-[14px] shadow-cardSm overflow-hidden [&>*:first-child]:border-t-0">
+                    {g.masses.map((m) => <MassRow key={m.id} m={m} />)}
+                  </div>
+                )}
+              </div>
             </div>
           );
         })}
@@ -177,8 +195,29 @@ function EventsAgenda() {
   );
 }
 
+/** One Mass in a calendar cell: a feast stands out like an event; weekly Masses are a quiet time line. */
+function CalendarMass({ m }) {
+  if (massType(m) === 'Special Mass') {
+    return (
+      <Link
+        to="/misa"
+        title={`${fmtTime12(m.start_time)} ${massShortLabel(m)} · ${m.location}`}
+        className="mx-1.5 min-h-[24px] flex items-center gap-1 px-1.5 py-[3px] rounded-md font-bold text-[11.5px] leading-[1.2] overflow-hidden hover:brightness-95"
+        style={{ background: 'var(--p-gold-tint)', color: 'var(--p-gold-deep)' }}
+      >
+        <Icon name="star" size={11} /><span className="truncate">{fmtTime12(m.start_time)} {massShortLabel(m)}</span>
+      </Link>
+    );
+  }
+  return (
+    <div className="px-2.5 text-[11.5px] leading-[1.35] text-parish-text2 truncate" title={`${fmtTime12(m.start_time)} ${massKindLabel(m)} · ${m.location}`}>
+      <span className="font-bold text-parish-blueDeep">{fmtTime12(m.start_time)}</span> {massShortLabel(m)}
+    </div>
+  );
+}
+
 /** Desktop month grid. Multi-day events run as one bar across the days they cover. */
-function MonthCalendar({ month, events, today }) {
+function MonthCalendar({ month, events, masses, today }) {
   const cells = monthCells(month);
   return (
     <div className="hidden lg:block">
@@ -216,11 +255,16 @@ function MonthCalendar({ month, events, today }) {
                   );
                 })}
               </div>
+              {c.inMonth && (
+                <div className="flex flex-col gap-[2px] mt-1">
+                  {massesOnDay(masses, c.iso).map((m) => <CalendarMass key={m.id} m={m} />)}
+                </div>
+              )}
             </div>
           );
         })}
       </div>
-      <div className="text-[13.5px] text-parish-text2 mt-2.5">Ang daghang-adlaw nga kalihokan (sama sa Novena) makita isip usa ka taas nga bar.</div>
+      <div className="text-[13.5px] text-parish-text2 mt-2.5">Ang daghang-adlaw nga kalihokan (sama sa Novena) makita isip usa ka taas nga bar. Ang mga oras sa Misa naa sa matag adlaw; ang espesyal nga Misa may bitoon.</div>
     </div>
   );
 }

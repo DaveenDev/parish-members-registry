@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { DataState, EmptyNote, PAGE, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
-import { AnnouncementCard } from '../../components/site/cards.jsx';
+import { AnnouncementCard, EventCard } from '../../components/site/cards.jsx';
 import { ANNOUNCEMENT_LABELS, fmtLong } from '../../lib/site.js';
-import { listState, useAnnouncements, useBulletins } from './data.js';
+import { listState, useAnnouncements, useBulletins, useEvents } from './data.js';
 
 const CATEGORY_FILTERS = [['all', 'Tanan'], ['Parish', 'Parokya'], ['GKK', 'GKK'], ['Ministry', 'Ministry'], ['Schedule change', ANNOUNCEMENT_LABELS['Schedule change']], ['urgent', 'Urgent']];
 
@@ -32,6 +32,7 @@ function Announcements() {
 
   return (
     <>
+      <UpcomingEvents />
       {filters.length > 2 && <Pills scroll className="mb-3.5 lg:mb-5" options={filters} value={cat} onChange={setCat} />}
       <DataState
         state={ann}
@@ -43,6 +44,25 @@ function Announcements() {
         <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start">{shown.map((a) => <AnnouncementCard key={a.id} a={a} full />)}</div>
       </DataState>
     </>
+  );
+}
+
+/**
+ * The next few parish events, above the announcements, with a link to the
+ * full calendar. Hidden while loading, on error, or when nothing is coming up.
+ */
+function UpcomingEvents() {
+  const events = listState(useEvents());
+  if (events.loading || events.error || !events.rows.length) return null;
+  const next = events.rows.slice(0, 6);
+  return (
+    <section className="mb-5 lg:mb-7" aria-labelledby="upcoming-events">
+      <div className="flex items-baseline justify-between gap-3 mb-2.5 lg:mb-3">
+        <h2 id="upcoming-events" className="m-0 font-serif text-[22px] lg:text-[26px] font-bold text-parish-navy">Umaabot nga Kalihokan</h2>
+        <Link to="/misa?view=kalendaryo" className="font-bold text-[14px] lg:text-[15px] text-parish-blueDeep whitespace-nowrap hover:underline">Tan-awa ang kalendaryo →</Link>
+      </div>
+      <div className="flex flex-col gap-2 lg:grid lg:grid-cols-3 lg:gap-3">{next.map((e) => <EventCard key={e.id} e={e} />)}</div>
+    </section>
   );
 }
 

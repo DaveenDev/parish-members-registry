@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { massSections, upcomingToday, massKindLabel, massDateLabel } from '../src/lib/site.js';
+import { massSections, upcomingToday, massKindLabel, massDateLabel, massesOnDay, massShortLabel, calendarMonths, agendaDays } from '../src/lib/site.js';
 import { dayList, groupDaily, nextOccasionDates, findOccasion, massType, isCurrentMass } from '../src/lib/website.js';
 
 let nextId = 1;
@@ -144,6 +144,41 @@ describe('upcomingToday', () => {
     const sg = row({ kind: 'Special Mass', occasion: 'Simbang Gabi', mass_date: '2026-12-16', mass_end_date: '2026-12-24', day_of_week: 3, start_time: '04:00:00' });
     assert.equal(upcomingToday([sg], new Date(2026, 11, 19, 2, 0)).length, 1);
     assert.equal(upcomingToday([sg], new Date(2026, 11, 25, 2, 0)).length, 0);
+  });
+});
+
+describe('calendar', () => {
+  const sunday = row({ start_time: '07:00:00' });
+  const daily = row({ kind: 'Daily Mass', day_of_week: 3, start_time: '06:00:00' });
+  const feast = row({ kind: 'Special Mass', occasion: 'Our Lady of the Rosary', mass_date: '2026-10-07', day_of_week: 3, start_time: '18:00:00' });
+  const masses = [sunday, daily, feast];
+
+  test('massesOnDay: weekly Masses on their weekday, dated ones on their date, by time', () => {
+    assert.deepEqual(massesOnDay(masses, '2026-10-07').map((m) => m.id), [daily.id, feast.id]);
+    assert.deepEqual(massesOnDay(masses, '2026-10-14').map((m) => m.id), [daily.id]);
+    assert.deepEqual(massesOnDay(masses, '2026-10-04').map((m) => m.id), [sunday.id]);
+  });
+
+  test('massShortLabel: "Misa" for the usual Masses, the feast for a Special Mass', () => {
+    assert.equal(massShortLabel(sunday), 'Misa');
+    assert.equal(massShortLabel(feast), 'Our Lady of the Rosary');
+    assert.equal(massShortLabel(row({ kind: 'Confession' })), 'Kumpisal');
+  });
+
+  test('calendarMonths: this month and the next two, plus later event months', () => {
+    assert.deepEqual(calendarMonths([], '2026-10-02'), ['2026-10', '2026-11', '2026-12']);
+    assert.deepEqual(calendarMonths([{ start_date: '2027-02-02' }], '2026-11-20'), ['2026-11', '2026-12', '2027-01', '2027-02']);
+  });
+
+  test('agendaDays: from today, every day with an event or a Mass', () => {
+    const event = { id: 'e1', start_date: '2026-10-07', end_date: null };
+    const days = agendaDays([event], masses, '2026-10', '2026-10-05');
+    assert.equal(days[0].date, '2026-10-07');
+    assert.deepEqual(days[0].events, [event]);
+    assert.equal(days[0].masses.length, 2);
+    assert.ok(days.every((d) => d.date >= '2026-10-05'));
+    // Sundays and Wednesdays from Oct 5 to 31: 7, 11, 14, 18, 21, 25, 28.
+    assert.deepEqual(days.map((d) => d.date.slice(8)), ['07', '11', '14', '18', '21', '25', '28']);
   });
 });
 
