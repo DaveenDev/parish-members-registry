@@ -24,6 +24,7 @@ function fakeAdmin({ users, profiles, legacySchema = false }) {
     },
     async insert(row) {
       if (columnError(row)) return { error: columnError(row) };
+      if (profiles.some((p) => p.id === row.id)) return { error: { message: 'duplicate key value violates unique constraint "profiles_pkey"' } };
       calls.push(['profiles.insert', row]);
       profiles.push({ ...row });
       return { error: null };
@@ -57,6 +58,8 @@ function fakeAdmin({ users, profiles, legacySchema = false }) {
           if (users.some((u) => u.email === email)) return { data: null, error: { message: 'A user with this email address has already been registered' } };
           const user = { id: `u${users.length + 1}`, email };
           users.push(user);
+          // The 0020 trigger on auth.users makes a bare profile straight away.
+          profiles.push({ id: user.id, name: '', role: 'Parish Secretary', is_admin: false });
           return { data: { user }, error: null };
         },
         async updateUserById(id, attrs) {
@@ -119,10 +122,11 @@ describe('manage-staff: who may call it', () => {
 });
 
 describe('manage-staff: create', () => {
-  test('creates a confirmed login and its profile', async () => {
+  test('creates a confirmed login and fills in the profile the trigger made', async () => {
     const res = await call('u1', { action: 'create', name: ' Juan ', email: 'Juan@Parish.test ', password: 'temp-pass-123', role: 'Encoder', is_admin: false });
     assert.equal(res.status, 200);
     assert.deepEqual(admin.calls[0], ['createUser', { email: 'juan@parish.test', password: 'temp-pass-123', email_confirm: true }]);
+    assert.equal(profiles.filter((p) => p.id === res.body.id).length, 1);
     assert.deepEqual(profiles.at(-1), { id: res.body.id, name: 'Juan', role: 'Encoder', is_admin: false, access: 'full', access_gkk: null });
   });
 

@@ -136,7 +136,8 @@ export async function handleStaffRequest({ admin, token, body }) {
         const taken = /already (been )?registered|already exists/i.test(error.message || '');
         return fail(taken ? 409 : 400, taken ? 'An account with this email already exists' : (error.message || 'Could not create the account'));
       }
-      const { error: pErr } = await saveProfile(admin, 'insert', {
+      // Upsert: since 0020 a trigger on auth.users has already made a bare profile row.
+      const { error: pErr } = await saveProfile(admin, 'upsert', {
         id: created.user.id, name: input.name, role: clean(body.role) || 'Parish Staff', is_admin: !!body.is_admin,
         access: access.access, access_gkk: access.access_gkk,
       });
