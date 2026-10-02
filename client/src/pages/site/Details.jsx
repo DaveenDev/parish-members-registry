@@ -130,7 +130,8 @@ export function ArticleDetail() {
   useSiteTitle('Artikulo');
   const share = useShare();
   return (
-    <Detail q={useItem('articles', id)} notFound="Wala na kini nga artikulo.">
+    // Desktop: the site's full content width, like the list pages.
+    <Detail q={useItem('articles', id)} notFound="Wala na kini nga artikulo." className={`${INNER} lg:max-w-[1240px]`}>
       {(a) => (
         <>
           <div className="flex gap-2 items-center mb-2 flex-wrap">
@@ -138,7 +139,7 @@ export function ArticleDetail() {
             <span className="text-[13.5px] text-parish-text2">{[fmtLong(a.held_on), a.place].filter(Boolean).join(' · ')}</span>
           </div>
           <h1 className={DETAIL_TITLE}>{a.title}</h1>
-          <Photo src={a.photo_url} hLg={420} />
+          <Photo src={a.photo_url} hLg={560} />
           <Body text={a.body || a.summary} />
           <Gallery photos={a.photos} />
           <BigButton className={SHARE} onClick={() => share(a.title)}><Icon name="share" />Ipaambit sa Messenger</BigButton>
@@ -157,7 +158,7 @@ function Gallery({ photos }) {
   return (
     <section aria-labelledby="gallery-title" className="mt-2 mb-6 lg:mb-8">
       <h2 id="gallery-title" className="m-0 mb-3 font-serif text-[24px] lg:text-[28px] font-bold text-parish-navy">Mga litrato</h2>
-      <ul className="list-none m-0 p-0 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+      <ul className="list-none m-0 p-0 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 lg:gap-3.5">
         {list.map((p, i) => (
           <li key={p.url}>
             <button type="button" onClick={() => setOpen(i)} className="block w-full text-left appearance-none border-none bg-transparent p-0 cursor-zoom-in">
