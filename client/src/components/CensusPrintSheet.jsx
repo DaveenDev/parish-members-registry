@@ -17,7 +17,8 @@ const ITEM_SHORT = {
 const SACRAMENT_SHORT = [['has_baptism', 'Bunyag'], ['has_communion', 'Komunyon'], ['has_confirmation', 'Kumpirma'], ['has_matrimony', 'Kasal']];
 
 const cell = { border: '1px solid #bbb', padding: '4px 5px', verticalAlign: 'top' };
-const head = { ...cell, background: '#f4efe3', fontWeight: 700, fontSize: 9.5, textAlign: 'left' };
+// Plain on purpose: white paper, no theme colours, so it photocopies and prints the same anywhere.
+const head = { ...cell, background: '#fff', color: '#000', fontWeight: 700, fontSize: 9.5, textAlign: 'left', borderBottom: '1.5px solid #000' };
 const blankLine = { borderBottom: '1px solid #999', display: 'inline-block', minWidth: 160, height: 14 };
 
 function fullName(m) {
@@ -36,41 +37,41 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
   if (!forms || !forms.length) return null;
 
   return createPortal(
-    <div id="print-sheet" aria-hidden style={{ fontSize: 11 }}>
+    <div id="print-sheet" aria-hidden style={{ fontSize: 11, color: '#000', background: '#fff' }}>
       {forms.map(({ household: h, members, code }) => (
         <section key={h.id} className="census-page">
-          <header style={{ display: 'flex', alignItems: 'center', gap: 14, borderBottom: '2px solid #1a2b4a', paddingBottom: 8, marginBottom: 10 }}>
+          <header style={{ display: 'flex', alignItems: 'center', gap: 14, borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 10 }}>
             {parish?.logo && <img src={parish.logo} alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />}
             <div>
-              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 600, color: '#1a2b4a' }}>
+              <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 600, color: '#000' }}>
                 {parish?.name || 'Our Lady of Guadalupe'}
               </div>
-              <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: '#8a836f' }}>
+              <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: '#555' }}>
                 Porma sa Census · {cycle?.label || 'Parish Census'}
               </div>
             </div>
-            <div style={{ marginLeft: 'auto', textAlign: 'right', fontSize: 10.5, color: '#3f3b2f' }}>
+            <div style={{ marginLeft: 'auto', textAlign: 'right', fontSize: 10.5, color: '#222' }}>
               <div><strong>Ref:</strong> {h.ref_no || '—'}</div>
               <div><strong>GKK:</strong> {h.gkk || '—'}</div>
               <div>Gi-print {new Date().toLocaleDateString()}</div>
             </div>
           </header>
 
-          <p style={{ margin: '0 0 8px', fontSize: 10.5, color: '#3f3b2f' }}>
+          <p style={{ margin: '0 0 8px', fontSize: 10.5, color: '#222' }}>
             Palihug susiha ang mga detalye sa ubos. Kung adunay sayop o kausaban, isulat ang husto sa kolum nga
             <strong> “Usba”</strong>. Lingini ang tubag sa matag miyembro: <strong>A</strong> = Aktibo, <strong>P</strong> = Panagsa,
             <strong> W</strong> = Wala.
           </p>
 
           {code && (
-            <div style={{ border: '1.5px solid #34589c', borderRadius: 6, padding: '6px 10px', margin: '0 0 10px', fontSize: 10.5, color: '#1a2b4a' }}>
+            <div style={{ border: '1.5px solid #000', borderRadius: 6, padding: '6px 10px', margin: '0 0 10px', fontSize: 10.5, color: '#000' }}>
               <strong>Mas sayon online:</strong> adto sa <strong>{window.location.origin}/census</strong> ug ibutang ang
               Ref <strong>{h.ref_no}</strong> ug Code <strong style={{ fontSize: 12, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>{formatAccessCode(code)}</strong>.
               Ayaw ipakita kini nga code sa uban.
             </div>
           )}
 
-          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, margin: '0 0 4px', color: '#1a2b4a' }}>Pamilya: {h.household_name}</h2>
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, margin: '0 0 4px', color: '#000' }}>Pamilya: {h.household_name}</h2>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
             <thead><tr><th style={{ ...head, width: '22%' }}>Detalye</th><th style={head}>Sa rekord karon</th><th style={{ ...head, width: '38%' }}>Usba (kung sayop)</th></tr></thead>
             <tbody>
@@ -84,7 +85,7 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
             </tbody>
           </table>
 
-          <h3 style={{ fontSize: 12, margin: '0 0 4px', color: '#1a2b4a' }}>1. Mga Miyembro</h3>
+          <h3 style={{ fontSize: 12, margin: '0 0 4px', color: '#000' }}>1. Mga Miyembro</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
             <thead>
               <tr>
@@ -112,7 +113,7 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
             </tbody>
           </table>
 
-          <h3 style={{ fontSize: 12, margin: '0 0 4px', color: '#1a2b4a' }}>2. Pag-apil sa Parokya / GKK ug Kahimtang</h3>
+          <h3 style={{ fontSize: 12, margin: '0 0 4px', color: '#000' }}>2. Pag-apil sa Parokya / GKK ug Kahimtang</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
             <thead>
               <tr>
@@ -126,9 +127,9 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
                 <tr key={m.id}>
                   <td style={{ ...cell, fontWeight: 600 }}>{[m.first_name, m.last_name].join(' ')}</td>
                   {PARTICIPATION_ITEMS.map(([key]) => (
-                    <td key={key} style={{ ...cell, textAlign: 'center', color: '#6b6552', whiteSpace: 'nowrap' }}>A · P · W</td>
+                    <td key={key} style={{ ...cell, textAlign: 'center', color: '#444', whiteSpace: 'nowrap' }}>A · P · W</td>
                   ))}
-                  <td style={{ ...cell, fontSize: 9.5, color: '#3f3b2f' }}>
+                  <td style={{ ...cell, fontSize: 9.5, color: '#222' }}>
                     {MEMBERSHIP_STATUSES.map((s) => MEMBERSHIP_STATUS_LABELS[s]).join(' / ')}
                   </td>
                 </tr>
@@ -136,7 +137,7 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
             </tbody>
           </table>
 
-          <h3 style={{ fontSize: 12, margin: '0 0 4px', color: '#1a2b4a' }}>3. Bag-ong miyembro (bag-ong natawo, bag-ong minyo, ug uban pa)</h3>
+          <h3 style={{ fontSize: 12, margin: '0 0 4px', color: '#000' }}>3. Bag-ong miyembro (bag-ong natawo, bag-ong minyo, ug uban pa)</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 12 }}>
             <thead>
               <tr>
@@ -161,7 +162,7 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
           </div>
           <div style={{ fontSize: 10.5, marginTop: 10 }}>Gidawat ni (GKK / kawani): <span style={blankLine} /></div>
 
-          <footer style={{ marginTop: 12, paddingTop: 6, borderTop: '1px solid #ddd', fontSize: 9, color: '#8a836f' }}>
+          <footer style={{ marginTop: 12, paddingTop: 6, borderTop: '1px solid #ddd', fontSize: 9, color: '#555' }}>
             Confidential — for the family and authorized parish staff only. Handle in accordance with the Data Privacy Act of 2012.
           </footer>
         </section>
