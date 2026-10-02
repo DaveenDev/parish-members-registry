@@ -170,8 +170,10 @@ function ProfileTab() {
     }
   }
 
+  // Desktop: the parish's identity on the left, this account and device on the right.
   return (
-    <div className="flex flex-col gap-[18px]">
+    <div className="grid gap-[18px] lg:grid-cols-2 lg:items-start">
+      <div className="flex flex-col gap-[18px] min-w-0">
       {canEdit && (
       <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-[18px]">Parish profile</div>
@@ -193,8 +195,10 @@ function ProfileTab() {
 
       {canEdit && <LogoCard settings={settings} onSaved={applySaved} />}
 
-      <ChangePasswordCard />
+      <PrivacyCard />
+      </div>
 
+      <div className="flex flex-col gap-[18px] min-w-0">
       <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>
         <div className="text-[13.5px] text-parish-muted mb-4">Choose a color theme for the registration portal and admin panel. Saved on this device.</div>
@@ -206,14 +210,22 @@ function ProfileTab() {
           <span className="text-[12.5px] text-parish-muted">Auto follows this device's light or dark setting.</span>
         </div>
       </Panel>
-      <Panel className="p-6">
-        <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3.5">Data &amp; privacy</div>
-        <div className="flex gap-2.5 items-start text-[13.5px] text-parish-text2 leading-relaxed">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p-blue)" strokeWidth="1.7" className="flex-none mt-px"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
-          <span>Member information is confidential and accessible only to authorized parish staff. All exports and printed sheets should be handled in accordance with the Data Privacy Act of 2012.</span>
-        </div>
-      </Panel>
+
+      <ChangePasswordCard />
+      </div>
     </div>
+  );
+}
+
+function PrivacyCard() {
+  return (
+    <Panel className="p-6">
+      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3.5">Data &amp; privacy</div>
+      <div className="flex gap-2.5 items-start text-[13.5px] text-parish-text2 leading-relaxed">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p-blue)" strokeWidth="1.7" className="flex-none mt-px"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
+        <span>Member information is confidential and accessible only to authorized parish staff. All exports and printed sheets should be handled in accordance with the Data Privacy Act of 2012.</span>
+      </div>
+    </Panel>
   );
 }
 
@@ -271,7 +283,7 @@ export default function ParishConfig() {
     <>
       <PageHeader title="Parish Config" subtitle="Profile, privacy & GKK settings" />
       <PageBody>
-        <div className="max-w-[720px]">
+        <div className="max-w-[1180px]">
           {tabs.length > 1 && <Tabs tabs={tabs} value={tab} onChange={setTab} />}
           {tab === 'config' && <ProfileTab />}
           {tab === 'gkk' && <GkkManager />}

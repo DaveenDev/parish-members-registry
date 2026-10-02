@@ -8,7 +8,9 @@ import { useToast } from '../ToastContext.jsx';
 import { AddButton, RowButton, SidePanel } from './panels.jsx';
 
 const THIS_YEAR = new Date().getFullYear();
-const EMPTY = { name: '', chapel_address: '', puroks: '', year_established: '' };
+// Desktop columns: name, chapel, puroks, year, households, actions.
+const COLS = 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_64px_96px_auto] lg:gap-4';
+const EMPTY ={ name: '', chapel_address: '', puroks: '', year_established: '' };
 
 /**
  * The parish's GKKs with their chapel details (shown and searched in the
@@ -61,7 +63,7 @@ export function GkkManager() {
   return (
     <Panel className="p-6">
       <div className="flex items-start justify-between gap-3 flex-wrap mb-[18px]">
-        <div className="min-w-0 max-w-[480px]">
+        <div className="min-w-0 max-w-[640px]">
           <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Basic Ecclesial Communities (GKK)</div>
           <div className="text-[13.5px] text-parish-muted">Each GKK's chapel, puroks and year established show in the website's GKK directory. A GKK assigned to a household can't be deleted.</div>
         </div>
@@ -73,16 +75,26 @@ export function GkkManager() {
           <SearchInput placeholder="Search GKKs, chapels or puroks…" aria-label="Search GKKs" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
         </div>
       )}
+      {list.rows.length > 0 && (
+        <div className={`hidden lg:grid ${COLS} px-3.5 pb-2 font-semibold text-[11.5px] tracking-wide uppercase text-parish-muted`}>
+          <span>GKK</span><span>Chapel address</span><span>Puroks covered</span><span>Est.</span><span>Households</span><span />
+        </div>
+      )}
       <div className="flex flex-col gap-2">
         {list.rows.map((g) => {
           const info = [g.chapel_address && `Chapel: ${g.chapel_address}`, g.puroks, g.year_established && `Est. ${g.year_established}`].filter(Boolean).join(' · ');
+          const dash = <span className="text-parish-faint">—</span>;
           return (
-            <div key={g.id} className="flex items-center gap-2.5 border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field">
+            <div key={g.id} className={`flex items-center gap-2.5 lg:grid ${COLS} border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field`}>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-[14.5px] text-parish-navy">{g.name}</div>
-                <div className="text-[12.5px] text-parish-text2 truncate">{info || <span className="text-parish-faint">No chapel details yet</span>}</div>
+                <div className="text-[12.5px] text-parish-text2 truncate lg:hidden">{info || <span className="text-parish-faint">No chapel details yet</span>}</div>
               </div>
-              <span className="font-semibold text-[12px] text-parish-muted whitespace-nowrap">{g.count} household(s)</span>
+              <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{g.chapel_address || dash}</span>
+              <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{g.puroks || dash}</span>
+              <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.year_established || dash}</span>
+              <span className="font-semibold text-[12px] text-parish-muted whitespace-nowrap">{g.count}<span className="lg:hidden"> household(s)</span></span>
+              <div className="flex items-center gap-2.5 lg:justify-end">
               <RowButton onClick={() => open(g)} className="px-3.5 py-2">Edit</RowButton>
               <RowButton
                 tone="red"
@@ -93,6 +105,7 @@ export function GkkManager() {
               >
                 Delete
               </RowButton>
+              </div>
             </div>
           );
         })}
