@@ -22,6 +22,7 @@ export default function Home() {
   const ann = listState(useAnnouncements());
   const events = listState(useEvents());
   const portal = usePortalStatus().data;
+  const censusOpen = !!useCensusProgress().data?.open;
   const office = useOffice().data;
   const [dismissed, setDismissed] = useState(readDismissed);
   const hero = usePublicData('heroImage', api.publicParishHeroImage).data || null;
@@ -103,8 +104,9 @@ export default function Home() {
         <MassToday mass={mass} />
       </section>
 
-      {/* A full-width navy band, like the census notice, so the page keeps one when no census is open. */}
-      <div className="mt-7 pb-7 bg-parish-navy lg:mt-12 lg:py-12">
+      {/* A full-width navy band, like the census notice, so the page keeps one when no census is open.
+          On desktop it joins the census notice when that shows, with a faint line between. */}
+      <div className={`mt-7 pb-7 bg-parish-navy lg:py-12 ${censusOpen ? 'lg:mt-0 lg:border-t lg:border-white/15' : 'lg:mt-12'}`}>
       <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-8 lg:items-start">
       <section className="px-3.5 pt-7 lg:p-0">
         <SectionHead dark title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
