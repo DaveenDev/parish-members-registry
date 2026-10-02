@@ -8,6 +8,7 @@ import { useDebounced, useUrlState } from '../../hooks.js';
 import { groupByGkk } from '../../lib/household.js';
 import { bis, RELATIONSHIP_LABELS, CIVIL_STATUS_LABELS } from '../../lib/bisaya.js';
 import { MEMBERSHIP_STATUSES, STATUS_TONES } from '../../lib/census.js';
+import { PRACTICE_LEVELS, PRACTICE_LEVEL_HELP, PRACTICE_TONES, isRated, trendText, practiceSourceText } from '../../lib/practice.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
@@ -16,9 +17,10 @@ const BLOOD_OPTS = ['All', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Un
 const SACRAMENT_OPTS = [['All', 'Any sacrament'], ['Baptism', 'Baptized'], ['Communion', 'First Communion'], ['Confirmation', 'Confirmed'], ['Matrimony', 'Married in Church']];
 const MEMBERSHIP_OPTS = [['Current', 'Current members'], ['All', 'Everyone (incl. moved / deceased)'], ...MEMBERSHIP_STATUSES.map((s) => [s, s]), ['Not assessed', 'Not yet assessed']];
 const CENSUS_OPTS = [['All', 'Any census'], ['Confirmed', 'Confirmed in census'], ['Not confirmed', 'Not confirmed in census']];
-const DEFAULT_FILTERS = { status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All', membership: 'Current', census: 'All' };
+const PRACTICE_OPTS = [['All', 'Any practice status'], ...PRACTICE_LEVELS.map((l) => [l, `${l} — ${PRACTICE_LEVEL_HELP[l].toLowerCase()}`])];
+const DEFAULT_FILTERS = { status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All', membership: 'Current', census: 'All', practice: 'All' };
 // Shown up front; the rest sit under "More filters".
-const MAIN_FILTERS = ['gkk', 'status', 'membership', 'sacrament'];
+const MAIN_FILTERS = ['gkk', 'status', 'membership', 'practice', 'sacrament'];
 // Rows are grouped under GKK headings; inside each GKK the default order is
 // household name, then member name. Column headers re-sort within the GKKs.
 const URL_DEFAULTS = { ...DEFAULT_FILTERS, q: '', sort: 'household', dir: 'asc', page: 1, size: 10 };
@@ -29,12 +31,30 @@ const URL_ALLOWED = {
   blood: BLOOD_OPTS,
   membership: MEMBERSHIP_OPTS.map(([v]) => v),
   census: CENSUS_OPTS.map(([v]) => v),
-  sort: ['name', 'household', 'age', 'status'],
+  practice: PRACTICE_OPTS.map(([v]) => v),
+  sort: ['name', 'household', 'age', 'status', 'practice'],
   dir: ['asc', 'desc'],
   size: [10, 20, 50],
 };
 
 const fullName = (m) => [m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ');
+
+/** "Aktibo · 82 ↑ 6": the member's Practicing Catholic level, score and change since the last census. */
+function PracticeBadge({ m }) {
+  if (!m.practice_level) return <span className="text-[13px] text-parish-muted">—</span>;
+  const rated = isRated(m.practice_level);
+  const trend = trendText(m.practice_trend);
+  const title = [PRACTICE_LEVEL_HELP[m.practice_level], practiceSourceText(m), trend && `${trend} since the census before`].filter(Boolean).join('. ');
+  return (
+    <span className="inline-flex items-center gap-1.5" title={title}>
+      <Badge tone={PRACTICE_TONES[m.practice_level]}>
+        {m.practice_level}{rated && m.practice_score != null ? ` · ${Math.round(m.practice_score)}` : ''}
+      </Badge>
+      {trend && <span className={`text-[11.5px] font-bold ${m.practice_trend > 0 ? 'text-parish-ok' : 'text-parish-error'}`}>{trend}</span>}
+      {rated && m.practice_source === 'household' && <span className="text-[11px] text-parish-muted" aria-label="household estimate">est.</span>}
+    </span>
+  );
+}
 
 export default function Members() {
   const toast = useToast();
@@ -97,6 +117,7 @@ export default function Members() {
     age: { label: 'Age', options: [...AGE_OPTS, ...DASHBOARD_AGE_OPTS.filter(([v]) => v === filters.age).map(([v, t]) => [v, `Age ${t}`])] },
     blood: { label: 'Blood type', options: BLOOD_OPTS.map((b) => [b, b === 'All' ? 'All blood types' : b]) },
     census: { label: 'Census', options: CENSUS_OPTS },
+    practice: { label: 'Practicing Catholic', options: PRACTICE_OPTS },
   };
   const select = (key) => (
     <FilterSelect key={key} aria-label={FILTERS[key].label} value={filters[key]} onChange={(e) => setFilter(key, e.target.value)}>
@@ -197,7 +218,7 @@ export default function Members() {
         )}
 
         <DataTable
-          minWidth={800}
+          minWidth={960}
           columns={[
             { key: 'select', className: 'w-8 pr-0', header: <Checkbox checked={allSelected} disabled={!rows.length} onChange={() => setSelected(allSelected ? new Set() : new Set(rows.map((m) => m.id)))} aria-label="Select every member on this page" /> },
             { label: 'Member', key: 'name', onSort: () => sort('name'), arrow: arrow('name') },
@@ -205,6 +226,7 @@ export default function Members() {
             { label: 'Relationship' },
             { label: 'Age', key: 'age', onSort: () => sort('age'), arrow: arrow('age') },
             { label: 'Civil' },
+            { label: 'Practicing Catholic', key: 'practice', onSort: () => sort('practice'), arrow: arrow('practice') },
             { label: 'Status', key: 'status', onSort: () => sort('status'), arrow: arrow('status') },
           ]}
           footer={footer}
@@ -225,7 +247,10 @@ export default function Members() {
                             {[m.household_name, bis(RELATIONSHIP_LABELS, m.relationship), ageFromDob(m.dob) != null && `${ageFromDob(m.dob)} yrs`].filter(Boolean).join(' · ')}
                           </div>
                         </div>
-                        {m.membership_status && <Badge tone={STATUS_TONES[m.membership_status]}>{m.membership_status}</Badge>}
+                        <div className="flex flex-col items-end gap-1">
+                          {m.membership_status && <Badge tone={STATUS_TONES[m.membership_status]}>{m.membership_status}</Badge>}
+                          <PracticeBadge m={m} />
+                        </div>
                       </button>
                     </li>
                   ))}
@@ -237,7 +262,7 @@ export default function Members() {
           {groups.map((g, gi) => (
             <React.Fragment key={g.gkk || 'no-gkk'}>
               <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
-                <th scope="colgroup" colSpan={7} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
+                <th scope="colgroup" colSpan={8} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
                   {g.gkk || 'No GKK'}
                 </th>
               </tr>
@@ -260,6 +285,7 @@ export default function Members() {
                     <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</td>
                     <td className="px-4 py-3 text-[14px] text-parish-text3">{ageFromDob(m.dob) ?? '—'}</td>
                     <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{bis(CIVIL_STATUS_LABELS, m.civil_status) || '—'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap"><PracticeBadge m={m} /></td>
                     <td className="px-4 py-3"><StatusPill status={m.household_status} /></td>
                   </tr>
                 );

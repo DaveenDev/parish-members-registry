@@ -8,6 +8,7 @@ import { useConfirm } from './ConfirmDialog.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
 import { STATUS_TONES } from '../lib/census.js';
+import { PRACTICE_MAX, PRACTICE_TONES, PRACTICE_LEVEL_HELP, expectedSacraments, isRated, scoreMember, trendText, practiceSourceText } from '../lib/practice.js';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
 import ActivityList from './ActivityList.jsx';
@@ -270,6 +271,9 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               </SacRow>
             </div>
 
+            <SectionLabel>Practicing Catholic status</SectionLabel>
+            <PracticeBreakdown member={member} history={censusHistory} />
+
             <SectionLabel>Parish census</SectionLabel>
             <div className="mb-5">
               <div className="flex items-center gap-2 text-[13.5px] text-parish-text2 mb-2">
@@ -330,6 +334,70 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
           onClose={() => setVerifying(null)}
           onChanged={() => { loadVerifications(); onChanged && onChanged(); }}
         />
+      )}
+    </div>
+  );
+}
+
+/**
+ * How the member's Practicing Catholic score was made — participation,
+ * sacraments for their age, involvement — and the score at each census.
+ * The numbers come from the members view (0017); the history re-scores each
+ * census's answers with lib/practice.js.
+ */
+function PracticeBreakdown({ member, history }) {
+  if (!('practice_level' in member)) {
+    return <div className="mb-5 text-[13px] text-parish-muted">Run the 0017_practicing_status.sql migration in Supabase to see this member's status.</div>;
+  }
+  const level = member.practice_level;
+  if (!level) return <div className="mb-5 text-[13px] text-parish-muted">Not rated: no longer on the household roster.</div>;
+  const rated = isRated(level);
+  const age = member.age ?? null;
+  const expected = expectedSacraments(age).map((s) => ({ baptism: 'Baptism', communion: 'First Communion', confirmation: 'Confirmation' }[s]));
+  const parts = [
+    ['Participation', member.practice_participation, PRACTICE_MAX.participation, practiceSourceText(member)],
+    ['Sacraments for their age', member.practice_sacraments, PRACTICE_MAX.sacraments, `Expected: ${expected.join(', ')}`],
+    ['Involvement', member.practice_involvement, PRACTICE_MAX.involvement, 'A ministry, organization, or GKK / parish role'],
+  ];
+  const past = history
+    .map((r) => ({ r, s: scoreMember(member, r.participation, age) }))
+    .filter(({ s }) => s.participation != null);
+  const trend = trendText(member.practice_trend);
+
+  return (
+    <div className="mb-5">
+      <div className="flex items-center gap-2 flex-wrap text-[13.5px] text-parish-text2 mb-2.5">
+        <Badge tone={PRACTICE_TONES[level]}>{level}{rated && member.practice_score != null ? ` · ${Math.round(member.practice_score)} / 100` : ''}</Badge>
+        <span className="text-[12.5px] text-parish-muted">{PRACTICE_LEVEL_HELP[level]}</span>
+        {trend && <span className={`text-[12.5px] font-bold ${member.practice_trend > 0 ? 'text-parish-ok' : 'text-parish-error'}`}>{trend} since the census before</span>}
+      </div>
+      {(rated || level === 'Wala pa matino') && (
+        <div className="flex flex-col gap-2 mb-2.5">
+          {parts.map(([label, value, max, note]) => (
+            <div key={label}>
+              <div className="flex justify-between text-[12.5px] mb-0.5">
+                <span className="font-semibold text-parish-navy">{label}</span>
+                <span className="text-parish-text2">{value == null ? '—' : `${Math.round(value)} / ${max}`}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-parish-sunk overflow-hidden" aria-hidden>
+                <div className="h-full rounded-full bg-parish-blue" style={{ width: `${value == null ? 0 : (100 * value) / max}%` }} />
+              </div>
+              <div className="text-[11.5px] text-parish-muted mt-0.5">{note}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      {past.length > 0 && (
+        <ul className="list-none m-0 p-0 flex flex-wrap gap-1.5" aria-label="Score at each census">
+          {past.map(({ r, s }) => (
+            <li key={r.cycle_id} className="text-[12px] text-parish-text3 bg-parish-field border border-parish-line2 rounded-lg px-2.5 py-1">
+              <span className="font-semibold text-parish-navy">{r.census_cycles?.label}</span>: {s.level}{isRated(s.level) ? ` · ${Math.round(s.score)}` : ''}
+            </li>
+          ))}
+        </ul>
+      )}
+      {member.membership_status && (
+        <div className="text-[11.5px] text-parish-muted mt-2">The census status staff chose ({member.membership_status}) is their own judgement; where it differs from the score, go by the census status.</div>
       )}
     </div>
   );

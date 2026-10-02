@@ -159,8 +159,9 @@ describe('calendar', () => {
     assert.deepEqual(massesOnDay(masses, '2026-10-04').map((m) => m.id), [sunday.id]);
   });
 
-  test('massShortLabel: "Misa" for the usual Masses, the feast for a Special Mass', () => {
-    assert.equal(massShortLabel(sunday), 'Misa');
+  test('massShortLabel: the type for the usual Masses, the feast for a Special Mass', () => {
+    assert.equal(massShortLabel(sunday), 'Regular Mass');
+    assert.equal(massShortLabel(daily), 'Daily Mass');
     assert.equal(massShortLabel(feast), 'Our Lady of the Rosary');
     assert.equal(massShortLabel(row({ kind: 'Confession' })), 'Kumpisal');
   });

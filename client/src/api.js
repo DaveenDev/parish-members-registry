@@ -271,7 +271,7 @@ export const api = {
     let q = applyMemberFilters(supabase.from('members_with_household').select('*', { count: 'exact' }), params);
 
     const ascending = sortDir !== 'desc';
-    const sortCol = { name: 'first_name', household: 'household_name', age: 'age', status: 'household_status', blood: 'blood_type' }[sortKey] || 'first_name';
+    const sortCol = { name: 'first_name', household: 'household_name', age: 'age', status: 'household_status', blood: 'blood_type', practice: 'practice_score' }[sortKey] || 'first_name';
     // Members without a GKK sort last, under their own "No GKK" heading.
     if (groupBy === 'gkk') q = q.order('household_gkk', { ascending: true, nullsFirst: false });
     q = q.order(sortCol, { ascending, nullsFirst: false });
@@ -287,6 +287,8 @@ export const api = {
     q = q.order('id', { ascending: true }).range(from, to);
 
     const { data, error, count } = await q;
+    // Filtering or sorting on the status before 0017 is run: say which file adds it.
+    if (error && /practice_/.test(error.message || '')) throw new Error('Run the 0017_practicing_status.sql migration in Supabase to use the Practicing Catholic status');
     if (error) throw mapError(error);
     return { rows: data, total: count, page, pageSize };
   },
@@ -1141,6 +1143,8 @@ function applyMemberFilters(q, params = {}) {
     groupColumn,
     // 'Any' = members holding any Responsibility in Parish; otherwise one position.
     parishRole = 'All',
+    // A Practicing Catholic level (0017), e.g. 'Aktibo'.
+    practice = 'All',
   } = params;
   const SACRAMENT_COLUMNS = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' };
 
@@ -1172,6 +1176,7 @@ function applyMemberFilters(q, params = {}) {
     q = q.or(`ministries.cs.{"${escaped}"},organizations.cs.{"${escaped}"}`);
   }
 
+  if (practice !== 'All') q = q.eq('practice_level', practice);
   if (parishRole === 'Any') q = q.not('parish_role', 'is', null);
   else if (parishRole !== 'All') q = q.eq('parish_role', parishRole);
 
