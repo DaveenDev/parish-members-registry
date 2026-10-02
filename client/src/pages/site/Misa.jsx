@@ -10,7 +10,7 @@ import {
 import { EVENT_TYPES, massType, todayIso } from '../../lib/website.js';
 import { listState, useAnnouncements, useEvents, useMassSchedule, useSacramentGuides } from './data.js';
 
-/** Misa ug Kalihokan: the weekly Mass schedule (with the sacrament guides below it) and the events agenda. */
+/** Misa ug Sakramento: the weekly Mass schedule (with the sacrament guides below it) and the events agenda. */
 export default function Misa() {
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'kalendaryo' ? 'events' : 'sched';
@@ -18,7 +18,7 @@ export default function Misa() {
 
   return (
     <main className={PAGE}>
-      <PageHeader eyebrow="Misa ug Kalihokan" title="Iskedyul sa parokya">
+      <PageHeader eyebrow="Misa ug Sakramento" title="Iskedyul sa parokya">
         <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={setView} />
       </PageHeader>
       {view === 'sched' ? (

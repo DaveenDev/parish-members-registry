@@ -28,7 +28,7 @@ export default function ArticlesTab() {
 
   return (
     <>
-      <TabIntro text="Articles about the parish's history and the activities it held. Each can have a cover photo and a gallery; they show under Mga Pahibalo on the website.">
+      <TabIntro text="Articles about the parish's history and the activities it held. Each can have a cover photo and a gallery; they show under Pahibalo ug Kalihokan on the website.">
         <AddButton onClick={() => setEditing({ title: '', tag: 'Parish', held_on: todayIso(), place: '', summary: '', body: '', photo_url: '', photos: [], published: false })}>
           New article
         </AddButton>

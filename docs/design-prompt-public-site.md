@@ -40,8 +40,8 @@ Design a public navigation that works on mobile (bottom tab bar or compact heade
 | Section | Pages |
 |---|---|
 | **Home** (`/`) | Hero, "Parish at a glance", next Masses today, latest announcements, upcoming events, quick links |
-| **Misa ug Kalihokan** | Mass & confession schedule, Events calendar |
-| **Mga Pahibalo** | Announcements list + detail, Weekly bulletin |
+| **Misa ug Sakramento** | Mass & confession schedule, Events calendar |
+| **Pahibalo ug Kalihokan** | Announcements list + detail, Weekly bulletin |
 | **Mga Sakramento** | Requirements & steps per sacrament, Sacrament milestones |
 | **Komunidad** | GKK directory + detail, Ministries & organizations + detail, Parish organization structure, Census progress |
 | **Mga Serbisyo** | Check my registration, Certificate request, Prayer request, Blood donor call |

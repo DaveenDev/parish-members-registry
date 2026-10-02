@@ -29,12 +29,13 @@ const TABS = [
 const ROOTS = TABS.map((t) => t.to);
 
 // Desktop top navigation: the same sections with their full names, plus Kontak.
+// `short` is shown on small laptops (under 1280px), where the full names don't fit.
 const DESK_NAV = [
   { to: '/', label: 'Home', match: (p) => p === '/' },
-  { to: '/misa', label: 'Misa ug Kalihokan', match: (p) => p.startsWith('/misa') },
-  { to: '/pahibalo', label: 'Mga Pahibalo', match: (p) => p.startsWith('/pahibalo') },
+  { to: '/misa', label: 'Misa ug Sakramento', short: 'Misa', match: (p) => p.startsWith('/misa') },
+  { to: '/pahibalo', label: 'Pahibalo ug Kalihokan', short: 'Pahibalo', match: (p) => p.startsWith('/pahibalo') },
   { to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad') },
-  { to: '/serbisyo', label: 'Mga Serbisyo', match: (p) => p.startsWith('/serbisyo') },
+  { to: '/serbisyo', label: 'Mga Serbisyo', short: 'Serbisyo', match: (p) => p.startsWith('/serbisyo') },
   { to: '/kontak', label: 'Kontak', match: (p) => p.startsWith('/kontak') },
 ];
 
@@ -158,7 +159,7 @@ export default function SiteLayout() {
 function DesktopHeader({ pathname, logo }) {
   return (
     <header className="hidden lg:block sticky top-0 z-20 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.96)' }}>
-      <div className="max-w-[1240px] mx-auto px-6 h-[76px] flex items-center gap-7">
+      <div className="max-w-[1240px] mx-auto px-6 h-[76px] flex items-center gap-4 xl:gap-7">
         <Link to="/" className="flex items-center gap-2.5 flex-none">
           <ParishMark size={36} logo={logo} />
           <span className="leading-[1.05]">
@@ -174,10 +175,10 @@ function DesktopHeader({ pathname, logo }) {
                 key={t.to}
                 to={t.to}
                 aria-current={on ? 'page' : undefined}
-                className={`relative flex items-center px-[13px] text-[15.5px] whitespace-nowrap hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`}
+                className={`relative flex items-center px-[10px] xl:px-[13px] text-[15.5px] whitespace-nowrap hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`}
               >
-                {t.label}
-                <span className="absolute left-[13px] right-[13px] -bottom-px h-[3px] rounded-t-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
+                {t.short ? <><span className="xl:hidden">{t.short}</span><span className="hidden xl:inline">{t.label}</span></> : t.label}
+                <span className="absolute left-[10px] right-[10px] xl:left-[13px] xl:right-[13px] -bottom-px h-[3px] rounded-t-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
               </NavLink>
             );
           })}

@@ -10,7 +10,7 @@ const CATEGORY_FILTERS = [['all', 'Tanan'], ['Parish', 'Parokya'], ['GKK', 'GKK'
 /** Desktop columns for `n` cards: one fills the row, two split it, three or more go three across. */
 const cols = (n) => (n <= 1 ? 'lg:grid-cols-1' : n === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3');
 
-/** Mga Pahibalo: announcements by category, blog articles, and the weekly bulletin archive. */
+/** Pahibalo ug Kalihokan: announcements by category, blog articles, and the weekly bulletin archive. */
 export default function Pahibalo() {
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'bulletin' ? 'bulletin' : 'list';
@@ -18,7 +18,7 @@ export default function Pahibalo() {
 
   return (
     <main className={PAGE}>
-      <PageHeader eyebrow="Mga Pahibalo" title="Balita sa parokya">
+      <PageHeader eyebrow="Pahibalo ug Kalihokan" title="Balita sa parokya">
         <Segmented label="Pahibalo" options={[['list', 'Mga Pahibalo'], ['bulletin', 'Bulletin']]} value={view} onChange={setView} />
       </PageHeader>
       {view === 'list' ? <Announcements /> : <Bulletins />}
