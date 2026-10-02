@@ -43,7 +43,7 @@ export default function Serbisyo() {
       <h2 className="m-0 mt-7 mb-3 lg:mt-10 lg:mb-4 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy">Ubang mga serbisyo</h2>
       <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:gap-4">
         <ServiceLink to="/serbisyo/hangyo/sertipiko" icon="doc" title="Pangayo og sertipiko" sub="Bunyag, Kumpil, Kasal" />
-        <ServiceLink to="/serbisyo/hangyo/pag-ampo" icon="heart" title="Pangayo og pag-ampo" sub="Pribado, para sa kura paroko" />
+        <ServiceLink to="/serbisyo/hangyo/pagdihog" icon="cal" title="Pangayo ug Dihog Iskedyul" sub="Pagbisita sa pari aron dihogan ang masakiton" />
         <ServiceLink to="/serbisyo/dugo" icon="drop" title="Blood donor call" sub="Nanginahanglan o mo-donate" red />
         <ServiceLink to="/kontak" icon="phone" title="Kontak ug oras sa opisina" sub="Tawag, text, mapa" />
       </div>

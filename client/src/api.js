@@ -755,7 +755,6 @@ export const api = {
   submitCertificateRequest: (payload) => publicRpc('submit_certificate_request', { payload }),
   /** Status of a certificate request by reference number, or null if not found. */
   certificateRequestStatus: (refNo) => publicRpc('certificate_request_status', { p_ref: refNo }),
-  submitPrayerRequest: (payload) => publicRpc('submit_prayer_request', { payload }),
   registerBloodDonor: (payload) => publicRpc('register_blood_donor', { payload }),
   submitBloodRequest: (payload) => publicRpc('submit_blood_request', { payload }),
   /** Ask to avail of OCIA or the Anointing of the Sick (0032); payload.sacrament says which. */
@@ -764,8 +763,6 @@ export const api = {
   sacramentRequestStatus: (refNo) => publicRpc('sacrament_request_status', { p_ref: refNo }),
   /** Open blood calls staff chose to show: blood type, units, hospital, date. */
   publicBloodCalls: () => publicRpc('public_blood_calls'),
-  /** Prayer intentions staff chose to show (requester agreed), last 30 days. */
-  publicPrayerIntentions: () => publicRpc('public_prayer_intentions'),
 
   // ---- public website reads (0011 tables, 0013 functions) -------------
   // Published items only, even for a signed-in staff member browsing the site.

@@ -50,27 +50,6 @@ export const FORMS = {
     submit: (v) => api.submitCertificateRequest(v),
   },
 
-  'pag-ampo': {
-    title: 'Pangayo og Pag-ampo',
-    short: 'Pag-ampo',
-    quiet: true,
-    intro: 'Isulat ang inyong intensyon. Ampoan kini sa Misa ug sa prayer ministry.',
-    who: 'Ang kura paroko ug ang prayer ministry lang ang mobasa niini.',
-    steps: [
-      { title: 'Ang inyong intensyon', fields: [
-        { k: 'intentionType', type: 'choice', req: true, label: 'Klase sa intensyon', opts: opts([['For the sick', 'Para sa masakiton'], ['Thanksgiving', 'Pasalamat'], ['For the departed', 'Para sa namatay'], ['Special intention', 'Uban pa']]) },
-        { k: 'intention', type: 'area', req: true, label: 'Intensyon', ph: 'Isulat dinhi…' },
-        { k: 'forName', type: 'text', label: 'Para kang kinsa (opsyonal)' },
-        { k: 'requesterName', type: 'text', label: 'Imong ngalan (opsyonal)', hint: 'Pwede ra nga walay ngalan.' },
-        mobile('requesterMobile', 'Mobile number (opsyonal)', false),
-        { k: 'allowPublic', type: 'choice', label: 'Ipahibalo sa publiko?', opts: opts([['no', 'Dili, pribado lang'], ['yes', 'Oo, pwede ipakita sa website']]), def: 'no' },
-        consent,
-      ] },
-    ],
-    next: ['Ipaabot namo kini sa kura paroko.', 'Iapil kini sa pag-ampo sa sunod nga Misa.'],
-    submit: (v) => api.submitPrayerRequest({ ...v, allowPublic: v.allowPublic === 'yes' }),
-  },
-
   // "Request to avail" on the Misa ug Sakramento page (0032 submit_sacrament_request).
   ocia: {
     title: 'Moapil sa OCIA',
@@ -100,9 +79,10 @@ export const FORMS = {
     submit: (v) => api.submitSacramentRequest({ ...v, sacrament: 'ocia' }),
   },
 
+  // Also "Pangayo ug Dihog Iskedyul" on Mga Serbisyo, in place of the old prayer request.
   pagdihog: {
-    title: 'Pagdihog sa Masakiton',
-    short: 'Pagdihog sa Masakiton',
+    title: 'Pangayo ug Dihog Iskedyul',
+    short: 'Dihog Iskedyul',
     intro: 'Mangayo nga duawon sa pari ang masakiton o tigulang aron dihogan ug ampoan.',
     sickCall: true,
     who: 'Ang kawani sa opisina ug ang pari lang ang makakita niini.',

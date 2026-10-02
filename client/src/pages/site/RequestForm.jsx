@@ -56,6 +56,8 @@ function SickCallNote() {
 /** A request form: one step at a time, a review before sending, then the reference number. */
 export default function RequestForm() {
   const { form: formId } = useParams();
+  // The prayer request form was replaced by the anointing schedule request.
+  if (formId === 'pag-ampo') return <Navigate to="/serbisyo/hangyo/pagdihog" replace />;
   const F = FORMS[formId];
   if (!F) return <Navigate to="/serbisyo" replace />;
   return <FormFlow key={formId} F={F} />;
@@ -133,18 +135,8 @@ function FormFlow({ F }) {
       <div className="h-[5px] bg-[#eaddc2] rounded-full overflow-hidden mb-4">
         <div className="h-full rounded-full transition-[width] duration-300" style={{ width: pct, background: 'linear-gradient(90deg,var(--p-blue),var(--p-gold))' }} />
       </div>
-      {F.quiet ? (
-        <div className="text-center px-2.5 pt-1 pb-2.5">
-          <Icon name="cross" size={34} className="text-parish-gold" />
-          <h1 className="font-serif font-medium text-[30px] lg:text-[40px] leading-[1.1] lg:leading-[1.08] mt-1 mb-1.5 text-parish-navy">{F.title}</h1>
-          <p className="m-0 text-[15.5px] leading-[1.55] text-[#4d4636]">{F.intro}</p>
-        </div>
-      ) : (
-        <>
-          <h1 className="font-serif font-semibold text-[30px] lg:text-[40px] leading-[1.1] lg:leading-[1.08] m-0 mb-1 text-parish-navy">{F.title}</h1>
-          <p className="m-0 text-[15px] leading-normal text-[#4d4636]">{F.intro}</p>
-        </>
-      )}
+      <h1 className="font-serif font-semibold text-[30px] lg:text-[40px] leading-[1.1] lg:leading-[1.08] m-0 mb-1 text-parish-navy">{F.title}</h1>
+      <p className="m-0 text-[15px] leading-normal text-[#4d4636]">{F.intro}</p>
       <div className="flex gap-2 items-start text-[13.5px] leading-[1.45] text-[#4d4636] mt-3 mb-[18px]">
         <Icon name="lock" size={16} className="mt-px text-parish-blue" /><span>{F.who}</span>
       </div>
