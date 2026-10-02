@@ -4,7 +4,7 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, Eyebrow, INNER, PAGE, PageTitle, Skeletons } from '../../components/site/kit.jsx';
 import { phoneHref } from '../../lib/requests.js';
 import { officeHourRows, officeOpenNow } from '../../lib/site.js';
-import { PARISH_ADDRESS, useSiteTitle } from './SiteLayout.jsx';
+import { PARISH_ADDRESS, PARISH_MAP_URL, useSiteTitle } from './SiteLayout.jsx';
 import { useOffice } from './data.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
@@ -55,9 +55,8 @@ export function Kontak() {
   const rows = officeHourRows(o.office_hours);
   const open = officeOpenNow(o.office_hours);
   const mobile = o.mobile || o.contact;
-  const mapUrl = o.map_url
-    || (o.latitude != null && o.longitude != null ? `https://www.google.com/maps/search/?api=1&query=${o.latitude},${o.longitude}` : '')
-    || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(o.address || PARISH_ADDRESS)}`;
+  // A link saved in admin wins; otherwise the church's Google Maps page.
+  const mapUrl = o.map_url || PARISH_MAP_URL;
 
   if (q.loading) return <main className={`${INNER} lg:max-w-[1240px]`}><Skeletons n={3} h={120} /></main>;
 
