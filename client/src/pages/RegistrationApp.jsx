@@ -731,7 +731,7 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
       </Field>
       <Field label="Adlaw sa pagkatawo (Birthday)" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
       <Field label="Lugar sa pagkatawo"><TextInput placeholder="Asa gipanganak" value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
-      <Field label="Tribu"><TribeSelect placeholder="Pili…" otherLabel="Uban pa…" value={mv.tribe} onChange={(v) => onField(mv.mi, 'tribe', v)} /></Field>
+      <Field label="Tribu"><TribeSelect placeholder="Pili…" value={mv.tribe} onChange={(v) => onField(mv.mi, 'tribe', v)} /></Field>
       <Field label="Kahimtang sibil (Civil status)" required error={mv.err.civilStatus}>
         <Select value={mv.civilStatus} onChange={set('civilStatus')}>
           <option value="">Pili…</option>

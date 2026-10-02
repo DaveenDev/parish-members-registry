@@ -6,7 +6,7 @@ import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSe
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
-import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
+import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS, BLOOD_UNKNOWN_LABEL } from '../lib/bisaya.js';
 import { STATUS_TONES } from '../lib/census.js';
 import { PRACTICE_MAX, PRACTICE_TONES, PRACTICE_LEVEL_HELP, expectedSacraments, isRated, scoreMember, trendText, practiceSourceText } from '../lib/practice.js';
 import { useAuth } from '../AuthContext.jsx';
@@ -217,7 +217,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               <Field label="Occupation"><TextInput value={member.occupation || ''} onChange={(e) => set('occupation', e.target.value)} /></Field>
               <Field label="Blood type">
                 <Select value={member.blood_type || ''} onChange={(e) => set('blood_type', e.target.value)}>
-                  <option value="">Unknown</option>{BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
+                  <option value="">{BLOOD_UNKNOWN_LABEL}</option>{BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
                 </Select>
               </Field>
               <Field label="Responsibility in GKK"><ComboInput placeholder="Pick or type a role" options={GKK_ROLES} value={member.gkk_role} onChange={(v) => set('gkk_role', v)} /></Field>

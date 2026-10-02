@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, WEDDING_TYPES } from '../src/constants.js';
+import { RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, WEDDING_TYPES, LEGACY_MAT_TYPES } from '../src/constants.js';
 import {
   RELATIONSHIP_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, SEX_LABELS, bis, serverErrorInBisaya,
 } from '../src/lib/bisaya.js';
@@ -14,7 +14,7 @@ describe('Bisaya labels', () => {
       ['RELATIONSHIPS', RELATIONSHIPS, RELATIONSHIP_LABELS],
       ['CIVIL_STATUSES', CIVIL_STATUSES, CIVIL_STATUS_LABELS],
       ['RELIGIONS', RELIGIONS, RELIGION_LABELS],
-      ['WEDDING_TYPES', WEDDING_TYPES, WEDDING_TYPE_LABELS],
+      ['WEDDING_TYPES', [...WEDDING_TYPES, ...LEGACY_MAT_TYPES], WEDDING_TYPE_LABELS],
       ['sex', ['Male', 'Female'], SEX_LABELS],
     ]) {
       for (const value of values) {

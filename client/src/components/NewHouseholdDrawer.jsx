@@ -5,7 +5,7 @@ import ParticipationSurvey, { ParticipationReview } from './ParticipationSurvey.
 import { useHouseholdNameTaken } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { syncSpouses, weddingPartners, toPayloadMember, WEDDING_FIELDS } from '../lib/household.js';
-import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS } from '../lib/bisaya.js';
+import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS, BLOOD_UNKNOWN_LABEL } from '../lib/bisaya.js';
 import {
   blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES, HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate,
 } from '../constants.js';
@@ -440,7 +440,7 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
       </Field>
       <Field label="Blood type">
         <Select value={mv.bloodType} onChange={set('bloodType')}>
-          <option value="">Unknown</option>
+          <option value="">{BLOOD_UNKNOWN_LABEL}</option>
           {BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
         </Select>
       </Field>

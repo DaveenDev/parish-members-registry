@@ -1,5 +1,6 @@
 import React, { useId, useRef, useState } from 'react';
 import { TRIBES, FAMILY_GROUPINGS } from '../constants.js';
+import { TRIBE_OTHER_LABEL } from '../lib/bisaya.js';
 
 /**
  * Label + control + error. The label is linked to the control so tapping it
@@ -134,7 +135,7 @@ const OTHER_TRIBE = '__other__';
  * `onChange` receives the tribe string. A saved value that isn't on the list
  * opens straight into "Other…" so older free-text entries still show.
  */
-export function TribeSelect({ value, onChange, placeholder = 'Tribu', otherLabel = 'Other…', ...rest }) {
+export function TribeSelect({ value, onChange, placeholder = 'Tribu', otherLabel = TRIBE_OTHER_LABEL, ...rest }) {
   const current = value || '';
   const known = TRIBES.includes(current);
   const [otherChosen, setOtherChosen] = useState(false);

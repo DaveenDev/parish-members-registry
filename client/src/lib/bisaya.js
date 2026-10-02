@@ -44,7 +44,15 @@ export const WEDDING_TYPE_LABELS = {
   'Catholic Marriage': 'Kasal sa Simbahang Katoliko',
   'Civil Wedding': 'Kasal sa Huwes (Civil)',
   'Other Sect Wedding': 'Kasal sa Laing Relihiyon',
+  // Older records from before the wedding-type question (LEGACY_MAT_TYPES).
+  Catholic: 'Kasal sa Simbahan (daan nga rekord)',
+  Convalidation: 'Gi-convalidate nga Kasal',
 };
+
+// Dropdown choices with no stored value of their own: "no blood type on file"
+// and the Tribe list's free-text option.
+export const BLOOD_UNKNOWN_LABEL = 'Wala mahibal-i';
+export const TRIBE_OTHER_LABEL = 'Uban pa…';
 
 export const VOLUNTEER_LABELS = {
   Yes: 'Oo, malipayon',

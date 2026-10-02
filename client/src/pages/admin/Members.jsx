@@ -6,7 +6,7 @@ import { ageFromDob, CIVIL_STATUSES, AGE_OPTS, DASHBOARD_AGE_OPTS } from '../../
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useDebounced, useUrlState } from '../../hooks.js';
 import { groupByGkk } from '../../lib/household.js';
-import { bis, RELATIONSHIP_LABELS, CIVIL_STATUS_LABELS } from '../../lib/bisaya.js';
+import { bis, RELATIONSHIP_LABELS, CIVIL_STATUS_LABELS, BLOOD_UNKNOWN_LABEL } from '../../lib/bisaya.js';
 import { MEMBERSHIP_STATUSES, STATUS_TONES } from '../../lib/census.js';
 import { PRACTICE_LEVELS, PRACTICE_LEVEL_HELP, PRACTICE_TONES, isRated, trendText, practiceSourceText } from '../../lib/practice.js';
 import { useToast } from '../../ToastContext.jsx';
@@ -115,7 +115,7 @@ export default function Members() {
     civil: { label: 'Civil status', options: [['All', 'All civil status'], ...CIVIL_STATUSES.map((c) => [c, bis(CIVIL_STATUS_LABELS, c)])] },
     ministry: { label: 'Ministry or organization', options: [['All', 'Any ministry / org'], ...groupOptions.map((g) => [g, g])] },
     age: { label: 'Age', options: [...AGE_OPTS, ...DASHBOARD_AGE_OPTS.filter(([v]) => v === filters.age).map(([v, t]) => [v, `Age ${t}`])] },
-    blood: { label: 'Blood type', options: BLOOD_OPTS.map((b) => [b, b === 'All' ? 'All blood types' : b]) },
+    blood: { label: 'Blood type', options: BLOOD_OPTS.map((b) => [b, b === 'All' ? 'All blood types' : b === 'Unknown' ? BLOOD_UNKNOWN_LABEL : b]) },
     census: { label: 'Census', options: CENSUS_OPTS },
     practice: { label: 'Practicing Catholic', options: PRACTICE_OPTS },
   };
