@@ -24,7 +24,6 @@ export default function Home() {
   const portal = usePortalStatus().data;
   const census = useCensusProgress();
   const censusOpen = !!census.data?.open;
-  const articles = listState(useArticles());
   const office = useOffice().data;
   const [dismissed, setDismissed] = useState(readDismissed);
   const hero = usePublicData('heroImage', api.publicParishHeroImage).data || null;
@@ -32,8 +31,6 @@ export default function Home() {
   const urgent = ann.rows.find((a) => a.urgent && !dismissed.includes(a.id));
   // The two newest by start date, urgent and pinned ones included.
   const latest = [...ann.rows].sort((a, b) => b.publish_on.localeCompare(a.publish_on) || b.id - a.id).slice(0, 2);
-  // A lone announcement gets the newest article beside it so the row isn't half empty.
-  const pairedArticle = latest.length === 1 ? articles.rows[0] || null : null;
 
   function dismiss() {
     const next = [...dismissed, urgent.id];
@@ -116,9 +113,8 @@ export default function Home() {
         ) : !latest.length ? (
           <p className="m-0 text-white/75 text-[15px]">Wala pay pahibalo karong semanaha.</p>
         ) : (
-          <div className={`flex flex-col gap-2.5 lg:grid lg:gap-3.5 lg:items-start ${latest.length > 1 || pairedArticle ? 'lg:grid-cols-2' : 'lg:grid-cols-1 lg:max-w-[560px]'}`}>
+          <div className={`flex flex-col gap-2.5 lg:grid lg:gap-3.5 lg:items-start ${latest.length > 1 ? 'lg:grid-cols-2' : 'lg:grid-cols-1 lg:max-w-[560px]'}`}>
             {latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}
-            {pairedArticle && <ArticleMiniCard a={pairedArticle} />}
           </div>
         )}
       </section>
@@ -145,6 +141,8 @@ export default function Home() {
 
       <ParishStats mass={mass} />
 
+      <LatestArticles />
+
       <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12">
         <h2 className="font-serif font-semibold text-[25px] lg:text-[30px] m-0 mb-2.5 lg:mb-3.5 text-parish-navy">Unsa ang imong kinahanglan?</h2>
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-3.5">
@@ -155,7 +153,6 @@ export default function Home() {
         </div>
       </section>
 
-      <LatestArticles skipId={pairedArticle?.id} />
 
       <div className="lg:hidden">
         <SiteFooter address={office?.address} />
@@ -323,12 +320,12 @@ function ParishStats({ mass }) {
  * The two newest blog articles, one row each: photo then text on the first,
  * text then photo on the second (stacked, photo first, on phones). A row
  * shows only when there's an article for it; the section hides while
- * loading, on error, or when there are none. `skipId` is an article already
- * shown beside the announcements, so it isn't repeated here.
+ * loading, on error, or when there are none. Sits between the parish totals
+ * and "Unsa ang imong kinahanglan?".
  */
-function LatestArticles({ skipId }) {
+function LatestArticles() {
   const q = listState(useArticles());
-  const rows = q.rows.filter((a) => a.id !== skipId).slice(0, 2);
+  const rows = q.rows.slice(0, 2);
   if (q.loading || q.error || !rows.length) return null;
   return (
     <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12">
@@ -337,20 +334,6 @@ function LatestArticles({ skipId }) {
         {rows.map((a, i) => <ArticleRow key={a.id} a={a} flip={i === 1} />)}
       </div>
     </section>
-  );
-}
-
-/** An article as a card the size of an announcement card, for the navy band. */
-function ArticleMiniCard({ a }) {
-  return (
-    <Link to={`/pahibalo/artikulo/${a.id}`} className="block w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)]">
-      <div className="flex gap-2 items-center mb-1.5 lg:mb-2">
-        <ArticleChip a={a} />
-        <span className="text-[13px] lg:text-[13.5px] text-parish-text2">Artikulo · {fmtShort(a.held_on)}</span>
-      </div>
-      <div className="font-serif font-bold leading-[1.2] lg:leading-[1.18] text-parish-navy text-[20px] lg:text-[23px] lg:mb-1.5">{a.title}</div>
-      {(a.summary || a.body) && <div className="hidden lg:block text-[15px] leading-normal text-[#4d4636]">{excerpt(a.summary || a.body)}</div>}
-    </Link>
   );
 }
 
