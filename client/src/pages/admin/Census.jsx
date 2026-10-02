@@ -336,8 +336,9 @@ function HouseholdsTab({ cycle, parish, refreshKey, onChanged }) {
             <td className="px-4 py-3 text-[14px] text-parish-text3">{r.members_confirmed} of {r.members_expected}</td>
             <td className="px-4 py-3">
               <div className="flex flex-wrap gap-1.5">
-                <Badge tone={PROGRESS_TONES[r.progress]}>{r.progress}</Badge>
-                {r.pending_update && <Badge tone="blue" title="The family sent an update online — see Online updates">Online update waiting</Badge>}
+                {/* "Not started" next to a waiting online update read as if the family's answers were lost. */}
+                {!(r.pending_update && r.progress === 'Not started') && <Badge tone={PROGRESS_TONES[r.progress]}>{r.progress}</Badge>}
+                {r.pending_update && <Badge tone="blue" title="The family sent their answers online. Approve them under Online updates to confirm the members.">Sent online · to review</Badge>}
               </div>
             </td>
             <td className="px-4 py-3">
