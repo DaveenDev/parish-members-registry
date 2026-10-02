@@ -156,7 +156,8 @@ function GkkDirectory() {
             {groups.map((grp) => (
               <div key={grp.area}>
                 <h2 className="m-0 mb-2 lg:mb-2.5 flex items-center gap-1.5 font-bold text-[13px] lg:text-[13.5px] tracking-[.1em] uppercase text-[#4d4636]"><Icon name="pin" size={15} />{grp.area}</h2>
-                <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-3 lg:gap-3.5">{grp.items.map((g) => <GkkCard key={g.name} g={g} />)}</div>
+                <div className="flex flex-col gap-2.5 lg:hidden">{grp.items.map((g) => <GkkCard key={g.name} g={g} />)}</div>
+                <GkkTable items={grp.items} />
               </div>
             ))}
           </div>
@@ -167,6 +168,54 @@ function GkkDirectory() {
 }
 
 const gkkPath = (name) => `/komunidad/gkk/${encodeURIComponent(name)}`;
+
+/** Desktop: one area's GKKs as a table; the GKK name opens its page. */
+function GkkTable({ items }) {
+  const th = 'text-left px-4 py-2.5 font-bold text-[12px] tracking-[.08em] uppercase text-[#4d4636]';
+  return (
+    <div className="hidden lg:block bg-parish-card border border-parish-border rounded-[18px] shadow-cardSm overflow-hidden">
+      <table className="w-full border-collapse">
+        <thead className="bg-parish-bg">
+          <tr>
+            <th scope="col" className={th}>GKK</th>
+            <th scope="col" className={th}>Purok / Sitio</th>
+            <th scope="col" className={`${th} whitespace-nowrap`}>Pamilya</th>
+            <th scope="col" className={th}>Iskedyul sa tigom</th>
+            <th scope="col" className={th}>Coordinator</th>
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((g) => (
+            <tr key={g.name} className="border-t border-[#f0e8d6] hover:bg-[#fbf7ef]">
+              <td className="px-4 py-3">
+                <Link to={gkkPath(g.name)} className="font-serif text-[18px] font-bold text-parish-navy hover:text-parish-blue">
+                  {g.patron} {g.area && <span className="text-parish-blue">-{g.area}</span>}
+                </Link>
+              </td>
+              <td className="px-4 py-3 text-[14px] text-parish-text2">{g.puroks || '—'}</td>
+              <td className="px-4 py-3 text-[14.5px] text-[#3f3b2f] whitespace-nowrap"><strong>{g.households ?? SMALL}</strong></td>
+              <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{g.meeting_schedule || '—'}</td>
+              <td className="px-4 py-3 text-[14px]">
+                {g.coordinator ? (
+                  <div className="flex items-center gap-2.5">
+                    <span className="font-semibold">{g.coordinator.name}</span>
+                    {g.coordinator.mobile && (
+                      <a href={`tel:${phoneHref(g.coordinator.mobile)}`} aria-label={`Tawagi si ${g.coordinator.name}`} className="w-8 h-8 rounded-lg border-[1.5px] border-[var(--p-blue-border)] text-parish-blue flex items-center justify-center flex-none">
+                        <Icon name="phone" size={16} />
+                      </a>
+                    )}
+                  </div>
+                ) : (
+                  <Link to="/kontak" className="font-semibold text-parish-blue underline">Pangutan-a ang opisina</Link>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 function GkkCard({ g }) {
   return (
