@@ -69,12 +69,13 @@ export function MessengerButton({ href, className = '' }) {
   );
 }
 
-export function SectionHead({ title, to, action, actionLg }) {
+/** A section title with an optional link on the right. `dark` is for sections on the navy band. */
+export function SectionHead({ title, to, action, actionLg, dark = false }) {
   return (
     <div className="flex items-baseline justify-between mb-2.5 lg:mb-3.5">
-      <h2 className="font-serif font-semibold text-[25px] lg:text-[30px] m-0 text-parish-navy">{title}</h2>
+      <h2 className={`font-serif font-semibold text-[25px] lg:text-[30px] m-0 ${dark ? 'text-white' : 'text-parish-navy'}`}>{title}</h2>
       {to && (
-        <Link to={to} className="min-h-[44px] inline-flex items-center font-bold text-[14.5px] lg:text-[15px] text-parish-blue">
+        <Link to={to} className={`min-h-[44px] inline-flex items-center font-bold text-[14.5px] lg:text-[15px] ${dark ? 'text-[var(--p-gold-light)] hover:underline' : 'text-parish-blue'}`}>
           {actionLg ? <><span className="lg:hidden">{action}</span><span className="hidden lg:inline">{actionLg}</span></> : action}
         </Link>
       )}

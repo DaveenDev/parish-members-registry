@@ -103,24 +103,26 @@ export default function Home() {
         <MassToday mass={mass} />
       </section>
 
-      <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-8 lg:items-start">
+      {/* A full-width navy band, like the census notice, so the page keeps one when no census is open. */}
+      <div className="mt-7 pb-7 bg-parish-navy lg:mt-12 lg:py-12">
+      <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-8 lg:items-start">
       <section className="px-3.5 pt-7 lg:p-0">
-        <SectionHead title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
+        <SectionHead dark title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
         {ann.loading ? <Skeletons n={2} h={104} /> : ann.error ? (
-          <p className="m-0 text-parish-error text-[15px]">Wala ma-load ang mga pahibalo.</p>
+          <p className="m-0 text-[#ffb4a8] text-[15px]">Wala ma-load ang mga pahibalo.</p>
         ) : !latest.length ? (
-          <p className="m-0 text-parish-text2 text-[15px]">Wala pay pahibalo karong semanaha.</p>
+          <p className="m-0 text-white/75 text-[15px]">Wala pay pahibalo karong semanaha.</p>
         ) : (
           <div className={`flex flex-col gap-2.5 lg:grid lg:gap-3.5 lg:items-start ${latest.length > 1 ? 'lg:grid-cols-2' : 'lg:grid-cols-1'}`}>{latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}</div>
         )}
       </section>
 
       <section className="px-3.5 pt-7 lg:p-0">
-        <SectionHead title="Umaabot nga kalihokan" to="/misa?view=kalendaryo" action="Kalendaryo" actionLg="Kalendaryo →" />
+        <SectionHead dark title="Umaabot nga kalihokan" to="/misa?view=kalendaryo" action="Kalendaryo" actionLg="Kalendaryo →" />
         {events.loading ? <Skeleton h={150} /> : events.error ? (
-          <p className="m-0 text-parish-error text-[15px]">Wala ma-load ang kalendaryo.</p>
+          <p className="m-0 text-[#ffb4a8] text-[15px]">Wala ma-load ang kalendaryo.</p>
         ) : events.empty ? (
-          <p className="m-0 text-parish-text2 text-[15px]">Walay kalihokan nga naka-iskedyul.</p>
+          <p className="m-0 text-white/75 text-[15px]">Walay kalihokan nga naka-iskedyul.</p>
         ) : (
           // Tinted blue so the events stand apart from the cream announcement cards.
           <div className="border rounded-2xl lg:rounded-[18px] overflow-hidden shadow-cardSm" style={{ background: 'var(--p-blue-tint)', borderColor: 'var(--p-blue-border)' }}>
@@ -128,6 +130,7 @@ export default function Home() {
           </div>
         )}
       </section>
+      </div>
       </div>
 
       <ParishStats mass={mass} />
