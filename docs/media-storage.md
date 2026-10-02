@@ -22,7 +22,15 @@ photos; picking a photo shows "Photo uploads aren't set up yet".
    Philippines among them) block r2.dev outright, so visitors on them see
    broken photos even though the files are in the bucket.
 
-   **Moving off r2.dev:** connect the custom domain to the bucket, run
+   **No domain of your own (e.g. free Vercel on `*.vercel.app`)?** Keep the
+   r2.dev subdomain enabled and let Vercel pass photos through: the `/media`
+   rewrite in [`client/vercel.json`](../client/vercel.json) fetches
+   `https://<site>/media/<key>` from the bucket's r2.dev address on Vercel's
+   servers, which providers don't block. Put your r2.dev address in that
+   rewrite and use `https://<your-site>.vercel.app/media` as the Public URL.
+
+   **Moving off r2.dev:** connect the custom domain to the bucket (or set up
+   the Vercel `/media` rewrite above), run
    [`0027_media_base_url_move.sql`](../supabase/migrations/0027_media_base_url_move.sql),
    then put the new address in **Parish Config → Photo storage → Public URL** and
    save. The photos stay in the bucket; every article link that starts with

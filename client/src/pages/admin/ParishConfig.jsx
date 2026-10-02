@@ -267,8 +267,9 @@ function PhotoStorageCard() {
               <Field label="Public URL"><TextInput value={form.publicBaseUrl} onChange={set('publicBaseUrl')} placeholder="https://media.yourparish.org" autoComplete="off" spellCheck={false} inputMode="url" /></Field>
               {/\.r2\.dev(\/|$)/i.test(form.publicBaseUrl.trim()) && (
                 <div className="mt-2 px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13px] font-medium">
-                  Some internet providers block r2.dev addresses, so visitors on them see broken photos. Connect a custom domain
-                  to the bucket and use it here; existing article photos switch over when you save.
+                  Some internet providers block r2.dev addresses, so visitors on them see broken photos. Use the website's own
+                  address with /media on the end (e.g. https://olgqp-registry.vercel.app/media, see docs/media-storage.md) or a
+                  custom domain; existing article photos switch over when you save.
                 </div>
               )}
             </div>
