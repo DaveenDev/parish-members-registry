@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import SacramentIcon from '../../components/SacramentIcon.jsx';
-import { DataState, EmptyNote, PAGE, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
+import { DataState, EmptyNote, Eyebrow, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
 import { EventCard, MassRow, eventTone } from '../../components/site/cards.jsx';
 import {
   BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, agendaDays, calendarMonths, eventsOnDay, fmtTime12, guideShortTitle,
@@ -11,39 +11,62 @@ import {
 import { EVENT_TYPES, massType, todayIso } from '../../lib/website.js';
 import { listState, useAnnouncements, useEvents, useMassSchedule, useSacramentGuides } from './data.js';
 
-/** Misa ug Sakramento: the weekly Mass schedule (with the sacrament guides below it) and the events agenda. */
+// The page's content width (like PAGE in kit.jsx); the sacraments band runs
+// edge to edge outside it, with this width inside.
+const WRAP = 'px-3.5 lg:max-w-[1240px] lg:mx-auto lg:px-6';
+
+/**
+ * Misa ug Sakramento: the weekly Mass schedule, then the sacrament guides on
+ * their own full-width band so the two read as separate sections; or the
+ * events agenda (Kalendaryo).
+ */
 export default function Misa() {
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'kalendaryo' ? 'events' : 'sched';
   const setView = (v) => setParams(v === 'events' ? { view: 'kalendaryo' } : {}, { replace: true });
 
   return (
-    <main className={PAGE}>
-      <PageHeader eyebrow="Misa ug Sakramento" title="Iskedyul sa parokya">
-        <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={setView} />
-      </PageHeader>
-      {view === 'sched' ? (
-        <>
-          <MassSchedule />
-          <SacramentGuides jump={params.get('view') === 'sakramento'} />
-        </>
-      ) : <EventsAgenda />}
+    <main className="animate-fadeUp">
+      <div className={`${WRAP} pt-4 pb-7 lg:pt-9 lg:pb-0`}>
+        <PageHeader eyebrow="Misa ug Sakramento" title="Iskedyul ug mga giya">
+          <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={setView} />
+        </PageHeader>
+        {view === 'sched' ? (
+          <>
+            <PageJumps />
+            <div id="misa" className="scroll-mt-24"><MassSchedule /></div>
+          </>
+        ) : <EventsAgenda />}
+      </div>
+      {view === 'sched' && <SacramentGuides jump={params.get('view') === 'sakramento'} />}
     </main>
+  );
+}
+
+/** "On this page": jump to the Mass schedule or down to the sacraments (once there are guides). */
+function PageJumps() {
+  const guides = listState(useSacramentGuides());
+  if (!guides.rows.length) return null;
+  const go = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const btn = 'min-h-[40px] px-3.5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)]';
+  return (
+    <nav aria-label="Niini nga panid" className="flex gap-2 flex-wrap mb-4 lg:mb-6">
+      <button type="button" className={btn} onClick={() => go('misa')}><Icon name="clock" size={16} />Iskedyul sa Misa</button>
+      <button type="button" className={btn} onClick={() => go('sakramento')}><Icon name="church" size={16} />Mga Sakramento ↓</button>
+    </nav>
   );
 }
 
 // The guides people ask about most come first; the rest follow the office's order.
 const GUIDE_FIRST = ['baptism', 'wedding', 'ocia'];
-// Each guide's tab: its icon and its name without the translation ("Bunyag").
-const guideTab = (g) => (
-  <span className="inline-flex items-center gap-1.5"><SacramentIcon sacrament={g.key} size={17} />{guideShortTitle(g.title)}</span>
-);
 const guideRank = (g) => (GUIDE_FIRST.includes(g.key) ? GUIDE_FIRST.indexOf(g.key) : GUIDE_FIRST.length + (g.sort || 0));
+// Desktop columns for the sacrament cards, so a row of them fills the width.
+const PICKER_COLS = { 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' };
 
 /**
- * Mga Sakramento, the section under the Mass schedule: what to bring and the
- * steps for each sacrament, one guide at a time. Hidden until guides are
- * published. `jump` (a ?view=sakramento link) scrolls down to it.
+ * Mga Sakramento, under the Mass schedule on a full-width blue band: a card
+ * per sacrament to pick from, then that sacrament's guide. Hidden until
+ * guides are published. `jump` (a ?view=sakramento link) scrolls down to it.
  */
 function SacramentGuides({ jump = false }) {
   const q = listState(useSacramentGuides());
@@ -55,71 +78,117 @@ function SacramentGuides({ jump = false }) {
 
   if (q.loading || q.error || !guides.length) return null;
   return (
-    <section ref={ref} id="sakramento" aria-labelledby="sakramento-title" className="mt-8 lg:mt-12 scroll-mt-24">
-      <h2 id="sakramento-title" className="m-0 font-serif text-[28px] lg:text-[34px] font-bold text-parish-navy leading-tight">Mga Sakramento</h2>
-      <p className="m-0 mt-1 mb-3.5 lg:mb-5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636] lg:max-w-[760px]">
-        Unsa ang dad-on ug unsa ang mga lakang sa matag sakramento. Palihug duol sa opisina sa parokya una sa tanan aron makumpirma.
-      </p>
-      {guides.length > 1 && <Pills scroll className="mb-4 lg:mb-5" options={guides.map((x) => [x.key, guideTab(x)])} value={g?.key} onChange={setKey} />}
-      {g && <GuideCard g={g} />}
+    <section
+      ref={ref} id="sakramento" aria-labelledby="sakramento-title"
+      className="scroll-mt-16 lg:scroll-mt-[76px] lg:mt-12 py-7 lg:py-12 border-y"
+      style={{ background: 'var(--p-blue-tint)', borderColor: 'var(--p-blue-border)' }}
+    >
+      <div className={WRAP}>
+        <Eyebrow>Mga giya</Eyebrow>
+        <h2 id="sakramento-title" className="m-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Mga Sakramento</h2>
+        <p className="m-0 mt-1 mb-4 lg:mb-6 text-[15px] lg:text-[16.5px] leading-normal text-[#4d4636] lg:max-w-[760px]">
+          Unsa ang dad-on ug unsa ang mga lakang sa matag sakramento. Palihug duol sa opisina sa parokya una sa tanan aron makumpirma.
+        </p>
+        {guides.length > 1 && (
+          <div
+            role="group" aria-label="Pili og sakramento"
+            className={`flex gap-2.5 overflow-x-auto snap-x scroll-px-3.5 -mx-3.5 px-3.5 pb-1 mb-4 lg:grid lg:gap-3.5 lg:overflow-visible lg:mx-0 lg:px-0 lg:pb-0 lg:mb-6 ${PICKER_COLS[guides.length] || 'lg:grid-cols-6'}`}
+          >
+            {guides.map((x) => <SacramentChoice key={x.key} g={x} on={x.key === g?.key} onPick={() => setKey(x.key)} />)}
+          </div>
+        )}
+        {g && <GuideCard g={g} />}
+      </div>
     </section>
   );
 }
 
+/** One sacrament to pick: its icon, short name and how many documents to bring. */
+function SacramentChoice({ g, on, onPick }) {
+  const docs = (g.requirements || []).filter(Boolean).length;
+  return (
+    <button
+      type="button" aria-pressed={on} onClick={onPick}
+      className={`snap-start flex-none w-[136px] lg:w-auto text-left appearance-none cursor-pointer rounded-2xl border-[1.5px] p-3 lg:p-4 transition-colors ${on ? 'bg-parish-blue border-parish-blue text-white shadow-card' : 'bg-parish-card border-parish-border text-parish-navy hover:border-[var(--p-blue-border)]'}`}
+    >
+      <span
+        className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center mb-2 ${on ? 'bg-white/15 text-white' : 'text-parish-blue'}`}
+        style={on ? undefined : { background: 'var(--p-blue-tint)' }}
+      >
+        <SacramentIcon sacrament={g.key} size={24} />
+      </span>
+      <span className="block font-serif font-bold text-[18px] lg:text-[21px] leading-tight">{guideShortTitle(g.title)}</span>
+      {docs > 0 && <span className={`block mt-0.5 text-[12.5px] lg:text-[13px] ${on ? 'text-white/80' : 'text-parish-text2'}`}>{docs} ka dokumento</span>}
+    </button>
+  );
+}
+
+/**
+ * One sacrament's guide. Phones: one column. Desktop: the steps and the
+ * checklist of documents on the left, and a side box with the schedule,
+ * donation, reminders and the office buttons on the right.
+ */
 function GuideCard({ g }) {
   const steps = (g.steps || []).filter((s) => s.title || s.detail);
   const docs = (g.requirements || []).filter(Boolean);
   const extras = [['Iskedyul', g.schedule, 'clock'], ['Donasyon', g.fees, 'heart'], ['Pahinumdom', g.notes, 'alert']].filter(([, v]) => v);
   return (
     <article className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
-      <header className="px-4 py-3.5 lg:px-6 lg:py-5 bg-[#fbf7ef] border-b border-[#f0e8d6]">
-        <h3 className="m-0 font-serif text-[24px] lg:text-[28px] font-bold text-parish-navy leading-tight">{g.title}</h3>
-        {g.summary && <p className="m-0 mt-1.5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636] lg:max-w-[820px]">{g.summary}</p>}
+      <header className="flex gap-3 items-start px-4 py-3.5 lg:gap-4 lg:px-6 lg:py-5 bg-[#fbf7ef] border-b border-[#f0e8d6]">
+        <span className="hidden sm:flex w-12 h-12 lg:w-14 lg:h-14 flex-none rounded-2xl items-center justify-center text-parish-blue" style={{ background: 'var(--p-blue-tint)' }}>
+          <SacramentIcon sacrament={g.key} size={28} />
+        </span>
+        <div className="min-w-0">
+          <h3 className="m-0 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy leading-tight">{g.title}</h3>
+          {g.summary && <p className="m-0 mt-1.5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636] lg:max-w-[820px]">{g.summary}</p>}
+        </div>
       </header>
-      <div className="grid gap-5 p-4 lg:p-6 lg:grid-cols-2 lg:gap-8">
-        {docs.length > 0 && (
-          <section aria-labelledby={`docs-${g.key}`}>
-            <h4 id={`docs-${g.key}`} className="m-0 mb-2.5 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga dokumento nga dad-on</h4>
-            <ul className="list-none m-0 p-0 flex flex-col gap-2">
-              {docs.map((d, i) => (
-                <li key={i} className="flex gap-2.5 items-start text-[15px] leading-snug text-parish-ink">
-                  <span className="w-5 h-5 mt-px flex-none rounded border-[1.5px] border-parish-borderSoft bg-parish-card" aria-hidden />
-                  <span>{d}</span>
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-        {steps.length > 0 && (
-          <section aria-labelledby={`steps-${g.key}`}>
-            <h4 id={`steps-${g.key}`} className="m-0 mb-2.5 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga lakang</h4>
-            <ol className="list-none m-0 p-0 flex flex-col gap-3">
-              {steps.map((s, i) => (
-                <li key={i} className="flex gap-3 items-start">
-                  <span className="w-7 h-7 flex-none rounded-full bg-parish-blue text-white font-bold text-[13px] flex items-center justify-center" aria-hidden>{i + 1}</span>
-                  <div className="min-w-0">
-                    <div className="font-semibold text-[15px] text-parish-navy leading-snug">{s.title}</div>
-                    {s.detail && <div className="text-[14px] leading-snug text-parish-text2 mt-0.5">{s.detail}</div>}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          </section>
-        )}
-      </div>
-      {extras.length > 0 && (
-        <div className="flex flex-col gap-2.5 px-4 pb-4 lg:px-6 lg:pb-6">
+      <div className="lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+        <div className="flex flex-col gap-6 p-4 lg:p-6 lg:gap-8">
+          {steps.length > 0 && (
+            <section aria-labelledby={`steps-${g.key}`}>
+              <h4 id={`steps-${g.key}`} className="m-0 mb-3 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga lakang</h4>
+              <ol className="list-none m-0 p-0 flex flex-col">
+                {steps.map((s, i) => (
+                  // A line joins the numbers, so the steps read as a path.
+                  <li key={i} className="relative flex gap-3 items-start pb-4 last:pb-0">
+                    {i < steps.length - 1 && <span className="absolute left-[13px] top-7 bottom-0 w-0.5 bg-[var(--p-blue-border)]" aria-hidden />}
+                    <span className="relative w-7 h-7 flex-none rounded-full bg-parish-blue text-white font-bold text-[13px] flex items-center justify-center" aria-hidden>{i + 1}</span>
+                    <div className="min-w-0 pt-0.5">
+                      <div className="font-semibold text-[15.5px] text-parish-navy leading-snug">{s.title}</div>
+                      {s.detail && <div className="text-[14.5px] leading-snug text-parish-text2 mt-0.5">{s.detail}</div>}
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          )}
+          {docs.length > 0 && (
+            <section aria-labelledby={`docs-${g.key}`}>
+              <h4 id={`docs-${g.key}`} className="m-0 mb-3 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga dokumento nga dad-on</h4>
+              <ul className="list-none m-0 p-0 grid gap-2 sm:grid-cols-2">
+                {docs.map((d, i) => (
+                  <li key={i} className="flex gap-2.5 items-start text-[15px] leading-snug text-parish-ink">
+                    <span className="w-5 h-5 mt-px flex-none rounded border-[1.5px] border-parish-borderSoft bg-parish-card" aria-hidden />
+                    <span>{d}</span>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
+        </div>
+        <aside className="flex flex-col gap-2.5 px-4 pb-4 lg:p-6 lg:border-l lg:border-[#f0e8d6] lg:bg-[#fdfaf4]">
           {extras.map(([label, value, icon]) => (
             <div key={label} className="flex gap-2.5 items-start rounded-xl px-3.5 py-3 border border-[#eee3ce] bg-parish-bg">
               <Icon name={icon} size={18} className="text-[var(--p-gold-deep)] mt-px flex-none" />
-              <div className="text-[14.5px] leading-normal text-[#3f3b2f]"><strong className="text-parish-navy">{label}:</strong> {value}</div>
+              <div className="text-[14.5px] leading-normal text-[#3f3b2f]"><strong className="block text-parish-navy">{label}</strong>{value}</div>
             </div>
           ))}
-        </div>
-      )}
-      <div className="flex flex-wrap gap-2.5 px-4 pb-4 lg:px-6 lg:pb-6">
-        <Link to="/kontak" className="min-h-[44px] px-4 inline-flex items-center rounded-[10px] bg-parish-blue text-white font-bold text-[14.5px] hover:brightness-110">Pangutana sa opisina</Link>
-        <Link to="/serbisyo/hangyo/sertipiko" className="min-h-[44px] px-4 inline-flex items-center rounded-[10px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[14.5px] hover:bg-[var(--p-blue-tint)]">Pangayo og sertipiko</Link>
+          <div className="flex flex-wrap gap-2.5 mt-1 lg:flex-col">
+            <Link to="/kontak" className="min-h-[44px] px-4 inline-flex items-center justify-center rounded-[10px] bg-parish-blue text-white font-bold text-[14.5px] hover:brightness-110">Pangutana sa opisina</Link>
+            <Link to="/serbisyo/hangyo/sertipiko" className="min-h-[44px] px-4 inline-flex items-center justify-center rounded-[10px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[14.5px] hover:bg-[var(--p-blue-tint)]">Pangayo og sertipiko</Link>
+          </div>
+        </aside>
       </div>
     </article>
   );
