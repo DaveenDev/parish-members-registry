@@ -7,6 +7,9 @@ import { listState, useAnnouncements, useBulletins, useEvents } from './data.js'
 
 const CATEGORY_FILTERS = [['all', 'Tanan'], ['Parish', 'Parokya'], ['GKK', 'GKK'], ['Ministry', 'Ministry'], ['Schedule change', ANNOUNCEMENT_LABELS['Schedule change']], ['urgent', 'Urgent']];
 
+/** Desktop columns for `n` cards: one fills the row, two split it, three or more go three across. */
+const cols = (n) => (n <= 1 ? 'lg:grid-cols-1' : n === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3');
+
 /** Mga Pahibalo: announcements by category, and the weekly bulletin archive. */
 export default function Pahibalo() {
   const [params, setParams] = useSearchParams();
@@ -41,7 +44,7 @@ function Announcements() {
         empty={ann.empty}
         emptyText="Wala pay pahibalo. Balik lang sunod semana."
       >
-        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start">{shown.map((a) => <AnnouncementCard key={a.id} a={a} full />)}</div>
+        <div className={`flex flex-col gap-2.5 lg:grid lg:gap-4 lg:items-start ${cols(shown.length)}`}>{shown.map((a) => <AnnouncementCard key={a.id} a={a} full />)}</div>
       </DataState>
     </>
   );
@@ -61,7 +64,7 @@ function UpcomingEvents() {
         <h2 id="upcoming-events" className="m-0 font-serif text-[22px] lg:text-[26px] font-bold text-parish-navy">Umaabot nga Kalihokan</h2>
         <Link to="/misa?view=kalendaryo" className="font-bold text-[14px] lg:text-[15px] text-parish-blueDeep whitespace-nowrap hover:underline">Tan-awa ang kalendaryo →</Link>
       </div>
-      <div className="flex flex-col gap-2 lg:grid lg:grid-cols-3 lg:gap-3">{next.map((e) => <EventCard key={e.id} e={e} showDate />)}</div>
+      <div className={`flex flex-col gap-2 lg:grid lg:gap-3 ${cols(next.length)}`}>{next.map((e) => <EventCard key={e.id} e={e} showDate />)}</div>
     </section>
   );
 }
