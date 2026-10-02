@@ -25,6 +25,15 @@ export const BLOOD_REQUEST_STATUSES = ['Open', 'Contacting donors', 'Fulfilled',
 export const BLOOD_OPEN = ['Open', 'Contacting donors'];
 export const CONTACT_STATUSES = ['Contacted', 'No answer', 'Agreed', 'Declined', 'Donated'];
 
+// Requests to avail of a sacrament (0032 migration), from the website's Misa ug Sakramento page.
+export const SACRAMENT_REQUEST_TYPES = [
+  { key: 'ocia', label: 'OCIA', sub: 'Joining the OCIA', tone: 'blue' },
+  { key: 'anointing', label: 'Anointing of the Sick', sub: 'Pagdihog sa Masakiton', tone: 'red' },
+];
+export const sacramentRequestLabel = (key) => SACRAMENT_REQUEST_TYPES.find((t) => t.key === key)?.label || key;
+export const SACRAMENT_REQUEST_STATUSES = ['New', 'Contacted', 'Scheduled', 'Done', 'Cancelled'];
+export const SACRAMENT_REQUEST_OPEN = ['New', 'Contacted', 'Scheduled'];
+
 export const SOURCES = ['Walk-in', 'Phone'];
 
 export const STATUS_TONES = {
@@ -45,6 +54,9 @@ export const STATUS_TONES = {
   Agreed: 'green',
   Declined: 'red',
   Donated: 'green',
+  Scheduled: 'green',
+  Done: 'gray',
+  Cancelled: 'red',
 };
 
 /**

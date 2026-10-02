@@ -71,6 +71,59 @@ export const FORMS = {
     submit: (v) => api.submitPrayerRequest({ ...v, allowPublic: v.allowPublic === 'yes' }),
   },
 
+  // "Request to avail" on the Misa ug Sakramento page (0032 submit_sacrament_request).
+  ocia: {
+    title: 'Moapil sa OCIA',
+    short: 'OCIA',
+    intro: 'Para sa mga hamtong nga gustong mahimong Katoliko, o nabunyagan na apan wala pa makadawat sa ubang mga sakramento. Kontakon ka sa opisina bahin sa sunod nga klase.',
+    who: 'Ang kawani sa opisina sa parokya lang ang makakita niini.',
+    steps: [
+      { title: 'Kinsa ang moapil?', fields: [
+        { k: 'personName', type: 'text', req: true, label: 'Ngalan sa moapil' },
+        { k: 'baptismStatus', type: 'choice', req: true, label: 'Nabunyagan na ba?', opts: opts([
+          ['Not baptized', 'Wala pa mabunyagi'],
+          ['Baptized in another church', 'Nabunyagan sa laing simbahan'],
+          ['Baptized Catholic, not yet confirmed', 'Katoliko na, wala pa makumpil o makakalawat'],
+        ]) },
+        { k: 'location', type: 'text', label: 'Puy-anan o GKK (opsyonal)' },
+        { k: 'message', type: 'area', label: 'Pangutana o mensahe (opsyonal)' },
+      ] },
+      { title: 'Kinsa among kontakon?', fields: [
+        { k: 'requesterName', type: 'text', req: true, label: 'Imong ngalan' },
+        mobile('requesterMobile'),
+        { k: 'relationship', type: 'select', req: true, label: 'Relasyon sa moapil', opts: opts(['Ako mismo', 'Ginikanan', 'Kapikas', 'Anak', 'Higala', 'Uban pa']) },
+        consent,
+      ] },
+    ],
+    next: ['Kontakon ka sa opisina sulod sa pipila ka adlaw.', 'Ipahibalo namo ang iskedyul sa sunod nga klase sa OCIA.'],
+    submit: (v) => api.submitSacramentRequest({ ...v, sacrament: 'ocia' }),
+  },
+
+  pagdihog: {
+    title: 'Pagdihog sa Masakiton',
+    short: 'Pagdihog sa Masakiton',
+    intro: 'Mangayo nga duawon sa pari ang masakiton o tigulang aron dihogan ug ampoan.',
+    sickCall: true,
+    who: 'Ang kawani sa opisina ug ang pari lang ang makakita niini.',
+    steps: [
+      { title: 'Ang masakiton', fields: [
+        { k: 'personName', type: 'text', req: true, label: 'Ngalan sa masakiton' },
+        { k: 'location', type: 'text', req: true, label: 'Asa siya karon', hint: 'Address sa balay, o ospital ug numero sa kwarto.' },
+        { k: 'urgent', type: 'choice', req: true, label: 'Unsa ang kahimtang?', opts: opts([['no', 'Pwede iskedyul ang pagbisita'], ['yes', 'Grabe na ang kahimtang']]), def: 'no' },
+        { k: 'preferredDate', type: 'date', label: 'Gusto nga petsa (opsyonal)' },
+        { k: 'message', type: 'area', label: 'Dugang detalye (opsyonal)', ph: 'e.g. ang sakit, ug kanus-a pwede mobisita' },
+      ] },
+      { title: 'Kinsa among kontakon?', fields: [
+        { k: 'requesterName', type: 'text', req: true, label: 'Imong ngalan' },
+        mobile('requesterMobile'),
+        { k: 'relationship', type: 'select', req: true, label: 'Relasyon sa masakiton', opts: opts(['Anak', 'Kapikas', 'Ginikanan', 'Igsoon', 'Apo', 'Higala', 'Uban pa']) },
+        consent,
+      ] },
+    ],
+    next: ['Kontakon ka sa opisina aron iskedyul ang pagbisita sa pari.', 'Kung mograbe ang kahimtang, tawagi dayon ang sick call sa parokya.'],
+    submit: (v) => api.submitSacramentRequest({ ...v, urgent: v.urgent === 'yes', sacrament: 'anointing' }),
+  },
+
   dugo: {
     title: 'Nanginahanglan og Dugo',
     short: 'Nanginahanglan og dugo',

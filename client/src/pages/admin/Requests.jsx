@@ -6,9 +6,11 @@ import { can } from '../../lib/access.js';
 import CertificatesTab from '../../components/requests/CertificatesTab.jsx';
 import PrayerTab from '../../components/requests/PrayerTab.jsx';
 import BloodRequestsTab from '../../components/requests/BloodRequestsTab.jsx';
+import SacramentsTab from '../../components/requests/SacramentsTab.jsx';
 
 const TABS = [
   ['certificates', 'Certificates', CertificatesTab, (c) => c.certificates + c.ready],
+  ['sacraments', 'Sacraments', SacramentsTab, (c) => c.sacraments || 0],
   ['prayers', 'Prayer Requests', PrayerTab, (c) => c.prayers],
   ['blood', 'Blood Requests', BloodRequestsTab, (c) => c.blood],
 ];
@@ -30,7 +32,7 @@ export default function Requests() {
 
   return (
     <>
-      <PageHeader title="Requests" subtitle="Certificates, prayer intentions and blood calls from parishioners" />
+      <PageHeader title="Requests" subtitle="Certificates, sacraments, prayer intentions and blood calls from parishioners" />
       <PageBody>
         {!can(user, 'editRequests') && <ViewOnlyNote />}
         <Tabs tabs={tabs} value={current[0]} onChange={setTab} />

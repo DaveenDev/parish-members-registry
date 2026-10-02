@@ -128,6 +128,13 @@ function SacramentChoice({ g, on, onPick }) {
  * checklist of documents on the left, and a side box with the schedule,
  * donation, reminders and the office buttons on the right.
  */
+// Guides the parish issues a certificate for (the certType in forms.js), and
+// the ones people can ask to avail of from here (the request form's id).
+const GUIDE_CERT = { baptism: 'baptism', confirmation: 'confirmation', wedding: 'matrimony' };
+const GUIDE_AVAIL = { ocia: 'ocia', anointing: 'pagdihog' };
+const BTN_MAIN = 'min-h-[44px] px-4 inline-flex items-center justify-center rounded-[10px] bg-parish-blue text-white font-bold text-[14.5px] hover:brightness-110';
+const BTN_SECOND = 'min-h-[44px] px-4 inline-flex items-center justify-center rounded-[10px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[14.5px] hover:bg-[var(--p-blue-tint)]';
+
 function GuideCard({ g }) {
   const steps = (g.steps || []).filter((s) => s.title || s.detail);
   const docs = (g.requirements || []).filter(Boolean);
@@ -185,8 +192,9 @@ function GuideCard({ g }) {
             </div>
           ))}
           <div className="flex flex-wrap gap-2.5 mt-1 lg:flex-col">
-            <Link to="/kontak" className="min-h-[44px] px-4 inline-flex items-center justify-center rounded-[10px] bg-parish-blue text-white font-bold text-[14.5px] hover:brightness-110">Pangutana sa opisina</Link>
-            <Link to="/serbisyo/hangyo/sertipiko" className="min-h-[44px] px-4 inline-flex items-center justify-center rounded-[10px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[14.5px] hover:bg-[var(--p-blue-tint)]">Pangayo og sertipiko</Link>
+            {GUIDE_AVAIL[g.key] && <Link to={`/serbisyo/hangyo/${GUIDE_AVAIL[g.key]}`} className={BTN_MAIN}>Request to avail</Link>}
+            <Link to="/kontak" className={GUIDE_AVAIL[g.key] ? BTN_SECOND : BTN_MAIN}>Pangutana sa opisina</Link>
+            {GUIDE_CERT[g.key] && <Link to={`/serbisyo/hangyo/sertipiko?certType=${GUIDE_CERT[g.key]}`} className={BTN_SECOND}>Pangayo og sertipiko</Link>}
           </div>
         </aside>
       </div>

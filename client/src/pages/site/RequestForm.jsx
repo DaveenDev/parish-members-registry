@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Navigate, useNavigate, useParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BigButton, INNER, Spin } from '../../components/site/kit.jsx';
 import { api } from '../../api.js';
@@ -7,13 +7,20 @@ import { validEmail, validMobile } from '../../lib/site.js';
 import { useSiteTitle } from './SiteLayout.jsx';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { FORMS } from './forms.js';
+import { useOffice } from './data.js';
+import { phoneHref } from '../../lib/requests.js';
 
 const visible = (f, v) => !f.show || f.show(v);
 const blank = (v) => v === undefined || v === null || v === '' || v === false;
 
-function initialValues(F) {
+/** Defaults, then any choice the link picked (e.g. ?certType=matrimony) when it's one of the options. */
+function initialValues(F, params) {
   const values = {};
-  F.steps.forEach((st) => st.fields.forEach((f) => { if (f.def !== undefined) values[f.k] = f.def; }));
+  F.steps.forEach((st) => st.fields.forEach((f) => {
+    if (f.def !== undefined) values[f.k] = f.def;
+    const asked = params.get(f.k);
+    if (asked && Array.isArray(f.opts) && f.opts.some(([v]) => v === asked)) values[f.k] = asked;
+  }));
   return values;
 }
 
@@ -30,6 +37,22 @@ function validate(fields, values) {
   return errs;
 }
 
+/** For the Anointing of the Sick: in an emergency, call the sick call number instead of filling in the form. */
+function SickCallNote() {
+  const num = useOffice().data?.sick_call_contact;
+  return (
+    <div role="note" className="flex gap-2.5 items-start rounded-xl px-3.5 py-3 mb-[18px] border bg-parish-errorBg border-parish-errorBorder text-[14.5px] leading-snug text-[#3f3b2f]">
+      <Icon name="phone" size={18} className="text-parish-error mt-px flex-none" />
+      <div>
+        <strong className="text-parish-error">Emergency?</strong> Ayaw na pag-fill up.{' '}
+        {num
+          ? <>Tawagi dayon ang sick call: <a href={`tel:${phoneHref(num)}`} className="font-bold text-parish-error underline">{num}</a></>
+          : <>Tawagi dayon ang <Link to="/kontak" className="font-bold text-parish-error underline">opisina sa parokya</Link>.</>}
+      </div>
+    </div>
+  );
+}
+
 /** A request form: one step at a time, a review before sending, then the reference number. */
 export default function RequestForm() {
   const { form: formId } = useParams();
@@ -43,7 +66,8 @@ function FormFlow({ F }) {
   const navigate = useNavigate();
   const gkks = usePublicData('gkkNames', () => api.listPublicGkks().catch(() => [])).data || [];
   const [step, setStep] = useState(0);
-  const [values, setValues] = useState(() => initialValues(F));
+  const [params] = useSearchParams();
+  const [values, setValues] = useState(() => initialValues(F, params));
   const [errors, setErrors] = useState({});
   const [banner, setBanner] = useState('');
   const [status, setStatus] = useState('edit'); // edit | sending | failed | done
@@ -124,6 +148,7 @@ function FormFlow({ F }) {
       <div className="flex gap-2 items-start text-[13.5px] leading-[1.45] text-[#4d4636] mt-3 mb-[18px]">
         <Icon name="lock" size={16} className="mt-px text-parish-blue" /><span>{F.who}</span>
       </div>
+      {F.sickCall && step === 0 && <SickCallNote />}
       <h2 className="font-serif font-bold text-[23px] m-0 mb-3 text-parish-navy">{isReview ? 'Susiha una ipadala' : F.steps[step].title}</h2>
       {banner && (
         <div role="alert" className="flex gap-[9px] bg-parish-errorBg border border-parish-errorBorder rounded-xl px-[13px] py-[11px] mb-3.5 text-parish-error font-semibold text-[14.5px]">

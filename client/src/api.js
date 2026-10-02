@@ -421,6 +421,9 @@ export const api = {
       ['blood', 'blood_requests', 'id, ref_no, status, patient_name, blood_type',
         `ref_no.ilike.${like},patient_name.ilike.${like}`,
         (r) => `${r.patient_name} (${r.blood_type})`],
+      ['sacraments', 'sacrament_requests', 'id, ref_no, status, person_name, sacrament',
+        `ref_no.ilike.${like},person_name.ilike.${like},requester_name.ilike.${like}`,
+        (r) => `${r.person_name} (${r.sacrament === 'ocia' ? 'OCIA' : 'Anointing'})`],
     ];
     const results = await Promise.all(kinds.map(async ([kind, table, cols, filter, title]) => {
       const { data, error } = await supabase.from(table).select(cols).or(filter).order('created_at', { ascending: false }).limit(4);
@@ -755,6 +758,8 @@ export const api = {
   submitPrayerRequest: (payload) => publicRpc('submit_prayer_request', { payload }),
   registerBloodDonor: (payload) => publicRpc('register_blood_donor', { payload }),
   submitBloodRequest: (payload) => publicRpc('submit_blood_request', { payload }),
+  /** Ask to avail of OCIA or the Anointing of the Sick (0032); payload.sacrament says which. */
+  submitSacramentRequest: (payload) => publicRpc('submit_sacrament_request', { payload }),
   /** Open blood calls staff chose to show: blood type, units, hospital, date. */
   publicBloodCalls: () => publicRpc('public_blood_calls'),
   /** Prayer intentions staff chose to show (requester agreed), last 30 days. */
@@ -815,6 +820,16 @@ export const api = {
     if (error) throw mapError(error);
     return data;
   },
+
+  async listSacramentRequests() {
+    try {
+      return await listRequests('sacrament_requests');
+    } catch (e) {
+      if (/0012_requests/.test(e.message || '')) throw new Error('Run the 0032_sacrament_requests.sql migration in Supabase to use this tab');
+      throw e;
+    }
+  },
+  saveSacramentRequest: (row) => saveRequestRow('sacrament_requests', row, SACRAMENT_FIELDS),
 
   async listBloodRequests() {
     return listRequests('blood_requests');
@@ -1236,7 +1251,7 @@ async function deleteWebsiteRow(table, id) {
   if (error) throw mapError(error);
 }
 
-const REQUEST_TABLES = ['certificate_requests', 'prayer_requests', 'blood_requests', 'blood_donors'];
+const REQUEST_TABLES = ['certificate_requests', 'prayer_requests', 'blood_requests', 'blood_donors', 'sacrament_requests'];
 
 // The columns staff may set on each request table. Ref numbers, who handled
 // it and the timestamps are filled in by the database.
@@ -1253,6 +1268,10 @@ const PRAYER_FIELDS = [
 const BLOOD_REQUEST_FIELDS = [
   'patient_name', 'blood_type', 'units', 'hospital', 'needed_by', 'contact_name', 'contact_mobile', 'relationship', 'notes',
   'allow_public', 'show_publicly', 'status', 'source', 'staff_notes',
+];
+const SACRAMENT_FIELDS = [
+  'sacrament', 'person_name', 'baptism_status', 'location', 'preferred_date', 'urgent',
+  'requester_name', 'requester_mobile', 'relationship', 'message', 'status', 'source', 'scheduled_on', 'staff_notes',
 ];
 const DONOR_FIELDS = ['full_name', 'mobile', 'blood_type', 'gkk', 'member_id', 'last_donated_on', 'source', 'opted_out_at', 'notes'];
 
