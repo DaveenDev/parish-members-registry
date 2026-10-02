@@ -109,7 +109,7 @@ export default function SiteLayout() {
                 <div className="flex-1 min-w-0 font-serif text-[21px] font-semibold text-parish-navy truncate">{title}</div>
               </>
             )}
-            <ThemePickerPopover align="right" label="Kolor" />
+            <ThemePickerPopover align="right" label="Theme" />
           </header>
 
           {!isRoot && (
@@ -182,7 +182,7 @@ function DesktopHeader({ pathname, logo }) {
             );
           })}
         </nav>
-        <ThemePickerPopover align="right" label="Kolor" />
+        <ThemePickerPopover align="right" label="Theme" />
       </div>
     </header>
   );
