@@ -208,7 +208,8 @@ function PhotoStorageCard() {
       setSaved(s);
       setForm(storageForm(s));
       setMode('locked');
-      toast.success('Photo storage settings saved');
+      const moved = s.photos_moved || 0;
+      toast.success(moved ? `Photo storage settings saved; ${moved} article${moved === 1 ? '' : 's'} now use the new Public URL` : 'Photo storage settings saved');
     } catch (e) {
       toast.error(e.message || 'Could not save the settings');
     } finally {
@@ -264,6 +265,12 @@ function PhotoStorageCard() {
             </Field>
             <div className="sm:col-span-2">
               <Field label="Public URL"><TextInput value={form.publicBaseUrl} onChange={set('publicBaseUrl')} placeholder="https://media.yourparish.org" autoComplete="off" spellCheck={false} inputMode="url" /></Field>
+              {/\.r2\.dev(\/|$)/i.test(form.publicBaseUrl.trim()) && (
+                <div className="mt-2 px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13px] font-medium">
+                  Some internet providers block r2.dev addresses, so visitors on them see broken photos. Connect a custom domain
+                  to the bucket and use it here; existing article photos switch over when you save.
+                </div>
+              )}
             </div>
           </fieldset>
 

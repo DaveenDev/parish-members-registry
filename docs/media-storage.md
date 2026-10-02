@@ -13,9 +13,20 @@ photos; picking a photo shows "Photo uploads aren't set up yet".
 ## 1. Create the bucket
 
 1. Cloudflare dashboard → **R2 Object Storage** → **Create bucket**, e.g. `parish-media`.
-2. Bucket → **Settings → Public access**: either connect a **custom domain**
-   (e.g. `media.yourparish.org`, recommended) or enable the **r2.dev subdomain**.
+2. Bucket → **Settings → Public access**: connect a **custom domain**
+   (e.g. `media.yourparish.org`; the domain's DNS must be on Cloudflare).
    Note the public URL; it's `R2_PUBLIC_BASE_URL` below (no trailing slash).
+
+   Avoid the **r2.dev subdomain** (`https://pub-….r2.dev`) for the live site:
+   it's meant for testing, and some internet providers (several in the
+   Philippines among them) block r2.dev outright, so visitors on them see
+   broken photos even though the files are in the bucket.
+
+   **Moving off r2.dev:** connect the custom domain to the bucket, run
+   [`0027_media_base_url_move.sql`](../supabase/migrations/0027_media_base_url_move.sql),
+   then put the new address in **Parish Config → Photo storage → Public URL** and
+   save. The photos stay in the bucket; every article link that starts with
+   the old address is rewritten to the new one.
 3. Bucket → **Settings → CORS policy**, so browsers may upload:
 
    ```json
