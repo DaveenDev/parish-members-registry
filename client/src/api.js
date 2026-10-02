@@ -1081,6 +1081,42 @@ export const api = {
   // ---- exports (client-side CSV now — no backend to stream a download from)
   exportUrl: (name) => `/exports/${name}`,
 
+  /**
+   * Data for the Membership Activeness analysis: current members with their
+   * Practicing Catholic status (0017), and the participation answers behind
+   * each score — the member's latest census answers, else the household's
+   * registration survey. `gkk` narrows it to one GKK ('None' = no GKK).
+   */
+  async activenessData({ gkk = 'All' } = {}) {
+    const cols = 'id, first_name, last_name, suffix, household_id, household_name, household_gkk, age, sex, contact, membership_status, last_census_label, '
+      + 'practice_level, practice_score, practice_participation, practice_sacraments, practice_involvement, practice_source, practice_source_label, practice_trend';
+    let members;
+    try {
+      members = await fetchAll(() => {
+        let q = supabase.from('members_with_household').select(cols).eq('is_current', true);
+        if (gkk === 'None') q = q.is('household_gkk', null);
+        else if (gkk !== 'All') q = q.eq('household_gkk', gkk);
+        return q.order('id');
+      });
+    } catch (e) {
+      if (/practice_/.test(e.message || '')) throw new Error('Run the 0017_practicing_status.sql migration in Supabase to use the activeness analysis');
+      throw e;
+    }
+    const householdIds = [...new Set(members.map((m) => m.household_id))];
+    const [households, responses] = await Promise.all([
+      householdIds.length ? fetchAll(() => supabase.from('households').select('id, participation').order('id')) : [],
+      // Before 0007 there is no census table; every score then comes from the household survey.
+      fetchAll(() => supabase.from('census_member_responses').select('member_id, cycle_id, participation').order('cycle_id', { ascending: false }).order('member_id')).catch(() => []),
+    ]);
+    const surveyOf = new Map(households.map((h) => [h.id, h.participation || {}]));
+    const latestOf = new Map();
+    for (const r of responses) {
+      if (!latestOf.has(r.member_id) && r.participation && Object.keys(r.participation).length) latestOf.set(r.member_id, r.participation);
+    }
+    const answers = new Map(members.map((m) => [m.id, latestOf.get(m.id) || surveyOf.get(m.household_id) || {}]));
+    return { members, answers };
+  },
+
   async exportGenerated({ title, columns, rows }) {
     if (!columns || !rows) throw new Error('Nothing to export');
     const csv = toCsv(

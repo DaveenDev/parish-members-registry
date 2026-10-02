@@ -5,6 +5,7 @@ import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, ErrorState
 import { useAsyncData, useClientList } from '../../hooks.js';
 import { PrimaryButton, GhostButton } from '../../components/ui.jsx';
 import { ReportPrintSheet } from '../../components/PrintSheet.jsx';
+import ActivenessReport from '../../components/ActivenessReport.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
@@ -32,7 +33,7 @@ function SplitBar({ label, right, vw, pw }) {
   );
 }
 
-const REPORT_TABS = [['stats', 'Report Stats'], ['gen', 'Generate Report']];
+const REPORT_TABS = [['stats', 'Report Stats'], ['gen', 'Generate Report'], ['analysis', 'Analysis Report']];
 
 // Each data source, its reports, and which scope controls a report shows.
 const REPORTS = {
@@ -110,7 +111,7 @@ export default function Reports() {
 
   return (
     <>
-      <PageHeader title="Reports" subtitle="Registry statistics & custom reports" />
+      <PageHeader title="Reports" subtitle="Registry statistics, custom reports & analysis" />
       <PageBody>
         <div className="max-w-[920px]">
           <Tabs tabs={REPORT_TABS} value={tab} onChange={setTab} />
@@ -165,6 +166,8 @@ export default function Reports() {
               </Panel>
             </div>
           )}
+
+          {tab === 'analysis' && <ActivenessReport parish={layout?.parish} />}
 
           {tab === 'gen' && (
             <div className="flex flex-col gap-5">
