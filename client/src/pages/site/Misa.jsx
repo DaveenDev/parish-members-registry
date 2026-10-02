@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { DataState, EmptyNote, PAGE, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
@@ -10,23 +10,23 @@ import {
 import { EVENT_TYPES, massType, todayIso } from '../../lib/website.js';
 import { listState, useAnnouncements, useEvents, useMassSchedule, useSacramentGuides } from './data.js';
 
-// The ?view= value of each tab; the Mass schedule is the default.
-const VIEWS = { events: 'kalendaryo', sacraments: 'sakramento' };
-
-/** Misa ug Kalihokan: the weekly Mass schedule, the events agenda and the sacrament guides. */
+/** Misa ug Kalihokan: the weekly Mass schedule (with the sacrament guides below it) and the events agenda. */
 export default function Misa() {
   const [params, setParams] = useSearchParams();
-  const view = Object.keys(VIEWS).find((k) => VIEWS[k] === params.get('view')) || 'sched';
-  const setView = (v) => setParams(VIEWS[v] ? { view: VIEWS[v] } : {}, { replace: true });
+  const view = params.get('view') === 'kalendaryo' ? 'events' : 'sched';
+  const setView = (v) => setParams(v === 'events' ? { view: 'kalendaryo' } : {}, { replace: true });
 
   return (
     <main className={PAGE}>
       <PageHeader eyebrow="Misa ug Kalihokan" title="Iskedyul sa parokya">
-        <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo'], ['sacraments', 'Mga Sakramento']]} value={view} onChange={setView} />
+        <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={setView} />
       </PageHeader>
-      {view === 'sched' && <MassSchedule />}
-      {view === 'events' && <EventsAgenda />}
-      {view === 'sacraments' && <SacramentGuides />}
+      {view === 'sched' ? (
+        <>
+          <MassSchedule />
+          <SacramentGuides jump={params.get('view') === 'sakramento'} />
+        </>
+      ) : <EventsAgenda />}
     </main>
   );
 }
@@ -35,27 +35,29 @@ export default function Misa() {
 const GUIDE_FIRST = ['baptism', 'wedding', 'ocia'];
 const guideRank = (g) => (GUIDE_FIRST.includes(g.key) ? GUIDE_FIRST.indexOf(g.key) : GUIDE_FIRST.length + (g.sort || 0));
 
-/** Mga Sakramento: what to bring and the steps for each sacrament, one guide at a time. */
-function SacramentGuides() {
+/**
+ * Mga Sakramento, the section under the Mass schedule: what to bring and the
+ * steps for each sacrament, one guide at a time. Hidden until guides are
+ * published. `jump` (a ?view=sakramento link) scrolls down to it.
+ */
+function SacramentGuides({ jump = false }) {
   const q = listState(useSacramentGuides());
   const guides = [...q.rows].sort((a, b) => guideRank(a) - guideRank(b) || a.id - b.id);
   const [key, setKey] = useState('');
   const g = guides.find((x) => x.key === key) || guides[0];
+  const ref = useRef(null);
+  useEffect(() => { if (jump && guides.length) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [jump, guides.length]);
 
+  if (q.loading || q.error || !guides.length) return null;
   return (
-    <DataState
-      state={q}
-      skeleton={<Skeletons n={2} h={160} />}
-      errorText="Wala ma-load ang mga giya sa sakramento."
-      empty={q.empty}
-      emptyText="Wala pay giya nga gi-publish. Duol sa opisina sa parokya para sa mga kinahanglanon."
-    >
-      <p className="m-0 mb-3.5 lg:mb-5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636] lg:max-w-[760px]">
+    <section ref={ref} id="sakramento" aria-labelledby="sakramento-title" className="mt-8 lg:mt-12 scroll-mt-24">
+      <h2 id="sakramento-title" className="m-0 font-serif text-[28px] lg:text-[34px] font-bold text-parish-navy leading-tight">Mga Sakramento</h2>
+      <p className="m-0 mt-1 mb-3.5 lg:mb-5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636] lg:max-w-[760px]">
         Unsa ang dad-on ug unsa ang mga lakang sa matag sakramento. Palihug duol sa opisina sa parokya una sa tanan aron makumpirma.
       </p>
       {guides.length > 1 && <Pills scroll className="mb-4 lg:mb-5" options={guides.map((x) => [x.key, x.title])} value={g?.key} onChange={setKey} />}
       {g && <GuideCard g={g} />}
-    </DataState>
+    </section>
   );
 }
 
@@ -66,13 +68,13 @@ function GuideCard({ g }) {
   return (
     <article className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
       <header className="px-4 py-3.5 lg:px-6 lg:py-5 bg-[#fbf7ef] border-b border-[#f0e8d6]">
-        <h2 className="m-0 font-serif text-[26px] lg:text-[32px] font-bold text-parish-navy leading-tight">{g.title}</h2>
+        <h3 className="m-0 font-serif text-[24px] lg:text-[28px] font-bold text-parish-navy leading-tight">{g.title}</h3>
         {g.summary && <p className="m-0 mt-1.5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636] lg:max-w-[820px]">{g.summary}</p>}
       </header>
       <div className="grid gap-5 p-4 lg:p-6 lg:grid-cols-2 lg:gap-8">
         {docs.length > 0 && (
           <section aria-labelledby={`docs-${g.key}`}>
-            <h3 id={`docs-${g.key}`} className="m-0 mb-2.5 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga dokumento nga dad-on</h3>
+            <h4 id={`docs-${g.key}`} className="m-0 mb-2.5 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga dokumento nga dad-on</h4>
             <ul className="list-none m-0 p-0 flex flex-col gap-2">
               {docs.map((d, i) => (
                 <li key={i} className="flex gap-2.5 items-start text-[15px] leading-snug text-parish-ink">
@@ -85,7 +87,7 @@ function GuideCard({ g }) {
         )}
         {steps.length > 0 && (
           <section aria-labelledby={`steps-${g.key}`}>
-            <h3 id={`steps-${g.key}`} className="m-0 mb-2.5 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga lakang</h3>
+            <h4 id={`steps-${g.key}`} className="m-0 mb-2.5 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga lakang</h4>
             <ol className="list-none m-0 p-0 flex flex-col gap-3">
               {steps.map((s, i) => (
                 <li key={i} className="flex gap-3 items-start">
