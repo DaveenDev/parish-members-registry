@@ -2,6 +2,8 @@
 // date formatting, the Mass schedule views, office hours and the GKK areas.
 // Pure functions, so they're easy to test (client/test/site.test.js).
 
+import { dayList, groupDaily, isCurrentMass, massOnDate, massType } from './website.js';
+
 export const BIS_DAYS = ['Domingo', 'Lunes', 'Martes', 'Miyerkules', 'Huwebes', 'Biyernes', 'Sabado'];
 export const BIS_DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Miy', 'Huw', 'Biy', 'Sab'];
 export const BIS_MONTHS = ['Enero', 'Pebrero', 'Marso', 'Abril', 'Mayo', 'Hunyo', 'Hulyo', 'Agosto', 'Septiyembre', 'Oktubre', 'Nobyembre', 'Disyembre'];
@@ -55,8 +57,11 @@ export const minutesOf = (t) => {
 
 /** What a schedule row is called on the site. */
 export function massKindLabel(row) {
-  switch (row.kind) {
-    case 'Mass': return row.day_of_week === 0 ? 'Misa sa Domingo' : 'Misa sa Adlaw-adlaw';
+  switch (massType(row)) {
+    case 'Regular Mass': return 'Misa sa Domingo';
+    case 'Daily Mass': return 'Misa sa Adlaw-adlaw';
+    case 'GKK Mass': return 'Misa sa GKK';
+    case 'Special Mass': return row.occasion || 'Espesyal nga Misa';
     case 'Anticipated Mass': return 'Anticipated Mass';
     case 'Confession': return 'Kumpisal';
     case 'Adoration': return 'Adoration';
@@ -75,30 +80,83 @@ function langMatches(rowLang, filter) {
  * `next`. `now` is a Date.
  */
 export function upcomingToday(rows, now, limit = 3) {
-  const dow = now.getDay();
+  const today = isoOf(now);
   const nowMin = now.getHours() * 60 + now.getMinutes();
+  // Weekly rows by their day; dated ones (a feast, Simbang Gabi) only on their dates.
   return rows
-    .filter((r) => r.day_of_week === dow && minutesOf(r.start_time) > nowMin)
+    .filter((r) => massOnDate(r, today) && minutesOf(r.start_time) > nowMin)
     .sort((a, b) => minutesOf(a.start_time) - minutesOf(b.start_time))
     .slice(0, limit)
     .map((r, i) => ({ ...r, next: i === 0 }));
 }
 
+const byTime = (a, b) => minutesOf(a.start_time) - minutesOf(b.start_time);
+const dateOf = (r) => String(r.mass_date || '').slice(0, 10);
+/** Weekly rows Monday first by day, then time; dated rows after them by date. */
+const byWhen = (a, b) => {
+  if (!!a.mass_date !== !!b.mass_date) return a.mass_date ? 1 : -1;
+  if (a.mass_date) return dateOf(a).localeCompare(dateOf(b)) || byTime(a, b);
+  return ((a.day_of_week + 6) % 7) - ((b.day_of_week + 6) % 7) || byTime(a, b);
+};
+
+/** "Dis 8, Martes" for one date, "Dis 16 – 24" (or "Dis 30 – Ene 2") for a run. */
+export function massDateLabel(row) {
+  const start = parseIso(row.mass_date);
+  const day = (d) => `${BIS_MONTHS_SHORT[d.getMonth()]} ${d.getDate()}`;
+  const endIso = String(row.mass_end_date || '').slice(0, 10);
+  if (!endIso || endIso === dateOf(row)) return `${day(start)}, ${BIS_DAYS[start.getDay()]}`;
+  const end = parseIso(endIso);
+  return start.getMonth() === end.getMonth() ? `${day(start)} – ${end.getDate()}` : `${day(start)} – ${day(end)}`;
+}
+
+/** When a row is held, for the site: its days, its date(s) or its weekday. */
+export function massWhen(row) {
+  if (row.days) return dayList(row.days, BIS_DAYS, ' – ');
+  if (row.mass_date) return massDateLabel(row);
+  return BIS_DAYS[row.day_of_week];
+}
+
 /**
- * The week's schedule grouped by day, Sunday first, filtered by location and
- * language. Today's next row is marked `next`; days with no rows are dropped.
+ * The Mass schedule in its four sections, filtered by location and language:
+ * Sunday (Regular Mass), daily (one entry per Daily Mass, with its days),
+ * special (each feast with its date and times) and other (Anticipated, GKK,
+ * Confession, Adoration…). Dated rows drop off once their date has passed;
+ * today's next Mass is marked `next`. Empty sections are left out.
  */
-export function groupMassByDay(rows, { location = 'all', language = 'all' } = {}, now = new Date()) {
+export function massSections(rows, { location = 'all', language = 'all' } = {}, now = new Date()) {
+  const today = isoOf(now);
   const nextId = upcomingToday(rows, now, 1)[0]?.id;
-  return BIS_DAYS.map((name, dow) => ({
-    dow,
-    name,
-    today: dow === now.getDay(),
-    rows: rows
-      .filter((r) => r.day_of_week === dow && (location === 'all' || r.location === location) && langMatches(r.language, language))
-      .sort((a, b) => minutesOf(a.start_time) - minutesOf(b.start_time))
-      .map((r) => ({ ...r, next: r.id === nextId })),
-  })).filter((d) => d.rows.length);
+  const shown = rows
+    .filter((r) => (location === 'all' || r.location === location) && langMatches(r.language, language) && isCurrentMass(r, today))
+    .map((r) => ({ ...r, next: r.id === nextId }));
+  const of = (type) => shown.filter((r) => massType(r) === type);
+
+  const sunday = of('Regular Mass').sort(byTime);
+  const daily = groupDaily(of('Daily Mass')).sort(byTime)
+    .map((e) => ({ ...e, next: e.rows.some((r) => r.next), when: massWhen(e) }));
+
+  // One block per feast and date, its Masses by time.
+  const special = [];
+  for (const r of of('Special Mass').sort(byWhen)) {
+    const key = `${(r.occasion || '').trim().toLowerCase()}|${dateOf(r)}|${String(r.mass_end_date || '').slice(0, 10)}`;
+    let block = special.find((b) => b.key === key);
+    if (!block) {
+      block = { key, occasion: r.occasion, when: massDateLabel(r), obligation: false, today: massOnDate(r, today), rows: [] };
+      special.push(block);
+    }
+    block.obligation = block.obligation || !!r.obligation;
+    block.rows.push(r);
+  }
+
+  const MAIN = ['Regular Mass', 'Daily Mass', 'Special Mass'];
+  const other = shown.filter((r) => !MAIN.includes(massType(r))).sort(byWhen).map((r) => ({ ...r, when: massWhen(r) }));
+
+  return [
+    { key: 'sunday', title: 'Misa sa Domingo', today: now.getDay() === 0, rows: sunday },
+    { key: 'daily', title: 'Misa sa Adlaw-adlaw', today: daily.some((e) => e.days.includes(now.getDay())), rows: daily },
+    { key: 'special', title: 'Espesyal nga Misa', today: special.some((b) => b.today), blocks: special },
+    { key: 'other', title: 'Uban pang Misa ug Serbisyo', today: other.some((r) => massOnDate(r, today)), rows: other },
+  ].filter((s) => (s.blocks || s.rows).length);
 }
 
 export const massLocations = (rows) => [...new Set(rows.map((r) => r.location).filter(Boolean))].sort();

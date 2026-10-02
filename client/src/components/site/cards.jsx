@@ -90,9 +90,12 @@ export function EventCard({ e }) {
 /**
  * A schedule row: time, what, where, language. `compact` is the Home card
  * row; the full row stacks on desktop, where it sits in a narrow day column
- * (time and language on top, the rest underneath).
+ * (time and language on top, the rest underneath). In the schedule's
+ * sections `heading` replaces the type where the section already says it
+ * (the days of a Daily Mass, or the place), and `when` adds the day or date.
  */
-export function MassRow({ m, compact = false }) {
+export function MassRow({ m, compact = false, heading, when = '' }) {
+  const title = heading || massKindLabel(m);
   return (
     <div
       className={compact
@@ -103,10 +106,11 @@ export function MassRow({ m, compact = false }) {
       <div className={`font-serif font-bold text-parish-blue ${compact ? 'text-[24px] min-w-[86px] lg:text-[30px] lg:min-w-[112px]' : 'text-[22px] min-w-[82px] lg:text-[23px] lg:min-w-0'}`}>{fmtTime12(m.start_time)}</div>
       <div className={`flex-1 min-w-0 ${compact ? '' : 'lg:col-span-2 lg:row-start-2'}`}>
         <div className="flex items-center gap-1.5 lg:gap-2 flex-wrap">
-          <span className={`font-semibold text-[15px] ${compact ? 'lg:text-[16.5px]' : 'lg:text-[14.5px]'}`}>{massKindLabel(m)}</span>
+          <span className={`font-semibold text-[15px] ${compact ? 'lg:text-[16.5px]' : 'lg:text-[14.5px]'}`}>{title}</span>
           {m.next && <span className="font-bold text-[10.5px] tracking-[.12em] text-white bg-parish-blue rounded-md px-1.5 py-0.5">SUNOD</span>}
         </div>
-        <div className={`text-[13.5px] text-parish-text2 ${compact ? 'lg:text-[14.5px]' : ''}`}>{compact ? `${m.location} · ${m.language}` : m.location}</div>
+        {when && <div className="text-[13.5px] font-semibold text-parish-navy">{when}</div>}
+        {title !== m.location && <div className={`text-[13.5px] text-parish-text2 ${compact ? 'lg:text-[14.5px]' : ''}`}>{compact ? `${m.location} · ${m.language}` : m.location}</div>}
         {m.notes && m.kind !== 'Other' && <div className="text-[13px] text-parish-text2 italic">{m.notes}</div>}
       </div>
       {!compact && (

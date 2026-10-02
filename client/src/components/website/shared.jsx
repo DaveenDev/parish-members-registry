@@ -58,7 +58,12 @@ export function useContentList({ table, load, remove, describe }) {
     }
   }
 
-  return { rows, loading: loading && !data, error, reload, upsert, togglePublished, removeRow, busyId };
+  /** Drop rows deleted elsewhere (e.g. the days unticked from a Daily Mass). */
+  function forget(ids) {
+    setRows((rs) => rs.filter((r) => !ids.includes(r.id)));
+  }
+
+  return { rows, loading: loading && !data, error, reload, upsert, forget, togglePublished, removeRow, busyId };
 }
 
 /** "Show on the public website" switch inside an editor. */

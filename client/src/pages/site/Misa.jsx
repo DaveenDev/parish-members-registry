@@ -4,7 +4,7 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { DataState, EmptyNote, PAGE, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
 import { EventCard, MassRow, eventTone } from '../../components/site/cards.jsx';
 import {
-  BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, eventMonths, eventsOnDay, groupEventsByDate, groupMassByDay,
+  BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, eventMonths, eventsOnDay, groupEventsByDate, massSections,
   massLocations, monthCells, monthLabel, parseIso,
 } from '../../lib/site.js';
 import { EVENT_TYPES, todayIso } from '../../lib/website.js';
@@ -32,7 +32,7 @@ function MassSchedule() {
   const [location, setLocation] = useState('all');
   const [language, setLanguage] = useState('all');
   const locations = massLocations(mass.rows);
-  const days = groupMassByDay(mass.rows, { location, language });
+  const sections = massSections(mass.rows, { location, language });
   // The newest "Schedule change" announcement is the special-schedule banner.
   const special = ann.rows.find((a) => a.category === 'Schedule change');
 
@@ -81,25 +81,48 @@ function MassSchedule() {
         empty={mass.empty}
         emptyText="Wala pay iskedyul nga gi-publish. Tawagi ang opisina para sa oras sa Misa."
       >
-        {!days.length ? <EmptyNote>Walay Misa nga mohaum sa imong pili.</EmptyNote> : (
-          <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-4 lg:items-start">
-            {days.map((d) => (
-              <div key={d.dow} className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
-                <div className="flex items-center gap-2 px-3.5 py-2.5 lg:px-4 lg:py-3 bg-[#fbf7ef] lg:border-b lg:border-[#f0e8d6]">
-                  <h3 className="m-0 font-serif text-[21px] lg:text-[23px] font-bold text-parish-navy">{d.name}</h3>
-                  {d.today && (
-                    <span className="font-bold text-[11px] tracking-[.08em] uppercase text-parish-blueDeep border rounded-md px-[7px] py-0.5" style={{ background: 'var(--p-blue-tint)', borderColor: 'var(--p-blue-border)' }}>
-                      Karong adlawa
-                    </span>
-                  )}
+        {!sections.length ? <EmptyNote>Walay Misa nga mohaum sa imong pili.</EmptyNote> : (
+          <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:items-start">
+            {sections.map((s) => (
+              <section key={s.key} className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
+                <div className="flex items-center gap-2 flex-wrap px-3.5 py-2.5 lg:px-4 lg:py-3 bg-[#fbf7ef] lg:border-b lg:border-[#f0e8d6]">
+                  <h3 className="m-0 font-serif text-[21px] lg:text-[23px] font-bold text-parish-navy">{s.title}</h3>
+                  {s.today && <MassTag tone="blue">Karong adlawa</MassTag>}
                 </div>
-                {d.rows.map((m) => <MassRow key={m.id} m={m} />)}
-              </div>
+                {s.key === 'sunday' && s.rows.map((m) => <MassRow key={m.id} m={m} heading={m.location} />)}
+                {s.key === 'daily' && s.rows.map((m) => <MassRow key={m.id} m={m} heading={m.when} />)}
+                {s.key === 'other' && s.rows.map((m) => <MassRow key={m.id} m={m} when={m.when} />)}
+                {s.key === 'special' && s.blocks.map((b) => (
+                  <div key={b.key} className="border-t border-[#f4eddd] first:border-t-0">
+                    <div className="px-3.5 pt-3 lg:px-4">
+                      <div className="font-serif text-[18px] lg:text-[19px] font-bold text-parish-navy leading-tight">{b.occasion}</div>
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
+                        <span className="font-semibold text-[13.5px] text-parish-text2">{b.when}</span>
+                        {b.obligation && <MassTag tone="gold">Adlaw nga Obligasyon</MassTag>}
+                        {b.today && <MassTag tone="blue">Karon</MassTag>}
+                      </div>
+                    </div>
+                    {b.rows.map((m) => <MassRow key={m.id} m={m} heading={m.location} />)}
+                  </div>
+                ))}
+              </section>
             ))}
           </div>
         )}
       </DataState>
     </>
+  );
+}
+
+/** Small label beside a schedule heading: "Karong adlawa", "Adlaw nga Obligasyon". */
+function MassTag({ tone, children }) {
+  const style = tone === 'gold'
+    ? { background: 'var(--p-gold-tint)', borderColor: 'color-mix(in srgb, var(--p-gold) 45%, white)', color: 'var(--p-gold-deep)' }
+    : { background: 'var(--p-blue-tint)', borderColor: 'var(--p-blue-border)' };
+  return (
+    <span className={`font-bold text-[11px] tracking-[.08em] uppercase border rounded-md px-[7px] py-0.5 ${tone === 'gold' ? '' : 'text-parish-blueDeep'}`} style={style}>
+      {children}
+    </span>
   );
 }
 
