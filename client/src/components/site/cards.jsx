@@ -5,7 +5,7 @@ import { Chip, TONES, useShare } from './kit.jsx';
 import { EVENT_TONES, todayIso } from '../../lib/website.js';
 import {
   ANNOUNCEMENT_LABELS, ARTICLE_LABELS, EVENT_ICONS, EVENT_TYPE_LABELS, BIS_MONTHS_SHORT,
-  eventCountdown, eventSpan, eventTime, excerpt, fmtShort, fmtTime12, massKindLabel, parseIso,
+  eventCountdown, eventSpan, eventTime, excerpt, fmtShort, fmtTime12, isRecent, massKindLabel, parseIso, readingTime,
 } from '../../lib/site.js';
 
 const ANN_TONES = { Parish: 'blue', GKK: 'gray', Ministry: 'gray', 'Schedule change': 'gold' };
@@ -27,11 +27,12 @@ export function ArticleChip({ a }) {
  */
 export function AnnouncementCard({ a, full = false, fill = false }) {
   return (
-    <Link to={`/pahibalo/${a.id}`} className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'flex flex-col flex-1' : 'block'}`}>
-      <div className="flex gap-2 items-center mb-1.5 lg:mb-2">
-        <AnnouncementChip a={a} />
-        <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.publish_on)}</span>
-      </div>
+    <Link
+      to={`/pahibalo/${a.id}`}
+      className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)] ${a.urgent ? 'border-l-[5px]' : ''} ${fill ? 'flex flex-col flex-1' : 'block'}`}
+      style={a.urgent ? { borderLeftColor: TONES.red.color } : undefined}
+    >
+      <AnnouncementMeta a={a} />
       <div className={`font-serif font-bold leading-[1.2] lg:leading-[1.18] text-parish-navy lg:text-[23px] lg:mb-1.5 ${full ? 'text-[21px] mb-1' : 'text-[20px]'}`}>{a.title}</div>
       {a.body && (
         <div className={`text-[15px] leading-normal text-[#4d4636] ${full ? '' : 'hidden lg:block'} ${fill ? 'lg:line-clamp-3' : ''}`}>{excerpt(a.body, fill ? 260 : 140)}</div>
@@ -39,6 +40,32 @@ export function AnnouncementCard({ a, full = false, fill = false }) {
       {fill && <span className="hidden lg:inline-flex mt-auto pt-3 items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha<Icon name="chev" size={16} /></span>}
     </Link>
   );
+}
+
+/**
+ * An announcement's labels: its category (or Urgent), date, "Naka-pin" when
+ * staff pinned it, "New" in its first 3 days, and "Hangtod …" when it ends
+ * on a set date.
+ */
+export function AnnouncementMeta({ a, className = 'mb-1.5 lg:mb-2' }) {
+  return (
+    <div className={`flex gap-x-2 gap-y-1 items-center flex-wrap ${className}`}>
+      <AnnouncementChip a={a} />
+      {isRecent(a.publish_on, todayIso()) && <Chip tone="green">New</Chip>}
+      {a.pinned && (
+        <span className="inline-flex items-center gap-1 font-bold text-[12px] text-[var(--p-eyebrow)]"><Icon name="tack" size={13} />Naka-pin</span>
+      )}
+      <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.publish_on)}</span>
+      {a.expires_on && <span className="text-[13px] lg:text-[13.5px] font-semibold text-[var(--p-eyebrow)]">· Hangtod {fmtShort(a.expires_on)}</span>}
+    </div>
+  );
+}
+
+/** An article's byline: author, place and reading time, whichever it has. */
+export function ArticleByline({ a, className = '' }) {
+  const parts = [a.author && `Sinulat ni ${a.author}`, a.place, readingTime(a.body || a.summary)].filter(Boolean);
+  if (!parts.length) return null;
+  return <div className={`text-[13px] lg:text-[13.5px] text-parish-text2 ${className}`}>{parts.join(' · ')}</div>;
 }
 
 /**
@@ -78,6 +105,38 @@ export function ArticleCard({ a, wide = false }) {
           </div>
           <div className="font-serif font-bold text-[20px] lg:text-[22px] leading-[1.2] text-parish-navy">{a.title}</div>
           {(a.summary || a.body) && <div className="mt-1 text-[14.5px] leading-normal text-[#4d4636] line-clamp-3">{a.summary || excerpt(a.body)}</div>}
+          <ArticleByline a={a} className="mt-2" />
+        </div>
+      </Link>
+    </div>
+  );
+}
+
+/**
+ * The newest article, wide: photo on the left and the text on the right on
+ * desktop (photo on top on phones), with a longer summary and the byline.
+ */
+export function ArticleFeature({ a }) {
+  const count = (a.photos || []).length;
+  const path = `/pahibalo/artikulo/${a.id}`;
+  return (
+    <div className="relative">
+      <CardShare title={a.title} path={path} />
+      <Link to={path} className="grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] bg-parish-card border border-parish-border rounded-2xl lg:rounded-[20px] shadow-card overflow-hidden transition-colors hover:border-[var(--p-blue-border)]">
+        <div className="relative aspect-[16/10] lg:aspect-auto lg:min-h-[360px] bg-[#efe6d3] flex items-center justify-center text-[var(--p-gold-deep)]">
+          {a.photo_url ? <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : <Icon name="church" size={48} />}
+          {count > 0 && <span className="absolute left-2.5 bottom-2.5 rounded-full bg-black/60 text-white font-bold text-[12px] px-2.5 py-1">{count} ka litrato</span>}
+        </div>
+        <div className="p-4 lg:p-8 flex flex-col justify-center min-w-0">
+          <div className="flex gap-2 items-center mb-2 flex-wrap">
+            <span className="font-bold text-[11.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)]">Pinakabag-o</span>
+            <ArticleChip a={a} />
+            <span className="text-[13px] lg:text-[14px] text-parish-text2">{fmtShort(a.held_on)}</span>
+          </div>
+          <div className="font-serif font-bold text-[24px] lg:text-[32px] leading-[1.15] text-parish-navy">{a.title}</div>
+          {(a.summary || a.body) && <p className="m-0 mt-2 lg:mt-3 text-[15px] lg:text-[16.5px] leading-relaxed text-[#4d4636] line-clamp-4">{a.summary || excerpt(a.body, 320)}</p>}
+          <ArticleByline a={a} className="mt-3" />
+          <span className="mt-3 lg:mt-5 inline-flex items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha ang artikulo<Icon name="chev" size={16} /></span>
         </div>
       </Link>
     </div>

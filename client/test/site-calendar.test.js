@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { censusCountdown, daysUntil, eventCountdown, eventsOnDay, guideShortTitle, monthCells, sortCensusGkks } from '../src/lib/site.js';
+import { censusCountdown, daysUntil, eventCountdown, eventsOnDay, guideShortTitle, isRecent, monthCells, readingTime, sortAnnouncements, sortCensusGkks } from '../src/lib/site.js';
 
 describe('monthCells', () => {
   test('pads October 2026 to whole Sunday-first weeks', () => {
@@ -107,5 +107,33 @@ describe('guideShortTitle', () => {
   test('leaves a title without brackets, or only brackets, as it is', () => {
     assert.equal(guideShortTitle('Kumpil'), 'Kumpil');
     assert.equal(guideShortTitle('(Baptism)'), '(Baptism)');
+  });
+});
+
+describe('readingTime and isRecent', () => {
+  test('reading time at about 200 words a minute, at least a minute', () => {
+    assert.equal(readingTime('word '.repeat(600)), '3 minutos basahon');
+    assert.equal(readingTime('Salamat'), '1 minuto basahon');
+    assert.equal(readingTime('  '), null);
+  });
+  test('recent means posted in the last 3 days', () => {
+    assert.equal(isRecent('2026-10-02', '2026-10-02'), true);
+    assert.equal(isRecent('2026-09-30', '2026-10-02'), true);
+    assert.equal(isRecent('2026-09-29', '2026-10-02'), false);
+    assert.equal(isRecent('2026-10-05', '2026-10-02'), false);
+    assert.equal(isRecent(null, '2026-10-02'), false);
+  });
+});
+
+describe('sortAnnouncements', () => {
+  test('urgent first, then pinned, then newest', () => {
+    const rows = [
+      { id: 1, publish_on: '2026-10-01' },
+      { id: 2, publish_on: '2026-09-20', pinned: true },
+      { id: 3, publish_on: '2026-09-01', urgent: true },
+      { id: 4, publish_on: '2026-10-02' },
+    ];
+    assert.deepEqual(sortAnnouncements(rows).map((r) => r.id), [3, 2, 4, 1]);
+    assert.equal(rows[0].id, 1);
   });
 });

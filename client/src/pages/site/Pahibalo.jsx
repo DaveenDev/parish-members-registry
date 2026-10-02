@@ -1,42 +1,82 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
-import { DataState, EmptyNote, PAGE, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
-import { AnnouncementCard, ArticleCard, EventCard } from '../../components/site/cards.jsx';
-import { ANNOUNCEMENT_LABELS, fmtLong } from '../../lib/site.js';
+import { Icon } from '../../components/site/Icons.jsx';
+import { DataState, EmptyNote, Eyebrow, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
+import { AnnouncementCard, ArticleCard, ArticleFeature, EventCard } from '../../components/site/cards.jsx';
+import { ANNOUNCEMENT_LABELS, fmtLong, sortAnnouncements } from '../../lib/site.js';
 import { listState, useAnnouncements, useArticles, useBulletins, useEvents } from './data.js';
 
+// The page's content width (like PAGE in kit.jsx); the articles band runs
+// full width behind it.
+const WRAP = 'px-3.5 lg:max-w-[1240px] lg:mx-auto lg:px-6';
+
 const CATEGORY_FILTERS = [['all', 'Tanan'], ['Parish', 'Parokya'], ['GKK', 'GKK'], ['Ministry', 'Ministry'], ['Schedule change', ANNOUNCEMENT_LABELS['Schedule change']], ['urgent', 'Urgent']];
+// Values match the articles_tag_check constraint (0021).
+const ARTICLE_TAG_FILTERS = [['all', 'Tanan'], ['History', 'Kasaysayan'], ['Parish', 'Parokya'], ['GKK', 'GKK'], ['Ministry', 'Ministry']];
+const ARTICLES_STEP = 6;
 
 /** Desktop columns for `n` cards: one fills the row, two split it, three or more go three across. */
 const cols = (n) => (n <= 1 ? 'lg:grid-cols-1' : n === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3');
 
-/** Pahibalo ug Kalihokan: announcements by category, blog articles, and the weekly bulletin archive. */
+/**
+ * Pahibalo ug Kalihokan: upcoming events and announcements on the cream page,
+ * the blog articles on their own warm band below, and the weekly bulletin
+ * archive under its own tab.
+ */
 export default function Pahibalo() {
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'bulletin' ? 'bulletin' : 'list';
   const setView = (v) => setParams(v === 'bulletin' ? { view: 'bulletin' } : {}, { replace: true });
 
   return (
-    <main className={PAGE}>
-      <PageHeader eyebrow="Pahibalo ug Kalihokan" title="Balita sa parokya">
-        <Segmented label="Pahibalo" options={[['list', 'Mga Pahibalo'], ['bulletin', 'Bulletin']]} value={view} onChange={setView} />
-      </PageHeader>
-      {view === 'list' ? <Announcements /> : <Bulletins />}
+    <main className="animate-fadeUp">
+      <div className={`${WRAP} pt-4 lg:pt-9 ${view === 'bulletin' ? 'pb-7 lg:pb-0' : ''}`}>
+        <PageHeader eyebrow="Pahibalo ug Kalihokan" title="Balita sa parokya">
+          <Segmented label="Pahibalo" options={[['list', 'Mga Pahibalo'], ['bulletin', 'Bulletin']]} value={view} onChange={setView} />
+        </PageHeader>
+        {view === 'bulletin' && <Bulletins />}
+      </div>
+      {view === 'list' && (
+        <>
+          <div className={WRAP}>
+            <UpcomingEvents />
+            <Announcements />
+          </div>
+          <Articles />
+        </>
+      )}
     </main>
   );
 }
 
+/**
+ * Mga Pahibalo: urgent ones first, then pinned, then newest. The category
+ * filters only show once there's something to filter (4 or more, in at least
+ * two categories). A lone card keeps to a readable width.
+ */
 function Announcements() {
   const ann = listState(useAnnouncements());
   const [cat, setCat] = useState('all');
-  const shown = ann.rows.filter((a) => cat === 'all' || (cat === 'urgent' ? a.urgent : a.category === cat));
+  const showFilters = ann.rows.length >= 4 && new Set(ann.rows.map((a) => a.category)).size >= 2;
+  const active = showFilters ? cat : 'all';
+  const shown = sortAnnouncements(ann.rows).filter((a) => active === 'all' || (active === 'urgent' ? a.urgent : a.category === active));
   // Only offer the categories that have something in them.
   const filters = CATEGORY_FILTERS.filter(([v]) => v === 'all' || ann.rows.some((a) => (v === 'urgent' ? a.urgent : a.category === v)));
 
   return (
-    <>
-      <UpcomingEvents />
-      {filters.length > 2 && <Pills scroll className="mb-3.5 lg:mb-5" options={filters} value={cat} onChange={setCat} />}
+    <section aria-labelledby="announcements-title" className="pb-7 lg:pb-0">
+      <div className="flex items-end justify-between gap-x-6 gap-y-3 flex-wrap mb-3.5 lg:mb-5">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="w-11 h-11 lg:w-12 lg:h-12 flex-none rounded-2xl flex items-center justify-center border" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)', borderColor: 'var(--p-blue-border)' }}>
+            <Icon name="mega" size={24} />
+          </span>
+          <div className="min-w-0">
+            <h2 id="announcements-title" className="m-0 font-serif text-[26px] lg:text-[32px] font-bold text-parish-navy leading-tight">Mga Pahibalo</h2>
+            <p className="m-0 text-[14.5px] lg:text-[15.5px] text-[#4d4636]">Gikan sa opisina sa parokya, sa mga GKK ug mga ministry.</p>
+          </div>
+        </div>
+        {showFilters && <Pills scroll options={filters} value={cat} onChange={setCat} />}
+      </div>
       <DataState
         state={ann}
         skeleton={<><div className="lg:hidden"><Skeletons n={2} h={120} /></div><div className="hidden lg:grid grid-cols-3 gap-4">{[0, 1, 2].map((i) => <Skeleton key={i} h={220} alt={i === 1} className="rounded-[18px]" />)}</div></>}
@@ -44,23 +84,24 @@ function Announcements() {
         empty={ann.empty}
         emptyText="Wala pay pahibalo. Balik lang sunod semana."
       >
-        <div className={`flex flex-col gap-2.5 lg:grid lg:gap-4 lg:items-start ${cols(shown.length)}`}>{shown.map((a) => <AnnouncementCard key={a.id} a={a} full />)}</div>
+        <div className={`flex flex-col gap-2.5 lg:grid lg:gap-4 lg:items-start ${cols(shown.length)} ${shown.length === 1 ? 'lg:max-w-[760px]' : ''}`}>
+          {shown.map((a) => <AnnouncementCard key={a.id} a={a} full />)}
+        </div>
       </DataState>
-      <Articles />
-    </>
+    </section>
   );
 }
 
-const ARTICLES_FIRST = 6;
-
 /**
- * Blog articles below the announcements: parish history and write-ups of
- * events held, newest first. Hidden while loading, on error, or when there
- * are none.
+ * Mga Artikulo, on a full-width warm band so it reads apart from the
+ * announcements: the newest article wide, then the rest three across, six
+ * more at a time. Tag filters show once articles use two or more tags.
+ * Hidden while loading, on error, or when there are none.
  */
 function Articles() {
   const q = listState(useArticles());
-  const [all, setAll] = useState(false);
+  const [tag, setTag] = useState('all');
+  const [count, setCount] = useState(ARTICLES_STEP);
   const { hash } = useLocation();
   const ready = !q.loading && q.rows.length > 0;
   // Coming back from an article ("Tanang artikulo"): scroll here once the list is in.
@@ -68,17 +109,44 @@ function Articles() {
     if (ready && hash === '#artikulo') document.getElementById('artikulo')?.scrollIntoView();
   }, [ready, hash]);
   if (q.loading || q.error || !q.rows.length) return null;
-  const shown = all ? q.rows : q.rows.slice(0, ARTICLES_FIRST);
+
+  const tags = new Set(q.rows.map((a) => a.tag));
+  const filters = tags.size >= 2 ? ARTICLE_TAG_FILTERS.filter(([v]) => v === 'all' || tags.has(v)) : null;
+  const list = q.rows.filter((a) => !filters || tag === 'all' || a.tag === tag);
+  const [first, ...rest] = list;
+  const shown = rest.slice(0, count);
+  const pickTag = (v) => { setTag(v); setCount(ARTICLES_STEP); };
+
   return (
-    <section id="artikulo" className="mt-8 lg:mt-12 scroll-mt-24" aria-labelledby="articles-title">
-      <h2 id="articles-title" className="m-0 font-serif text-[26px] lg:text-[32px] font-bold text-parish-navy leading-tight">Mga Artikulo</h2>
-      <p className="m-0 mt-1 mb-3.5 lg:mb-5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636]">Kasaysayan sa parokya ug mga kalihokan nga nahitabo.</p>
-      <div className={`flex flex-col gap-3 lg:grid lg:gap-4 lg:items-start ${cols(shown.length)}`}>{shown.map((a) => <ArticleCard key={a.id} a={a} wide={shown.length < 3} />)}</div>
-      {!all && q.rows.length > ARTICLES_FIRST && (
-        <button type="button" onClick={() => setAll(true)} className="mt-4 w-full lg:w-auto min-h-[46px] px-5 rounded-[12px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[15px] hover:bg-[var(--p-blue-tint)]">
-          Tan-awa pa ({q.rows.length - ARTICLES_FIRST})
-        </button>
-      )}
+    <section
+      id="artikulo" aria-labelledby="articles-title"
+      className="scroll-mt-16 lg:scroll-mt-[76px] mt-1 lg:mt-12 py-7 lg:py-12 border-y"
+      style={{ background: 'var(--p-gold-tint)', borderColor: 'color-mix(in srgb, var(--p-gold) 35%, white)' }}
+    >
+      <div className={WRAP}>
+        <div className="flex items-end justify-between gap-x-6 gap-y-3 flex-wrap mb-4 lg:mb-6">
+          <div className="min-w-0">
+            <Eyebrow>Mga istorya sa parokya</Eyebrow>
+            <h2 id="articles-title" className="m-0 font-serif text-[28px] lg:text-[36px] font-bold text-parish-navy leading-tight">Mga Artikulo</h2>
+            <p className="m-0 mt-0.5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636]">Kasaysayan sa parokya ug mga kalihokan nga nahitabo.</p>
+          </div>
+          {filters && <Pills scroll options={filters} value={tag} onChange={pickTag} />}
+        </div>
+        {first && <ArticleFeature a={first} />}
+        {shown.length > 0 && (
+          <div className="mt-3 lg:mt-5 flex flex-col gap-3 lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start">
+            {shown.map((a) => <ArticleCard key={a.id} a={a} />)}
+          </div>
+        )}
+        {rest.length > count && (
+          <div className="mt-4 lg:mt-6 flex items-center gap-3 flex-wrap">
+            <button type="button" onClick={() => setCount((c) => c + ARTICLES_STEP)} className="w-full lg:w-auto min-h-[46px] px-5 rounded-[12px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[15px] hover:bg-[var(--p-blue-tint)]">
+              Tan-awa pa ang {Math.min(ARTICLES_STEP, rest.length - count)}
+            </button>
+            <span className="text-[13.5px] text-parish-text2">Gipakita ang {1 + shown.length} sa {list.length}</span>
+          </div>
+        )}
+      </div>
     </section>
   );
 }

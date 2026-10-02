@@ -4,7 +4,7 @@
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
 import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, parseAgeRange } from './constants.js';
-import { memberFullName, inDateRange } from './lib/util.js';
+import { memberFullName, inDateRange, plainLetters } from './lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
@@ -1234,7 +1234,8 @@ function todayLocal() {
 async function listPublished(table, order) {
   const { data, error } = await order(supabase.from(table).select('*').eq('published', true));
   if (error) throw mapError(error);
-  return data || [];
+  // Text pasted from Facebook often uses "bold" math letters the site's fonts can't draw.
+  return (data || []).map((row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, plainLetters(v)])));
 }
 
 /** Insert a row (no id) or update it (with id). Blank strings save as null. */

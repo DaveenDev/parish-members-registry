@@ -6,8 +6,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        serif: ["'Cormorant Garamond'", 'serif'],
-        sans: ["'Source Sans 3'", 'system-ui', 'sans-serif'],
+        // Emoji: the device's own emoji font, then Noto Color Emoji (index.html)
+        // for ones it doesn't have, e.g. 🩵 on Windows 10.
+        serif: ["'Cormorant Garamond'", "'Apple Color Emoji'", "'Segoe UI Emoji'", "'Noto Color Emoji'", 'serif'],
+        sans: ["'Source Sans 3'", 'system-ui', "'Apple Color Emoji'", "'Segoe UI Emoji'", "'Noto Color Emoji'", 'sans-serif'],
       },
       colors: {
         // Neutral and status colors are CSS variables holding "r g b"

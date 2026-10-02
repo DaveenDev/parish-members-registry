@@ -86,3 +86,13 @@ export function adminReturnPath(from) {
   if (/^\/admin\/login(?:[/?#]|$)/.test(from)) return '/admin';
   return from;
 }
+
+/**
+ * Facebook-style "bold" or "italic" letters (𝐀𝐁𝐂, 𝘈𝘉𝘊: Unicode math
+ * symbols, U+1D400–U+1D7FF) turned back into plain letters, so the site's
+ * fonts draw them. Everything else, emoji included, is left alone.
+ */
+export function plainLetters(text) {
+  if (typeof text !== 'string') return text;
+  return text.replace(/[\u{1D400}-\u{1D7FF}]/gu, (c) => c.normalize('NFKC'));
+}

@@ -169,6 +169,28 @@ export function guideShortTitle(title) {
   return t.replace(/\s*\([^)]*\)\s*$/, '').trim() || t;
 }
 
+/** "3 minutos basahon" for a text, at about 200 words a minute; null when there's no text. */
+export function readingTime(text) {
+  const words = String(text || '').trim().split(/\s+/).filter(Boolean).length;
+  if (!words) return null;
+  const minutes = Math.max(1, Math.round(words / 200));
+  return `${minutes} ${minutes === 1 ? 'minuto' : 'minutos'} basahon`;
+}
+
+/** True when `iso` (yyyy-mm-dd) is today or one of the `days` - 1 days before it: "New". */
+export function isRecent(iso, todayIsoStr, days = 3) {
+  const age = daysUntil(todayIsoStr, iso);
+  return age !== null && age >= 0 && age < days;
+}
+
+/** Announcements in list order: urgent first, then pinned, then newest. */
+export function sortAnnouncements(rows) {
+  return [...(rows || [])].sort((a, b) => (b.urgent ? 1 : 0) - (a.urgent ? 1 : 0)
+    || (b.pinned ? 1 : 0) - (a.pinned ? 1 : 0)
+    || String(b.publish_on || '').localeCompare(String(a.publish_on || ''))
+    || (b.id || 0) - (a.id || 0));
+}
+
 export const ANNOUNCEMENT_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', 'Schedule change': 'Kausaban sa iskedyul' };
 export const ARTICLE_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', History: 'Kasaysayan' };
 

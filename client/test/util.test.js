@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { toNameCase, toSuffixCase, initials, inDateRange, generateTempPassword, adminReturnPath } from '../src/lib/util.js';
+import { toNameCase, toSuffixCase, initials, inDateRange, generateTempPassword, adminReturnPath, plainLetters } from '../src/lib/util.js';
 
 describe('toNameCase', () => {
   test('capitalizes the first letter of each word only', () => {
@@ -118,5 +118,17 @@ describe('adminReturnPath', () => {
     assert.equal(adminReturnPath('/register'), '/admin');
     assert.equal(adminReturnPath('https://evil.example/admin'), '/admin');
     assert.equal(adminReturnPath('//evil.example/admin'), '/admin');
+  });
+});
+
+describe('plainLetters', () => {
+  test('turns math bold and italic letters and digits into plain ones', () => {
+    assert.equal(plainLetters('𝐀 𝐁𝐥𝐞𝐬𝐬𝐞𝐝 𝟓𝟗𝐭𝐡 𝐁𝐢𝐫𝐭𝐡𝐝𝐚𝐲'), 'A Blessed 59th Birthday');
+    assert.equal(plainLetters('𝘏𝘦𝘭𝘭𝘰'), 'Hello');
+  });
+  test('leaves emoji, accents and non-strings alone', () => {
+    assert.equal(plainLetters('Sto. Niño!🎉🩵'), 'Sto. Niño!🎉🩵');
+    assert.equal(plainLetters(null), null);
+    assert.equal(plainLetters(5), 5);
   });
 });
