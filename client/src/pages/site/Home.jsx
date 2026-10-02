@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
-import { AnnouncementCard, EventRow, MassRow } from '../../components/site/cards.jsx';
+import { AnnouncementCard, ArticleChip, EventRow, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
-import { fmtDayMonth, upcomingToday } from '../../lib/site.js';
+import { excerpt, fmtDayMonth, fmtShort, upcomingToday } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { PARISH_NAME, PARISH_SUB, SiteFooter } from './SiteLayout.jsx';
-import { listState, useAnnouncements, useEvents, useMassSchedule, useOffice, usePortalStatus } from './data.js';
+import { listState, useAnnouncements, useArticles, useEvents, useMassSchedule, useOffice, usePortalStatus } from './data.js';
 
 const DISMISSED_KEY = 'pmr_dismissed_urgent';
 
@@ -140,6 +140,8 @@ export default function Home() {
         </div>
       </section>
 
+      <LatestArticles />
+
       <div className="lg:hidden">
         <SiteFooter address={office?.address} />
         <CreditFooter inline />
@@ -234,6 +236,47 @@ function ParishStats({ mass }) {
         })}
       </div>
     </section>
+  );
+}
+
+/**
+ * The two newest blog articles, one row each: photo then text on the first,
+ * text then photo on the second (stacked, photo first, on phones). A row
+ * shows only when there's an article for it; the section hides while
+ * loading, on error, or when there are none.
+ */
+function LatestArticles() {
+  const q = listState(useArticles());
+  if (q.loading || q.error || !q.rows.length) return null;
+  return (
+    <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12">
+      <SectionHead title="Mga Artikulo" to="/pahibalo#artikulo" action="Tanan" actionLg="Tanang artikulo →" />
+      <div className="flex flex-col gap-3 lg:gap-5">
+        {q.rows.slice(0, 2).map((a, i) => <ArticleRow key={a.id} a={a} flip={i === 1} />)}
+      </div>
+    </section>
+  );
+}
+
+function ArticleRow({ a, flip }) {
+  return (
+    <Link
+      to={`/pahibalo/artikulo/${a.id}`}
+      className="grid bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden transition-colors hover:border-[var(--p-blue-border)] lg:grid-cols-2"
+    >
+      <div className={`relative aspect-[16/9] lg:aspect-auto lg:min-h-[260px] bg-[#efe6d3] flex items-center justify-center text-[var(--p-gold-deep)] ${flip ? 'lg:order-2' : ''}`}>
+        {a.photo_url ? <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : <Icon name="church" size={44} />}
+      </div>
+      <div className="p-4 lg:p-8 flex flex-col justify-center min-w-0">
+        <div className="flex gap-2 items-center mb-1.5 lg:mb-2.5">
+          <ArticleChip a={a} />
+          <span className="text-[13px] lg:text-[14px] text-parish-text2">{fmtShort(a.held_on)}</span>
+        </div>
+        <div className="font-serif font-bold text-[21px] lg:text-[28px] leading-[1.2] text-parish-navy">{a.title}</div>
+        {(a.summary || a.body) && <p className="m-0 mt-1.5 lg:mt-2.5 text-[15px] lg:text-[16px] leading-relaxed text-[#4d4636]">{excerpt(a.summary || a.body, 220)}</p>}
+        <span className="mt-3 lg:mt-4 inline-flex items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha<Icon name="chev" size={16} /></span>
+      </div>
+    </Link>
   );
 }
 

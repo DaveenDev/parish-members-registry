@@ -740,7 +740,8 @@ export const api = {
   publicEvents: (fromIso) => listPublished('events', (q) => q
     .or(`end_date.gte.${fromIso},and(end_date.is.null,start_date.gte.${fromIso})`)
     .order('start_date').order('start_time', { nullsFirst: true })),
-  publicArticles: () => listPublished('articles', (q) => q.order('held_on', { ascending: false }).order('id', { ascending: false }).limit(30)),
+  // Every published article: Mga Pahibalo lists them all (Home shows the newest two).
+  publicArticles: () => listPublished('articles', (q) => q.order('held_on', { ascending: false }).order('id', { ascending: false }).limit(500)),
   /** One published item by id (for shared links to an event, announcement, bulletin or article), or null. */
   async publicItem(table, id) {
     if (!WEBSITE_TABLES.includes(table)) throw new Error('Unknown content type');
