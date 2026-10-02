@@ -1,120 +1,35 @@
 import React, { useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { Avatar, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PAGE, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
-import { ArticleChip } from '../../components/site/cards.jsx';
+import { Avatar, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PAGE, PageHeader, Pills, Skeleton, Skeletons } from '../../components/site/kit.jsx';
 import { phoneHref } from '../../lib/requests.js';
-import { ARTICLE_LABELS, excerpt, fmtLong, fmtShort, gkkParts, groupGkksByArea, initialsOf } from '../../lib/site.js';
+import { fmtLong, gkkParts, groupGkksByArea, initialsOf } from '../../lib/site.js';
 import { useSiteTitle } from './SiteLayout.jsx';
-import { listState, useArticles, useCensusProgress, useGkkDirectory } from './data.js';
+import { listState, useCensusProgress, useGkkDirectory } from './data.js';
 
 const SMALL = 'Ubos sa 5';
 
 /**
- * Komunidad: latest updates on activities held, then the census progress and
- * the GKK directory. While a census is open, Census is the first tab and the
- * one shown by default; with no census open the GKK directory comes first.
+ * Komunidad: the census progress (only while a census is open) and, below it,
+ * the GKK directory.
  */
 export default function Komunidad() {
-  const [params, setParams] = useSearchParams();
   const q = useCensusProgress();
-  const census = q.data;
-  const open = !!census?.open;
-  // The default depends on the census, so hold off until it's known (a failed load counts as no census).
-  const ready = !q.loading;
-  const requested = params.get('view');
-  const defaultView = open ? 'census' : 'gkk';
-  const view = requested === 'census' || requested === 'gkk' ? requested : defaultView;
-  // The default tab keeps the address clean; the other one is spelled out.
-  const setView = (v) => setParams(v === defaultView ? {} : { view: v }, { replace: true });
-  const censusTab = ['census', open ? census.label : 'Census'];
-  const gkkTab = ['gkk', 'GKK Directory'];
+  const open = !!q.data?.open;
 
   return (
     <main className={PAGE}>
-      <LatestUpdates />
-      <PageHeader eyebrow="Komunidad" title="Mga GKK sa parokya">
-        {ready && <Segmented label="Komunidad" options={open ? [censusTab, gkkTab] : [gkkTab, censusTab]} value={view} onChange={setView} />}
-      </PageHeader>
-      {!ready && !requested ? <Skeletons n={2} h={160} /> : view === 'gkk' ? <GkkDirectory /> : <CensusProgress />}
-    </main>
-  );
-}
-
-function LatestUpdates() {
-  const arts = listState(useArticles());
-  return (
-    <section aria-labelledby="lu-h" className="mb-7 lg:mb-12 lg:pb-10 lg:border-b lg:border-[#e7dcc4]">
-      <Eyebrow>Mga nahimong kalihokan</Eyebrow>
-      <h2 id="lu-h" className="font-serif font-semibold text-[30px] lg:text-[46px] mt-0.5 mb-3 lg:mb-5 text-parish-navy">Pinakabag-ong Balita</h2>
-      {arts.loading ? (
-        <>
-          <div className="flex gap-3 overflow-hidden lg:hidden"><Skeleton h={260} className="flex-none w-[260px]" /><Skeleton h={260} alt className="flex-none w-[260px]" /></div>
-          <div className="hidden lg:grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-5"><Skeleton h={440} className="rounded-[20px]" /><Skeleton h={440} alt className="rounded-[20px]" /></div>
-        </>
-      ) : arts.error ? (
-        <p className="m-0 text-parish-error text-[15px]">Wala ma-load ang mga balita.</p>
-      ) : arts.empty ? (
-        <p className="m-0 text-parish-text2 text-[15px]">Wala pay balita nga gi-post.</p>
-      ) : (
-        <>
-        <ArticlesDesktop rows={arts.rows} />
-        <div className="flex gap-3 overflow-x-auto snap-x snap-mandatory -mx-3.5 px-3.5 pb-1.5 lg:hidden">
-          {arts.rows.map((a) => (
-            <Link key={a.id} to={`/komunidad/balita/${a.id}`} className="flex-none w-[262px] snap-start text-left overflow-hidden bg-parish-card border border-parish-border rounded-2xl shadow-cardSm">
-              {a.photo_url
-                ? <img src={a.photo_url} alt="" loading="lazy" className="w-full h-[128px] object-cover bg-[#efe6d3]" />
-                : <div className="h-[128px] flex items-center justify-center bg-[var(--p-blue-tint)] text-parish-gold"><Icon name="cross" size={48} /></div>}
-              <div className="px-3.5 pt-3 pb-3.5">
-                <div className="flex gap-2 items-center mb-1.5"><ArticleChip a={a} /><span className="text-[13px] text-parish-text2">{fmtShort(a.held_on)}</span></div>
-                <div className="font-serif text-[20px] font-bold leading-[1.18] text-parish-navy mb-1">{a.title}</div>
-                <div className="text-[14px] leading-[1.45] text-[#4d4636]">{a.summary || excerpt(a.body, 110)}</div>
-                <div className="font-bold text-[14px] text-parish-blue mt-2">Basaha →</div>
-              </div>
-            </Link>
-          ))}
-        </div>
-        </>
+      {q.loading && <Skeleton h={220} className="mb-8 lg:mb-12 lg:h-[420px]" />}
+      {open && (
+        <section aria-labelledby="census-h" className="mb-8 lg:mb-12 lg:pb-10 lg:border-b lg:border-[#e7dcc4]">
+          <Eyebrow>Census sa parokya</Eyebrow>
+          <h2 id="census-h" className="sr-only">Progreso sa census</h2>
+          <CensusProgress />
+        </section>
       )}
-    </section>
-  );
-}
-
-const articlePath = (a) => `/komunidad/balita/${a.id}`;
-
-function ArticlePhoto({ a, className }) {
-  return a.photo_url
-    ? <img src={a.photo_url} alt="" loading="lazy" className={`w-full object-cover bg-[#efe6d3] ${className}`} />
-    : <div className={`flex items-center justify-center bg-[var(--p-blue-tint)] text-parish-gold ${className}`}><Icon name="cross" size={56} /></div>;
-}
-
-/** Desktop: the newest story large on the left, the next three listed beside it. */
-function ArticlesDesktop({ rows }) {
-  const [lead, ...rest] = rows;
-  return (
-    <div className="hidden lg:grid grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-5 items-start">
-      <Link to={articlePath(lead)} className="text-left overflow-hidden bg-parish-card border border-parish-border rounded-[20px] shadow-card hover:border-[var(--p-blue-border)]">
-        <ArticlePhoto a={lead} className="h-[280px]" />
-        <div className="px-[22px] pt-5 pb-[22px]">
-          <div className="flex gap-2 items-center mb-2"><ArticleChip a={lead} /><span className="text-[14px] text-parish-text2">{[fmtShort(lead.held_on), lead.place].filter(Boolean).join(' · ')}</span></div>
-          <div className="font-serif text-[32px] font-bold leading-[1.1] text-parish-navy mb-2">{lead.title}</div>
-          <div className="text-[16.5px] leading-[1.55] text-[#4d4636]">{lead.summary || excerpt(lead.body, 220)}</div>
-          <div className="font-bold text-[15px] text-parish-blue mt-3">Basaha ang tibuok balita →</div>
-        </div>
-      </Link>
-      <div className="flex flex-col gap-3.5">
-        {rest.slice(0, 3).map((a) => (
-          <Link key={a.id} to={articlePath(a)} className="text-left grid grid-cols-[132px_minmax(0,1fr)] gap-4 p-3 bg-parish-card border border-parish-border rounded-[18px] hover:border-[var(--p-blue-border)]">
-            <ArticlePhoto a={a} className="h-[112px] rounded-xl" />
-            <div className="pt-0.5 pr-1">
-              <div className="flex gap-2 items-center mb-[5px]"><span className="font-bold text-[11px] tracking-[.08em] uppercase text-parish-blueDeep">{ARTICLE_LABELS[a.tag] || a.tag}</span><span className="text-[13px] text-parish-text2">{fmtShort(a.held_on)}</span></div>
-              <div className="font-serif text-[21px] font-bold leading-[1.15] text-parish-navy mb-1">{a.title}</div>
-              <div className="text-[14px] leading-[1.45] text-[#4d4636]">{a.summary || excerpt(a.body, 90)}</div>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </div>
+      <PageHeader eyebrow="Komunidad" title="Mga GKK sa parokya" />
+      <GkkDirectory />
+    </main>
   );
 }
 

@@ -141,7 +141,7 @@ export function ArticleDetail() {
           <Photo src={a.photo_url} hLg={380} />
           <Body text={a.body || a.summary} />
           <BigButton className={SHARE} onClick={() => share(a.title)}><Icon name="share" />Ipaambit sa Messenger</BigButton>
-          <Link to="/komunidad" className="block text-center mt-4 min-h-[44px] font-bold text-[15px] text-parish-blue lg:inline-flex lg:items-center lg:ml-5 lg:mt-0">Tanang balita</Link>
+          <Link to="/komunidad" className="block text-center mt-4 min-h-[44px] font-bold text-[15px] text-parish-blue lg:inline-flex lg:items-center lg:ml-5 lg:mt-0">Balik sa Komunidad</Link>
         </>
       )}
     </Detail>
