@@ -174,6 +174,8 @@ const storageForm = (s) => ({
 /**
  * Cloudflare R2 settings for Blog Article photos (staff admins only). The
  * secret key is write-only: once saved it is never sent back to a browser.
+ * Locked by default: a wrong value breaks every photo upload, so editing sits
+ * behind a danger-zone warning.
  */
 function PhotoStorageCard() {
   const toast = useToast();
@@ -181,6 +183,14 @@ function PhotoStorageCard() {
   const [form, setForm] = useState(BLANK_STORAGE);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  // 'locked' → 'warning' (danger-zone notice shown) → 'editing'
+  const [mode, setMode] = useState('locked');
+  const editing = mode === 'editing';
+
+  function lock() {
+    setForm(storageForm(saved));
+    setMode('locked');
+  }
 
   useEffect(() => {
     api.getMediaStorage()
@@ -197,6 +207,7 @@ function PhotoStorageCard() {
       const s = await api.saveMediaStorage(form);
       setSaved(s);
       setForm(storageForm(s));
+      setMode('locked');
       toast.success('Photo storage settings saved');
     } catch (e) {
       toast.error(e.message || 'Could not save the settings');
@@ -212,6 +223,7 @@ function PhotoStorageCard() {
       await api.clearMediaStorage();
       setSaved({ has_secret: false });
       setForm(BLANK_STORAGE);
+      setMode('locked');
       toast.success('Photo storage settings removed');
     } catch (e) {
       toast.error(e.message || 'Could not remove the settings');
@@ -236,7 +248,7 @@ function PhotoStorageCard() {
         <div className="text-[13.5px] text-parish-error">{error}</div>
       ) : saved && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2">
+          <fieldset disabled={!editing} className={`grid gap-4 sm:grid-cols-2 border-none p-0 m-0 min-w-0 ${editing ? '' : 'opacity-60 [&_input]:cursor-not-allowed'}`}>
             <Field label="Account ID"><TextInput value={form.accountId} onChange={set('accountId')} autoComplete="off" spellCheck={false} /></Field>
             <Field label="Bucket name"><TextInput value={form.bucket} onChange={set('bucket')} placeholder="parish-media" autoComplete="off" spellCheck={false} /></Field>
             <Field label="Access Key ID"><TextInput value={form.accessKeyId} onChange={set('accessKeyId')} autoComplete="off" spellCheck={false} /></Field>
@@ -253,15 +265,49 @@ function PhotoStorageCard() {
             <div className="sm:col-span-2">
               <Field label="Public URL"><TextInput value={form.publicBaseUrl} onChange={set('publicBaseUrl')} placeholder="https://media.yourparish.org" autoComplete="off" spellCheck={false} inputMode="url" /></Field>
             </div>
-          </div>
-          <div className="flex items-center gap-4 mt-5 flex-wrap">
-            <PrimaryButton onClick={save} disabled={busy} className="px-[26px] py-3 text-[14.5px]">{busy ? 'Saving…' : 'Save storage settings'}</PrimaryButton>
-            {saved.updated_at && (
-              <button type="button" onClick={clear} disabled={busy} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-error p-0">
-                Remove saved settings
+          </fieldset>
+
+          {mode === 'locked' && (
+            <div className="flex items-center gap-3 mt-5 flex-wrap">
+              <button type="button" onClick={() => setMode('warning')} className="appearance-none cursor-pointer px-[18px] py-2.5 rounded-xl border-[1.5px] border-parish-errorBorder bg-parish-errorBg font-semibold text-[14px] text-parish-error">
+                Edit settings…
               </button>
-            )}
-          </div>
+              <span className="text-[13px] text-parish-muted">Locked to prevent accidental changes.</span>
+            </div>
+          )}
+
+          {mode === 'warning' && (
+            <div role="alert" className="mt-5 p-4 rounded-xl border-[1.5px] border-parish-errorBorder bg-parish-errorBg">
+              <div className="font-bold text-[14.5px] text-parish-error mb-1">Danger zone</div>
+              <div className="text-[13.5px] text-parish-ink mb-3">
+                These settings connect the website to its photo storage. A wrong value stops all Blog Article photo uploads,
+                and pointing them at a different bucket or Public URL can make existing photos disappear from the website.
+                Only change them if you know what you're doing.
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <button type="button" onClick={() => setMode('editing')} className="appearance-none border-none cursor-pointer px-[18px] py-2.5 rounded-xl bg-parish-error font-semibold text-[14px] text-white">
+                  I understand, unlock
+                </button>
+                <button type="button" onClick={() => setMode('locked')} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13.5px] text-parish-muted p-0">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
+          {editing && (
+            <div className="flex items-center gap-4 mt-5 flex-wrap">
+              <PrimaryButton onClick={save} disabled={busy} className="px-[26px] py-3 text-[14.5px]">{busy ? 'Saving…' : 'Save storage settings'}</PrimaryButton>
+              <button type="button" onClick={lock} disabled={busy} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13.5px] text-parish-muted p-0">
+                Cancel
+              </button>
+              {saved.updated_at && (
+                <button type="button" onClick={clear} disabled={busy} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-error p-0 ml-auto">
+                  Remove saved settings
+                </button>
+              )}
+            </div>
+          )}
         </>
       )}
     </Panel>
