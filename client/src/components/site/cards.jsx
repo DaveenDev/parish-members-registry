@@ -46,11 +46,15 @@ export function EventTypeLabel({ e, className = '' }) {
   );
 }
 
-/** Compact row with a date block (Home). */
-export function EventRow({ e }) {
+/** Compact row with a date block (Home). `tinted` is for rows on a blue-tint box. */
+export function EventRow({ e, tinted = false }) {
   const d = parseIso(e.start_date);
   return (
-    <Link to={`/misa/kalihokan/${e.id}`} className="w-full text-left flex gap-3 lg:gap-3.5 items-center px-3.5 py-3 lg:px-[18px] lg:py-3.5 border-b border-[#f0e8d6] last:border-b-0 hover:bg-[#fbf7ef]">
+    <Link
+      to={`/misa/kalihokan/${e.id}`}
+      className={`w-full text-left flex gap-3 lg:gap-3.5 items-center px-3.5 py-3 lg:px-[18px] lg:py-3.5 border-b last:border-b-0 ${tinted ? 'hover:bg-white/60' : 'border-[#f0e8d6] hover:bg-[#fbf7ef]'}`}
+      style={tinted ? { borderColor: 'var(--p-blue-border)' } : undefined}
+    >
       <div className="w-12 lg:w-[52px] flex-none text-center">
         <div className="font-bold text-[11px] lg:text-[11.5px] tracking-[.1em] uppercase text-parish-text2">{BIS_MONTHS_SHORT[d.getMonth()]}</div>
         <div className="font-serif text-[28px] lg:text-[32px] font-bold leading-none text-parish-blue">{d.getDate()}</div>

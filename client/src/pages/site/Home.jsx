@@ -109,8 +109,9 @@ export default function Home() {
         ) : events.empty ? (
           <p className="m-0 text-parish-text2 text-[15px]">Walay kalihokan nga naka-iskedyul.</p>
         ) : (
-          <div className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] overflow-hidden">
-            {events.rows.slice(0, 3).map((e) => <EventRow key={e.id} e={e} />)}
+          // Tinted blue so the events stand apart from the cream announcement cards.
+          <div className="border rounded-2xl lg:rounded-[18px] overflow-hidden shadow-cardSm" style={{ background: 'var(--p-blue-tint)', borderColor: 'var(--p-blue-border)' }}>
+            {events.rows.slice(0, 3).map((e) => <EventRow key={e.id} e={e} tinted />)}
           </div>
         )}
       </section>
