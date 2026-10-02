@@ -760,6 +760,8 @@ export const api = {
   submitBloodRequest: (payload) => publicRpc('submit_blood_request', { payload }),
   /** Ask to avail of OCIA or the Anointing of the Sick (0032); payload.sacrament says which. */
   submitSacramentRequest: (payload) => publicRpc('submit_sacrament_request', { payload }),
+  /** Status of a sacrament request (SR-…) by reference number, or null if not found (0033). */
+  sacramentRequestStatus: (refNo) => publicRpc('sacrament_request_status', { p_ref: refNo }),
   /** Open blood calls staff chose to show: blood type, units, hospital, date. */
   publicBloodCalls: () => publicRpc('public_blood_calls'),
   /** Prayer intentions staff chose to show (requester agreed), last 30 days. */

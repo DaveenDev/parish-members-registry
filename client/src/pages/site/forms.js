@@ -96,6 +96,7 @@ export const FORMS = {
       ] },
     ],
     next: ['Kontakon ka sa opisina sulod sa pipila ka adlaw.', 'Ipahibalo namo ang iskedyul sa sunod nga klase sa OCIA.'],
+    track: true,
     submit: (v) => api.submitSacramentRequest({ ...v, sacrament: 'ocia' }),
   },
 
@@ -121,6 +122,7 @@ export const FORMS = {
       ] },
     ],
     next: ['Kontakon ka sa opisina aron iskedyul ang pagbisita sa pari.', 'Kung mograbe ang kahimtang, tawagi dayon ang sick call sa parokya.'],
+    track: true,
     submit: (v) => api.submitSacramentRequest({ ...v, urgent: v.urgent === 'yes', sacrament: 'anointing' }),
   },
 

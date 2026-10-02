@@ -16,6 +16,44 @@ const STAGES = [
 
 const CERT_BIS = { baptism: 'Sertipiko sa Bunyag', confirmation: 'Sertipiko sa Kumpil', matrimony: 'Sertipiko sa Kasal' };
 
+// Sacrament requests (SR-…, 0032): their stages and names on the website.
+const SACRAMENT_STAGES = [
+  ['New', 'Nadawat'],
+  ['Contacted', 'Gikontak na'],
+  ['Scheduled', 'Na-iskedyul'],
+];
+const SACRAMENT_BIS = { ocia: 'Moapil sa OCIA', anointing: 'Pagdihog sa Masakiton' };
+
+/** Numbered steps with the current one highlighted; `at` is the current step's index (past the end: all done). */
+function Stages({ stages, at, date }) {
+  return (
+    <ol className="list-none m-0 p-0">
+      {stages.map(([key, label], i) => {
+        const done = i < at;
+        const now = i === at;
+        return (
+          <li key={key} className="flex gap-3 items-start pb-3.5">
+            <div
+              className="w-8 h-8 flex-none rounded-full border-2 flex items-center justify-center font-bold text-[14px]"
+              style={{
+                background: done ? '#2f6b48' : now ? 'var(--p-blue)' : '#fffdf8',
+                borderColor: done ? '#2f6b48' : now ? 'var(--p-blue)' : '#e0d6c1',
+                color: done || now ? '#fff' : '#6b6552',
+              }}
+            >
+              {done ? <Icon name="check" size={15} /> : i + 1}
+            </div>
+            <div className="pt-[5px]">
+              <div className="font-semibold text-[15.5px]">{label}</div>
+              <div className="text-[13px] text-parish-text2">{now ? `Karon · ${fmtLong(date)}` : done ? 'Nahuman' : ''}</div>
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
 /** The lookup itself: the reference typed, whether it's checking, and the result. */
 function useStatusCheck(initial = '') {
   const [ref, setRef] = useState(initial);
@@ -32,6 +70,9 @@ function useStatusCheck(initial = '') {
       if (value.startsWith('CR-')) {
         const r = await api.certificateRequestStatus(value);
         setResult(r ? { kind: 'request', ...r } : { kind: 'notfound', ref: value });
+      } else if (value.startsWith('SR-')) {
+        const r = await api.sacramentRequestStatus(value);
+        setResult(r ? { kind: 'sacrament', ...r } : { kind: 'notfound', ref: value });
       } else {
         const r = await api.registrationStatus(value);
         if (!r) setResult({ kind: 'notfound', ref: value });
@@ -84,7 +125,7 @@ export function StatusCheckCard() {
             <h2 id="susiha-title" className="m-0 font-serif font-bold text-[23px] lg:text-[30px] leading-tight text-parish-navy">Susiha ang inyong rehistro o hangyo</h2>
           </div>
           <p className="m-0 mb-3.5 text-[15px] leading-normal text-[#4d4636]">
-            Isulat ang reference number gikan sa inyong confirmation slip (OLG-…), o sa hangyo sa sertipiko (CR-…). Ang ngalan sa pamilya ug status lang ang ipakita.
+            Isulat ang reference number gikan sa inyong confirmation slip (OLG-…), sa hangyo sa sertipiko (CR-…), o sa OCIA ug Pagdihog (SR-…). Ang ngalan sa pamilya ug status lang ang ipakita.
           </p>
           <RefForm s={s} inline id="ref-card" />
         </div>
@@ -100,7 +141,7 @@ export function StatusCheckCard() {
   );
 }
 
-/** Look up a household registration (OLG-…) or a certificate request (CR-…) by reference number. */
+/** Look up a household registration (OLG-…), a certificate request (CR-…) or a sacrament request (SR-…) by reference number. */
 export default function CheckStatus() {
   useSiteTitle('Susiha ang Rehistro');
   const [params] = useSearchParams();
@@ -123,7 +164,7 @@ export default function CheckStatus() {
         <div className="h-1.5 w-1/2 bg-[#efe6d3] rounded mb-2.5" />
         <div className="font-semibold text-[10px] tracking-[.14em] uppercase text-parish-text2">Inyong reference number</div>
         <div className="inline-block mt-0.5 px-1.5 py-0.5 border-2 border-dashed border-parish-gold rounded-md font-serif text-[20px] font-bold tracking-[.06em] text-parish-blue">OLG-2026-XXXXXX</div>
-        <div className="text-[12.5px] text-[#4d4636] mt-1.5">Makita kini sa inyong confirmation slip. Ang hangyo sa sertipiko nagsugod sa CR-.</div>
+        <div className="text-[12.5px] text-[#4d4636] mt-1.5">Makita kini sa inyong confirmation slip. Ang hangyo sa sertipiko nagsugod sa CR-, ang OCIA ug Pagdihog sa SR-.</div>
       </div>
 
       <RefForm s={s} />
@@ -161,6 +202,8 @@ function Result({ r, censusOpen }) {
       );
     case 'request':
       return <RequestStatus r={r} />;
+    case 'sacrament':
+      return <SacramentStatus r={r} />;
     case 'notfound':
       return (
         <div className="bg-parish-card border border-dashed border-[#d9cdb4] rounded-2xl p-4">
@@ -198,38 +241,39 @@ function RequestStatus({ r }) {
       <div className="font-serif text-[23px] font-bold text-parish-navy mt-0.5 mb-3.5">{CERT_BIS[r.cert_type] || certTypeLabel(r.cert_type)}</div>
       {cannot ? (
         <p className="m-0 mb-3 text-[15.5px] leading-normal text-[#3f3b2f]">Dili ma-issue ang sertipiko. Palihug kontaka ang opisina.</p>
-      ) : (
-        <ol className="list-none m-0 p-0">
-          {STAGES.map(([key, label], i) => {
-            const done = i < at;
-            const now = i === at;
-            return (
-              <li key={key} className="flex gap-3 items-start pb-3.5">
-                <div
-                  className="w-8 h-8 flex-none rounded-full border-2 flex items-center justify-center font-bold text-[14px]"
-                  style={{
-                    background: done ? '#2f6b48' : now ? 'var(--p-blue)' : '#fffdf8',
-                    borderColor: done ? '#2f6b48' : now ? 'var(--p-blue)' : '#e0d6c1',
-                    color: done || now ? '#fff' : '#6b6552',
-                  }}
-                >
-                  {done ? <Icon name="check" size={15} /> : i + 1}
-                </div>
-                <div className="pt-[5px]">
-                  <div className="font-semibold text-[15.5px]">{label}</div>
-                  <div className="text-[13px] text-parish-text2">{now ? `Karon · ${fmtLong(r.updated_on)}` : done ? 'Nahuman' : ''}</div>
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      )}
+      ) : <Stages stages={STAGES} at={at} date={r.updated_on} />}
       {released && <p className="m-0 mb-3 text-[15px] text-parish-ok font-semibold">Nakuha na ang sertipiko.</p>}
       {r.note && <p className="m-0 mb-3 text-[15px] leading-normal text-[#3f3b2f]"><strong>Nota gikan sa kawani:</strong> {r.note}</p>}
       {!released && !cannot && (
         <div className="flex gap-2 items-center text-[14px] text-[#4d4636] bg-parish-bg rounded-[10px] px-3 py-2.5"><Icon name="idcard" size={18} />Kinahanglan og ID inig kuha.</div>
       )}
       {cannot && <Link to="/kontak" className="font-bold text-parish-blue">Kontaka ang opisina</Link>}
+    </div>
+  );
+}
+
+/** A request to avail of OCIA or the Anointing of the Sick (SR-…). */
+function SacramentStatus({ r }) {
+  const done = r.status === 'Done';
+  const cancelled = r.status === 'Cancelled';
+  const at = done ? SACRAMENT_STAGES.length : Math.max(0, SACRAMENT_STAGES.findIndex(([k]) => k === r.status));
+  return (
+    <div className="bg-parish-card border border-parish-border rounded-2xl p-4">
+      <div className="font-bold text-[11.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)]">Hangyo · {r.ref_no}</div>
+      <div className="font-serif text-[23px] font-bold text-parish-navy mt-0.5 mb-3.5">{SACRAMENT_BIS[r.sacrament] || r.sacrament}</div>
+      {cancelled ? (
+        <p className="m-0 mb-3 text-[15.5px] leading-normal text-[#3f3b2f]">Gikansela kini nga hangyo. Kung kinahanglan pa, palihug kontaka ang opisina.</p>
+      ) : <Stages stages={SACRAMENT_STAGES} at={at} date={r.updated_on} />}
+      {r.scheduled_on && !cancelled && (
+        <div className="flex gap-2 items-center text-[15px] font-semibold text-parish-navy bg-parish-bg rounded-[10px] px-3 py-2.5 mb-3">
+          <Icon name="cal" size={18} />{r.sacrament === 'ocia' ? 'Unang sesyon' : 'Pagbisita sa pari'}: {fmtLong(r.scheduled_on)}
+        </div>
+      )}
+      {done && <p className="m-0 mb-3 text-[15px] text-parish-ok font-semibold">Nahuman na kini nga hangyo.</p>}
+      {!done && !cancelled && r.status === 'New' && (
+        <p className="m-0 mb-3 text-[14.5px] leading-normal text-[#4d4636]">Kontakon ka sa opisina sa imong mobile number.</p>
+      )}
+      {cancelled && <Link to="/kontak" className="font-bold text-parish-blue">Kontaka ang opisina</Link>}
     </div>
   );
 }
