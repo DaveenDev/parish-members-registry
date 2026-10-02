@@ -124,7 +124,7 @@ function GkkDirectory() {
           type="search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Barangay, sitio o purok"
+          placeholder="Barangay, sitio, purok o kapilya"
           className="w-full min-h-[50px] px-11 text-[16px] text-parish-ink bg-parish-card border-[1.5px] border-parish-borderSoft rounded-[14px] outline-none focus:border-parish-blue [&::-webkit-search-cancel-button]:hidden lg:min-h-[52px] lg:px-12 lg:text-[17px] lg:bg-parish-bg"
         />
         {q && (
@@ -179,6 +179,8 @@ function GkkTable({ items }) {
           <tr>
             <th scope="col" className={th}>GKK</th>
             <th scope="col" className={th}>Purok / Sitio</th>
+            <th scope="col" className={th}>Kapilya</th>
+            <th scope="col" className={th}>Natukod</th>
             <th scope="col" className={`${th} whitespace-nowrap`}>Pamilya</th>
             <th scope="col" className={th}>Iskedyul sa tigom</th>
             <th scope="col" className={th}>Coordinator</th>
@@ -193,6 +195,8 @@ function GkkTable({ items }) {
                 </Link>
               </td>
               <td className="px-4 py-3 text-[14px] text-parish-text2">{g.puroks || '—'}</td>
+              <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{g.chapel_address || '—'}</td>
+              <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{g.year_established || '—'}</td>
               <td className="px-4 py-3 text-[14.5px] text-[#3f3b2f] whitespace-nowrap"><strong>{g.households ?? SMALL}</strong></td>
               <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{g.meeting_schedule || '—'}</td>
               <td className="px-4 py-3 text-[14px]">
@@ -226,6 +230,9 @@ function GkkCard({ g }) {
             {g.patron} {g.area && <span className="text-parish-blue">-{g.area}</span>}
           </div>
           {g.puroks && <div className="text-[13.5px] text-parish-text2 mt-0.5">{g.puroks}</div>}
+          {(g.chapel_address || g.year_established) && (
+            <div className="text-[13.5px] text-parish-text2 mt-0.5">{[g.chapel_address && `Kapilya: ${g.chapel_address}`, g.year_established && `Natukod ${g.year_established}`].filter(Boolean).join(' · ')}</div>
+          )}
           <div className="flex flex-wrap gap-x-3.5 gap-y-1.5 mt-2 text-[14px] text-[#3f3b2f]">
             <span className="flex items-center gap-[5px]"><Icon name="home" size={15} className="text-parish-blue" /><strong>{g.households ?? SMALL}</strong> pamilya</span>
             {g.meeting_schedule && <span className="flex items-center gap-[5px]"><Icon name="clock" size={15} className="text-parish-blue" />{g.meeting_schedule}</span>}
@@ -274,7 +281,16 @@ export function GkkDetail() {
       {area && <div className="inline-flex items-center gap-[5px] font-bold text-[12px] lg:text-[12.5px] tracking-[.1em] uppercase text-[var(--p-eyebrow)]"><Icon name="pin" size={14} />{area}</div>}
       <h1 className="font-serif font-semibold text-[34px] lg:text-[54px] leading-[1.05] lg:leading-[1.02] mt-1 mb-1 lg:mt-1.5 lg:mb-1.5 text-parish-navy">{patron}</h1>
       {g.puroks && <div className="text-[15px] lg:text-[17px] text-[#4d4636] mb-4 lg:mb-6">{g.puroks}</div>}
-      <div className={`grid gap-2.5 mb-3.5 lg:grid-cols-3 lg:gap-3.5 lg:mb-[22px] ${census?.open ? 'grid-cols-2' : 'grid-cols-1'} ${g.puroks ? '' : 'mt-3'}`}>
+      {(g.chapel_address || g.year_established) && (
+        <div className={`flex gap-2.5 items-start text-[15px] lg:text-[16px] text-[#3f3b2f] mb-4 lg:mb-6 ${g.puroks ? '' : 'mt-3'}`}>
+          <Icon name="home" className="text-parish-blue flex-none mt-px" />
+          <div>
+            {g.chapel_address && <div><span className="text-parish-text2">Kapilya:</span> <span className="font-semibold">{g.chapel_address}</span></div>}
+            {g.year_established && <div className="text-parish-text2">Natukod niadtong {g.year_established}</div>}
+          </div>
+        </div>
+      )}
+      <div className={`grid gap-2.5 mb-3.5 lg:grid-cols-3 lg:gap-3.5 lg:mb-[22px] ${census?.open ? 'grid-cols-2' : 'grid-cols-1'} ${g.puroks || g.chapel_address || g.year_established ? '' : 'mt-3'}`}>
         <StatTile value={g.households} label="Pamilya" />
         {census?.open && <StatTile value={g.census_pct != null ? `${g.census_pct}%` : null} small="—" label="Census na-update" />}
         {g.meeting_schedule && (

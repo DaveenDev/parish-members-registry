@@ -360,13 +360,13 @@ export function gkkParts(name) {
   return { patron: s.slice(0, i).trim(), area: s.slice(i + 2).trim() };
 }
 
-/** GKKs whose name, area or puroks contain the search text, grouped by area in first-seen order. */
+/** GKKs whose name, area, puroks or chapel address contain the search text, grouped by area in first-seen order. */
 export function groupGkksByArea(gkks, query = '') {
   const q = query.trim().toLowerCase();
   const groups = [];
   for (const g of gkks) {
     const { patron, area } = gkkParts(g.name);
-    if (q && !`${g.name} ${g.puroks || ''}`.toLowerCase().includes(q)) continue;
+    if (q && !`${g.name} ${g.puroks || ''} ${g.chapel_address || ''}`.toLowerCase().includes(q)) continue;
     const key = area || 'Uban pa';
     let grp = groups.find((x) => x.area === key);
     if (!grp) { grp = { area: key, items: [] }; groups.push(grp); }

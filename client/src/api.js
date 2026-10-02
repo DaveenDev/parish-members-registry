@@ -617,6 +617,7 @@ export const api = {
   async saveGkkDetails(id, patch) {
     const fields = Object.fromEntries(GKK_DETAIL_FIELDS.filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
     const { data, error } = await supabase.from('gkks').update(cleanPatch(fields)).eq('id', id).select().single();
+    if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql migration in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
   },
@@ -663,7 +664,7 @@ export const api = {
     const rows = await listPublished(table, (q) => q.eq('id', Number(id) || 0).limit(1));
     return rows[0] || null;
   },
-  /** [{ name, puroks, meeting_schedule, meeting_place, households|null, census_pct|null, coordinator|null }] */
+  /** [{ name, puroks, chapel_address, year_established, meeting_schedule, meeting_place, households|null, census_pct|null, coordinator|null }] */
   publicGkkDirectory: () => publicRpc('public_gkk_directory'),
   /** { open, label, ends_on, pct, gkks: [{ name, pct|null }] } */
   publicCensusProgress: () => publicRpc('public_census_progress'),
@@ -1039,7 +1040,7 @@ const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'dire
 
 const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles'];
 
-const GKK_DETAIL_FIELDS = ['puroks', 'meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on'];
+const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on'];
 
 async function listWebsite(table, order, migration = '0011_website_content.sql') {
   const { data, error } = await order(supabase.from(table).select('*'));

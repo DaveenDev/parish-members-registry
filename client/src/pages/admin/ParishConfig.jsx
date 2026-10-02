@@ -258,7 +258,88 @@ function ParishThemeRow({ canEdit, onSaved }) {
   );
 }
 
-const CONFIG_TABS = [['config', 'Parish Config'], ['gkk', 'Parish GKK']];
+const THIS_YEAR = new Date().getFullYear();
+
+/** Each GKK's chapel address and year established, shown and searched in the website's GKK directory. */
+function GkkChapelCard() {
+  const toast = useToast();
+  const [rows, setRows] = useState(null);
+  const [editing, setEditing] = useState(null); // { id, chapel_address, year_established }
+  const [saving, setSaving] = useState(false);
+
+  const load = () => api.listGkkDetails().then((r) => setRows(r.rows)).catch((e) => toast.error(e.message));
+  useEffect(() => { load(); }, []);
+
+  async function save(e) {
+    e.preventDefault();
+    const year = String(editing.year_established ?? '').trim();
+    if (year && !(/^\d{4}$/.test(year) && Number(year) >= 1500 && Number(year) <= THIS_YEAR)) {
+      toast.error(`Enter the year as four digits, up to ${THIS_YEAR}.`);
+      return;
+    }
+    setSaving(true);
+    try {
+      const saved = await api.saveGkkDetails(editing.id, { chapel_address: editing.chapel_address || '', year_established: year ? Number(year) : null });
+      setRows((rs) => rs.map((r) => (r.id === saved.id ? saved : r)));
+      setEditing(null);
+      toast.success('GKK chapel details saved');
+    } catch (err) {
+      toast.error(err.message || 'Could not save the chapel details');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Panel className="p-6 mt-[18px]">
+      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">GKK chapels</div>
+      <div className="text-[13.5px] text-parish-muted mb-4">The chapel address and the year each GKK was established. Both show in the website's GKK directory, and visitors can search by the address.</div>
+      {!rows ? (
+        <div className="text-[13.5px] text-parish-muted">Loading…</div>
+      ) : !rows.length ? (
+        <div className="text-[13.5px] text-parish-muted">Add a GKK above first.</div>
+      ) : (
+        <ul className="list-none m-0 p-0 border border-parish-line rounded-xl overflow-hidden">
+          {rows.map((g) => (
+            <li key={g.id} className="border-t border-parish-line first:border-t-0 px-4 py-3">
+              {editing?.id === g.id ? (
+                <form onSubmit={save} className="flex flex-col gap-3">
+                  <div className="font-semibold text-[14.5px] text-parish-navy">{g.name}</div>
+                  <div className="grid gap-3 sm:grid-cols-[1fr_140px]">
+                    <Field label="Chapel address">
+                      <TextInput autoFocus value={editing.chapel_address || ''} placeholder="e.g. Purok 3, Brgy. San Isidro" onChange={(e) => setEditing((x) => ({ ...x, chapel_address: e.target.value }))} />
+                    </Field>
+                    <Field label="Year established">
+                      <TextInput inputMode="numeric" maxLength={4} value={editing.year_established ?? ''} placeholder="e.g. 1985" onChange={(e) => setEditing((x) => ({ ...x, year_established: e.target.value.replace(/\D/g, '') }))} />
+                    </Field>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <PrimaryButton type="submit" disabled={saving} className="px-5 py-2.5 text-[14px]">{saving ? 'Saving…' : 'Save'}</PrimaryButton>
+                    <button type="button" onClick={() => setEditing(null)} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13.5px] text-parish-text2">Cancel</button>
+                  </div>
+                </form>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold text-[14.5px] text-parish-navy">{g.name}</div>
+                    <div className="text-[13px] text-parish-text2">
+                      {[g.chapel_address, g.year_established && `Est. ${g.year_established}`].filter(Boolean).join(' · ') || <span className="text-parish-faint">No chapel details yet</span>}
+                    </div>
+                  </div>
+                  <button type="button" onClick={() => setEditing({ id: g.id, chapel_address: g.chapel_address, year_established: g.year_established })} className="appearance-none border-none cursor-pointer px-3 py-1.5 rounded-lg bg-[var(--p-blue-tint)] font-semibold text-[12.5px] text-parish-blue">
+                    Edit
+                  </button>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
+
+const CONFIG_TABS =[['config', 'Parish Config'], ['gkk', 'Parish GKK']];
 
 export default function ParishConfig() {
   const [params, setParams] = useSearchParams();
@@ -266,6 +347,9 @@ export default function ParishConfig() {
   const tabs = can(user, 'settings') ? CONFIG_TABS : CONFIG_TABS.slice(0, 1);
   const tab = tabs.some(([k]) => k === params.get('tab')) ? params.get('tab') : tabs[0][0];
   const setTab = (k) => setParams(k === CONFIG_TABS[0][0] ? {} : { tab: k }, { replace: true });
+  // Adding, renaming or deleting a GKK reloads the chapel list below it.
+  const [gkkVersion, setGkkVersion] = useState(0);
+  const reloadChapels = (fn) => async (...args) => { const res = await fn(...args); setGkkVersion((v) => v + 1); return res; };
 
   return (
     <>
@@ -279,10 +363,11 @@ export default function ParishConfig() {
               heading="Basic Ecclesial Communities (GKK)"
               description="Add, rename, or remove the parish's GKKs. A GKK currently assigned to a household cannot be deleted."
               itemNoun="GKK" placeholder="New GKK name (e.g. GKK San Pedro Calungsod)"
-              listFn={api.listGkks} addFn={api.addGkk} renameFn={api.renameGkk} deleteFn={api.deleteGkk}
+              listFn={api.listGkks} addFn={reloadChapels(api.addGkk)} renameFn={reloadChapels(api.renameGkk)} deleteFn={reloadChapels(api.deleteGkk)}
               lockInUse countLabel={(n) => `${n} household(s)`} lockedHint="Move them to another GKK first."
             />
           )}
+          {tab === 'gkk' && <GkkChapelCard key={gkkVersion} />}
         </div>
       </PageBody>
     </>
