@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BigButton, Card, EmptyNote, ErrorNote, INNER, InfoRow, Skeletons, useShare, useSiteToast } from '../../components/site/kit.jsx';
@@ -127,23 +127,74 @@ export function BulletinDetail() {
 
 export function ArticleDetail() {
   const { id } = useParams();
-  useSiteTitle('Pinakabag-ong Balita');
+  useSiteTitle('Artikulo');
   const share = useShare();
   return (
-    <Detail q={useItem('articles', id)} notFound="Wala na kini nga balita.">
+    <Detail q={useItem('articles', id)} notFound="Wala na kini nga artikulo.">
       {(a) => (
         <>
           <div className="flex gap-2 items-center mb-2 flex-wrap">
             <ArticleChip a={a} />
-            <span className="text-[13.5px] text-parish-text2">{[fmtShort(a.held_on), a.place].filter(Boolean).join(' · ')}</span>
+            <span className="text-[13.5px] text-parish-text2">{[fmtLong(a.held_on), a.place].filter(Boolean).join(' · ')}</span>
           </div>
           <h1 className={DETAIL_TITLE}>{a.title}</h1>
-          <Photo src={a.photo_url} hLg={380} />
+          <Photo src={a.photo_url} hLg={420} />
           <Body text={a.body || a.summary} />
+          <Gallery photos={a.photos} />
           <BigButton className={SHARE} onClick={() => share(a.title)}><Icon name="share" />Ipaambit sa Messenger</BigButton>
-          <Link to="/komunidad" className="block text-center mt-4 min-h-[44px] font-bold text-[15px] text-parish-blue lg:inline-flex lg:items-center lg:ml-5 lg:mt-0">Balik sa Komunidad</Link>
+          <Link to="/pahibalo#artikulo" className="block text-center mt-4 min-h-[44px] font-bold text-[15px] text-parish-blue lg:inline-flex lg:items-center lg:ml-5 lg:mt-0">Tanang artikulo</Link>
         </>
       )}
     </Detail>
+  );
+}
+
+/** An article's photo gallery: a grid of thumbnails; tapping one opens it full screen. */
+function Gallery({ photos }) {
+  const list = (photos || []).filter((p) => p?.url);
+  const [open, setOpen] = useState(null);
+  if (!list.length) return null;
+  return (
+    <section aria-labelledby="gallery-title" className="mt-2 mb-6 lg:mb-8">
+      <h2 id="gallery-title" className="m-0 mb-3 font-serif text-[24px] lg:text-[28px] font-bold text-parish-navy">Mga litrato</h2>
+      <ul className="list-none m-0 p-0 grid grid-cols-2 gap-2.5 sm:grid-cols-3">
+        {list.map((p, i) => (
+          <li key={p.url}>
+            <button type="button" onClick={() => setOpen(i)} className="block w-full text-left appearance-none border-none bg-transparent p-0 cursor-zoom-in">
+              <img src={p.url} alt={p.caption || `Litrato ${i + 1}`} loading="lazy" className="w-full aspect-[4/3] object-cover rounded-xl bg-[#efe6d3]" />
+              {p.caption && <span className="block mt-1 text-[13px] leading-snug text-parish-text2 line-clamp-2">{p.caption}</span>}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {open != null && <Lightbox photos={list} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
+    </section>
+  );
+}
+
+function Lightbox({ photos, index, onIndex, onClose }) {
+  const p = photos[index];
+  const go = (d) => onIndex((index + d + photos.length) % photos.length);
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key === 'Escape') onClose();
+      if (e.key === 'ArrowRight') go(1);
+      if (e.key === 'ArrowLeft') go(-1);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  });
+  const btn = 'w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center text-[22px] border-none cursor-pointer';
+  return (
+    <div role="dialog" aria-modal="true" aria-label={p.caption || 'Litrato'} className="fixed inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-4" onClick={onClose}>
+      <img src={p.url} alt={p.caption || ''} className="max-w-full max-h-[80vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
+      {p.caption && <p className="m-0 mt-3 max-w-[760px] text-center text-[15px] leading-normal text-white/90">{p.caption}</p>}
+      <div className="mt-4 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+        {photos.length > 1 && <button type="button" aria-label="Nauna" onClick={() => go(-1)} className={btn}>‹</button>}
+        <span className="text-white/70 text-[13px] min-w-[52px] text-center">{index + 1} / {photos.length}</span>
+        {photos.length > 1 && <button type="button" aria-label="Sunod" onClick={() => go(1)} className={btn}>›</button>}
+        <button type="button" aria-label="Isira" onClick={onClose} className={btn}><Icon name="x" size={20} /></button>
+      </div>
+    </div>
   );
 }

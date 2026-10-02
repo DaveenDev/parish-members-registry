@@ -12,6 +12,7 @@ import { shapeDashboard, shapeReport } from './lib/stats.js';
 import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus } from './lib/census.js';
 import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName } from './lib/reports.js';
 import { certTypeLabel } from './lib/requests.js';
+import { resizePhotoBlob } from './lib/images.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -619,8 +620,39 @@ export const api = {
   async listArticles() {
     return listWebsite('articles', (q) => q.order('held_on', { ascending: false }).order('id', { ascending: false }), '0013_public_site.sql');
   },
-  saveArticle: (row) => saveWebsiteRow('articles', row),
-  deleteArticle: (id) => deleteWebsiteRow('articles', id),
+  async saveArticle(row) {
+    try {
+      return await saveWebsiteRow('articles', row);
+    } catch (e) {
+      // Before 0021 there's no photos column or History tag.
+      if (/photos|articles_tag_check/.test(e.message || '')) throw new Error('Run the 0021_article_gallery.sql migration in Supabase to save Blog Articles');
+      throw e;
+    }
+  },
+  /** Delete an article, then (best effort) its photos on R2; articles don't go to the trash. */
+  async deleteArticle(id) {
+    const { data: row } = await supabase.from('articles').select('*').eq('id', id).maybeSingle();
+    await deleteWebsiteRow('articles', id);
+    const urls = [row?.photo_url, ...(row?.photos || []).map((p) => p.url)].filter(Boolean);
+    await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
+  },
+
+  // Article photos on Cloudflare R2, through the media-upload Edge Function.
+  /** Shrink `file`, upload it to R2 and return its public URL. */
+  async uploadImage(file) {
+    const blob = await resizePhotoBlob(file);
+    const { uploadUrl, publicUrl } = await callMediaFunction({ action: 'sign', folder: 'articles', contentType: 'image/jpeg', size: blob.size });
+    let res;
+    try {
+      res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+    } catch {
+      throw new Error('Could not reach the photo storage. Check the R2 bucket’s CORS settings (docs/media-storage.md).');
+    }
+    if (!res.ok) throw new Error(`The photo storage refused the upload (${res.status})`);
+    return publicUrl;
+  },
+  /** Remove an uploaded photo from R2. */
+  deleteImage: (url) => callMediaFunction({ action: 'delete', url }),
 
   // GKK directory details on the gkks rows (0013 migration).
   async listGkkDetails() {
@@ -1239,6 +1271,19 @@ async function changeGroupMembership(memberId, column, name, join) {
  * messages: the function's own `{ error }` text, or a setup hint when it
  * hasn't been deployed yet.
  */
+/** Call the media-upload Edge Function (R2 photos), with a setup hint when it isn't deployed. */
+async function callMediaFunction(body) {
+  const { data, error } = await supabase.functions.invoke('media-upload', { body });
+  if (!error) return data;
+  const res = error.context;
+  const payload = res && typeof res.json === 'function' ? await res.json().catch(() => null) : null;
+  if (payload?.error) throw new Error(payload.error);
+  if (res?.status === 404 || error.name === 'FunctionsFetchError') {
+    throw new Error('Photo uploads aren’t set up yet: deploy the media-upload Edge Function (see docs/media-storage.md).');
+  }
+  throw new Error(error.message || 'Request failed');
+}
+
 async function callStaffFunction(body) {
   const { data, error } = await supabase.functions.invoke('manage-staff', { body });
   if (!error) return data;

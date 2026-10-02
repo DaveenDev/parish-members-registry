@@ -54,6 +54,7 @@ export default function App() {
           <Route path="/misa/kalihokan/:id" element={<EventDetail />} />
           <Route path="/pahibalo" element={<Pahibalo />} />
           <Route path="/pahibalo/bulletin/:id" element={<BulletinDetail />} />
+          <Route path="/pahibalo/artikulo/:id" element={<ArticleDetail />} />
           <Route path="/pahibalo/:id" element={<AnnouncementDetail />} />
           <Route path="/komunidad" element={<Komunidad />} />
           <Route path="/komunidad/balita/:id" element={<ArticleDetail />} />

@@ -6,6 +6,7 @@ import { can } from '../../lib/access.js';
 import MassScheduleTab from '../../components/website/MassScheduleTab.jsx';
 import SacramentGuidesTab from '../../components/website/SacramentGuidesTab.jsx';
 import AnnouncementsTab from '../../components/website/AnnouncementsTab.jsx';
+import ArticlesTab from '../../components/website/ArticlesTab.jsx';
 import BulletinTab from '../../components/website/BulletinTab.jsx';
 import EventsTab from '../../components/website/EventsTab.jsx';
 import OfficeTab from '../../components/website/OfficeTab.jsx';
@@ -14,6 +15,7 @@ const TABS = [
   ['mass', 'Mass Schedule', MassScheduleTab],
   ['sacraments', 'Sacraments', SacramentGuidesTab],
   ['announcements', 'Announcements', AnnouncementsTab],
+  ['articles', 'Blog Articles', ArticlesTab],
   ['bulletin', 'Bulletin', BulletinTab],
   ['events', 'Events', EventsTab],
   ['office', 'Office & Contact', OfficeTab],

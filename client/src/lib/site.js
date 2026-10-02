@@ -164,7 +164,7 @@ export const massLocations = (rows) => [...new Set(rows.map((r) => r.location).f
 // ---- Announcements and articles -------------------------------------------
 
 export const ANNOUNCEMENT_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', 'Schedule change': 'Kausaban sa iskedyul' };
-export const ARTICLE_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry' };
+export const ARTICLE_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', History: 'Kasaysayan' };
 
 /** Paragraphs of a typed body: blank lines split paragraphs. */
 export function paragraphs(text) {

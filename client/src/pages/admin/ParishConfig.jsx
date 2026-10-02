@@ -9,6 +9,7 @@ import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
 import { useTheme, THEMES } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
+import { resizePhoto } from '../../lib/images.js';
 
 const MAX_LOGO_BYTES = 500 * 1024;
 
@@ -95,27 +96,7 @@ function LogoCard({ settings, onSaved }) {
   );
 }
 
-const HERO_MAX_WIDTH = 1920;
 const HERO_MAX_SOURCE_BYTES = 15 * 1024 * 1024;
-
-/** Shrink a photo to at most HERO_MAX_WIDTH wide and re-encode it as a JPEG data URL. */
-function resizePhoto(file) {
-  return new Promise((resolve, reject) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      const scale = Math.min(1, HERO_MAX_WIDTH / img.naturalWidth);
-      const canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.naturalWidth * scale);
-      canvas.height = Math.round(img.naturalHeight * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-      resolve(canvas.toDataURL('image/jpeg', 0.82));
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image')); };
-    img.src = url;
-  });
-}
 
 /** The parish's main photo, shown in the public home page's hero. */
 function HeroImageCard({ settings, onSaved }) {

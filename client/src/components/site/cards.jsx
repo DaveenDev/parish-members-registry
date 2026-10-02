@@ -16,7 +16,7 @@ export function AnnouncementChip({ a }) {
 }
 
 export function ArticleChip({ a }) {
-  return <Chip tone="blue">{ARTICLE_LABELS[a.tag] || a.tag}</Chip>;
+  return <Chip tone={a.tag === 'History' ? 'gold' : 'blue'}>{ARTICLE_LABELS[a.tag] || a.tag}</Chip>;
 }
 
 /** Announcement in a list. `full` adds the excerpt on phones; desktop cards always have it. */
@@ -29,6 +29,29 @@ export function AnnouncementCard({ a, full = false }) {
       </div>
       <div className={`font-serif font-bold leading-[1.2] lg:leading-[1.18] text-parish-navy lg:text-[23px] lg:mb-1.5 ${full ? 'text-[21px] mb-1' : 'text-[20px]'}`}>{a.title}</div>
       {a.body && <div className={`text-[15px] leading-normal text-[#4d4636] ${full ? '' : 'hidden lg:block'}`}>{excerpt(a.body)}</div>}
+    </Link>
+  );
+}
+
+/** Blog article in a list: cover photo, tag, date, title and summary. `wide` (one or two in a row) uses a shorter cover. */
+export function ArticleCard({ a, wide = false }) {
+  const count = (a.photos || []).length;
+  return (
+    <Link to={`/pahibalo/artikulo/${a.id}`} className="block bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden transition-colors hover:border-[var(--p-blue-border)]">
+      <div className={`relative bg-[#efe6d3] ${wide ? 'aspect-[16/9] lg:aspect-[21/9]' : 'aspect-[16/9]'} flex items-center justify-center text-[var(--p-gold-deep)]`}>
+        {a.photo_url ? <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : <Icon name="church" size={40} />}
+        {count > 0 && (
+          <span className="absolute right-2.5 bottom-2.5 rounded-full bg-black/60 text-white font-bold text-[12px] px-2.5 py-1">{count} ka litrato</span>
+        )}
+      </div>
+      <div className="p-3.5 lg:p-[18px]">
+        <div className="flex gap-2 items-center mb-1.5">
+          <ArticleChip a={a} />
+          <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.held_on)}</span>
+        </div>
+        <div className="font-serif font-bold text-[20px] lg:text-[22px] leading-[1.2] text-parish-navy">{a.title}</div>
+        {(a.summary || a.body) && <div className="mt-1 text-[14.5px] leading-normal text-[#4d4636] line-clamp-3">{a.summary || excerpt(a.body)}</div>}
+      </div>
     </Link>
   );
 }
