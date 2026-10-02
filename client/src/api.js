@@ -123,6 +123,13 @@ export const api = {
     return data || null;
   },
 
+  /** The parish photo for the home page hero (a data URL), or null. Needs 0020. */
+  async publicParishHeroImage() {
+    const { data, error } = await supabase.rpc('public_parish_hero_image');
+    if (error) return null;
+    return data || null;
+  },
+
   /** The parish's default color theme (Parish Config → Appearance), or null. Needs 0014. */
   async publicParishTheme() {
     const { data, error } = await supabase.rpc('public_parish_theme');
@@ -555,11 +562,11 @@ export const api = {
 
   async updateSettings(patch) {
     const cleaned = {};
-    for (const key of ['name', 'address', 'contact', 'email', 'logo', ...OFFICE_TEXT_FIELDS]) {
+    for (const key of ['name', 'address', 'contact', 'email', 'logo', 'hero_image', ...OFFICE_TEXT_FIELDS]) {
       if (!(key in patch)) continue;
       const raw = patch[key];
       const trimmed = typeof raw === 'string' ? raw.trim() : '';
-      cleaned[key] = key === 'logo' ? (trimmed === '' ? null : raw) : trimmed;
+      cleaned[key] = key === 'logo' || key === 'hero_image' ? (trimmed === '' ? null : raw) : trimmed;
     }
     // Office hours and the map pin (0011 migration) aren't plain text.
     if ('office_hours' in patch) cleaned.office_hours = patch.office_hours || null;
@@ -573,6 +580,7 @@ export const api = {
     }
     if (!Object.keys(cleaned).length) return api.getSettings();
     const { data, error } = await supabase.from('parish_settings').update(cleaned).eq('id', 1).select().single();
+    if ('hero_image' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0020_parish_hero_image.sql migration in Supabase to save the parish photo');
     if (error) throw mapError(error);
     return { settings: data };
   },

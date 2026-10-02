@@ -24,6 +24,7 @@ export default function Home() {
   const portal = usePortalStatus().data;
   const office = useOffice().data;
   const [dismissed, setDismissed] = useState(readDismissed);
+  const hero = usePublicData('heroImage', api.publicParishHeroImage).data || null;
 
   const urgent = ann.rows.find((a) => a.urgent && !dismissed.includes(a.id));
   // The two newest by start date, urgent and pinned ones included.
@@ -52,9 +53,21 @@ export default function Home() {
         </div>
       )}
 
-      <section className="lg:border-b lg:border-parish-border" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
-        <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-16 lg:pb-[60px] lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-14 lg:items-center">
-          <div className="text-center px-[22px] pt-[30px] pb-7 lg:text-left lg:p-0">
+      <section className="relative overflow-hidden lg:border-b lg:border-parish-border" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
+        {hero && (
+          <>
+            {/* Desktop: the photo behind the hero, faded to cream on the left so the text stays readable. */}
+            <img src={hero} alt="" aria-hidden="true" className="hidden lg:block absolute inset-0 w-full h-full object-cover" />
+            <div aria-hidden="true" className="hidden lg:block absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(247,242,232,.98) 0%, rgba(247,242,232,.94) 38%, rgba(247,242,232,.55) 62%, rgba(247,242,232,.15) 100%)' }} />
+            {/* Phones: the photo as a banner, fading into the hero below it. */}
+            <div className="lg:hidden relative h-[210px]">
+              <img src={hero} alt={`${PARISH_NAME}`} className="absolute inset-0 w-full h-full object-cover" />
+              <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-20" style={{ background: 'linear-gradient(180deg, rgba(247,242,232,0) 0%, #f7f2e8 100%)' }} />
+            </div>
+          </>
+        )}
+        <div className="relative lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-16 lg:pb-[60px] lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-14 lg:items-center lg:min-h-[480px]">
+          <div className={`text-center px-[22px] pb-7 lg:text-left lg:p-0 ${hero ? 'pt-2' : 'pt-[30px]'}`}>
             <div className="font-bold text-[11.5px] lg:text-[12.5px] tracking-[.2em] lg:tracking-[.22em] uppercase text-[var(--p-eyebrow)] mb-2.5 lg:mb-3">Rehistro sa mga Miyembro sa Parokya</div>
             <h1 className="font-serif font-semibold text-[38px] lg:text-[64px] leading-[1.02] lg:leading-[.98] m-0 mb-1 lg:mb-1.5 text-parish-navy">{PARISH_NAME}</h1>
             <div className="font-serif text-[20px] lg:text-[27px] text-parish-blue tracking-[.04em] mb-4 lg:mb-5">{PARISH_SUB}</div>

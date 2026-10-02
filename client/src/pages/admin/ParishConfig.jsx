@@ -95,6 +95,95 @@ function LogoCard({ settings, onSaved }) {
   );
 }
 
+const HERO_MAX_WIDTH = 1920;
+const HERO_MAX_SOURCE_BYTES = 15 * 1024 * 1024;
+
+/** Shrink a photo to at most HERO_MAX_WIDTH wide and re-encode it as a JPEG data URL. */
+function resizePhoto(file) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, HERO_MAX_WIDTH / img.naturalWidth);
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.naturalWidth * scale);
+      canvas.height = Math.round(img.naturalHeight * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(url);
+      resolve(canvas.toDataURL('image/jpeg', 0.82));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Could not read that image')); };
+    img.src = url;
+  });
+}
+
+/** The parish's main photo, shown in the public home page's hero. */
+function HeroImageCard({ settings, onSaved }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+
+  async function onFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (!file.type.startsWith('image/')) { toast.error('Please choose an image file (JPG or PNG).'); return; }
+    if (file.size > HERO_MAX_SOURCE_BYTES) { toast.error('That photo is over 15 MB. Choose a smaller one.'); return; }
+    setBusy(true);
+    try {
+      const res = await api.updateSettings({ hero_image: await resizePhoto(file) });
+      onSaved(res.settings);
+      toast.success('Parish photo updated');
+    } catch (err) {
+      toast.error(err.message || 'Could not upload the photo');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function remove() {
+    setBusy(true);
+    try {
+      const res = await api.updateSettings({ hero_image: '' });
+      onSaved(res.settings);
+      toast.success('Parish photo removed');
+    } catch (err) {
+      toast.error(err.message || 'Could not remove the photo');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Panel className="p-6">
+      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Parish photo</div>
+      <div className="text-[13.5px] text-parish-muted mb-4">
+        The main photo on the website's home page, e.g. the church front or a parish gathering. A wide (landscape) photo works best; it's resized automatically.
+      </div>
+      <div className="aspect-[16/7] w-full rounded-[14px] border-2 border-dashed border-parish-borderStrong bg-parish-field overflow-hidden flex items-center justify-center mb-4">
+        {settings.hero_image ? (
+          <img src={settings.hero_image} alt="Current parish photo" className="w-full h-full object-cover" />
+        ) : (
+          <div className="text-center text-parish-muted px-4">
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" className="mx-auto mb-1.5" aria-hidden><rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.8" /><path d="M21 16l-5-5-8 8" /></svg>
+            <div className="text-[13px]">No photo yet. The home page shows its plain background.</div>
+          </div>
+        )}
+      </div>
+      <div className="flex items-center gap-4 flex-wrap">
+        <label className={`cursor-pointer px-[18px] py-2.5 font-semibold text-[14px] text-white bg-parish-fill rounded-xl inline-block ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
+          {busy ? 'Uploading…' : settings.hero_image ? 'Replace photo' : 'Upload photo'}
+          <input type="file" accept="image/*" onChange={onFile} className="hidden" disabled={busy} />
+        </label>
+        {settings.hero_image && (
+          <button onClick={remove} disabled={busy} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13px] text-parish-error p-0">
+            Remove photo
+          </button>
+        )}
+      </div>
+    </Panel>
+  );
+}
+
 function ChangePasswordCard() {
   const toast = useToast();
   const [form, setForm] = useState({ current: '', next: '', confirm: '' });
@@ -194,6 +283,8 @@ function ProfileTab() {
       )}
 
       {canEdit && <LogoCard settings={settings} onSaved={applySaved} />}
+
+      {canEdit && <HeroImageCard settings={settings} onSaved={applySaved} />}
 
       <PrivacyCard />
       </div>
