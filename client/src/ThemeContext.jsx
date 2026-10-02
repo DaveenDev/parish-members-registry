@@ -1,15 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { api } from './api.js';
 
+// Kept to the colors of the parish logo. A device or parish default saved with a
+// theme that was taken out falls back to the parish default, then Gold & Navy.
 export const THEMES = [
   { id: 'classic', label: 'Gold & Navy', swatch: ['#34589c', '#c39b4e'] },
   { id: 'emerald', label: 'Emerald & Champagne', swatch: ['#1f6d4c', '#c2a45a'] },
-  { id: 'burgundy', label: 'Burgundy & Champagne', swatch: ['#7a2e3a', '#c9a45c'] },
-  { id: 'royal', label: 'Royal Purple & Gold', swatch: ['#5b3a8a', '#c9a24c'] },
   { id: 'ocean', label: 'Ocean Teal & Sand', swatch: ['#14707a', '#c79a5a'] },
   { id: 'terracotta', label: 'Terracotta & Sage', swatch: ['#b0563a', '#8a9a5b'] },
-  { id: 'slate', label: 'Slate & Copper', swatch: ['#3d5166', '#b5651d'] },
-  { id: 'rose', label: 'Rose & Charcoal', swatch: ['#9c3f60', '#b99a6a'] },
 ];
 
 const DEFAULT_THEME = 'classic';
