@@ -1,7 +1,7 @@
 import React, { useEffect, useId, useState } from 'react';
 import { api } from '../api.js';
 import { PrimaryButton, GhostButton, Badge } from './ui.jsx';
-import { fmtDate, PARTICIPATION_ITEMS } from '../constants.js';
+import { fmtDate, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { STATUS_TONES, diffSubmission, suggestStatus } from '../lib/census.js';
 import { useToast } from '../ToastContext.jsx';
@@ -15,9 +15,51 @@ function show(key, value) {
   return LABEL_MAPS[key] ? bis(LABEL_MAPS[key], value) : value;
 }
 
-function answers(participation) {
-  const parts = PARTICIPATION_ITEMS.filter(([k]) => participation?.[k]).map(([k, label]) => `${label}: ${participation[k]}`);
-  return parts.length ? parts.join(' · ') : null;
+const hasAnswers = (participation) => PARTICIPATION_ITEMS.some(([k]) => participation?.[k]);
+
+function CheckIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M5 12.5l4.5 4.5L19 7.5" />
+    </svg>
+  );
+}
+
+/** The family's participation answers as a checklist: a green check on the level they picked. */
+function AnswerChecklist({ participation }) {
+  return (
+    <table className="w-full border-collapse mt-2 text-[13px]">
+      <tbody>
+        {PARTICIPATION_ITEMS.map(([key, label]) => {
+          const picked = participation?.[key];
+          return (
+            <tr key={key} className="border-t border-parish-line first:border-t-0">
+              <td className="py-1.5 pr-3 font-bold text-parish-ink align-middle">{label}</td>
+              <td className="py-1.5">
+                <div className="flex flex-wrap gap-x-3 gap-y-1 justify-end">
+                  {PARTICIPATION_LEVELS.map((level) => {
+                    const on = picked === level;
+                    return (
+                      <span key={level} className={`inline-flex items-center gap-1.5 ${on ? 'font-bold text-parish-ok' : 'text-parish-faint'}`}>
+                        <span
+                          className={`inline-flex items-center justify-center w-[18px] h-[18px] rounded-[5px] border-[1.5px] ${on ? 'bg-parish-ok border-parish-ok text-white' : 'border-parish-borderSoft'}`}
+                        >
+                          {on && <CheckIcon />}
+                        </span>
+                        {level}
+                        {on && <span className="sr-only"> (chosen)</span>}
+                      </span>
+                    );
+                  })}
+                  {!picked && <span className="sr-only">No answer</span>}
+                </div>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
 }
 
 function Changes({ rows }) {
@@ -37,7 +79,7 @@ function Changes({ rows }) {
 }
 
 function Answer({ status, participation, notes }) {
-  const a = answers(participation);
+  const a = hasAnswers(participation);
   const suggested = suggestStatus(participation);
   if (!status && !a && !notes) return <div className="text-[13px] text-parish-muted mt-1.5">No census answer.</div>;
   return (
@@ -47,7 +89,7 @@ function Answer({ status, participation, notes }) {
         {status ? <Badge tone={STATUS_TONES[status]}>{status}</Badge> : <span className="text-parish-muted">no status chosen</span>}
         {suggested && suggested !== status && <span className="text-[12px] font-semibold text-parish-warn">(the answers suggest {suggested})</span>}
       </div>
-      {a && <div className="mt-1 text-parish-text2">{a}</div>}
+      {a && <AnswerChecklist participation={participation} />}
       {notes && <div className="mt-1 text-parish-text2">Note: {notes}</div>}
     </div>
   );
