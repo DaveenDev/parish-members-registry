@@ -21,19 +21,20 @@ export function ArticleChip({ a }) {
 
 /**
  * Announcement in a list. `full` adds the excerpt on phones; desktop cards
- * always have it. `fill` (Home, beside the event card) stretches it to its
- * grid cell, shows more of the text and pins "Basaha" to the bottom.
+ * always have it. `fill` (Home, stacked beside the event card) shares the
+ * column's height with the other card, shows more of the text and pins
+ * "Basaha" to the bottom.
  */
 export function AnnouncementCard({ a, full = false, fill = false }) {
   return (
-    <Link to={`/pahibalo/${a.id}`} className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'flex flex-col h-full' : 'block'}`}>
+    <Link to={`/pahibalo/${a.id}`} className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'flex flex-col flex-1' : 'block'}`}>
       <div className="flex gap-2 items-center mb-1.5 lg:mb-2">
         <AnnouncementChip a={a} />
         <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.publish_on)}</span>
       </div>
       <div className={`font-serif font-bold leading-[1.2] lg:leading-[1.18] text-parish-navy lg:text-[23px] lg:mb-1.5 ${full ? 'text-[21px] mb-1' : 'text-[20px]'}`}>{a.title}</div>
       {a.body && (
-        <div className={`text-[15px] leading-normal text-[#4d4636] ${full ? '' : 'hidden lg:block'} ${fill ? 'lg:line-clamp-6' : ''}`}>{excerpt(a.body, fill ? 360 : 140)}</div>
+        <div className={`text-[15px] leading-normal text-[#4d4636] ${full ? '' : 'hidden lg:block'} ${fill ? 'lg:line-clamp-3' : ''}`}>{excerpt(a.body, fill ? 260 : 140)}</div>
       )}
       {fill && <span className="hidden lg:inline-flex mt-auto pt-3 items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha<Icon name="chev" size={16} /></span>}
     </Link>
@@ -87,42 +88,6 @@ export function eventTone(e) {
   return TONES[EVENT_TONES[e.type] || 'gray'];
 }
 
-/** The event type with its icon, in the type's color (or `color`, e.g. on a dark background). */
-export function EventTypeLabel({ e, className = '', color }) {
-  return (
-    <span className={`inline-flex items-center gap-[5px] font-bold text-[11.5px] ${className}`} style={{ color: color || eventTone(e).color }}>
-      <Icon name={EVENT_ICONS[e.type] || 'cal'} size={13} />
-      {EVENT_TYPE_LABELS[e.type] || e.type}
-    </span>
-  );
-}
-
-/**
- * Compact row with a date block (Home). `tinted` is for rows on a blue-tint
- * box; `dark` for see-through rows on the navy band (white text, gold dates).
- */
-export function EventRow({ e, tinted = false, dark = false }) {
-  const d = parseIso(e.start_date);
-  const row = dark ? 'border-white/15 hover:bg-white/10' : tinted ? 'hover:bg-white/60' : 'border-[#f0e8d6] hover:bg-[#fbf7ef]';
-  return (
-    <Link
-      to={`/misa/kalihokan/${e.id}`}
-      className={`w-full text-left flex gap-3 lg:gap-3.5 items-center px-3.5 py-3 lg:px-[18px] lg:py-3.5 border-b last:border-b-0 ${row}`}
-      style={tinted && !dark ? { borderColor: 'var(--p-blue-border)' } : undefined}
-    >
-      <div className="w-12 lg:w-[52px] flex-none text-center">
-        <div className={`font-bold text-[11px] lg:text-[11.5px] tracking-[.1em] uppercase ${dark ? 'text-white/70' : 'text-parish-text2'}`}>{BIS_MONTHS_SHORT[d.getMonth()]}</div>
-        <div className={`font-serif text-[28px] lg:text-[32px] font-bold leading-none ${dark ? 'text-[var(--p-gold-light)]' : 'text-parish-blue'}`}>{d.getDate()}</div>
-      </div>
-      <div className="flex-1 min-w-0">
-        <EventTypeLabel e={e} className="mb-0.5 lg:text-[12px]" color={dark ? 'rgba(255,255,255,.7)' : undefined} />
-        <div className={`font-semibold text-[15px] lg:text-[16px] leading-[1.3] ${dark ? 'text-white' : ''}`}>{e.title}</div>
-      </div>
-      {e.photo_url && <img src={e.photo_url} alt="" loading="lazy" className="w-[64px] h-[48px] lg:w-[76px] lg:h-[56px] flex-none rounded-lg object-cover bg-[#efe6d3]" />}
-    </Link>
-  );
-}
-
 /**
  * Card in the agenda list, with a span bar for multi-day events. An event
  * with a cover photo shows it across the top; one without keeps the simple
@@ -156,9 +121,10 @@ export function EventCard({ e, showDate = false, fill = false }) {
     return (
       <div className={`relative ${fill ? 'h-full' : ''}`}>
         <CardShare title={e.title} path={path} />
-        <Link to={path} className={`block w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'h-full' : ''}`}>
-          {/* The whole cover (posters keep their text) over a blurred copy that fills the sides. */}
-          <div className="relative h-[170px] lg:h-[200px] bg-[#efe6d3] overflow-hidden">
+        <Link to={path} className={`w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'flex flex-col h-full' : 'block'}`}>
+          {/* The whole cover (posters keep their text) over a blurred copy that
+              fills the sides. With `fill` it grows to take the card's spare height. */}
+          <div className={`relative bg-[#efe6d3] overflow-hidden ${fill ? 'flex-1 min-h-[190px] lg:min-h-[260px]' : 'h-[170px] lg:h-[200px]'}`}>
             <img src={e.photo_url} alt="" aria-hidden loading="lazy" className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-70" />
             <img src={e.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-contain" />
             <span className="absolute left-2.5 top-2.5 w-12 rounded-xl overflow-hidden text-center bg-parish-card shadow-cardSm" aria-label={fmtShort(e.start_date)}>

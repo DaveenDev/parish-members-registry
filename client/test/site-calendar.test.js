@@ -83,8 +83,8 @@ describe('eventCountdown', () => {
     assert.equal(on('2026-10-03'), 'Ugma');
     assert.equal(on('2026-10-04'), 'Karong Domingo');
     assert.equal(on('2026-10-08'), 'Karong Huwebes');
-    assert.equal(on('2026-10-09'), 'Sa 7 ka adlaw');
-    assert.equal(on('2026-11-01'), 'Sa 30 ka adlaw');
+    assert.equal(on('2026-10-09'), '7 days from now');
+    assert.equal(on('2026-11-01'), '30 days from now');
   });
   test('which day of a multi-day event is on', () => {
     assert.equal(on('2026-09-30', '2026-10-08'), 'Adlaw 3 sa 9');
