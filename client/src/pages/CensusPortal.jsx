@@ -6,7 +6,7 @@ import CreditFooter from '../components/CreditFooter.jsx';
 import { HEAD, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
 import { bis, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
-import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, portalPayload, formatAccessCode } from '../lib/census.js';
+import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParticipation, portalPayload, formatAccessCode } from '../lib/census.js';
 
 const BG = { background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' };
 const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(min(180px,100%),1fr))' };
@@ -202,8 +202,9 @@ export default function CensusPortal() {
             </div>
           )}
           <p className="text-[14.5px] text-parish-text2 mt-4 mb-0">
-            Susiha ang mga detalye ug usba kung sayop. Para sa matag miyembro, tubaga kung unsa ka aktibo sa parokya o GKK:
-            <strong> Aktibo</strong>, <strong>Panagsa</strong>, o <strong>Wala</strong>.
+            Para sa matag miyembro, pilia una ang <strong>kahimtang karon</strong>. Kung aktibo pa, tubaga kung unsa ka aktibo sa parokya o GKK:
+            <strong> Aktibo</strong>, <strong>Panagsa</strong>, o <strong>Wala</strong>. Kung adunay sayop sa detalye sa usa ka miyembro,
+            i-klik ang <strong>Usba ang mga detalye</strong>.
           </p>
         </Card>
 
@@ -293,11 +294,19 @@ function Section({ title, children }) {
 }
 
 function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
+  // Names, birthdays and the like rarely change: existing members keep them
+  // folded away and open them only to correct a mistake.
+  const [editing, setEditing] = useState(isNew);
   const set = (k) => (e) => onChange({ [k]: e.target.value });
   const tidy = (k, format = toNameCase) => (e) => onChange({ [k]: format(e.target.value) });
   const suggestion = suggestStatus(m.participation);
   const name = [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Bag-ong miyembro';
   const relationships = isNew ? NEW_RELATIONSHIPS : RELATIONSHIPS;
+  // Someone inactive, moved, deceased or gone has no participation to answer.
+  const noSurvey = m.statusPicked && !asksParticipation(m.status);
+  const pickStatus = (status) => onChange(asksParticipation(status)
+    ? { status, statusPicked: true }
+    : { status, statusPicked: true, participation: {} });
 
   return (
     <div className="border border-[#eee3ce] rounded-xl bg-[#fdfbf6] p-4">
@@ -314,30 +323,17 @@ function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
       </div>
 
       <div className="grid gap-3" style={GRID}>
-        <Field label="Pangalan" required={isNew}><TextInput value={m.first_name} onChange={set('first_name')} onBlur={tidy('first_name')} /></Field>
-        <Field label="Tunga nga apelyido"><TextInput value={m.middle_name} onChange={set('middle_name')} onBlur={tidy('middle_name')} /></Field>
-        <Field label="Apelyido" required={isNew}><TextInput value={m.last_name} onChange={set('last_name')} onBlur={tidy('last_name')} /></Field>
-        <Field label="Suffix"><TextInput value={m.suffix} placeholder="Jr., Sr., III" onChange={set('suffix')} onBlur={tidy('suffix', toSuffixCase)} /></Field>
-        <Field label="Relasyon" required={isNew}>
-          <Select value={m.relationship} onChange={set('relationship')}>
-            <option value="">Pili…</option>{relationships.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
+        <Field label="Kahimtang karon">
+          <Select value={m.status} onChange={(e) => pickStatus(e.target.value)}>
+            <option value="">Pili…</option>
+            {MEMBERSHIP_STATUSES.map((s) => <option key={s} value={s}>{MEMBERSHIP_STATUS_LABELS[s]}</option>)}
           </Select>
+          {suggestion && !m.statusPicked && <div className="text-[12.5px] text-parish-muted mt-1">Gisugyot gikan sa inyong mga tubag.</div>}
         </Field>
-        <Field label="Sekso">
-          <Select value={m.sex} onChange={set('sex')}>
-            <option value="">Pili…</option>{Object.entries(SEX_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-          </Select>
-        </Field>
-        <Field label="Adlaw nga natawo"><TextInput type="date" value={m.dob} onChange={set('dob')} /></Field>
-        <Field label="Civil status">
-          <Select value={m.civil_status} onChange={set('civil_status')}>
-            <option value="">Pili…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
-          </Select>
-        </Field>
-        <Field label="Numero sa kontak"><TextInput value={m.contact} onChange={set('contact')} inputMode="tel" /></Field>
+        <Field label="Pahibalo (kung naa)"><TextInput value={m.notes} placeholder="pananglitan: nagtrabaho sa abroad" onChange={set('notes')} /></Field>
       </div>
 
-      <div className="mt-4 flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-white">
+      <div aria-disabled={noSurvey} className={`mt-4 flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-white ${noSurvey ? 'opacity-50' : ''}`}>
         {PARTICIPATION_ITEMS.map(([key, label]) => (
           <div key={key} role="radiogroup" aria-label={`${name}: ${label}`} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
             <span className="font-medium text-[14px] text-parish-ink">{label}</span>
@@ -350,8 +346,9 @@ function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
                     type="button"
                     role="radio"
                     aria-checked={on}
+                    disabled={noSurvey}
                     onClick={() => onChange({ participation: { ...m.participation, [key]: on ? undefined : level } })}
-                    className={`appearance-none cursor-pointer px-3 py-2 rounded-full border-[1.5px] text-[13px] font-semibold ${
+                    className={`appearance-none px-3 py-2 rounded-full border-[1.5px] text-[13px] font-semibold ${noSurvey ? 'cursor-not-allowed' : 'cursor-pointer'} ${
                       on ? 'bg-parish-blue border-parish-blue text-white' : 'bg-white border-parish-borderSoft text-parish-text2'
                     }`}
                   >
@@ -363,17 +360,47 @@ function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
           </div>
         ))}
       </div>
+      {noSurvey && (
+        <div className="text-[12.5px] text-parish-muted mt-1.5">
+          Dili na kinahanglan tubagon ang mga pangutana kay "{MEMBERSHIP_STATUS_LABELS[m.status]}" ang napili.
+        </div>
+      )}
 
-      <div className="grid gap-3 mt-4" style={GRID}>
-        <Field label="Kahimtang karon">
-          <Select value={m.status} onChange={(e) => onChange({ status: e.target.value, statusPicked: true })}>
-            <option value="">Pili…</option>
-            {MEMBERSHIP_STATUSES.map((s) => <option key={s} value={s}>{MEMBERSHIP_STATUS_LABELS[s]}</option>)}
-          </Select>
-          {suggestion && !m.statusPicked && <div className="text-[12.5px] text-parish-muted mt-1">Gisugyot gikan sa inyong mga tubag.</div>}
-        </Field>
-        <Field label="Pahibalo (kung naa)"><TextInput value={m.notes} placeholder="pananglitan: nagtrabaho sa abroad" onChange={set('notes')} /></Field>
-      </div>
+      {!isNew && (
+        <button
+          type="button"
+          aria-expanded={editing}
+          onClick={() => setEditing((v) => !v)}
+          className="mt-3 appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13.5px] text-parish-blue"
+        >
+          {editing ? '▾ Itago ang mga detalye' : '▸ Usba ang mga detalye (kung adunay sayop)'}
+        </button>
+      )}
+      {editing && (
+        <div className="grid gap-3 mt-3" style={GRID}>
+          <Field label="Pangalan" required={isNew}><TextInput value={m.first_name} onChange={set('first_name')} onBlur={tidy('first_name')} /></Field>
+          <Field label="Tunga nga apelyido"><TextInput value={m.middle_name} onChange={set('middle_name')} onBlur={tidy('middle_name')} /></Field>
+          <Field label="Apelyido" required={isNew}><TextInput value={m.last_name} onChange={set('last_name')} onBlur={tidy('last_name')} /></Field>
+          <Field label="Suffix"><TextInput value={m.suffix} placeholder="Jr., Sr., III" onChange={set('suffix')} onBlur={tidy('suffix', toSuffixCase)} /></Field>
+          <Field label="Relasyon" required={isNew}>
+            <Select value={m.relationship} onChange={set('relationship')}>
+              <option value="">Pili…</option>{relationships.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
+            </Select>
+          </Field>
+          <Field label="Sekso">
+            <Select value={m.sex} onChange={set('sex')}>
+              <option value="">Pili…</option>{Object.entries(SEX_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+            </Select>
+          </Field>
+          <Field label="Adlaw nga natawo"><TextInput type="date" value={m.dob} onChange={set('dob')} /></Field>
+          <Field label="Civil status">
+            <Select value={m.civil_status} onChange={set('civil_status')}>
+              <option value="">Pili…</option>{CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
+            </Select>
+          </Field>
+          <Field label="Numero sa kontak"><TextInput value={m.contact} onChange={set('contact')} inputMode="tel" /></Field>
+        </div>
+      )}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
-  cleanParticipation, suggestStatus, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus,
+  cleanParticipation, suggestStatus, asksParticipation, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
 } from '../src/lib/census.js';
 
@@ -34,6 +34,14 @@ describe('suggestStatus', () => {
   test('ignores unknown items and answers, like the database does', () => {
     assert.equal(suggestStatus({ mass: 'Yes', bingo: 'Aktibo', other: 'Aktibo' }), null);
     assert.equal(suggestStatus(['Aktibo']), null);
+  });
+});
+
+describe('asksParticipation', () => {
+  test('only active or undecided members answer the participation questions', () => {
+    assert.equal(asksParticipation(''), true);
+    assert.equal(asksParticipation('Active'), true);
+    for (const s of ['Inactive', 'Moved away', 'Deceased', 'Left the Church']) assert.equal(asksParticipation(s), false);
   });
 });
 

@@ -19,6 +19,15 @@ export const MEMBERSHIP_STATUS_LABELS = {
   'Left the Church': 'Mibiya sa Simbahan',
 };
 
+/**
+ * Whether the participation questions apply to a member with this status:
+ * only someone active, or whose status is not chosen yet. Inactive, moved,
+ * deceased or left members have nothing to answer.
+ */
+export function asksParticipation(status) {
+  return !status || status === 'Active';
+}
+
 export const CENSUS_SOURCES = ['Paper', 'Staff visit'];
 
 export const STATUS_TONES = {
