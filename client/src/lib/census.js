@@ -2,7 +2,7 @@
 // form and their tests. The database (0007_census.sql) has the same lists and
 // suggestion rule — keep the two in sync.
 
-import { PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
+import { PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, ageFromDob } from '../constants.js';
 
 // Keep in sync with census_member_statuses() in the 0007 migration.
 export const MEMBERSHIP_STATUSES = ['Active', 'Inactive', 'Moved away', 'Deceased', 'Left the Church'];
@@ -26,6 +26,16 @@ export const MEMBERSHIP_STATUS_LABELS = {
  */
 export function asksParticipation(status) {
   return !status || status === 'Active';
+}
+
+// Children this age or younger count as Aktibo in the census portal, without
+// the participation questions.
+export const YOUNG_CHILD_MAX_AGE = 8;
+
+/** True for a member aged YOUNG_CHILD_MAX_AGE or under on `today`; false when the birthday is unknown. */
+export function isYoungChild(dob, today = new Date()) {
+  const age = ageFromDob(dob, today);
+  return age !== null && age >= 0 && age <= YOUNG_CHILD_MAX_AGE;
 }
 
 export const CENSUS_SOURCES = ['Paper', 'Staff visit'];

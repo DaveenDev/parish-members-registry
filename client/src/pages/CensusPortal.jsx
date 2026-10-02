@@ -6,7 +6,7 @@ import CreditFooter from '../components/CreditFooter.jsx';
 import { HEAD, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
 import { bis, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
-import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParticipation, portalPayload, formatAccessCode } from '../lib/census.js';
+import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParticipation, isYoungChild, YOUNG_CHILD_MAX_AGE, portalPayload, formatAccessCode } from '../lib/census.js';
 
 const BG = { background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' };
 const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(min(180px,100%),1fr))' };
@@ -17,20 +17,26 @@ function blankNewMember(lastName = '') {
   return { first_name: '', middle_name: '', last_name: lastName, suffix: '', relationship: '', sex: '', dob: '', civil_status: '', contact: '', status: '', participation: {}, notes: '', statusPicked: false };
 }
 
+/** A young child with no status yet (or Aktibo) is Aktibo, with no participation answers. */
+function childDefaults(m) {
+  if (!isYoungChild(m.dob) || (m.status && m.status !== 'Active')) return m;
+  return { ...m, status: 'Active', statusPicked: true, participation: {} };
+}
+
 /** Form state from what portal_open() returned. */
 function formFrom(data) {
   const asText = (v) => (v === null || v === undefined ? '' : String(v));
   const text = (obj, keys) => Object.fromEntries(keys.map((k) => [k, asText(obj[k])]));
   return {
     household: text(data.household, ['street', 'barangay', 'city', 'province', 'zip', 'contact', 'email']),
-    members: data.members.map((m) => ({
+    members: data.members.map((m) => childDefaults({
       ...m,
       ...text(m, ['first_name', 'middle_name', 'last_name', 'suffix', 'relationship', 'sex', 'dob', 'civil_status', 'contact', 'notes']),
       status: m.status || '',
       participation: m.participation || {},
       statusPicked: !!m.status,
     })),
-    newMembers: (data.newMembers || []).map((m) => ({
+    newMembers: (data.newMembers || []).map((m) => childDefaults({
       ...blankNewMember(),
       ...text(m.fields || {}, ['first_name', 'middle_name', 'last_name', 'suffix', 'relationship', 'sex', 'dob', 'civil_status', 'contact']),
       status: m.status || '',
@@ -178,7 +184,8 @@ export default function CensusPortal() {
     const rows = f[list].slice();
     const next = { ...rows[i], ...patch };
     if ('participation' in patch && !next.statusPicked) next.status = suggestStatus(next.participation) || '';
-    rows[i] = next;
+    // A young child stays Aktibo when the birthday is corrected or the status is cleared.
+    rows[i] = 'dob' in patch || patch.status === '' ? childDefaults(next) : next;
     return { ...f, [list]: rows };
   });
   const head = form.members.find((m) => m.relationship === HEAD);
@@ -302,7 +309,9 @@ function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
   const suggestion = suggestStatus(m.participation);
   const name = [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Bag-ong miyembro';
   const relationships = isNew ? NEW_RELATIONSHIPS : RELATIONSHIPS;
-  // Someone inactive, moved, deceased or gone has no participation to answer.
+  // Young children count as Aktibo, and someone inactive, moved, deceased or
+  // gone has no participation to answer.
+  const child = isYoungChild(m.dob);
   const noSurvey = m.statusPicked && !asksParticipation(m.status);
   const pickStatus = (status) => onChange(asksParticipation(status)
     ? { status, statusPicked: true }
@@ -333,6 +342,12 @@ function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
         <Field label="Pahibalo (kung naa)"><TextInput value={m.notes} placeholder="pananglitan: nagtrabaho sa abroad" onChange={set('notes')} /></Field>
       </div>
 
+      {child && m.status === 'Active' ? (
+        <div className="mt-4 px-3.5 py-3 rounded-xl bg-white border border-[#eee3ce] text-[13.5px] text-parish-text2">
+          <strong className="text-parish-navy">Aktibo</strong> — bata pa ({YOUNG_CHILD_MAX_AGE} anyos o ubos), busa dili na kinahanglan tubagon ang mga pangutana.
+        </div>
+      ) : (
+      <>
       <div aria-disabled={noSurvey} className={`mt-4 flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-white ${noSurvey ? 'opacity-50' : ''}`}>
         {PARTICIPATION_ITEMS.map(([key, label]) => (
           <div key={key} role="radiogroup" aria-label={`${name}: ${label}`} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
@@ -364,6 +379,8 @@ function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
         <div className="text-[12.5px] text-parish-muted mt-1.5">
           Dili na kinahanglan tubagon ang mga pangutana kay "{MEMBERSHIP_STATUS_LABELS[m.status]}" ang napili.
         </div>
+      )}
+      </>
       )}
 
       {!isNew && (

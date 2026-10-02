@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
-  cleanParticipation, suggestStatus, asksParticipation, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus,
+  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
 } from '../src/lib/census.js';
 
@@ -42,6 +42,20 @@ describe('asksParticipation', () => {
     assert.equal(asksParticipation(''), true);
     assert.equal(asksParticipation('Active'), true);
     for (const s of ['Inactive', 'Moved away', 'Deceased', 'Left the Church']) assert.equal(asksParticipation(s), false);
+  });
+});
+
+describe('isYoungChild', () => {
+  const today = new Date(2026, 9, 2);
+  test('8 years old and under counts as a young child', () => {
+    assert.equal(isYoungChild('2018-10-02', today), true); // turns 8 today
+    assert.equal(isYoungChild('2017-10-03', today), true); // 8, turns 9 tomorrow
+    assert.equal(isYoungChild('2026-01-15', today), true);
+  });
+  test('9 and over, or no birthday, is not', () => {
+    assert.equal(isYoungChild('2017-10-02', today), false);
+    assert.equal(isYoungChild('', today), false);
+    assert.equal(isYoungChild(null, today), false);
   });
 });
 
