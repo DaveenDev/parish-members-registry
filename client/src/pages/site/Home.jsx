@@ -4,12 +4,12 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
 import { AnnouncementCard, EventRow, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
-import { fmtDayMonth, gkkParts, upcomingToday } from '../../lib/site.js';
+import { fmtDayMonth, upcomingToday } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { PARISH_NAME, PARISH_SUB, SiteFooter } from './SiteLayout.jsx';
-import { listState, useAnnouncements, useEvents, useGkkDirectory, useMassSchedule, useOffice, usePortalStatus } from './data.js';
+import { listState, useAnnouncements, useEvents, useMassSchedule, useOffice, usePortalStatus } from './data.js';
 
 const DISMISSED_KEY = 'pmr_dismissed_urgent';
 
@@ -23,12 +23,10 @@ export default function Home() {
   const events = listState(useEvents());
   const portal = usePortalStatus().data;
   const office = useOffice().data;
-  const gkks = useGkkDirectory().data || [];
   const [dismissed, setDismissed] = useState(readDismissed);
 
   const urgent = ann.rows.find((a) => a.urgent && !dismissed.includes(a.id));
   const latest = ann.rows.filter((a) => !a.urgent).slice(0, 2);
-  const areas = new Set(gkks.map((g) => gkkParts(g.name).area).filter(Boolean)).size;
 
   function dismiss() {
     const next = [...dismissed, urgent.id];
@@ -122,7 +120,7 @@ export default function Home() {
         <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4 lg:gap-3.5">
           <QuickLink to="/serbisyo/susiha" icon="search" sub="Gamit ang reference number">Susiha ang akong rehistro</QuickLink>
           <QuickLink to="/serbisyo/hangyo/sertipiko" icon="doc" sub="Bunyag, Kumpil, Kasal">Pangayo og sertipiko</QuickLink>
-          <QuickLink to="/komunidad" icon="people" sub={gkks.length ? `${gkks.length} ka GKK${areas > 1 ? ` sa ${areas} ka lugar` : ''}` : 'Pangitaa pinaagi sa barangay'}>Pangitaa ang akong GKK</QuickLink>
+          <QuickLink to="/serbisyo/dugo" icon="drop" sub="Nanginahanglan o mo-donate">Blood donor call</QuickLink>
           <QuickLink to="/kontak" icon="phone" sub="Tawag, text, mapa">Kontak ug oras sa opisina</QuickLink>
         </div>
       </section>
