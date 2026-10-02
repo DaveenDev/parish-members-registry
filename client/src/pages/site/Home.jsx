@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
-import { AnnouncementCard, ArticleChip, CardShare, EventRow, MassRow } from '../../components/site/cards.jsx';
+import { AnnouncementCard, ArticleChip, CardShare, EventCard, EventRow, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
 import { censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
@@ -31,6 +31,10 @@ export default function Home() {
   const urgent = ann.rows.find((a) => a.urgent && !dismissed.includes(a.id));
   // The two newest by start date, urgent and pinned ones included.
   const latest = [...ann.rows].sort((a, b) => b.publish_on.localeCompare(a.publish_on) || b.id - a.id).slice(0, 2);
+  // Desktop band columns (see the band below): one announcement takes one column, two take two.
+  const single = latest.length === 1;
+  const annCols = single ? 'lg:col-span-1' : 'lg:col-span-2';
+  const evCol = single ? 'lg:col-start-2' : 'lg:col-start-3';
 
   function dismiss() {
     const next = [...dismissed, urgent.id];
@@ -105,30 +109,45 @@ export default function Home() {
       {/* A full-width navy band right under the hero, like the census notice, so the
           page keeps one when no census is open. It joins the notice when that shows. */}
       <div className={`pb-7 bg-parish-navy lg:py-12 ${censusOpen ? 'border-t border-white/15' : ''}`}>
-      <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-8 lg:items-start">
-      <section className="px-3.5 pt-7 lg:p-0">
-        <SectionHead dark title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
-        {ann.loading ? <Skeletons n={2} h={104} /> : ann.error ? (
-          <p className="m-0 text-[#ffb4a8] text-[15px]">Wala ma-load ang mga pahibalo.</p>
-        ) : !latest.length ? (
-          <p className="m-0 text-white/75 text-[15px]">Wala pay pahibalo karong semanaha.</p>
-        ) : (
-          <div className={`flex flex-col gap-2.5 lg:grid lg:gap-3.5 lg:items-start ${latest.length > 1 ? 'lg:grid-cols-2' : 'lg:grid-cols-1 lg:max-w-[560px]'}`}>
-            {latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}
-          </div>
-        )}
+      {/* Desktop: one 3-column grid for both sections (lg:contents), so the next
+          event's card is as wide as an announcement card and the cards in the
+          row share one height. Later events follow as rows under it. With one
+          announcement the events move up beside it, leaving the gap on the right. */}
+      <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:grid lg:grid-cols-3 lg:gap-x-5">
+      <section className="px-3.5 pt-7 lg:p-0 lg:contents">
+        <div className={`${annCols} lg:row-start-1`}>
+          <SectionHead dark title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
+        </div>
+        <div className={`${annCols} lg:row-start-2`}>
+          {ann.loading ? <Skeletons n={2} h={104} /> : ann.error ? (
+            <p className="m-0 text-[#ffb4a8] text-[15px]">Wala ma-load ang mga pahibalo.</p>
+          ) : !latest.length ? (
+            <p className="m-0 text-white/75 text-[15px]">Wala pay pahibalo karong semanaha.</p>
+          ) : (
+            <div className={`flex flex-col gap-2.5 lg:grid lg:gap-5 lg:h-full ${single ? 'lg:grid-cols-1' : 'lg:grid-cols-2'}`}>
+              {latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}
+            </div>
+          )}
+        </div>
       </section>
 
-      <section className="px-3.5 pt-7 lg:p-0">
-        <SectionHead dark title="Umaabot nga kalihokan" to="/misa?view=kalendaryo" action="Kalendaryo" actionLg="Kalendaryo →" />
-        {events.loading ? <Skeleton h={150} /> : events.error ? (
-          <p className="m-0 text-[#ffb4a8] text-[15px]">Wala ma-load ang kalendaryo.</p>
-        ) : events.empty ? (
-          <p className="m-0 text-white/75 text-[15px]">Walay kalihokan nga naka-iskedyul.</p>
-        ) : (
-          // See-through rows on the navy, so the events stand apart from the cream announcement cards.
-          <div className="border border-white/15 rounded-2xl lg:rounded-[18px] overflow-hidden bg-white/[.06]">
-            {events.rows.slice(0, 3).map((e) => <EventRow key={e.id} e={e} dark />)}
+      <section className="px-3.5 pt-7 lg:p-0 lg:contents">
+        <div className={`${evCol} lg:row-start-1`}>
+          <SectionHead dark title="Umaabot nga kalihokan" to="/misa?view=kalendaryo" action="Kalendaryo" actionLg="Kalendaryo →" />
+        </div>
+        <div className={`${evCol} lg:row-start-2`}>
+          {events.loading ? <Skeleton h={150} /> : events.error ? (
+            <p className="m-0 text-[#ffb4a8] text-[15px]">Wala ma-load ang kalendaryo.</p>
+          ) : events.empty ? (
+            <p className="m-0 text-white/75 text-[15px]">Walay kalihokan nga naka-iskedyul.</p>
+          ) : (
+            <EventCard e={events.rows[0]} showDate fill />
+          )}
+        </div>
+        {events.rows.length > 1 && (
+          // See-through rows on the navy for the ones after it.
+          <div className={`mt-2.5 lg:mt-3.5 ${evCol} lg:row-start-3 border`}> border-white/15 rounded-2xl lg:rounded-[18px] overflow-hidden bg-white/[.06]">
+            {events.rows.slice(1, 3).map((e) => <EventRow key={e.id} e={e} dark />)}
           </div>
         )}
       </section>

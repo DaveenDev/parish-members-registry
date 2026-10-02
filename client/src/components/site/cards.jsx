@@ -119,9 +119,10 @@ export function EventRow({ e, tinted = false, dark = false }) {
 /**
  * Card in the agenda list, with a span bar for multi-day events. An event
  * with a cover photo shows it across the top; one without keeps the simple
- * card with the type icon.
+ * card with the type icon. `fill` stretches it to its grid cell's height
+ * (Home, beside the announcement cards).
  */
-export function EventCard({ e, showDate = false }) {
+export function EventCard({ e, showDate = false, fill = false }) {
   const tone = eventTone(e);
   const span = eventSpan(e);
   const details = (
@@ -141,9 +142,9 @@ export function EventCard({ e, showDate = false }) {
   const path = `/misa/kalihokan/${e.id}`;
   if (e.photo_url) {
     return (
-      <div className="relative">
+      <div className={`relative ${fill ? 'h-full' : ''}`}>
         <CardShare title={e.title} path={path} />
-        <Link to={path} className="block w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)]">
+        <Link to={path} className={`block w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'h-full' : ''}`}>
           <div className="relative h-[170px] lg:h-[200px] bg-[#efe6d3]">
             <img src={e.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
             <span className="absolute left-2.5 top-2.5 w-9 h-9 rounded-xl flex items-center justify-center shadow-cardSm" style={{ background: tone.background, color: tone.color }}>
@@ -157,9 +158,9 @@ export function EventCard({ e, showDate = false }) {
   }
   // pr-14 keeps the text clear of the share button.
   return (
-    <div className="relative">
+    <div className={`relative ${fill ? 'h-full' : ''}`}>
       <CardShare title={e.title} path={path} />
-      <Link to={path} className="w-full text-left flex gap-3 bg-parish-card border border-parish-border rounded-[14px] p-3 pr-14 shadow-cardSm">
+      <Link to={path} className={`w-full text-left flex gap-3 bg-parish-card border border-parish-border rounded-[14px] p-3 pr-14 shadow-cardSm ${fill ? 'h-full' : ''}`}>
         <div className="w-10 h-10 flex-none rounded-xl flex items-center justify-center" style={{ background: tone.background, color: tone.color }}>
           <Icon name={EVENT_ICONS[e.type] || 'cal'} size={21} />
         </div>
