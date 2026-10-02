@@ -205,7 +205,6 @@ export default function Members() {
             { label: 'Relationship' },
             { label: 'Age', key: 'age', onSort: () => sort('age'), arrow: arrow('age') },
             { label: 'Civil' },
-            { label: 'Ministries' },
             { label: 'Status', key: 'status', onSort: () => sort('status'), arrow: arrow('status') },
           ]}
           footer={footer}
@@ -238,12 +237,11 @@ export default function Members() {
           {groups.map((g, gi) => (
             <React.Fragment key={g.gkk || 'no-gkk'}>
               <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
-                <th scope="colgroup" colSpan={8} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
+                <th scope="colgroup" colSpan={7} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
                   {g.gkk || 'No GKK'}
                 </th>
               </tr>
               {g.members.map((m) => {
-                const memberGroups = [...(m.ministries || []), ...(m.organizations || [])];
                 return (
                   <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className={`border-t border-parish-line cursor-pointer hover:bg-parish-hover focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue ${selected.has(m.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
                     <td className="pl-4 pr-0 py-2.5" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
@@ -262,13 +260,6 @@ export default function Members() {
                     <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</td>
                     <td className="px-4 py-3 text-[14px] text-parish-text3">{ageFromDob(m.dob) ?? '—'}</td>
                     <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{bis(CIVIL_STATUS_LABELS, m.civil_status) || '—'}</td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1.5 items-center">
-                        {memberGroups.slice(0, 2).map((x) => <span key={x} className="font-semibold text-[11.5px] bg-parish-track text-parish-chip px-2.5 py-1 rounded-full whitespace-nowrap">{x}</span>)}
-                        {memberGroups.length > 2 && <span className="font-semibold text-[11.5px] text-parish-muted">+{memberGroups.length - 2} more</span>}
-                        {!memberGroups.length && <span className="text-[13px] text-parish-faint">—</span>}
-                      </div>
-                    </td>
                     <td className="px-4 py-3"><StatusPill status={m.household_status} /></td>
                   </tr>
                 );
