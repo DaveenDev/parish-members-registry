@@ -61,7 +61,7 @@ function UpcomingEvents() {
         <h2 id="upcoming-events" className="m-0 font-serif text-[22px] lg:text-[26px] font-bold text-parish-navy">Umaabot nga Kalihokan</h2>
         <Link to="/misa?view=kalendaryo" className="font-bold text-[14px] lg:text-[15px] text-parish-blueDeep whitespace-nowrap hover:underline">Tan-awa ang kalendaryo →</Link>
       </div>
-      <div className="flex flex-col gap-2 lg:grid lg:grid-cols-3 lg:gap-3">{next.map((e) => <EventCard key={e.id} e={e} />)}</div>
+      <div className="flex flex-col gap-2 lg:grid lg:grid-cols-3 lg:gap-3">{next.map((e) => <EventCard key={e.id} e={e} showDate />)}</div>
     </section>
   );
 }

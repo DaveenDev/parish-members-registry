@@ -260,10 +260,10 @@ export function massesOnDay(rows, iso) {
   return rows.filter((r) => massOnDate(r, iso)).sort(byTime);
 }
 
-/** A Mass's name in a calendar cell: "Misa" for Sunday and daily Masses, the feast for a Special Mass. */
+/** A Mass's name in a calendar cell: "Regular Mass" or "Daily Mass", the feast for a Special Mass. */
 export function massShortLabel(r) {
   const type = massType(r);
-  if (type === 'Regular Mass' || type === 'Daily Mass') return 'Misa';
+  if (type === 'Regular Mass' || type === 'Daily Mass') return type;
   return massKindLabel(r);
 }
 

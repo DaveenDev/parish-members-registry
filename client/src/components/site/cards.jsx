@@ -64,7 +64,7 @@ export function EventRow({ e }) {
 }
 
 /** Card in the agenda list, with a span bar for multi-day events. */
-export function EventCard({ e }) {
+export function EventCard({ e, showDate = false }) {
   const tone = eventTone(e);
   const span = eventSpan(e);
   return (
@@ -75,6 +75,7 @@ export function EventCard({ e }) {
       <div className="flex-1 min-w-0">
         <div className="font-bold text-[11.5px] tracking-[.06em] uppercase" style={{ color: tone.color }}>{EVENT_TYPE_LABELS[e.type] || e.type}</div>
         <div className="font-semibold text-[15.5px] leading-[1.3] mt-px mb-[3px]">{e.title}</div>
+        {showDate && <div className="text-[13.5px] font-semibold text-parish-navy">{fmtShort(e.start_date)}{e.end_date && e.end_date !== e.start_date ? ` – ${fmtShort(e.end_date)}` : ''}</div>}
         <div className="text-[13.5px] text-parish-text2">{[eventTime(e), e.location].filter(Boolean).join(' · ')}</div>
         {span && (
           <div className="mt-2 flex items-center gap-2">
