@@ -24,6 +24,10 @@ function clampPaging({ page, pageSize } = {}) {
 function mapError(error, { fallback = 'Request failed', dupLabel } = {}) {
   if (!error) return new Error(fallback);
   if (error.code === '23505' && dupLabel) return new Error(`${dupLabel} already exists`);
+  // The staff functions found no profile for this signed-in account (0020 adds the missing ones).
+  if (/^Only parish staff can/.test(error.message || '')) {
+    return new Error(`${error.message}. This account has no staff profile yet: run the 0020_staff_profiles.sql migration in Supabase, then sign in again.`);
+  }
   return new Error(error.message || fallback);
 }
 
