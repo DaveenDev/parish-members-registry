@@ -113,7 +113,7 @@ export const api = {
   async publicStats() {
     const { data, error } = await supabase.rpc('public_parish_stats');
     if (error) throw mapError(error);
-    return data; // { gkks, households }
+    return data; // { gkks, households } (+ members, ministries, organizations, oldest_gkk_year after 0019)
   },
 
   /** The logo uploaded in Parish Config (a data URL), or null if there isn't one. */

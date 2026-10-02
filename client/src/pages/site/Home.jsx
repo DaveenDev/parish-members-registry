@@ -5,7 +5,7 @@ import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../compone
 import { AnnouncementCard, EventRow, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
 import { fmtDayMonth, upcomingToday } from '../../lib/site.js';
-import { todayIso } from '../../lib/website.js';
+import { massType, todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { PARISH_NAME, PARISH_SUB, SiteFooter } from './SiteLayout.jsx';
@@ -88,7 +88,7 @@ export default function Home() {
         <MassToday mass={mass} />
       </section>
 
-      <ParishStats />
+      <ParishStats mass={mass} />
 
       <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-8 lg:items-start">
       <section className="px-3.5 pt-7 lg:p-0">
@@ -164,17 +164,33 @@ function MassToday({ mass }) {
   );
 }
 
+// Public totals, in order. `people` counts follow the under-5 rule; the rest
+// (groups, Masses) aren't about individuals, so they show as they are.
+const STAT_TILES = [
+  { key: 'households', label: 'Pamilya', icon: 'home', people: true },
+  { key: 'members', label: 'Miyembro', icon: 'people', people: true },
+  { key: 'gkks', label: 'GKK', icon: 'ev-gkk' },
+  { key: 'ministries', label: 'Ministry', icon: 'heart' },
+  { key: 'organizations', label: 'Organisasyon', icon: 'ev-meeting' },
+  { key: 'masses', label: 'Misa matag semana', icon: 'church' },
+];
+const STAT_COLS = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5', 6: 'grid-cols-6' };
+
 /**
  * "Parokya sa usa ka tan-aw": desktop only (kept off phones on purpose).
- * Shows the public totals the backend already exposes; any count under 5 is
- * shown as "Ubos sa 5" so a small group can't be singled out. Hidden when the
- * totals can't be loaded.
+ * Totals only, never names. A count of people under 5 shows as "Ubos sa 5"
+ * so a small group can't be singled out. Weekly Masses come from the public
+ * schedule. Hidden when the totals can't be loaded.
  */
-function ParishStats() {
+function ParishStats({ mass }) {
   const q = usePublicData('stats', api.publicStats);
   const s = q.data;
   if (q.error || (!q.loading && !s)) return null;
-  const tiles = s ? [['households', 'Pamilya'], ['gkks', 'GKK']].filter(([k]) => s[k] != null).map(([k, label]) => ({ label, n: s[k] })) : [];
+  // Each weekly row is one Mass a week (a Daily Mass has a row per day); dated ones are one-offs.
+  const masses = mass.rows.filter((r) => !r.mass_date && /Mass/.test(massType(r))).length;
+  const values = { ...s, masses: masses || null };
+  const tiles = s ? STAT_TILES.filter((t) => values[t.key] != null) : [];
+  const sub = (t) => (t.key === 'gkks' && s.oldest_gkk_year ? `Sukad ${s.oldest_gkk_year}` : null);
   return (
     <section className="hidden lg:block max-w-[1240px] mx-auto px-6 pt-11">
       <div className="flex items-baseline justify-between gap-4 mb-3.5">
@@ -182,17 +198,24 @@ function ParishStats() {
           <div className="font-bold text-[12px] tracking-[.18em] uppercase text-[var(--p-eyebrow)] mb-1">Parokya sa usa ka tan-aw</div>
           <h2 className="font-serif font-semibold text-[32px] m-0 text-parish-navy">Atong pamilya sa parokya</h2>
         </div>
-        <span className="text-[13.5px] text-parish-text2">Ang ihap nga ubos sa 5 dili ipakita.</span>
+        <span className="text-[13.5px] text-parish-text2">Ihap lang, walay ngalan. Ang ihap sa tawo nga ubos sa 5 dili ipakita.</span>
       </div>
-      <div className="grid grid-cols-6 gap-3.5">
-        {q.loading ? [0, 1].map((i) => <Skeleton key={i} h={112} className="rounded-[18px]" />) : tiles.map((t) => (
-          <div key={t.label} className="bg-parish-card border border-parish-border rounded-[18px] shadow-cardSm p-[18px] min-h-[112px]">
-            {t.n >= 5
-              ? <div className="font-serif text-[44px] font-bold text-parish-blue leading-none">{t.n.toLocaleString('en-US')}</div>
-              : <div className="font-serif text-[28px] font-bold text-[#4d4636] leading-[1.3]">Ubos sa 5</div>}
-            <div className="font-bold text-[11.5px] tracking-[.12em] uppercase text-parish-text2 mt-2 leading-[1.3]">{t.label}</div>
-          </div>
-        ))}
+      <div className={`grid gap-3.5 ${q.loading ? 'grid-cols-6' : STAT_COLS[tiles.length] || 'grid-cols-6'}`}>
+        {q.loading ? [0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} h={138} className="rounded-[18px]" />) : tiles.map((t) => {
+          const n = values[t.key];
+          return (
+            <div key={t.key} className="bg-parish-card border border-parish-border rounded-[18px] shadow-cardSm p-[18px] min-h-[138px] flex flex-col">
+              <span className="w-10 h-10 rounded-xl flex items-center justify-center mb-3" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)' }}>
+                <Icon name={t.icon} size={21} />
+              </span>
+              {!t.people || n >= 5
+                ? <div className="font-serif text-[40px] font-bold text-parish-blue leading-none">{n.toLocaleString('en-US')}</div>
+                : <div className="font-serif text-[26px] font-bold text-[#4d4636] leading-[1.2]">Ubos sa 5</div>}
+              <div className="font-bold text-[11.5px] tracking-[.12em] uppercase text-parish-text2 mt-2 leading-[1.3]">{t.label}</div>
+              {sub(t) && <div className="text-[12.5px] text-parish-text2 mt-0.5">{sub(t)}</div>}
+            </div>
+          );
+        })}
       </div>
     </section>
   );
