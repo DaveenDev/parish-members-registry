@@ -1,7 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { Card, ErrorNote, Eyebrow, INNER, PAGE, PageTitle, Skeletons } from '../../components/site/kit.jsx';
+import { Card, ErrorNote, Eyebrow, INNER, MessengerButton, PAGE, PageTitle, Skeletons } from '../../components/site/kit.jsx';
+import { messengerLink } from '../../lib/website.js';
 import { phoneHref } from '../../lib/requests.js';
 import { officeHourRows, officeOpenNow } from '../../lib/site.js';
 import { PARISH_ADDRESS, PARISH_MAP_URL, useSiteTitle } from './SiteLayout.jsx';
@@ -57,6 +58,7 @@ export function Kontak() {
   const rows = officeHourRows(o.office_hours);
   const open = officeOpenNow(o.office_hours);
   const mobile = o.mobile || o.contact;
+  const messenger = messengerLink(o.secretary_messenger);
   // A link saved in admin wins; otherwise the church's Google Maps page.
   const mapUrl = o.map_url || PARISH_MAP_URL;
 
@@ -104,7 +106,7 @@ export function Kontak() {
         ))}
       </Card>
 
-      {(mobile || o.facebook_url || o.email) && (
+      {(mobile || messenger || o.facebook_url || o.email) && (
       <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:bg-parish-card lg:border lg:border-parish-border lg:rounded-[18px] lg:p-[18px]">
       <h2 className="hidden lg:block m-0 mb-3 font-serif text-[24px] font-bold text-parish-navy">Kontaka kami</h2>
       {mobile && (
@@ -118,6 +120,7 @@ export function Kontak() {
           <div className="text-[14px] text-[#4d4636] text-center mb-3 lg:hidden">{mobile}</div>
         </>
       )}
+      {messenger && <MessengerButton href={messenger} className="mb-3 lg:mb-3.5" />}
 
       {(o.facebook_url || o.email) && (
         <div className="bg-parish-card border border-parish-border rounded-2xl overflow-hidden mb-4 lg:mb-0 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:border-[#f0e8d6] lg:pt-1.5">

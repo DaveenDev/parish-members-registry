@@ -7,6 +7,7 @@ import { usePublicData } from '../../components/site/usePublicData.js';
 import { api } from '../../api.js';
 import CreditFooter from '../../components/CreditFooter.jsx';
 import { officeHourRows } from '../../lib/site.js';
+import { messengerLink } from '../../lib/website.js';
 import { useOffice } from './data.js';
 
 export const PARISH_NAME = 'Our Lady of Guadalupe';
@@ -190,6 +191,7 @@ function DesktopFooter() {
   const o = useOffice().data || {};
   const open = officeHourRows(o.office_hours).filter((r) => r.hours).slice(0, 2);
   const phone = o.mobile || o.contact;
+  const messenger = messengerLink(o.secretary_messenger);
   const logo = useParishLogo();
   return (
     <footer className="hidden lg:block mt-14 bg-[#f1ead9] border-t border-[#e7dcc4]">
@@ -215,7 +217,12 @@ function DesktopFooter() {
             </div>
           )}
           {phone && <div>{phone}</div>}
-          {!open.length && !phone && <Link to="/kontak" className="font-semibold text-parish-blue">Tan-awa ang kontak</Link>}
+          {messenger && (
+            <a href={messenger} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1.5 font-bold text-[14.5px] text-[#0866FF] hover:underline">
+              <Icon name="messenger" size={17} />Message Me
+            </a>
+          )}
+          {!open.length && !phone && !messenger && <Link to="/kontak" className="font-semibold text-parish-blue">Tan-awa ang kontak</Link>}
         </div>
         <div className="flex flex-col gap-1.5 items-start">
           <div className="flex gap-1.5 text-[13.5px] leading-[1.45] text-[#4d4636]">

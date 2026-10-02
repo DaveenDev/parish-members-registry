@@ -237,3 +237,42 @@ export function announcementState(a, today = todayIso()) {
 }
 
 export const STATE_TONES = { Draft: 'gray', Scheduled: 'blue', Expired: 'red', Live: 'green', Published: 'green' };
+
+// ---- Office secretary's Messenger (0026 migration) --------------------------
+
+const FB_HOSTS = /^(?:www\.|m\.|web\.|mobile\.)?(?:facebook\.com|fb\.com|messenger\.com|m\.me)$/i;
+const FB_NOT_USERNAMES = ['profile.php', 'people', 'pages', 'groups', 'share', 'messages', 't'];
+const FB_NAME = /^[A-Za-z0-9.]+$/;
+
+/**
+ * The Facebook username (or numeric profile id) in what staff typed: a bare
+ * username, "@username", or a facebook.com / fb.com / m.me / messenger.com
+ * link. '' when blank, null when it can't be read as one.
+ */
+export function messengerUsername(input) {
+  const raw = String(input || '').trim();
+  if (!raw) return '';
+  const plain = raw.replace(/^@/, '');
+  if (FB_NAME.test(plain)) return plain.replace(/^\.+|\.+$/g, '') || null;
+  let url;
+  try {
+    url = new URL(/^https?:\/\//i.test(raw) ? raw : `https://${raw}`);
+  } catch {
+    return null;
+  }
+  if (!FB_HOSTS.test(url.hostname)) return null;
+  const parts = url.pathname.split('/').filter(Boolean);
+  // facebook.com/profile.php?id=123, facebook.com/people/Name/123, messenger.com/t/name
+  if (parts[0] === 'profile.php') return /^\d+$/.test(url.searchParams.get('id') || '') ? url.searchParams.get('id') : null;
+  if (parts[0] === 'people') return /^\d+$/.test(parts[2] || '') ? parts[2] : null;
+  if (parts[0] === 't') parts.shift();
+  const name = parts[0];
+  if (!name || FB_NOT_USERNAMES.includes(name.toLowerCase())) return null;
+  return FB_NAME.test(name) ? name : null;
+}
+
+/** "https://m.me/<username>" for what staff typed, or '' when there's no usable username. */
+export function messengerLink(input) {
+  const name = messengerUsername(input);
+  return name ? `https://m.me/${encodeURIComponent(name)}` : '';
+}

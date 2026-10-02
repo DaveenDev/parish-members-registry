@@ -4,10 +4,10 @@ import { api } from '../../api.js';
 import { Field, TextInput, Checkbox, PrimaryButton } from '../ui.jsx';
 import { LoadingState, ErrorState } from '../admin.jsx';
 import { useToast } from '../../ToastContext.jsx';
-import { DAYS, normalizeOfficeHours } from '../../lib/website.js';
+import { DAYS, normalizeOfficeHours, messengerLink, messengerUsername } from '../../lib/website.js';
 import { TextArea, Panel } from './shared.jsx';
 
-const TEXT_FIELDS = ['address', 'contact', 'mobile', 'email', 'facebook_url', 'sick_call_contact', 'directions', 'map_url'];
+const TEXT_FIELDS = ['address', 'contact', 'mobile', 'email', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'secretary_messenger'];
 
 function Card({ title, subtitle, children }) {
   return (
@@ -32,6 +32,7 @@ export default function OfficeTab() {
   const [loadError, setLoadError] = useState('');
   const [saving, setSaving] = useState(false);
   const [migrated, setMigrated] = useState(true);
+  const [messengerReady, setMessengerReady] = useState(true);
 
   function load() {
     setLoadError('');
@@ -39,6 +40,7 @@ export default function OfficeTab() {
       .then(({ settings }) => {
         // Before 0011 is run the new columns aren't there; saving them would fail.
         setMigrated('mobile' in settings);
+        setMessengerReady('secretary_messenger' in settings);
         setForm(fromSettings(settings));
       })
       .catch((e) => setLoadError(e.message || 'Could not load the office details'));
@@ -67,10 +69,15 @@ export default function OfficeTab() {
     if (err) { toast.error(err); return; }
     if ((form.latitude === '') !== (form.longitude === '')) { toast.error('Enter both latitude and longitude, or leave both blank.'); return; }
     if (form.latitude !== '' && !validCoords(form.latitude, form.longitude)) { toast.error('The map pin is not a valid latitude/longitude.'); return; }
+    const messenger = messengerUsername(form.secretary_messenger);
+    if (messenger === null) { toast.error("The secretary's Messenger must be a Facebook profile link or username."); return; }
     setSaving(true);
     try {
       const patch = { ...Object.fromEntries(TEXT_FIELDS.map((k) => [k, form[k]])), latitude: form.latitude, longitude: form.longitude, office_hours: form.office_hours };
+      // Saved as the bare username; the website builds the m.me link from it.
+      patch.secretary_messenger = messenger;
       if (!migrated) for (const k of ['mobile', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'latitude', 'longitude', 'office_hours']) delete patch[k];
+      if (!messengerReady) delete patch.secretary_messenger;
       const { settings } = await api.updateSettings(patch);
       setForm(fromSettings(settings));
       layout?.setParish?.(settings);
@@ -102,6 +109,27 @@ export default function OfficeTab() {
         </div>
         <Field label="Sick call / emergency anointing">
           <TextInput value={form.sick_call_contact} onChange={set('sick_call_contact')} disabled={!migrated} placeholder="Number to call any time for a priest, e.g. 0917 xxx xxxx (Fr. …)" />
+        </Field>
+        <Field label="Office Secretary's Messenger">
+          <TextInput
+            value={form.secretary_messenger}
+            onChange={set('secretary_messenger')}
+            disabled={!messengerReady}
+            placeholder="Facebook profile link or username, e.g. facebook.com/juan.delacruz"
+            spellCheck={false}
+          />
+          <div className="text-[12.5px] text-parish-muted mt-1">
+            {!messengerReady ? (
+              <>Run the <strong>0026_secretary_messenger.sql</strong> migration in Supabase to save this.</>
+            ) : messengerLink(form.secretary_messenger) ? (
+              <>The website shows a <strong>Message Me</strong> button that opens{' '}
+                <a href={messengerLink(form.secretary_messenger)} target="_blank" rel="noopener noreferrer" className="font-semibold text-parish-blue">{messengerLink(form.secretary_messenger)}</a>.</>
+            ) : messengerUsername(form.secretary_messenger) === null ? (
+              <span className="text-parish-error">That doesn't look like a Facebook profile link or username.</span>
+            ) : (
+              'Leave blank to hide the Message Me button.'
+            )}
+          </div>
         </Field>
       </Card>
 

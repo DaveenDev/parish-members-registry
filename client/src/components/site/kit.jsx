@@ -53,6 +53,22 @@ export function PageHeader({ eyebrow, title, children }) {
 }
 
 /** Section heading with a link on the right. `actionLg` replaces the link text on desktop. */
+/** "Message Me": opens a Messenger chat with the office secretary (m.me link). */
+export function MessengerButton({ href, className = '' }) {
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className={`min-h-[52px] rounded-xl text-white font-bold text-[16px] flex items-center justify-center gap-2 hover:brightness-105 ${className}`}
+      style={{ background: 'linear-gradient(135deg, #00B2FF 0%, #006AFF 100%)' }}
+    >
+      <Icon name="messenger" size={20} />Message Me
+    </a>
+  );
+}
+
 export function SectionHead({ title, to, action, actionLg }) {
   return (
     <div className="flex items-baseline justify-between mb-2.5 lg:mb-3.5">
