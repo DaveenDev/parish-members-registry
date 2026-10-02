@@ -641,8 +641,33 @@ export const api = {
   async listEvents() {
     return listWebsite('events', (q) => q.order('start_date').order('start_time', { nullsFirst: true }));
   },
-  saveEvent: (row) => saveWebsiteRow('events', row),
-  deleteEvent: (id) => deleteWebsiteRow('events', id),
+  async saveEvent(row) {
+    try {
+      return await saveWebsiteRow('events', row);
+    } catch (e) {
+      // Before 0028 there's no cover photo column.
+      if (/photo_url/.test(e.message || '')) throw new Error('Run the 0028_event_cover_photo.sql migration in Supabase to save event cover photos');
+      throw e;
+    }
+  },
+  /** Delete an event, then (best effort) its cover on R2 unless another event still uses it. */
+  async deleteEvent(id) {
+    const { data: row } = await supabase.from('events').select('*').eq('id', id).maybeSingle();
+    await deleteWebsiteRow('events', id);
+    if (row?.photo_url) await api.deleteEventCover(row.photo_url, id).catch(() => {});
+  },
+  /**
+   * Remove an event cover from R2 unless an event other than `exceptId` still
+   * uses it: Duplicate copies the cover, so a series can share one photo.
+   */
+  async deleteEventCover(url, exceptId = null) {
+    if (!url) return;
+    let q = supabase.from('events').select('id').eq('photo_url', url).limit(1);
+    if (exceptId) q = q.neq('id', exceptId);
+    const { data, error } = await q;
+    if (error || data?.length) return;
+    await callMediaFunction({ action: 'delete', url });
+  },
 
   // Latest updates: articles about activities held (0013 migration).
   async listArticles() {
@@ -665,11 +690,11 @@ export const api = {
     await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
   },
 
-  // Article photos on Cloudflare R2, through the media-upload Edge Function.
-  /** Shrink `file`, upload it to R2 and return its public URL. */
-  async uploadImage(file) {
+  // Article photos and event covers on Cloudflare R2, through the media-upload Edge Function.
+  /** Shrink `file`, upload it to R2 under `folder` ('articles' or 'events') and return its public URL. */
+  async uploadImage(file, folder = 'articles') {
     const blob = await resizePhotoBlob(file);
-    const { uploadUrl, publicUrl } = await callMediaFunction({ action: 'sign', folder: 'articles', contentType: 'image/jpeg', size: blob.size });
+    const { uploadUrl, publicUrl } = await callMediaFunction({ action: 'sign', folder, contentType: 'image/jpeg', size: blob.size });
     let res;
     try {
       res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });

@@ -6,7 +6,7 @@ import { fmtDate } from '../../constants.js';
 import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { todayIso } from '../../lib/website.js';
-import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton } from './shared.jsx';
+import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon, FilePick } from './shared.jsx';
 
 // Tag values match the articles_tag_check constraint (0021); the site shows them in Bisaya.
 const TAGS = [['Parish', 'Parish'], ['GKK', 'GKK'], ['Ministry', 'Ministry'], ['History', 'History (Kasaysayan)']];
@@ -73,14 +73,6 @@ export default function ArticlesTab() {
 
       {editing && <ArticleEditor row={editing} onClose={() => setEditing(null)} onSaved={(saved) => { list.upsert(saved); setEditing(null); }} />}
     </>
-  );
-}
-
-function PhotoIcon({ size = 26 }) {
-  return (
-    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
-      <rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.8" /><path d="M21 16l-5-5-8 8" />
-    </svg>
   );
 }
 
@@ -226,17 +218,5 @@ function ArticleEditor({ row, onClose, onSaved }) {
 
       <PublishSwitch checked={!!form.published} onChange={set('published')} />
     </SidePanel>
-  );
-}
-
-function FilePick({ label, onFiles, multiple = false, disabled = false }) {
-  return (
-    <label className={`cursor-pointer px-4 py-2 font-semibold text-[13.5px] text-white bg-parish-fill rounded-xl inline-block ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
-      {label}
-      <input
-        type="file" accept="image/*" multiple={multiple} className="hidden" disabled={disabled}
-        onChange={(e) => { const files = [...(e.target.files || [])]; e.target.value = ''; if (files.length) onFiles(files); }}
-      />
-    </label>
   );
 }

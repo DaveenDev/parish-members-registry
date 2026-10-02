@@ -1,4 +1,4 @@
-// Photo uploads for the Parish Website (Blog Articles), stored on Cloudflare R2.
+// Photo uploads for the Parish Website (Blog Articles and event covers), stored on Cloudflare R2.
 //
 // The R2 keys must never reach the browser, so this Edge Function hands the
 // admin a short-lived signed PUT link instead; the browser then uploads the
@@ -15,7 +15,7 @@
 const isDisabled = (user, now) => !!user?.banned_until && new Date(user.banned_until) > now;
 
 export const MAX_BYTES = 10 * 1024 * 1024;
-export const FOLDERS = ['articles'];
+export const FOLDERS = ['articles', 'events'];
 const TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const EDIT_WEBSITE = ['full', 'website'];
 export const NOT_CONFIGURED = "Photo storage isn't set up yet. A staff admin can add the Cloudflare R2 settings under Parish Config (see docs/media-storage.md).";

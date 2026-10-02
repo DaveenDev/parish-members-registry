@@ -69,12 +69,18 @@ export function EventDetail() {
               </div>
               <h1 className="font-serif font-semibold text-[32px] lg:text-[50px] leading-[1.08] lg:leading-[1.04] mt-2.5 mb-4 lg:mt-3.5 lg:mb-[18px] text-parish-navy">{e.title}</h1>
             </div>
-            <Card className="px-3.5 py-1 mb-4 shadow-none lg:[grid-area:side] lg:px-5 lg:pt-2 lg:pb-2 lg:mb-3 lg:rounded-[20px] lg:shadow-card">
-              <InfoRow icon="cal">{when}{span && <div className="text-[13.5px] font-normal text-parish-text2">{span}</div>}</InfoRow>
-              <InfoRow icon="clock" last={!e.location && !e.organizer}>{eventTime(e)}</InfoRow>
-              {e.location && <InfoRow icon="pin" last={!e.organizer}>{e.location}</InfoRow>}
-              {e.organizer && <InfoRow icon="people" label="Nag-organisar" last>{e.organizer}</InfoRow>}
-            </Card>
+            <div className="lg:[grid-area:side]">
+              {/* A cover (often a poster) at its own shape, so nothing is cropped: under the title on phones, above the details on desktop. */}
+              {e.photo_url && (
+                <img src={e.photo_url} alt={e.title} className="block w-full max-h-[460px] lg:max-h-[560px] object-cover rounded-[14px] lg:rounded-[20px] mb-4 lg:mb-3 bg-[#efe6d3] lg:shadow-card" />
+              )}
+              <Card className="px-3.5 py-1 mb-4 shadow-none lg:px-5 lg:pt-2 lg:pb-2 lg:mb-3 lg:rounded-[20px] lg:shadow-card">
+                <InfoRow icon="cal">{when}{span && <div className="text-[13.5px] font-normal text-parish-text2">{span}</div>}</InfoRow>
+                <InfoRow icon="clock" last={!e.location && !e.organizer}>{eventTime(e)}</InfoRow>
+                {e.location && <InfoRow icon="pin" last={!e.organizer}>{e.location}</InfoRow>}
+                {e.organizer && <InfoRow icon="people" label="Nag-organisar" last>{e.organizer}</InfoRow>}
+              </Card>
+            </div>
             <div className="lg:[grid-area:body] lg:max-w-[640px]">
               {e.description && <Body text={e.description} className="text-[16px] lg:text-[18px] leading-relaxed lg:leading-[1.65] text-[#3f3b2f]" />}
             </div>

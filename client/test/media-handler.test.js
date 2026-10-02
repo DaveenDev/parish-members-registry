@@ -73,6 +73,11 @@ describe('sign', () => {
     assert.equal((await call('token-web', sign({ size: MAX_BYTES + 1 }))).status, 400);
     assert.equal((await call('token-web', sign({ folder: 'staff' }))).status, 400);
   });
+  test('event covers go under events/YYYY/MM', async () => {
+    const r2 = fakeR2();
+    const res = await call('token-web', sign({ folder: 'events' }), r2);
+    assert.equal(res.body.publicUrl, `${BASE}/events/2026/10/abc.jpg`);
+  });
   test('webp and png keep their extension', () => {
     assert.equal(objectKey('articles', 'image/webp', 'x', NOW), 'articles/2026/10/x.webp');
     assert.equal(objectKey('articles', 'image/png', 'x', NOW), 'articles/2026/10/x.png');
@@ -92,6 +97,11 @@ describe('delete', () => {
       assert.equal((await call('token-web', { action: 'delete', url }, r2)).status, 400, url);
       assert.deepEqual(r2.calls, []);
     }
+  });
+  test('deletes an event cover', async () => {
+    const r2 = fakeR2();
+    assert.equal((await call('token-web', { action: 'delete', url: `${BASE}/events/2026/10/abc.jpg` }, r2)).status, 200);
+    assert.deepEqual(r2.calls, [['delete', 'events/2026/10/abc.jpg']]);
   });
   test('keyFromUrl drops query strings', () => {
     assert.equal(keyFromUrl(`${BASE}/articles/a.jpg?v=2`, BASE), 'articles/a.jpg');

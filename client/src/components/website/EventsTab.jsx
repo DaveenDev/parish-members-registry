@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useUrlState } from '../../hooks.js';
 import { api } from '../../api.js';
 import { Field, TextInput, Select, Badge, OptionSelect } from '../ui.jsx';
@@ -6,9 +6,10 @@ import { FilterSelect, EmptyState, LoadingState, ErrorState } from '../admin.jsx
 import { fmtDate } from '../../constants.js';
 import { useToast } from '../../ToastContext.jsx';
 import { EVENT_TYPES, EVENT_TONES, fmtTime, toTimeInput, todayIso, addDays } from '../../lib/website.js';
-import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton } from './shared.jsx';
+import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon, FilePick } from './shared.jsx';
 
 const describe = (r) => r.title;
+const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 const lastDay = (r) => r.end_date || r.start_date;
 
 function monthLabel(iso) {
@@ -92,6 +93,7 @@ export default function EventsTab() {
               <div className="px-5 pt-4 pb-1 font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{m.label}</div>
               {m.rows.map((r) => (
                 <div key={r.id} className="flex items-start gap-3 px-5 py-3 flex-wrap">
+                  {r.photo_url && <img src={r.photo_url} alt="" className="w-[72px] h-[48px] flex-none rounded-lg object-cover border border-parish-line" />}
                   <div className="flex-1 min-w-[220px]">
                     <div className="flex items-center gap-2 flex-wrap mb-0.5">
                       <Badge tone={EVENT_TONES[r.type]}>{r.type}</Badge>
@@ -130,17 +132,64 @@ function EventEditor({ row, gkks, onClose, onSaved }) {
     end_time: toTimeInput(initial.end_time),
   });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // The cover is uploaded to R2 as soon as it's picked. Cancelling deletes
+  // what this session uploaded; a cover taken off is deleted once the event
+  // is saved, unless another event (e.g. a duplicate) still uses it.
+  const uploaded = useRef(new Set());
+  const replaced = useRef(new Set());
+  const coverRef = useRef(form.photo_url || '');
+  coverRef.current = form.photo_url || '';
+
+  function setCover(url) {
+    const old = coverRef.current;
+    if (old && uploaded.current.has(old)) {
+      uploaded.current.delete(old);
+      api.deleteImage(old).catch(() => {});
+    } else if (old) {
+      replaced.current.add(old);
+    }
+    setForm((f) => ({ ...f, photo_url: url }));
+  }
+
+  async function pickCover([file]) {
+    if (!file.type.startsWith('image/')) { setError(`${file.name} isn't an image`); return; }
+    if (file.size > MAX_SOURCE_BYTES) { setError(`${file.name} is over 25 MB`); return; }
+    setUploading(true);
+    setError('');
+    try {
+      const url = await api.uploadImage(file, 'events');
+      uploaded.current.add(url);
+      setCover(url);
+    } catch (e) {
+      setError(e.message || 'Could not upload the photo');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function close() {
+    for (const url of uploaded.current) api.deleteImage(url).catch(() => {});
+    onClose();
+  }
 
   async function save() {
     if (!form.title.trim()) { setError('Give the event a title.'); return; }
     if (!form.start_date) { setError('Choose the date.'); return; }
     if (form.end_date && form.end_date < form.start_date) { setError('The last day must be on or after the first day.'); return; }
+    if (uploading) { setError('Wait for the photo to finish uploading.'); return; }
     setSaving(true);
     setError('');
     try {
-      const saved = await api.saveEvent({ ...form, title: form.title.trim(), end_date: form.end_date === form.start_date ? '' : form.end_date });
+      const { photo_url: cover, ...fields } = form;
+      // Leave the cover out when there never was one, so events still save before the 0028 migration.
+      const withCover = cover || 'photo_url' in row ? { ...fields, photo_url: cover || '' } : fields;
+      const saved = await api.saveEvent({ ...withCover, title: form.title.trim(), end_date: form.end_date === form.start_date ? '' : form.end_date });
+      for (const url of replaced.current) api.deleteEventCover(url, saved.id).catch(() => {});
+      uploaded.current.clear();
       toast.success('Event saved');
       onSaved(saved);
     } catch (e) {
@@ -152,7 +201,7 @@ function EventEditor({ row, gkks, onClose, onSaved }) {
 
   const title = row.id ? 'Edit event' : copiedFrom ? 'Next in the series' : 'Add an event';
   return (
-    <SidePanel title={title} subtitle={copiedFrom ? `Copied from “${copiedFrom}”, one week later` : undefined} onClose={onClose} onSave={save} saving={saving} error={error}>
+    <SidePanel title={title} subtitle={copiedFrom ? `Copied from “${copiedFrom}”, one week later` : undefined} onClose={close} onSave={save} saving={saving} error={error}>
       <Field label="Title" required><TextInput value={form.title} onChange={(e) => set('title')(e.target.value)} maxLength={150} placeholder="e.g. Novena sa Our Lady of Guadalupe" /></Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Type">
@@ -173,6 +222,21 @@ function EventEditor({ row, gkks, onClose, onSaved }) {
       <Field label="Details">
         <TextArea rows={4} value={form.description || ''} onChange={(e) => set('description')(e.target.value)} placeholder="What happens, who should come, what to bring" />
       </Field>
+
+      <SectionLabel>Cover photo (optional)</SectionLabel>
+      <div className="flex items-start gap-4 flex-wrap">
+        <div className="w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
+          {form.photo_url ? <img src={form.photo_url} alt="Cover" className="w-full h-full object-cover" /> : <PhotoIcon size={32} />}
+        </div>
+        <div className="flex flex-col gap-2 items-start">
+          <FilePick label={uploading ? 'Uploading…' : form.photo_url ? 'Replace cover' : 'Upload cover'} onFiles={pickCover} disabled={uploading} />
+          {form.photo_url && !uploading && <button type="button" onClick={() => setCover('')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove cover</button>}
+          <span className="text-[12px] text-parish-muted max-w-[260px]">
+            A poster or photo for the event. With one, the website shows the event with its picture; without, the simple layout. A wide photo works best.
+          </span>
+        </div>
+      </div>
+
       <PublishSwitch checked={!!form.published} onChange={set('published')} />
     </SidePanel>
   );

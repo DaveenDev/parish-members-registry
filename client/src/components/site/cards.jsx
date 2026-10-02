@@ -91,30 +91,53 @@ export function EventRow({ e, tinted = false, dark = false }) {
         <EventTypeLabel e={e} className="mb-0.5 lg:text-[12px]" color={dark ? 'rgba(255,255,255,.7)' : undefined} />
         <div className={`font-semibold text-[15px] lg:text-[16px] leading-[1.3] ${dark ? 'text-white' : ''}`}>{e.title}</div>
       </div>
+      {e.photo_url && <img src={e.photo_url} alt="" loading="lazy" className="w-[64px] h-[48px] lg:w-[76px] lg:h-[56px] flex-none rounded-lg object-cover bg-[#efe6d3]" />}
     </Link>
   );
 }
 
-/** Card in the agenda list, with a span bar for multi-day events. */
+/**
+ * Card in the agenda list, with a span bar for multi-day events. An event
+ * with a cover photo shows it across the top; one without keeps the simple
+ * card with the type icon.
+ */
 export function EventCard({ e, showDate = false }) {
   const tone = eventTone(e);
   const span = eventSpan(e);
+  const details = (
+    <>
+      <div className="font-bold text-[11.5px] tracking-[.06em] uppercase" style={{ color: tone.color }}>{EVENT_TYPE_LABELS[e.type] || e.type}</div>
+      <div className="font-semibold text-[15.5px] leading-[1.3] mt-px mb-[3px]">{e.title}</div>
+      {showDate && <div className="text-[13.5px] font-semibold text-parish-navy">{fmtShort(e.start_date)}{e.end_date && e.end_date !== e.start_date ? ` – ${fmtShort(e.end_date)}` : ''}</div>}
+      <div className="text-[13.5px] text-parish-text2">{[eventTime(e), e.location].filter(Boolean).join(' · ')}</div>
+      {span && (
+        <div className="mt-2 flex items-center gap-2">
+          <div className="flex-1 h-1.5 rounded-full opacity-70" style={{ background: tone.color }} />
+          <span className="font-bold text-[12px] whitespace-nowrap" style={{ color: tone.color }}>{span}</span>
+        </div>
+      )}
+    </>
+  );
+  if (e.photo_url) {
+    return (
+      <Link to={`/misa/kalihokan/${e.id}`} className="block w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)]">
+        <div className="relative h-[170px] lg:h-[200px] bg-[#efe6d3]">
+          <img src={e.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+          <span className="absolute left-2.5 top-2.5 w-9 h-9 rounded-xl flex items-center justify-center shadow-cardSm" style={{ background: tone.background, color: tone.color }}>
+            <Icon name={EVENT_ICONS[e.type] || 'cal'} size={19} />
+          </span>
+        </div>
+        <div className="p-3">{details}</div>
+      </Link>
+    );
+  }
   return (
     <Link to={`/misa/kalihokan/${e.id}`} className="w-full text-left flex gap-3 bg-parish-card border border-parish-border rounded-[14px] p-3 shadow-cardSm">
       <div className="w-10 h-10 flex-none rounded-xl flex items-center justify-center" style={{ background: tone.background, color: tone.color }}>
         <Icon name={EVENT_ICONS[e.type] || 'cal'} size={21} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="font-bold text-[11.5px] tracking-[.06em] uppercase" style={{ color: tone.color }}>{EVENT_TYPE_LABELS[e.type] || e.type}</div>
-        <div className="font-semibold text-[15.5px] leading-[1.3] mt-px mb-[3px]">{e.title}</div>
-        {showDate && <div className="text-[13.5px] font-semibold text-parish-navy">{fmtShort(e.start_date)}{e.end_date && e.end_date !== e.start_date ? ` – ${fmtShort(e.end_date)}` : ''}</div>}
-        <div className="text-[13.5px] text-parish-text2">{[eventTime(e), e.location].filter(Boolean).join(' · ')}</div>
-        {span && (
-          <div className="mt-2 flex items-center gap-2">
-            <div className="flex-1 h-1.5 rounded-full opacity-70" style={{ background: tone.color }} />
-            <span className="font-bold text-[12px] whitespace-nowrap" style={{ color: tone.color }}>{span}</span>
-          </div>
-        )}
+        {details}
       </div>
     </Link>
   );

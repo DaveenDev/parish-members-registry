@@ -1,4 +1,4 @@
-# Photo storage (Cloudflare R2) for Blog Articles
+# Photo storage (Cloudflare R2) for Blog Articles and event covers
 
 Blog Article photos (Admin → Parish Website → Blog Articles) are stored in a
 Cloudflare R2 bucket, not in the database. The admin never sees the R2 keys:
@@ -94,9 +94,14 @@ in the SQL editor (adds each article's gallery and the History / Kasaysayan tag)
 
 ## How photos are kept tidy
 
-- Photos land under `articles/YYYY/MM/<random>.jpg`.
+- Article photos land under `articles/YYYY/MM/<random>.jpg`, event covers
+  (Parish Website → Events, after
+  [`0028_event_cover_photo.sql`](../supabase/migrations/0028_event_cover_photo.sql))
+  under `events/YYYY/MM/<random>.jpg`.
 - Removing a photo from an article, replacing the cover, or deleting the article
   deletes the old file from R2. Photos uploaded in an editor that's then
   cancelled are deleted too.
-- The function only deletes files under `articles/` in this bucket.
+- Event covers work the same way, except that **Duplicate** copies the cover to
+  the new event, so a cover is only deleted from R2 once no event uses it.
+- The function only deletes files under `articles/` and `events/` in this bucket.
 - Free tier: 10 GB stored, no download (egress) fees.

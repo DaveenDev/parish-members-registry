@@ -82,3 +82,25 @@ export function PublishSwitch({ checked, onChange }) {
 export function StateBadge({ state }) {
   return <Badge tone={STATE_TONES[state] || 'gray'}>{state}</Badge>;
 }
+
+/** A picture placeholder for photo slots without a photo yet. */
+export function PhotoIcon({ size = 26 }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden>
+      <rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.8" /><path d="M21 16l-5-5-8 8" />
+    </svg>
+  );
+}
+
+/** A button that opens the file picker for images. */
+export function FilePick({ label, onFiles, multiple = false, disabled = false }) {
+  return (
+    <label className={`cursor-pointer px-4 py-2 font-semibold text-[13.5px] text-white bg-parish-fill rounded-xl inline-block ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
+      {label}
+      <input
+        type="file" accept="image/*" multiple={multiple} className="hidden" disabled={disabled}
+        onChange={(e) => { const files = [...(e.target.files || [])]; e.target.value = ''; if (files.length) onFiles(files); }}
+      />
+    </label>
+  );
+}
