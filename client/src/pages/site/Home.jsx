@@ -175,7 +175,8 @@ const STAT_TILES = [
   { key: 'organizations', label: 'Organisasyon', icon: 'ev-meeting' },
   { key: 'masses', label: 'Misa matag semana', icon: 'church' },
 ];
-const STAT_COLS = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-5', 6: 'grid-cols-6' };
+// Icon-beside-number cards need ~200px, so five or six go three across until the page is wide.
+const STAT_COLS = { 1: 'grid-cols-1', 2: 'grid-cols-2', 3: 'grid-cols-3', 4: 'grid-cols-4', 5: 'grid-cols-3 xl:grid-cols-5', 6: 'grid-cols-3 xl:grid-cols-6' };
 
 /**
  * "Parokya sa usa ka tan-aw": desktop only (kept off phones on purpose).
@@ -202,17 +203,19 @@ function ParishStats({ mass }) {
         </div>
         <span className="text-[13.5px] text-parish-text2">Ihap lang, walay ngalan.</span>
       </div>
-      <div className={`grid gap-3.5 ${q.loading ? 'grid-cols-6' : STAT_COLS[tiles.length] || 'grid-cols-6'}`}>
-        {q.loading ? [0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} h={168} className="rounded-[18px]" />) : tiles.map((t) => {
+      <div className={`grid gap-3.5 ${q.loading ? STAT_COLS[6] : STAT_COLS[tiles.length] || 'grid-cols-6'}`}>
+        {q.loading ? [0, 1, 2, 3, 4, 5].map((i) => <Skeleton key={i} h={104} className="rounded-[18px]" />) : tiles.map((t) => {
           const n = values[t.key];
           return (
-            <div key={t.key} className="bg-parish-card border border-parish-border rounded-[18px] shadow-cardSm p-5 min-h-[168px] flex flex-col">
-              <span className="w-14 h-14 rounded-2xl flex items-center justify-center mb-3.5 border" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)', borderColor: 'var(--p-blue-border)' }}>
+            <div key={t.key} className="bg-parish-card border border-parish-border rounded-[18px] shadow-cardSm px-4 py-[18px] min-h-[104px] flex items-center gap-3.5">
+              <span className="w-14 h-14 flex-none rounded-2xl flex items-center justify-center border" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)', borderColor: 'var(--p-blue-border)' }}>
                 <Icon name={t.icon} size={30} />
               </span>
-              <div className="font-serif text-[40px] font-bold text-parish-blue leading-none">{n.toLocaleString('en-US')}</div>
-              <div className="font-bold text-[11.5px] tracking-[.12em] uppercase text-parish-text2 mt-2 leading-[1.3]">{t.label}</div>
-              {sub(t) && <div className="text-[12.5px] text-parish-text2 mt-0.5">{sub(t)}</div>}
+              <div className="min-w-0">
+                <div className="font-serif text-[36px] font-bold text-parish-blue leading-none">{n.toLocaleString('en-US')}</div>
+                <div className="font-bold text-[11px] tracking-[.1em] uppercase text-parish-text2 mt-1.5 leading-[1.3]">{t.label}</div>
+                {sub(t) && <div className="text-[12px] text-parish-text2 mt-0.5">{sub(t)}</div>}
+              </div>
             </div>
           );
         })}
