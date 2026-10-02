@@ -35,10 +35,24 @@ function Body({ text, className = READ_TEXT }) {
   return paragraphs(text).map((p, i) => <p key={i} className={`m-0 mb-3.5 lg:mb-4 whitespace-pre-line ${className}`}>{p}</p>);
 }
 
-/** A cover photo across the full content width, cropped to a fixed height (article and event pages). */
-function Photo({ src, h = 200, hLg = h, alt = '' }) {
+const PHOTO_BOX = 'rounded-[14px] lg:rounded-[18px] mb-4 lg:mb-6 bg-[#efe6d3] h-[var(--h)] lg:h-[var(--h-lg)]';
+
+/**
+ * A cover photo across the full content width at a fixed height (article and
+ * event pages). By default it's cropped to fill. With `whole`, the entire
+ * image is shown centred over a blurred copy that fills the sides, like the
+ * event cards, so a poster's text is never cut off.
+ */
+function Photo({ src, h = 200, hLg = h, alt = '', whole = false }) {
   if (!src) return null;
-  return <img src={src} alt={alt} loading="lazy" className="w-full object-cover rounded-[14px] lg:rounded-[18px] mb-4 lg:mb-6 bg-[#efe6d3] h-[var(--h)] lg:h-[var(--h-lg)]" style={{ '--h': `${h}px`, '--h-lg': `${hLg}px` }} />;
+  const size = { '--h': `${h}px`, '--h-lg': `${hLg}px` };
+  if (!whole) return <img src={src} alt={alt} loading="lazy" className={`w-full object-cover ${PHOTO_BOX}`} style={size} />;
+  return (
+    <div className={`relative overflow-hidden ${PHOTO_BOX}`} style={size}>
+      <img src={src} alt="" aria-hidden loading="lazy" className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-70" />
+      <img src={src} alt={alt} loading="lazy" className="absolute inset-0 w-full h-full object-contain" />
+    </div>
+  );
 }
 
 export function EventDetail() {
@@ -70,10 +84,11 @@ export function EventDetail() {
               </div>
               <h1 className="font-serif font-semibold text-[32px] lg:text-[50px] leading-[1.08] lg:leading-[1.04] mt-2.5 mb-4 lg:mt-3.5 lg:mb-[18px] text-parish-navy">{e.title}</h1>
             </div>
-            {/* Same cover as an article page: full width under the title, then the details. */}
+            {/* Full width under the title like an article, but the whole poster is shown
+                (over a blurred fill) and it's a little taller on phones so its text stays readable. */}
             {e.photo_url && (
               <div className="lg:[grid-area:photo]">
-                <Photo src={e.photo_url} hLg={560} alt={e.title} />
+                <Photo src={e.photo_url} h={260} hLg={560} alt={e.title} whole />
               </div>
             )}
             <div className="lg:[grid-area:side]">
