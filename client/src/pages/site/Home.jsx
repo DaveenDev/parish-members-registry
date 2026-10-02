@@ -101,8 +101,6 @@ export default function Home() {
         <MassToday mass={mass} />
       </section>
 
-      <ParishStats mass={mass} />
-
       <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-8 lg:items-start">
       <section className="px-3.5 pt-7 lg:p-0">
         <SectionHead title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
@@ -129,6 +127,8 @@ export default function Home() {
         )}
       </section>
       </div>
+
+      <ParishStats mass={mass} />
 
       <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12">
         <h2 className="font-serif font-semibold text-[25px] lg:text-[30px] m-0 mb-2.5 lg:mb-3.5 text-parish-navy">Unsa ang imong kinahanglan?</h2>
