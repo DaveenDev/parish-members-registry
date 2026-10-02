@@ -8,7 +8,7 @@ import { fmtDayMonth, gkkParts, upcomingToday } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
-import { ParishMark, PARISH_NAME, PARISH_SUB, SiteFooter, useParishLogo } from './SiteLayout.jsx';
+import { PARISH_NAME, PARISH_SUB, SiteFooter } from './SiteLayout.jsx';
 import { listState, useAnnouncements, useEvents, useGkkDirectory, useMassSchedule, useOffice, usePortalStatus } from './data.js';
 
 const DISMISSED_KEY = 'pmr_dismissed_urgent';
@@ -23,7 +23,6 @@ export default function Home() {
   const events = listState(useEvents());
   const portal = usePortalStatus().data;
   const office = useOffice().data;
-  const logo = useParishLogo();
   const gkks = useGkkDirectory().data || [];
   const [dismissed, setDismissed] = useState(readDismissed);
 
@@ -57,8 +56,7 @@ export default function Home() {
       <section className="lg:border-b lg:border-parish-border" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
         <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-16 lg:pb-[60px] lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-14 lg:items-center">
           <div className="text-center px-[22px] pt-[30px] pb-7 lg:text-left lg:p-0">
-            <div className="flex justify-center lg:justify-start"><ParishMark size={64} logo={logo} /></div>
-            <div className="font-bold text-[11.5px] lg:text-[12.5px] tracking-[.2em] lg:tracking-[.22em] uppercase text-[var(--p-eyebrow)] mt-1.5 mb-2.5 lg:mt-2.5 lg:mb-3">Rehistro sa mga Miyembro sa Parokya</div>
+            <div className="font-bold text-[11.5px] lg:text-[12.5px] tracking-[.2em] lg:tracking-[.22em] uppercase text-[var(--p-eyebrow)] mb-2.5 lg:mb-3">Rehistro sa mga Miyembro sa Parokya</div>
             <h1 className="font-serif font-semibold text-[38px] lg:text-[64px] leading-[1.02] lg:leading-[.98] m-0 mb-1 lg:mb-1.5 text-parish-navy">{PARISH_NAME}</h1>
             <div className="font-serif text-[20px] lg:text-[27px] text-parish-blue tracking-[.04em] mb-4 lg:mb-5">{PARISH_SUB}</div>
             <p className="text-[16px] lg:text-[18.5px] leading-relaxed lg:leading-[1.6] text-[#4d4636] m-0 mb-[22px] lg:mb-[30px] lg:max-w-[560px]">
