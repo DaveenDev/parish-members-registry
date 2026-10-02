@@ -4,18 +4,28 @@ import { api } from '../../api.js';
 import { PageHeader, PageBody, Tabs } from '../../components/admin.jsx';
 import { ManageListCard } from '../../components/ManageList.jsx';
 
-const TABS = [['structure', 'Parish Organization Structure'], ['lay', 'Lay Organizations']];
+const TABS = [['ministries', 'Ministries'], ['structure', 'Parish Organization Structure'], ['lay', 'Lay Organizations']];
 
+/** The staff-managed name lists registrants pick from, one tab each (?tab=). */
 export default function ManageOrgs() {
   const [params, setParams] = useSearchParams();
   const tab = TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : TABS[0][0];
 
   return (
     <>
-      <PageHeader title="Parish Organizations" subtitle="Parish positions and the lay organizations active in the parish" />
+      <PageHeader title="Ministries & Organizations" subtitle="Parish ministries, parish positions and the lay organizations active in the parish" />
       <PageBody>
         <div className="max-w-[720px]">
           <Tabs tabs={TABS} value={tab} onChange={(k) => setParams({ tab: k }, { replace: true })} />
+          {tab === 'ministries' && (
+            <ManageListCard
+              key="ministries"
+              heading="Parish Ministries"
+              description="Liturgical and service ministries offered by the parish. Registrants can tick the ones they serve in."
+              itemNoun="ministry"
+              listFn={api.listMinistries} addFn={api.addMinistry} renameFn={api.renameMinistry} deleteFn={api.deleteMinistry}
+            />
+          )}
           {tab === 'structure' && (
             <ManageListCard
               key="structure"

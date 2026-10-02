@@ -6,7 +6,7 @@ wrong quietly corrupts every record that references it, so the rename and delete
 checks below matter more than they look.
 
 - **URLs:** `/admin/ministries`, `/admin/organizations`, `/admin/settings`,
-  `/admin/settings/ministries`, `/admin/settings/organizations`
+  `/admin/settings/organizations` (Ministries, Parish Organization Structure and Lay Organizations tabs)
 - **Sign-in needed:** yes
 - **Time:** 30 minutes
 - **Prerequisite:** sample data loaded. Note the two levels: **Ministries** and
