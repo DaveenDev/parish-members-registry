@@ -14,10 +14,10 @@ export default function SacramentGuidesTab() {
 
   return (
     <>
-      <TabIntro text="What families need to know before asking the office: the steps, the documents to bring, seminar schedules and fees. Each sacrament is one guide." />
+      <TabIntro text="What families need to know before asking the office: the steps, the documents to bring, seminar schedules and fees. Each sacrament is one guide; published guides show on the website under Misa ug Kalihokan → Mga Sakramento. Baptism, Wedding and OCIA start with the usual requirements as drafts — check them against the parish's own rules, add the schedule and fees, then publish." />
 
       {list.loading ? <Panel><LoadingState /></Panel> : list.error ? <Panel><ErrorState message={list.error} onRetry={list.reload} /></Panel> : !list.rows.length ? (
-        <Panel><EmptyState title="No guides found" subtitle="Re-run the 0011 migration to add the six sacrament guides." /></Panel>
+        <Panel><EmptyState title="No guides found" subtitle="Run the 0011 and 0019 migrations to add the sacrament guides." /></Panel>
       ) : (
         <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))' }}>
           {list.rows.map((g) => {

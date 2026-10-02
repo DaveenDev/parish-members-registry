@@ -5,6 +5,7 @@ import { todayIso } from '../../lib/website.js';
 // One hook per kind of public data, so every page shares the same cache key.
 export const useMassSchedule = () => usePublicData('mass', api.publicMassSchedules);
 export const useAnnouncements = () => usePublicData('announcements', api.publicAnnouncements);
+export const useSacramentGuides = () => usePublicData('sacraments', api.publicSacramentGuides);
 export const useBulletins = () => usePublicData('bulletins', api.publicBulletins);
 export const useEvents = () => usePublicData('events', () => api.publicEvents(todayIso()));
 export const useArticles = () => usePublicData('articles', api.publicArticles);

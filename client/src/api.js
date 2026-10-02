@@ -656,6 +656,8 @@ export const api = {
   // ---- public website reads (0011 tables, 0013 functions) -------------
   // Published items only, even for a signed-in staff member browsing the site.
   publicMassSchedules: () => listPublished('mass_schedules', (q) => q.order('day_of_week').order('start_time')),
+  /** Published sacrament guides (requirements and steps), in the office's order. */
+  publicSacramentGuides: () => listPublished('sacrament_guides', (q) => q.order('sort').order('id')),
   /** Live announcements: pinned first, then newest. */
   publicAnnouncements: () => listPublished('announcements', (q) => q
     .lte('publish_on', todayLocal())

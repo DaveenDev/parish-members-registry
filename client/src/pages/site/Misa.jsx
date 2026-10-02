@@ -8,21 +8,113 @@ import {
   massKindLabel, massLocations, massSections, massShortLabel, massesOnDay, monthCells, monthLabel, parseIso,
 } from '../../lib/site.js';
 import { EVENT_TYPES, massType, todayIso } from '../../lib/website.js';
-import { listState, useAnnouncements, useEvents, useMassSchedule } from './data.js';
+import { listState, useAnnouncements, useEvents, useMassSchedule, useSacramentGuides } from './data.js';
 
-/** Misa ug Kalihokan: the weekly Mass schedule and the events agenda. */
+// The ?view= value of each tab; the Mass schedule is the default.
+const VIEWS = { events: 'kalendaryo', sacraments: 'sakramento' };
+
+/** Misa ug Kalihokan: the weekly Mass schedule, the events agenda and the sacrament guides. */
 export default function Misa() {
   const [params, setParams] = useSearchParams();
-  const view = params.get('view') === 'kalendaryo' ? 'events' : 'sched';
-  const setView = (v) => setParams(v === 'events' ? { view: 'kalendaryo' } : {}, { replace: true });
+  const view = Object.keys(VIEWS).find((k) => VIEWS[k] === params.get('view')) || 'sched';
+  const setView = (v) => setParams(VIEWS[v] ? { view: VIEWS[v] } : {}, { replace: true });
 
   return (
     <main className={PAGE}>
       <PageHeader eyebrow="Misa ug Kalihokan" title="Iskedyul sa parokya">
-        <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={setView} />
+        <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo'], ['sacraments', 'Mga Sakramento']]} value={view} onChange={setView} />
       </PageHeader>
-      {view === 'sched' ? <MassSchedule /> : <EventsAgenda />}
+      {view === 'sched' && <MassSchedule />}
+      {view === 'events' && <EventsAgenda />}
+      {view === 'sacraments' && <SacramentGuides />}
     </main>
+  );
+}
+
+// The guides people ask about most come first; the rest follow the office's order.
+const GUIDE_FIRST = ['baptism', 'wedding', 'ocia'];
+const guideRank = (g) => (GUIDE_FIRST.includes(g.key) ? GUIDE_FIRST.indexOf(g.key) : GUIDE_FIRST.length + (g.sort || 0));
+
+/** Mga Sakramento: what to bring and the steps for each sacrament, one guide at a time. */
+function SacramentGuides() {
+  const q = listState(useSacramentGuides());
+  const guides = [...q.rows].sort((a, b) => guideRank(a) - guideRank(b) || a.id - b.id);
+  const [key, setKey] = useState('');
+  const g = guides.find((x) => x.key === key) || guides[0];
+
+  return (
+    <DataState
+      state={q}
+      skeleton={<Skeletons n={2} h={160} />}
+      errorText="Wala ma-load ang mga giya sa sakramento."
+      empty={q.empty}
+      emptyText="Wala pay giya nga gi-publish. Duol sa opisina sa parokya para sa mga kinahanglanon."
+    >
+      <p className="m-0 mb-3.5 lg:mb-5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636] lg:max-w-[760px]">
+        Unsa ang dad-on ug unsa ang mga lakang sa matag sakramento. Palihug duol sa opisina sa parokya una sa tanan aron makumpirma.
+      </p>
+      {guides.length > 1 && <Pills scroll className="mb-4 lg:mb-5" options={guides.map((x) => [x.key, x.title])} value={g?.key} onChange={setKey} />}
+      {g && <GuideCard g={g} />}
+    </DataState>
+  );
+}
+
+function GuideCard({ g }) {
+  const steps = (g.steps || []).filter((s) => s.title || s.detail);
+  const docs = (g.requirements || []).filter(Boolean);
+  const extras = [['Iskedyul', g.schedule, 'clock'], ['Donasyon', g.fees, 'heart'], ['Pahinumdom', g.notes, 'alert']].filter(([, v]) => v);
+  return (
+    <article className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
+      <header className="px-4 py-3.5 lg:px-6 lg:py-5 bg-[#fbf7ef] border-b border-[#f0e8d6]">
+        <h2 className="m-0 font-serif text-[26px] lg:text-[32px] font-bold text-parish-navy leading-tight">{g.title}</h2>
+        {g.summary && <p className="m-0 mt-1.5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636] lg:max-w-[820px]">{g.summary}</p>}
+      </header>
+      <div className="grid gap-5 p-4 lg:p-6 lg:grid-cols-2 lg:gap-8">
+        {docs.length > 0 && (
+          <section aria-labelledby={`docs-${g.key}`}>
+            <h3 id={`docs-${g.key}`} className="m-0 mb-2.5 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga dokumento nga dad-on</h3>
+            <ul className="list-none m-0 p-0 flex flex-col gap-2">
+              {docs.map((d, i) => (
+                <li key={i} className="flex gap-2.5 items-start text-[15px] leading-snug text-parish-ink">
+                  <span className="w-5 h-5 mt-px flex-none rounded border-[1.5px] border-parish-borderSoft bg-parish-card" aria-hidden />
+                  <span>{d}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        {steps.length > 0 && (
+          <section aria-labelledby={`steps-${g.key}`}>
+            <h3 id={`steps-${g.key}`} className="m-0 mb-2.5 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga lakang</h3>
+            <ol className="list-none m-0 p-0 flex flex-col gap-3">
+              {steps.map((s, i) => (
+                <li key={i} className="flex gap-3 items-start">
+                  <span className="w-7 h-7 flex-none rounded-full bg-parish-blue text-white font-bold text-[13px] flex items-center justify-center" aria-hidden>{i + 1}</span>
+                  <div className="min-w-0">
+                    <div className="font-semibold text-[15px] text-parish-navy leading-snug">{s.title}</div>
+                    {s.detail && <div className="text-[14px] leading-snug text-parish-text2 mt-0.5">{s.detail}</div>}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          </section>
+        )}
+      </div>
+      {extras.length > 0 && (
+        <div className="flex flex-col gap-2.5 px-4 pb-4 lg:px-6 lg:pb-6">
+          {extras.map(([label, value, icon]) => (
+            <div key={label} className="flex gap-2.5 items-start rounded-xl px-3.5 py-3 border border-[#eee3ce] bg-parish-bg">
+              <Icon name={icon} size={18} className="text-[var(--p-gold-deep)] mt-px flex-none" />
+              <div className="text-[14.5px] leading-normal text-[#3f3b2f]"><strong className="text-parish-navy">{label}:</strong> {value}</div>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2.5 px-4 pb-4 lg:px-6 lg:pb-6">
+        <Link to="/kontak" className="min-h-[44px] px-4 inline-flex items-center rounded-[10px] bg-parish-blue text-white font-bold text-[14.5px] hover:brightness-110">Pangutana sa opisina</Link>
+        <Link to="/serbisyo/hangyo/sertipiko" className="min-h-[44px] px-4 inline-flex items-center rounded-[10px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[14.5px] hover:bg-[var(--p-blue-tint)]">Pangayo og sertipiko</Link>
+      </div>
+    </article>
   );
 }
 
