@@ -15,6 +15,8 @@ export const PARISH_SUB = 'Quasi-Parish · Mua-an';
 export const PARISH_ADDRESS = 'Purok 3, Mua-an, Kidapawan City, North Cotabato';
 // The church's place in Google Maps, used until a link is saved in Parish Website → Office.
 export const PARISH_MAP_URL = 'https://www.google.com/maps/place/Our+Lady+of+Guadalupe+Quasi+Parish/@7.0464909,125.1574249,17z/data=!3m1!4b1!4m6!3m5!1s0x32f8fdfd4fe1c4cb:0x85b99a0f7d3a3e02!8m2!3d7.0464909!4d125.1619933!16s%2Fg%2F11s57y2msl';
+// The church's pin (from the link above), used until latitude/longitude are saved there.
+export const PARISH_COORDS = { latitude: 7.0464909, longitude: 125.1619933 };
 
 const TABS = [
   { to: '/', label: 'Home', icon: 'home', match: (p) => p === '/' },

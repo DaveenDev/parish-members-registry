@@ -4,7 +4,7 @@ import { api } from '../../api.js';
 import { Field, TextInput, Checkbox, PrimaryButton } from '../ui.jsx';
 import { LoadingState, ErrorState } from '../admin.jsx';
 import { useToast } from '../../ToastContext.jsx';
-import { DAYS, normalizeOfficeHours, messengerLink, messengerUsername } from '../../lib/website.js';
+import { DAYS, normalizeOfficeHours, messengerLink, messengerUsername, validCoords, mapEmbedUrl } from '../../lib/website.js';
 import { TextArea, Panel } from './shared.jsx';
 
 const TEXT_FIELDS = ['address', 'contact', 'mobile', 'email', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'secretary_messenger'];
@@ -17,12 +17,6 @@ function Card({ title, subtitle, children }) {
       <div className="flex flex-col gap-4">{children}</div>
     </Panel>
   );
-}
-
-function validCoords(lat, lng) {
-  const a = Number(lat);
-  const b = Number(lng);
-  return lat !== '' && lng !== '' && lat != null && lng != null && Math.abs(a) <= 90 && Math.abs(b) <= 180 && !Number.isNaN(a) && !Number.isNaN(b);
 }
 
 export default function OfficeTab() {
@@ -181,7 +175,7 @@ export default function OfficeTab() {
         {pin && (
           <iframe
             title="Map preview"
-            src={`https://maps.google.com/maps?q=${Number(form.latitude)},${Number(form.longitude)}&z=16&output=embed`}
+            src={mapEmbedUrl(form.latitude, form.longitude)}
             className="w-full h-[260px] rounded-xl border border-parish-border"
             loading="lazy"
             referrerPolicy="no-referrer-when-downgrade"

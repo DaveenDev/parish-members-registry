@@ -2,10 +2,10 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, Eyebrow, INNER, MessengerButton, PAGE, PageTitle, Skeletons } from '../../components/site/kit.jsx';
-import { messengerLink } from '../../lib/website.js';
+import { mapEmbedUrl, messengerLink, validCoords } from '../../lib/website.js';
 import { phoneHref } from '../../lib/requests.js';
 import { officeHourRows, officeOpenNow } from '../../lib/site.js';
-import { PARISH_ADDRESS, PARISH_MAP_URL, useSiteTitle } from './SiteLayout.jsx';
+import { PARISH_ADDRESS, PARISH_COORDS, PARISH_MAP_URL, useSiteTitle } from './SiteLayout.jsx';
 import { useOffice } from './data.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
@@ -61,16 +61,18 @@ export function Kontak() {
   const messenger = messengerLink(o.secretary_messenger);
   // A link saved in admin wins; otherwise the church's Google Maps page.
   const mapUrl = o.map_url || PARISH_MAP_URL;
+  // The pin saved in admin wins; otherwise the church's own coordinates.
+  const pin = validCoords(o.latitude, o.longitude) ? o : PARISH_COORDS;
 
   if (q.loading) return <main className={`${INNER} lg:max-w-[1240px]`}><Skeletons n={3} h={120} /></main>;
 
-  // Phones: one column, sick call first. Desktop: hours and sick call | contact | map.
+  // Phones: one column, sick call first. Desktop: hours and sick call | contact, then the map on its own row.
   return (
     <main className={`${INNER} lg:max-w-[1240px]`}>
       <PageTitle className="mb-3.5 lg:mb-[22px]">Opisina sa parokya</PageTitle>
       {q.error && <div className="mb-4"><ErrorNote onRetry={q.reload}>Wala ma-load ang mga detalye sa opisina.</ErrorNote></div>}
 
-      <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)] lg:grid-rows-[auto_1fr] lg:gap-x-5 lg:gap-y-4 lg:items-start">
+      <div className="lg:grid lg:grid-cols-2 lg:grid-rows-[auto_1fr] lg:gap-x-5 lg:gap-y-4 lg:items-start">
       {o.sick_call_contact && (
         <div className="rounded-2xl p-4 mb-4 text-white bg-parish-navy lg:col-start-1 lg:row-start-2 lg:mb-0 lg:rounded-[18px] lg:p-[18px]">
           <div className="font-bold text-[11.5px] tracking-[.16em] uppercase mb-1" style={{ color: 'var(--p-gold-light)' }}>Sick call · Pagdihog sa masakiton</div>
@@ -140,17 +142,23 @@ export function Kontak() {
       </div>
       )}
 
-      <a href={mapUrl} target="_blank" rel="noopener noreferrer" aria-label="Ablihi sa Google Maps" className="block border border-parish-border rounded-2xl overflow-hidden bg-parish-card lg:col-start-3 lg:row-start-1 lg:row-span-2 lg:rounded-[18px] hover:border-[var(--p-blue-border)]">
-        <div className="h-[110px] lg:h-[260px] flex items-center justify-center text-parish-blue" style={{ background: 'var(--p-blue-tint)' }}>
-          <Icon name="pin" size={44} className="lg:w-16 lg:h-16" />
-        </div>
-        <div className="px-3.5 py-3 lg:px-[18px] lg:py-4">
+      </div>
+
+      <section className="mt-4 lg:mt-5 border border-parish-border rounded-2xl overflow-hidden bg-parish-card lg:rounded-[18px] lg:grid lg:grid-cols-[minmax(0,1.8fr)_minmax(0,1fr)]">
+        <iframe
+          title="Mapa sa simbahan"
+          src={mapEmbedUrl(pin.latitude, pin.longitude)}
+          className="block w-full h-[260px] lg:h-[380px] border-0"
+          loading="lazy"
+          referrerPolicy="no-referrer-when-downgrade"
+        />
+        <div className="px-3.5 py-3 lg:px-[22px] lg:py-5">
+          <h2 className="m-0 mb-1.5 font-serif text-[22px] lg:text-[24px] font-bold text-parish-navy">Asa mi makit-an</h2>
           <div className="font-bold text-[15.5px] lg:text-[16.5px]">{o.address || PARISH_ADDRESS}</div>
           {o.directions && <div className="text-[14px] lg:text-[15px] leading-[1.45] text-[#4d4636] mt-[3px] whitespace-pre-line">{o.directions}</div>}
-          <div className="font-bold text-[14.5px] lg:text-[15px] text-parish-blue mt-2">Ablihi sa Google Maps →</div>
+          <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="inline-block font-bold text-[14.5px] lg:text-[15px] text-parish-blue mt-2.5">Ablihi sa Google Maps →</a>
         </div>
-      </a>
-      </div>
+      </section>
     </main>
   );
 }

@@ -276,3 +276,15 @@ export function messengerLink(input) {
   const name = messengerUsername(input);
   return name ? `https://m.me/${encodeURIComponent(name)}` : '';
 }
+
+/** True when lat/lng are both filled in and inside the valid ranges. */
+export function validCoords(lat, lng) {
+  const a = Number(lat);
+  const b = Number(lng);
+  return lat !== '' && lng !== '' && lat != null && lng != null && Math.abs(a) <= 90 && Math.abs(b) <= 180 && !Number.isNaN(a) && !Number.isNaN(b);
+}
+
+/** Google Maps embed (iframe src) with a pin on lat/lng. */
+export function mapEmbedUrl(lat, lng, zoom = 16) {
+  return `https://maps.google.com/maps?q=${Number(lat)},${Number(lng)}&z=${zoom}&output=embed`;
+}
