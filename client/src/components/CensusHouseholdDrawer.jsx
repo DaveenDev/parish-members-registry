@@ -240,10 +240,18 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
                       {CENSUS_SOURCES.map((s) => <option key={s} value={s}>{s === 'Paper' ? 'Paper census form' : 'Staff / GKK home visit'}</option>)}
                     </Select>
                   </Field>
-                  <p className="text-[12.5px] text-parish-muted m-0 flex-1 min-w-[200px]">
-                    Circle answers on the form: <strong>A</strong> = Aktibo, <strong>P</strong> = Panagsa, <strong>W</strong> = Wala.
-                    The status follows the suggestion until you choose one yourself.
-                  </p>
+                  <div className="m-0 flex-1 min-w-[220px]">
+                    <div className="text-[15px] text-parish-text2 flex flex-wrap items-center gap-x-4 gap-y-1.5">
+                      <span>Circle answers on the form:</span>
+                      {[['A', 'Aktibo'], ['P', 'Panagsa'], ['W', 'Wala']].map(([k, label]) => (
+                        <span key={k} className="inline-flex items-center gap-1.5 font-semibold text-parish-ink">
+                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full border-2 border-parish-navy text-parish-navy font-bold text-[14px]" aria-hidden>{k}</span>
+                          <span><span className="sr-only">{k} = </span>{label}</span>
+                        </span>
+                      ))}
+                    </div>
+                    <p className="text-[14px] text-parish-muted mt-1.5 mb-0">The status follows the suggestion until you choose one yourself.</p>
+                  </div>
                 </div>
               )}
 
