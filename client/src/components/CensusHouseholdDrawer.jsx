@@ -9,6 +9,8 @@ import { bis, RELATIONSHIP_LABELS } from '../lib/bisaya.js';
 import { MEMBERSHIP_STATUSES, FORMER_STATUSES, CENSUS_SOURCES, STATUS_TONES, cleanParticipation, suggestStatus, formatAccessCode } from '../lib/census.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
+import { useAuth } from '../AuthContext.jsx';
+import { can } from '../lib/access.js';
 
 const SHORT_LEVEL = { Aktibo: 'A', Panagsa: 'P', Wala: 'W' };
 
@@ -49,7 +51,9 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
   const [error, setError] = useState('');
   const [openMemberId, setOpenMemberId] = useState(null);
   const [adding, setAdding] = useState(false);
-  const editable = cycle.status === 'Open';
+  const { user } = useAuth();
+  const canRecord = can(user, 'editCensus');
+  const editable = cycle.status === 'Open' && canRecord;
   const [accessCode, setAccessCode] = useState(null);
 
   // The family's code for the online census form (0008); hidden without it.
@@ -225,12 +229,17 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
                 <div className="mb-4 flex flex-wrap items-center gap-2 text-[13px] text-parish-text2">
                   <span>Online code:</span>
                   <code className="font-bold tracking-[.08em] text-parish-navy">{formatAccessCode(accessCode)}</code>
-                  {editable && <button onClick={newCode} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[12.5px] text-parish-blue">New code</button>}
+                  {cycle.status === 'Open' && can(user, 'censusCodes') && <button onClick={newCode} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[12.5px] text-parish-blue">New code</button>}
                 </div>
               )}
-              {!editable && (
+              {cycle.status !== 'Open' && (
                 <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13.5px]">
                   The {cycle.label} is closed. Reopen it on the Census page to change answers.
+                </div>
+              )}
+              {cycle.status === 'Open' && !canRecord && (
+                <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13.5px]">
+                  Your account can view census answers but not record them.
                 </div>
               )}
               {editable && (

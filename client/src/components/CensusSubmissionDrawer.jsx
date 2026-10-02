@@ -6,6 +6,8 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../li
 import { STATUS_TONES, diffSubmission, suggestStatus } from '../lib/census.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
+import { useAuth } from '../AuthContext.jsx';
+import { can } from '../lib/access.js';
 
 const LABEL_MAPS = { relationship: RELATIONSHIP_LABELS, sex: SEX_LABELS, civil_status: CIVIL_STATUS_LABELS };
 
@@ -110,7 +112,9 @@ export default function CensusSubmissionDrawer({ submission: s, cycle, onClose, 
   const [error, setError] = useState('');
   const d = diffSubmission(s);
   const reviewed = s.status !== 'Pending';
-  const open = cycle.status === 'Open' && !reviewed;
+  const { user } = useAuth();
+  // GKK leaders review their own GKK's updates; the server refuses any other (0024).
+  const open = cycle.status === 'Open' && !reviewed && can(user, 'editCensus');
   const hh = s.households || {};
 
   useEffect(() => {
@@ -234,7 +238,11 @@ export default function CensusSubmissionDrawer({ submission: s, cycle, onClose, 
               {s.status} by {s.reviewed_by_name || 'staff'}{s.reviewed_at ? `, ${new Date(s.reviewed_at).toLocaleDateString()}` : ''}{s.review_note ? ` — ${s.review_note}` : ''}
             </span>
           )}
-          {!reviewed && !open && <span className="mr-auto text-[12.5px] font-semibold text-parish-warn">Reopen the census to review updates</span>}
+          {!reviewed && !open && (
+            <span className="mr-auto text-[12.5px] font-semibold text-parish-warn">
+              {cycle.status === 'Open' ? 'Your account can view updates but not approve them' : 'Reopen the census to review updates'}
+            </span>
+          )}
           {open && !rejecting && <button onClick={() => setRejecting(true)} disabled={busy} className="mr-auto appearance-none border-none bg-parish-errorBg text-parish-error cursor-pointer font-semibold text-[13px] px-4 py-2.5 rounded-lg">Reject…</button>}
           {open && rejecting && <button onClick={reject} disabled={busy} className="mr-auto appearance-none border-none bg-parish-error text-white cursor-pointer font-semibold text-[13px] px-4 py-2.5 rounded-lg">Reject update</button>}
           <GhostButton onClick={onClose} className="px-5 py-2.5 text-[14px]">Close</GhostButton>

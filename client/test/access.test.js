@@ -30,7 +30,16 @@ describe('can', () => {
     assert.ok(can({ access: 'full' }, 'censusCodes'));
     assert.ok(!can({ access: 'read_only' }, 'censusCodes'));
     assert.ok(!can({ access: 'website' }, 'censusCodes'));
-    assert.ok(!can({ access: 'gkk_leader' }, 'editCensus'), 'running the census itself stays with full access');
+  });
+
+  test('GKK leaders open the Census page and record their GKK; only full access runs the census', () => {
+    assert.ok(can({ access: 'gkk_leader' }, 'census'));
+    assert.ok(can({ access: 'gkk_leader' }, 'editCensus'));
+    assert.ok(!can({ access: 'gkk_leader' }, 'manageCensus'), 'starting or closing a census stays with full access');
+    assert.ok(can({ access: 'full' }, 'manageCensus'));
+    assert.ok(can({ access: 'read_only' }, 'census'));
+    assert.ok(!can({ access: 'read_only' }, 'editCensus'));
+    assert.ok(!can({ access: 'website' }, 'census'));
   });
 
   test('unknown permissions are refused', () => {

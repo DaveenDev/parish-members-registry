@@ -28,5 +28,6 @@ test('nothing waiting means nothing listed, and this week’s bulletin counts as
 });
 
 test('a GKK leader only sees what their account can open', () => {
-  assert.deepEqual(keys(todayItems({ user: { access: 'gkk_leader' }, counts, today: '2026-10-01' })), ['sacraments']);
+  // census_updates is already limited to their GKK by the database (0024).
+  assert.deepEqual(keys(todayItems({ user: { access: 'gkk_leader' }, counts, today: '2026-10-01' })), ['census-updates', 'sacraments']);
 });

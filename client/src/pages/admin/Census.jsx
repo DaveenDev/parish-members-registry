@@ -36,6 +36,9 @@ export default function Census() {
   const confirm = useConfirm();
   const { user } = useAuth();
   const canEdit = can(user, 'editCensus');
+  const canManage = can(user, 'manageCensus');
+  // GKK leaders see and record only their GKK (0024 migration).
+  const ownGkk = user?.access === 'gkk_leader' ? user.accessGkk : null;
   const [cycles, setCycles] = useState(null);
   const [cyclesError, setCyclesError] = useState('');
   const [cycleId, setCycleId] = useState(null);
@@ -126,16 +129,25 @@ export default function Census() {
             {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
           </FilterSelect>
         )}
-        {!openCycle && !starting && canEdit && <PrimaryButton onClick={() => setStarting(true)} className="px-4 py-2.5 text-[14px]">Start a new census</PrimaryButton>}
+        {!openCycle && !starting && canManage && <PrimaryButton onClick={() => setStarting(true)} className="px-4 py-2.5 text-[14px]">Start a new census</PrimaryButton>}
       </PageHeader>
       <PageBody>
         {!canEdit && <ViewOnlyNote />}
+        {ownGkk && (
+          <div role="note" className="mb-4 px-4 py-3 rounded-xl bg-[var(--p-blue-tint)] text-parish-navy text-[13.5px] font-medium">
+            Showing the households of <strong>{ownGkk}</strong>. Starting or closing a census is done by the parish office.
+          </div>
+        )}
         <Panel className="px-5 py-4 mb-5 flex flex-wrap items-center gap-x-6 gap-y-3">
           <div className="flex items-center gap-2.5">
             <span className="text-[13.5px] text-parish-text2 font-semibold">Schedule</span>
-            <FilterSelect aria-label="Census schedule" value={interval} onChange={(e) => changeInterval(e.target.value)}>
-              {INTERVALS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
-            </FilterSelect>
+            {canManage ? (
+              <FilterSelect aria-label="Census schedule" value={interval} onChange={(e) => changeInterval(e.target.value)}>
+                {INTERVALS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+              </FilterSelect>
+            ) : (
+              <span className="text-[13.5px] text-parish-navy">{INTERVALS.find(([v]) => Number(v) === Number(interval))?.[1] || `Every ${interval} months`}</span>
+            )}
           </div>
           <div className="text-[13.5px] text-parish-muted">
             {openCycle
@@ -170,8 +182,8 @@ export default function Census() {
                 {cycle.closed_at && ` · closed ${new Date(cycle.closed_at).toLocaleDateString()}`}
               </span>
               <div className="ml-auto flex gap-2">
-                {cycle.status === 'Open' && <GhostButton onClick={closeCycle} className="px-4 py-2 text-[13.5px]">Close census</GhostButton>}
-                {cycle.status === 'Closed' && !openCycle && <GhostButton onClick={reopenCycle} className="px-4 py-2 text-[13.5px]">Reopen</GhostButton>}
+                {canManage && cycle.status === 'Open' && <GhostButton onClick={closeCycle} className="px-4 py-2 text-[13.5px]">Close census</GhostButton>}
+                {canManage && cycle.status === 'Closed' && !openCycle && <GhostButton onClick={reopenCycle} className="px-4 py-2 text-[13.5px]">Reopen</GhostButton>}
               </div>
             </div>
 
@@ -180,7 +192,7 @@ export default function Census() {
               value={tab}
               onChange={setTab}
             />
-            {tab === 'households' && <HouseholdsTab cycle={cycle} parish={parish} refreshKey={refreshKey} onChanged={refresh} />}
+            {tab === 'households' && <HouseholdsTab cycle={cycle} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'results' && <ResultsTab cycle={cycle} refreshKey={refreshKey} />}
           </>
@@ -230,13 +242,14 @@ function StartCensusForm({ onCancel, onStarted }) {
   );
 }
 
-function HouseholdsTab({ cycle, parish, refreshKey, onChanged }) {
+function HouseholdsTab({ cycle, parish, ownGkk, refreshKey, onChanged }) {
   const toast = useToast();
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [gkk, setGkk] = useState('All');
+  // A GKK leader starts on (and can only pick) their own GKK, so "Print forms" works at once.
+  const [gkk, setGkk] = useState(ownGkk || 'All');
   const [progress, setProgress] = useState('All');
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounced(search);
@@ -262,7 +275,7 @@ function HouseholdsTab({ cycle, parish, refreshKey, onChanged }) {
 
   useEffect(() => { reload(); }, [cycle.id, gkk, progress, debouncedSearch, page, pageSize, refreshKey]);
   useEffect(() => { setPage(1); }, [cycle.id, gkk, progress, debouncedSearch]);
-  useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, []);
+  useEffect(() => { if (!ownGkk) api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, [ownGkk]);
 
   async function print(args) {
     setPrinting(true);
@@ -293,11 +306,15 @@ function HouseholdsTab({ cycle, parish, refreshKey, onChanged }) {
 
       <div className="flex flex-wrap gap-2.5 items-center mb-4">
         <SearchInput placeholder="Search household, head, ref no…" aria-label="Search households" value={search} onChange={(e) => setSearch(e.target.value)} />
-        <FilterSelect aria-label="GKK" value={gkk} onChange={(e) => setGkk(e.target.value)}>
-          <option value="All">All GKKs</option>
-          {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
-          <option value="None">No GKK</option>
-        </FilterSelect>
+        {ownGkk ? (
+          <span className="text-[13.5px] font-semibold text-parish-navy px-1">{ownGkk}</span>
+        ) : (
+          <FilterSelect aria-label="GKK" value={gkk} onChange={(e) => setGkk(e.target.value)}>
+            <option value="All">All GKKs</option>
+            {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+            <option value="None">No GKK</option>
+          </FilterSelect>
+        )}
         <FilterSelect aria-label="Progress" value={progress} onChange={(e) => setProgress(e.target.value)}>
           <option value="All">Any progress</option>
           {PROGRESS.map((p) => <option key={p} value={p}>{p}</option>)}
