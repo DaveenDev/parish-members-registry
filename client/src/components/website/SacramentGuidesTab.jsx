@@ -5,6 +5,7 @@ import { EmptyState, LoadingState, ErrorState } from '../admin.jsx';
 import { fmtDateTime } from '../../constants.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro } from './shared.jsx';
+import SacramentIcon from '../SacramentIcon.jsx';
 
 const describe = (r) => r.title;
 
@@ -27,7 +28,12 @@ export default function SacramentGuidesTab() {
             return (
               <Panel key={g.id} className="p-5 flex flex-col gap-2">
                 <div className="flex items-start justify-between gap-2">
-                  <div className="font-serif text-[20px] font-semibold text-parish-navy leading-tight">{g.title}</div>
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <span className="w-10 h-10 flex-none rounded-xl flex items-center justify-center bg-[var(--p-blue-tint)] text-parish-blue">
+                      <SacramentIcon sacrament={g.key} size={22} />
+                    </span>
+                    <div className="font-serif text-[20px] font-semibold text-parish-navy leading-tight">{g.title}</div>
+                  </div>
                   <StateBadge state={g.published ? 'Published' : 'Draft'} />
                 </div>
                 <div className="text-[13px] text-parish-text2 flex-1">

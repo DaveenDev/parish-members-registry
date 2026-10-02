@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
+import SacramentIcon from '../../components/SacramentIcon.jsx';
 import { DataState, EmptyNote, PAGE, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
 import { EventCard, MassRow, eventTone } from '../../components/site/cards.jsx';
 import {
-  BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, agendaDays, calendarMonths, eventsOnDay, fmtTime12,
+  BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, agendaDays, calendarMonths, eventsOnDay, fmtTime12, guideShortTitle,
   massKindLabel, massLocations, massSections, massShortLabel, massesOnDay, monthCells, monthLabel, parseIso,
 } from '../../lib/site.js';
 import { EVENT_TYPES, massType, todayIso } from '../../lib/website.js';
@@ -33,6 +34,10 @@ export default function Misa() {
 
 // The guides people ask about most come first; the rest follow the office's order.
 const GUIDE_FIRST = ['baptism', 'wedding', 'ocia'];
+// Each guide's tab: its icon and its name without the translation ("Bunyag").
+const guideTab = (g) => (
+  <span className="inline-flex items-center gap-1.5"><SacramentIcon sacrament={g.key} size={17} />{guideShortTitle(g.title)}</span>
+);
 const guideRank = (g) => (GUIDE_FIRST.includes(g.key) ? GUIDE_FIRST.indexOf(g.key) : GUIDE_FIRST.length + (g.sort || 0));
 
 /**
@@ -55,7 +60,7 @@ function SacramentGuides({ jump = false }) {
       <p className="m-0 mt-1 mb-3.5 lg:mb-5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636] lg:max-w-[760px]">
         Unsa ang dad-on ug unsa ang mga lakang sa matag sakramento. Palihug duol sa opisina sa parokya una sa tanan aron makumpirma.
       </p>
-      {guides.length > 1 && <Pills scroll className="mb-4 lg:mb-5" options={guides.map((x) => [x.key, x.title])} value={g?.key} onChange={setKey} />}
+      {guides.length > 1 && <Pills scroll className="mb-4 lg:mb-5" options={guides.map((x) => [x.key, guideTab(x)])} value={g?.key} onChange={setKey} />}
       {g && <GuideCard g={g} />}
     </section>
   );

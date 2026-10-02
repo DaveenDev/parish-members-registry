@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { censusCountdown, daysUntil, eventCountdown, eventsOnDay, monthCells, sortCensusGkks } from '../src/lib/site.js';
+import { censusCountdown, daysUntil, eventCountdown, eventsOnDay, guideShortTitle, monthCells, sortCensusGkks } from '../src/lib/site.js';
 
 describe('monthCells', () => {
   test('pads October 2026 to whole Sunday-first weeks', () => {
@@ -95,5 +95,17 @@ describe('eventCountdown', () => {
     assert.equal(on('2026-10-01'), null);
     assert.equal(on('2026-09-25', '2026-10-01'), null);
     assert.equal(on(''), null);
+  });
+});
+
+describe('guideShortTitle', () => {
+  test('drops the translation in brackets at the end', () => {
+    assert.equal(guideShortTitle('Bunyag (Baptism)'), 'Bunyag');
+    assert.equal(guideShortTitle('Unang Kalawat (First Communion)'), 'Unang Kalawat');
+    assert.equal(guideShortTitle('OCIA (Pagkahimong Katoliko sa mga Hamtong)'), 'OCIA');
+  });
+  test('leaves a title without brackets, or only brackets, as it is', () => {
+    assert.equal(guideShortTitle('Kumpil'), 'Kumpil');
+    assert.equal(guideShortTitle('(Baptism)'), '(Baptism)');
   });
 });

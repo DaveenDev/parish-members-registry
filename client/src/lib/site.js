@@ -163,6 +163,12 @@ export const massLocations = (rows) => [...new Set(rows.map((r) => r.location).f
 
 // ---- Announcements and articles -------------------------------------------
 
+/** "Bunyag (Baptism)" → "Bunyag": a sacrament guide's name without the translation, for the tabs. */
+export function guideShortTitle(title) {
+  const t = String(title || '').trim();
+  return t.replace(/\s*\([^)]*\)\s*$/, '').trim() || t;
+}
+
 export const ANNOUNCEMENT_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', 'Schedule change': 'Kausaban sa iskedyul' };
 export const ARTICLE_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', History: 'Kasaysayan' };
 
