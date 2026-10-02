@@ -131,10 +131,11 @@ export function EmptyState({ title, subtitle }) {
   );
 }
 
-export function Pagination({ page, pageSize, total, onPage, onPageSize }) {
+export function Pagination({ page, pageSize, total, onPage, onPageSize, alwaysShow = false }) {
   // Hide only when everything fits on the smallest page size; otherwise keep
   // the size picker reachable even if the current size shows it all.
-  if (total <= Math.min(pageSize, 10)) return null;
+  // `alwaysShow` keeps the bar (count + size picker) for any non-empty list.
+  if (total === 0 || (!alwaysShow && total <= Math.min(pageSize, 10))) return null;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);

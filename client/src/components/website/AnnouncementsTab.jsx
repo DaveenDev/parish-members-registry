@@ -21,8 +21,9 @@ export default function AnnouncementsTab() {
   const setState = (v) => setUrl({ state: v });
   const today = todayIso();
 
-  // Pinned first, then newest start date first.
-  const sorted = [...list.rows].sort((a, b) => (b.pinned - a.pinned) || b.publish_on.localeCompare(a.publish_on) || b.id - a.id);
+  // Latest first: newest start date, then most recently added. Pinned ones keep
+  // their badge here; pinning only orders the public website.
+  const sorted = [...list.rows].sort((a, b) => b.publish_on.localeCompare(a.publish_on) || b.id - a.id);
   const filtered = state === 'All' ? sorted : sorted.filter((r) => announcementState(r, today) === state);
   const page = urlListPage(filtered, (r) => `${r.title} ${r.body || ''} ${r.category}`, url, setUrl);
 
@@ -73,7 +74,7 @@ export default function AnnouncementsTab() {
             </div>
           ))
         )}
-        <Pagination page={page.page} pageSize={page.pageSize} total={page.total} onPage={page.setPage} onPageSize={page.setPageSize} />
+        <Pagination page={page.page} pageSize={page.pageSize} total={page.total} onPage={page.setPage} onPageSize={page.setPageSize} alwaysShow />
       </Panel>
 
       {editing && <AnnouncementEditor row={editing} onClose={() => setEditing(null)} onSaved={(saved) => { list.upsert(saved); setEditing(null); }} />}

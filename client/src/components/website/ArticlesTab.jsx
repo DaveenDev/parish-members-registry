@@ -22,6 +22,7 @@ export default function ArticlesTab() {
   const [editing, setEditing] = useState(null);
   const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
 
+  // Latest first: newest article date, then most recently added.
   const sorted = [...list.rows].sort((a, b) => b.held_on.localeCompare(a.held_on) || b.id - a.id);
   const page = urlListPage(sorted, (r) => `${r.title} ${r.summary || ''} ${r.place || ''} ${r.tag}`, url, setUrl);
 
@@ -68,7 +69,7 @@ export default function ArticlesTab() {
             </div>
           ))
         )}
-        <Pagination page={page.page} pageSize={page.pageSize} total={page.total} onPage={page.setPage} onPageSize={page.setPageSize} />
+        <Pagination page={page.page} pageSize={page.pageSize} total={page.total} onPage={page.setPage} onPageSize={page.setPageSize} alwaysShow />
       </Panel>
 
       {editing && <ArticleEditor row={editing} onClose={() => setEditing(null)} onSaved={(saved) => { list.upsert(saved); setEditing(null); }} />}
