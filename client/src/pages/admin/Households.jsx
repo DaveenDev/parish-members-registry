@@ -430,7 +430,7 @@ export default function Households() {
         />
       )}
       <PrintSheet data={printData} />
-      {codesFor && <CensusCodesDialog household={codesFor} canReset={can(user, 'editCensus')} onClose={() => setCodesFor(null)} />}
+      {codesFor && <CensusCodesDialog household={codesFor} canReset={can(user, 'censusCodes')} onClose={() => setCodesFor(null)} />}
     </>
   );
 }

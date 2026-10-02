@@ -5,7 +5,7 @@
 export const ACCESS_LEVELS = [
   { key: 'full', label: 'Full access', note: 'Everything in the admin panel.' },
   { key: 'read_only', label: 'Read only', note: 'Sees every record, changes nothing.' },
-  { key: 'gkk_leader', label: 'GKK leader', note: 'Sees and updates the households and members of one GKK.' },
+  { key: 'gkk_leader', label: 'GKK leader', note: 'Sees and updates the households and members of one GKK, and gets or renews their census codes.' },
   { key: 'website', label: 'Website & requests', note: 'Runs the Parish Website and the Requests queues; can look up members.' },
 ];
 
@@ -25,6 +25,8 @@ const RULES = {
   editRequests: ['full', 'website'],
   editWebsite: ['full', 'website'],
   editCensus: ['full'],
+  // Get or renew a household's census access code (0023: GKK leaders, for their GKK).
+  censusCodes: ['full', 'gkk_leader'],
   verify: ['full'],
   deleteRecords: ['full'],
   manageLists: ['full'],

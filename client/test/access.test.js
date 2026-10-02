@@ -25,6 +25,14 @@ describe('can', () => {
     assert.ok(!can({ access: 'website' }, 'editRegistry'));
   });
 
+  test('GKK leaders get and renew census codes; read-only and website staff do not', () => {
+    assert.ok(can({ access: 'gkk_leader' }, 'censusCodes'));
+    assert.ok(can({ access: 'full' }, 'censusCodes'));
+    assert.ok(!can({ access: 'read_only' }, 'censusCodes'));
+    assert.ok(!can({ access: 'website' }, 'censusCodes'));
+    assert.ok(!can({ access: 'gkk_leader' }, 'editCensus'), 'running the census itself stays with full access');
+  });
+
   test('unknown permissions are refused', () => {
     assert.ok(!can({ access: 'full' }, 'launchRockets'));
   });
