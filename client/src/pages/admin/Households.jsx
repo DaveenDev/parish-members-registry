@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState, Panel, ActionMenu } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState, Panel, ActionMenu, Tabs } from '../../components/admin.jsx';
 import { StatusPill, PrimaryButton, Badge, Checkbox } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import HouseholdEditDrawer from '../../components/HouseholdEditDrawer.jsx';
@@ -18,6 +18,10 @@ import { can } from '../../lib/access.js';
 import { daysAgo, fmtDateTime } from '../../constants.js';
 
 const SORTS = [['registered', 'Registered'], ['name', 'Household'], ['gkk', 'GKK'], ['members', 'Members'], ['updated', 'Last updated']];
+// The status tabs. Keys are the ?status= values, so dashboard links like
+// ?status=Pending open on the verification queue.
+const STATUS_TABS = [['All', 'All Households'], ['Pending', 'On Queue for Verification'], ['Verified', 'Verified Households']];
+
 const URL_DEFAULTS = { status: 'All', gkk: 'All', q: '', sort: 'registered', dir: '', page: 1, size: 10 };
 const URL_ALLOWED = { status: ['All', 'Verified', 'Pending'], sort: SORTS.map(([k]) => k), dir: ['', 'asc', 'desc'], size: [10, 20, 50] };
 // Dates sort newest first by default, everything else A→Z (see householdQuery in api.js).
@@ -58,6 +62,19 @@ export default function Households() {
 
   const filters = { status, gkk, search: debouncedSearch };
 
+  const [counts, setCounts] = useState({});
+  function loadCounts() {
+    const base = { gkk, search: debouncedSearch, page: 1, pageSize: 10 };
+    Promise.all(['Pending', 'Verified'].map((st) => api.listHouseholds({ ...base, status: st }).then((r) => [st, r.total]).catch(() => [st, null])))
+      .then((pairs) => {
+        const c = Object.fromEntries(pairs);
+        // A household is either Pending or Verified, so All is the two together.
+        c.All = c.Pending != null && c.Verified != null ? c.Pending + c.Verified : null;
+        setCounts(c);
+      });
+  }
+  useEffect(() => { loadCounts(); }, [gkk, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function reload() {
     setLoading(true);
     setError('');
@@ -68,12 +85,13 @@ export default function Households() {
   }
   function changed() {
     reload();
+    loadCounts();
     layout?.refreshNavCounts?.();
   }
 
   // An empty table means something different when no filters are applied:
   // the register itself is empty, not the search.
-  const isFiltered = status !== 'All' || gkk !== 'All' || !!debouncedSearch;
+  const isFiltered = gkk !== 'All' || !!debouncedSearch;
 
   useEffect(() => { reload(); }, [status, gkk, debouncedSearch, sort, dir, page, pageSize]);
   // A selection only ever covers the rows on screen.
@@ -241,7 +259,11 @@ export default function Households() {
   };
 
   const empty = !loading && !error && !rows.length && (
-    isFiltered
+    !isFiltered && status === 'Pending'
+      ? <EmptyState title="Nothing waiting for verification" subtitle="Every registered household has been verified." />
+      : !isFiltered && status === 'Verified'
+      ? <EmptyState title="No verified households yet" subtitle="Households show here once staff verify them." />
+      : isFiltered
       ? <EmptyState title="No households found" subtitle="Try adjusting your search or filters." />
       : <EmptyState title="No households registered yet" subtitle="Households appear here as families register, or add one with “New Household”." />
   );
@@ -249,9 +271,6 @@ export default function Households() {
   return (
     <>
       <PageHeader title="Households" subtitle="All registered families">
-        <FilterSelect value={status} onChange={(e) => setUrl({ status: e.target.value })} aria-label="Filter by status">
-          <option value="All">All statuses</option><option value="Verified">Verified</option><option value="Pending">Pending</option>
-        </FilterSelect>
         <FilterSelect value={gkk} onChange={(e) => setUrl({ gkk: e.target.value })} aria-label="Filter by GKK">
           <option value="All">All GKKs</option>
           {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
@@ -259,9 +278,21 @@ export default function Households() {
         <SearchInput placeholder="Search name, address, contact, ref no…" aria-label="Search households" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
       </PageHeader>
       <PageBody>
+        <Tabs
+          value={status}
+          onChange={(k) => setUrl({ status: k, page: 1 })}
+          tabs={STATUS_TABS.map(([k, label]) => [k, (
+            <span className="inline-flex items-center gap-2">
+              {label}
+              {counts[k] != null && (
+                <span className={`min-w-[22px] px-1.5 py-px rounded-full text-[12px] font-bold text-center ${k === 'Pending' && counts[k] ? 'bg-parish-errorBg text-parish-error' : 'bg-parish-sunk text-parish-text2'}`}>{counts[k]}</span>
+              )}
+            </span>
+          )])}
+        />
         <div className="flex items-center gap-3 flex-wrap mb-4">
           <div className="text-[13px] text-parish-muted">{total} household(s)</div>
-          {isFiltered && <button onClick={() => setUrl({ status: 'All', gkk: 'All', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">Clear</button>}
+          {isFiltered && <button onClick={() => setUrl({ gkk: 'All', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">Clear</button>}
           {/* Phones have no column headers to click, so sorting gets its own control. */}
           <FilterSelect aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} className="md:hidden">
             {SORTS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}
