@@ -69,8 +69,67 @@ export function keyFromUrl(url, publicBase) {
   return key;
 }
 
+// Readable names once a row is saved (0029 migration): article101_cover.jpg,
+// article101_1.jpg… and event55_cover.jpg. Events only have a cover.
+const NAMED = {
+  articles: { folder: 'articles', prefix: 'article', gallery: true },
+  events: { folder: 'events', prefix: 'event', gallery: false },
+};
+
 /**
- * `r2` is { configured, publicBase, signPut(key, contentType) → url, remove(key) → void }.
+ * How to rename the photos of `row` (a row of `table`) to their readable
+ * names: `moves` lists the R2 copies to make, `patch` is the row's new photo
+ * URLs and counters. Photos already named for this row are left alone, and
+ * so are links that aren't in our bucket (e.g. an old public address).
+ * Numbers continue from the row's counters, so a name is never reused.
+ */
+export function namePlan(table, row, publicBase) {
+  const spec = NAMED[table];
+  const base = String(publicBase || '').replace(/\/+$/, '');
+  const stem = `${spec.folder}/${spec.prefix}${row.id}_`;
+  const isCover = new RegExp(`^${stem}cover(_\\d+)?\\.(jpg|png|webp)$`);
+  const isPhoto = new RegExp(`^${stem}\\d+\\.(jpg|png|webp)$`);
+  let coverSeq = row.cover_seq || 0;
+  let photoSeq = row.photo_seq || 0;
+  const moves = [];
+
+  const rename = (url, cover) => {
+    const key = keyFromUrl(url, base);
+    if (!key || !key.startsWith(`${spec.folder}/`) || (cover ? isCover : isPhoto).test(key)) return url;
+    const ext = (key.match(/\.(jpg|png|webp)$/) || [])[1] || 'jpg';
+    let to;
+    if (cover) {
+      coverSeq += 1;
+      to = `${stem}cover${coverSeq === 1 ? '' : `_${coverSeq}`}.${ext}`;
+    } else {
+      photoSeq += 1;
+      to = `${stem}${photoSeq}.${ext}`;
+    }
+    const newUrl = `${base}/${to}`;
+    moves.push({ from: key, to, oldUrl: url, newUrl });
+    return newUrl;
+  };
+
+  const patch = {};
+  if (row.photo_url) patch.photo_url = rename(row.photo_url, true);
+  if (spec.gallery) patch.photos = (row.photos || []).map((p) => (p?.url ? { ...p, url: rename(p.url, false) } : p));
+  patch.cover_seq = coverSeq;
+  if (spec.gallery) patch.photo_seq = photoSeq;
+  return { moves, patch };
+}
+
+/** True when any article or event still links to `url` (or when we can't tell). */
+async function inUse(admin, url) {
+  const checks = await Promise.all([
+    admin.from('articles').select('id').eq('photo_url', url).limit(1),
+    admin.from('articles').select('id').contains('photos', [{ url }]).limit(1),
+    admin.from('events').select('id').eq('photo_url', url).limit(1),
+  ]);
+  return checks.some((r) => r.error || r.data?.length);
+}
+
+/**
+ * `r2` is { configured, publicBase, signPut(key, contentType) → url, copy(from, to) → void, remove(key) → void }.
  * `uuid` and `now` are injectable for tests.
  */
 export async function handleMediaRequest({ admin, token, body, r2, uuid = () => crypto.randomUUID(), now = new Date() }) {
@@ -105,6 +164,32 @@ export async function handleMediaRequest({ admin, token, body, r2, uuid = () => 
       if (!key) return fail(400, "That photo isn't one of the website's uploads");
       await r2.remove(key);
       return ok({});
+    }
+
+    // After an article or event is saved: give its photos their readable
+    // names (copy on R2, update the row, then delete the old files that no
+    // row uses any more; a duplicated event can share its original's cover).
+    if (action === 'name') {
+      const spec = NAMED[body.table];
+      const id = Number(body.id);
+      if (!spec || !Number.isInteger(id) || id <= 0) return fail(400, 'Unknown article or event');
+      const cols = spec.gallery ? 'id, photo_url, photos, cover_seq, photo_seq' : 'id, photo_url, cover_seq';
+      const { data: row, error } = await admin.from(body.table).select(cols).eq('id', id).maybeSingle();
+      if (error) {
+        if (/cover_seq|photo_seq/.test(error.message || '')) return fail(400, 'Run the 0029_photo_file_names.sql migration in Supabase to rename photos');
+        throw new Error(error.message);
+      }
+      if (!row) return fail(404, 'That article or event no longer exists');
+
+      const { moves, patch } = namePlan(body.table, row, r2.publicBase);
+      if (!moves.length) return ok({ row: null });
+      for (const m of moves) await r2.copy(m.from, m.to);
+      const { data: saved, error: saveError } = await admin.from(body.table).update(patch).eq('id', id).select().single();
+      if (saveError) throw new Error(saveError.message);
+      for (const m of moves) {
+        if (!(await inUse(admin, m.oldUrl))) await r2.remove(m.from).catch(() => {});
+      }
+      return ok({ row: saved });
     }
 
     return fail(400, 'Unknown action');

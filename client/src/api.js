@@ -691,6 +691,15 @@ export const api = {
   },
 
   // Article photos and event covers on Cloudflare R2, through the media-upload Edge Function.
+  /**
+   * After saving an article or event, rename its photos on R2 to readable
+   * names (article101_cover.jpg, article101_1.jpg, event55_cover.jpg). Returns
+   * the updated row, or null when nothing needed renaming.
+   */
+  async nameImages(table, id) {
+    const data = await callMediaFunction({ action: 'name', table, id });
+    return data?.row || null;
+  },
   /** Shrink `file`, upload it to R2 under `folder` ('articles' or 'events') and return its public URL. */
   async uploadImage(file, folder = 'articles') {
     const blob = await resizePhotoBlob(file);
@@ -1212,7 +1221,8 @@ async function listPublished(table, order) {
 
 /** Insert a row (no id) or update it (with id). Blank strings save as null. */
 async function saveWebsiteRow(table, row, dupLabel) {
-  const { id, created_at: _c, updated_at: _u, ...fields } = row;
+  // The photo name counters (0029) belong to the media-upload function.
+  const { id, created_at: _c, updated_at: _u, cover_seq: _cs, photo_seq: _ps, ...fields } = row;
   const patch = cleanPatch(fields);
   const q = id ? supabase.from(table).update(patch).eq('id', id) : supabase.from(table).insert(patch);
   const { data, error } = await q.select().single();

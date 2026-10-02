@@ -34,8 +34,8 @@ type Settings = { accountId: string; accessKeyId: string; secretAccessKey: strin
 function r2Client(settings: Settings | null) {
   if (!settings) return { configured: false, publicBase: '' };
   const s3 = new AwsClient({ accessKeyId: settings.accessKeyId, secretAccessKey: settings.secretAccessKey, service: 's3', region: 'auto' });
-  const objectUrl = (key: string) =>
-    `https://${settings.accountId}.r2.cloudflarestorage.com/${settings.bucket}/${key.split('/').map(encodeURIComponent).join('/')}`;
+  const encodeKey = (key: string) => key.split('/').map(encodeURIComponent).join('/');
+  const objectUrl = (key: string) => `https://${settings.accountId}.r2.cloudflarestorage.com/${settings.bucket}/${encodeKey(key)}`;
   return {
     configured: true,
     publicBase: settings.publicBase,
@@ -45,6 +45,11 @@ function r2Client(settings: Settings | null) {
       url.searchParams.set('X-Amz-Expires', '600');
       const signed = await s3.sign(new Request(url, { method: 'PUT', headers: { 'Content-Type': contentType } }), { aws: { signQuery: true } });
       return signed.url;
+    },
+    /** Copy an object inside the bucket (S3 CopyObject); used to rename photos. */
+    async copy(from: string, to: string) {
+      const res = await s3.fetch(objectUrl(to), { method: 'PUT', headers: { 'x-amz-copy-source': `/${settings.bucket}/${encodeKey(from)}` } });
+      if (!res.ok) throw new Error(`R2 refused to rename a photo (${res.status})`);
     },
     async remove(key: string) {
       const res = await s3.fetch(objectUrl(key), { method: 'DELETE' });

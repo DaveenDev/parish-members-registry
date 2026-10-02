@@ -101,7 +101,7 @@ export default function EventsTab() {
                     </div>
                     <div className="font-semibold text-[15px] text-parish-navy">{r.title}</div>
                     <div className="text-[12.5px] text-parish-text2">
-                      {[whenText(r), r.gkk, r.location].filter(Boolean).join(' · ')}
+                      {[`#${r.id}`, whenText(r), r.gkk, r.location].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                   <div className="flex gap-1.5 flex-wrap">
@@ -190,8 +190,13 @@ function EventEditor({ row, gkks, onClose, onSaved }) {
       const saved = await api.saveEvent({ ...withCover, title: form.title.trim(), end_date: form.end_date === form.start_date ? '' : form.end_date });
       for (const url of replaced.current) api.deleteEventCover(url, saved.id).catch(() => {});
       uploaded.current.clear();
+      // Now that it has an ID: event<ID>_cover.jpg on R2.
+      let named = null;
+      if (saved.photo_url) {
+        named = await api.nameImages('events', saved.id).catch((e) => { toast.error(`Event saved, but its cover wasn't renamed: ${e.message}`); return null; });
+      }
       toast.success('Event saved');
-      onSaved(saved);
+      onSaved(named || saved);
     } catch (e) {
       setError(e.message || 'Could not save');
     } finally {

@@ -58,7 +58,7 @@ export default function ArticlesTab() {
                 </div>
                 <div className="font-semibold text-[15px] text-parish-navy">{r.title}</div>
                 {r.summary && <div className="text-[13px] text-parish-text2 line-clamp-2">{r.summary}</div>}
-                <div className="text-[12px] text-parish-muted mt-1">{[fmtDate(r.held_on), r.place].filter(Boolean).join(' · ')}</div>
+                <div className="text-[12px] text-parish-muted mt-1">{[`#${r.id}`, fmtDate(r.held_on), r.place].filter(Boolean).join(' · ')}</div>
               </div>
               <div className="flex gap-1.5">
                 <RowButton onClick={() => setEditing(r)}>Edit</RowButton>
@@ -154,8 +154,13 @@ function ArticleEditor({ row, onClose, onSaved }) {
       const saved = await api.saveArticle({ ...form, title: form.title.trim(), photos });
       for (const url of removed.current) api.deleteImage(url).catch(() => {});
       added.current.clear();
+      // Now that it has an ID: article<ID>_cover.jpg, article<ID>_1.jpg… on R2.
+      let named = null;
+      if (saved.photo_url || saved.photos?.length) {
+        named = await api.nameImages('articles', saved.id).catch((e) => { toast.error(`Article saved, but its photos weren't renamed: ${e.message}`); return null; });
+      }
       toast.success('Article saved');
-      onSaved(saved);
+      onSaved(named || saved);
     } catch (e) {
       setError(e.message || 'Could not save');
     } finally {

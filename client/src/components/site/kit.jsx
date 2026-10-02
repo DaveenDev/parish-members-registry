@@ -218,11 +218,11 @@ export function Spin() {
 export const SiteToastContext = createContext(() => {});
 export const useSiteToast = () => useContext(SiteToastContext);
 
-/** Share a page: the phone's share sheet when there is one, else copy the link. */
+/** Share a page (this one, or `path` on this site): the phone's share sheet when there is one, else copy the link. */
 export function useShare() {
   const say = useSiteToast();
-  return async (title) => {
-    const url = window.location.href;
+  return async (title, path) => {
+    const url = path ? new URL(path, window.location.origin).href : window.location.href;
     try {
       if (navigator.share) { await navigator.share({ title, url }); return; }
       await navigator.clipboard.writeText(url);

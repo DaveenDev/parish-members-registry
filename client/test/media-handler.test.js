@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { handleMediaRequest, keyFromUrl, objectKey, r2Settings, MAX_BYTES, NOT_CONFIGURED } from '../../supabase/functions/media-upload/handler.js';
+import { handleMediaRequest, keyFromUrl, namePlan, objectKey, r2Settings, MAX_BYTES, NOT_CONFIGURED } from '../../supabase/functions/media-upload/handler.js';
 
 const BASE = 'https://media.example.org';
 const NOW = new Date('2026-10-02T03:00:00Z');
@@ -124,5 +124,101 @@ describe('r2Settings', () => {
   test('null when neither is complete', () => {
     assert.equal(r2Settings({ ...row, bucket: '' }, { ...env, R2_BUCKET: '' }), null);
     assert.equal(r2Settings(undefined, undefined), null);
+  });
+});
+
+describe('namePlan', () => {
+  test('cover, then gallery photos numbered after the counters', () => {
+    const row = { id: 101, cover_seq: 0, photo_seq: 2, photo_url: `${BASE}/articles/2026/10/c.jpg`, photos: [{ url: `${BASE}/articles/article101_1.jpg`, caption: 'a' }, { url: `${BASE}/articles/2026/10/x.jpg`, caption: 'b' }] };
+    const { moves, patch } = namePlan('articles', row, BASE);
+    assert.deepEqual(moves.map((m) => [m.from, m.to]), [
+      ['articles/2026/10/c.jpg', 'articles/article101_cover.jpg'],
+      ['articles/2026/10/x.jpg', 'articles/article101_3.jpg'],
+    ]);
+    assert.equal(patch.photo_url, `${BASE}/articles/article101_cover.jpg`);
+    assert.deepEqual(patch.photos, [{ url: `${BASE}/articles/article101_1.jpg`, caption: 'a' }, { url: `${BASE}/articles/article101_3.jpg`, caption: 'b' }]);
+    assert.equal(patch.cover_seq, 1);
+    assert.equal(patch.photo_seq, 3);
+  });
+  test('a replaced cover gets the next cover number', () => {
+    const { moves } = namePlan('articles', { id: 7, cover_seq: 1, photo_url: `${BASE}/articles/2026/10/n.jpg`, photos: [] }, BASE);
+    assert.equal(moves[0].to, 'articles/article7_cover_2.jpg');
+  });
+  test('already named photos and links outside the bucket are left alone', () => {
+    const row = { id: 7, cover_seq: 2, photo_seq: 1, photo_url: `${BASE}/articles/article7_cover_2.jpg`, photos: [{ url: 'https://old.r2.dev/articles/2026/10/q.jpg' }, { url: `${BASE}/articles/article7_1.jpg` }] };
+    const { moves, patch } = namePlan('articles', row, BASE);
+    assert.deepEqual(moves, []);
+    assert.equal(patch.photos[0].url, 'https://old.r2.dev/articles/2026/10/q.jpg');
+  });
+  test("another row's photo is copied to this row's name", () => {
+    const { moves, patch } = namePlan('events', { id: 56, cover_seq: 0, photo_url: `${BASE}/events/event55_cover.jpg` }, BASE);
+    assert.deepEqual(moves.map((m) => [m.from, m.to]), [['events/event55_cover.jpg', 'events/event56_cover.jpg']]);
+    assert.deepEqual(patch, { photo_url: `${BASE}/events/event56_cover.jpg`, cover_seq: 1 });
+  });
+});
+
+/** Profiles plus in-memory articles/events tables for the "name" action. */
+function fakeDb(tables) {
+  const base = fakeAdmin({ users: [{ id: 'web' }], profiles: [{ id: 'web', access: 'website' }] });
+  const updates = [];
+  const query = (name) => {
+    const filters = [];
+    let patch = null;
+    const rows = () => tables[name].filter((r) => filters.every((f) => f(r)));
+    const q = {
+      select: () => q,
+      eq: (col, val) => { filters.push((r) => r[col] === val); return q; },
+      contains: (col, [want]) => { filters.push((r) => (r[col] || []).some((p) => p.url === want.url)); return q; },
+      limit: (n) => Promise.resolve({ data: rows().slice(0, n), error: null }),
+      update: (p) => { patch = p; return q; },
+      maybeSingle: async () => ({ data: rows()[0] || null, error: null }),
+      single: async () => {
+        const [row] = rows();
+        if (patch) { Object.assign(row, patch); updates.push([name, row.id, patch]); }
+        return { data: row, error: null };
+      },
+    };
+    return q;
+  };
+  return { updates, auth: base.auth, from: (name) => (name === 'profiles' ? base.from() : query(name)) };
+}
+
+describe('name', () => {
+  const r2WithCopy = () => { const r2 = fakeR2(); r2.copy = async (from, to) => { r2.calls.push(['copy', from, to]); }; return r2; };
+  const run = (db, body, r2) => handleMediaRequest({ admin: db, token: 'token-web', body: { action: 'name', ...body }, r2, now: NOW });
+
+  test('renames an article\'s photos, saves the row and deletes the old files', async () => {
+    const db = fakeDb({ articles: [{ id: 101, cover_seq: 0, photo_seq: 0, photo_url: `${BASE}/articles/2026/10/c.jpg`, photos: [{ url: `${BASE}/articles/2026/10/p.jpg`, caption: '' }] }], events: [] });
+    const r2 = r2WithCopy();
+    const res = await run(db, { table: 'articles', id: 101 }, r2);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.row.photo_url, `${BASE}/articles/article101_cover.jpg`);
+    assert.deepEqual(r2.calls, [
+      ['copy', 'articles/2026/10/c.jpg', 'articles/article101_cover.jpg'],
+      ['copy', 'articles/2026/10/p.jpg', 'articles/article101_1.jpg'],
+      ['delete', 'articles/2026/10/c.jpg'],
+      ['delete', 'articles/2026/10/p.jpg'],
+    ]);
+  });
+  test("keeps a cover another event still uses (Duplicate)", async () => {
+    const shared = `${BASE}/events/event55_cover.jpg`;
+    const db = fakeDb({ articles: [], events: [{ id: 55, cover_seq: 1, photo_url: shared }, { id: 56, cover_seq: 0, photo_url: shared }] });
+    const r2 = r2WithCopy();
+    await run(db, { table: 'events', id: 56 }, r2);
+    assert.deepEqual(r2.calls, [['copy', 'events/event55_cover.jpg', 'events/event56_cover.jpg']]);
+  });
+  test('nothing to do when the photos are already named', async () => {
+    const db = fakeDb({ articles: [], events: [{ id: 5, cover_seq: 1, photo_url: `${BASE}/events/event5_cover.jpg` }] });
+    const r2 = r2WithCopy();
+    const res = await run(db, { table: 'events', id: 5 }, r2);
+    assert.equal(res.body.row, null);
+    assert.deepEqual(r2.calls, []);
+    assert.deepEqual(db.updates, []);
+  });
+  test('unknown table or id is refused', async () => {
+    const db = fakeDb({ articles: [], events: [] });
+    assert.equal((await run(db, { table: 'profiles', id: 1 }, r2WithCopy())).status, 400);
+    assert.equal((await run(db, { table: 'articles', id: 'x' }, r2WithCopy())).status, 400);
+    assert.equal((await run(db, { table: 'articles', id: 9 }, r2WithCopy())).status, 404);
   });
 });

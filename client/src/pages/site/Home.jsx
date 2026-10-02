@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
-import { AnnouncementCard, ArticleChip, EventRow, MassRow } from '../../components/site/cards.jsx';
+import { AnnouncementCard, ArticleChip, CardShare, EventRow, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
 import { censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
@@ -338,24 +338,28 @@ function LatestArticles() {
 }
 
 function ArticleRow({ a, flip }) {
+  const path = `/pahibalo/artikulo/${a.id}`;
   return (
-    <Link
-      to={`/pahibalo/artikulo/${a.id}`}
-      className="grid bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden transition-colors hover:border-[var(--p-blue-border)] lg:grid-cols-2"
-    >
-      <div className={`relative aspect-[16/9] lg:aspect-auto lg:min-h-[260px] bg-[#efe6d3] flex items-center justify-center text-[var(--p-gold-deep)] ${flip ? 'lg:order-2' : ''}`}>
-        {a.photo_url ? <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : <Icon name="church" size={44} />}
-      </div>
-      <div className="p-4 lg:p-8 flex flex-col justify-center min-w-0">
-        <div className="flex gap-2 items-center mb-1.5 lg:mb-2.5">
-          <ArticleChip a={a} />
-          <span className="text-[13px] lg:text-[14px] text-parish-text2">{fmtShort(a.held_on)}</span>
+    <div className="relative">
+      <CardShare title={a.title} path={path} />
+      <Link
+        to={path}
+        className="grid bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden transition-colors hover:border-[var(--p-blue-border)] lg:grid-cols-2"
+      >
+        <div className={`relative aspect-[16/9] lg:aspect-auto lg:min-h-[260px] bg-[#efe6d3] flex items-center justify-center text-[var(--p-gold-deep)] ${flip ? 'lg:order-2' : ''}`}>
+          {a.photo_url ? <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : <Icon name="church" size={44} />}
         </div>
-        <div className="font-serif font-bold text-[21px] lg:text-[28px] leading-[1.2] text-parish-navy">{a.title}</div>
-        {(a.summary || a.body) && <p className="m-0 mt-1.5 lg:mt-2.5 text-[15px] lg:text-[16px] leading-relaxed text-[#4d4636]">{excerpt(a.summary || a.body, 220)}</p>}
-        <span className="mt-3 lg:mt-4 inline-flex items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha<Icon name="chev" size={16} /></span>
-      </div>
-    </Link>
+        <div className="p-4 lg:p-8 flex flex-col justify-center min-w-0">
+          <div className="flex gap-2 items-center mb-1.5 lg:mb-2.5">
+            <ArticleChip a={a} />
+            <span className="text-[13px] lg:text-[14px] text-parish-text2">{fmtShort(a.held_on)}</span>
+          </div>
+          <div className="font-serif font-bold text-[21px] lg:text-[28px] leading-[1.2] text-parish-navy">{a.title}</div>
+          {(a.summary || a.body) && <p className="m-0 mt-1.5 lg:mt-2.5 text-[15px] lg:text-[16px] leading-relaxed text-[#4d4636]">{excerpt(a.summary || a.body, 220)}</p>}
+          <span className="mt-3 lg:mt-4 inline-flex items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha<Icon name="chev" size={16} /></span>
+        </div>
+      </Link>
+    </div>
   );
 }
 

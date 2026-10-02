@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from './Icons.jsx';
-import { Chip, TONES } from './kit.jsx';
+import { Chip, TONES, useShare } from './kit.jsx';
 import { EVENT_TONES } from '../../lib/website.js';
 import {
   ANNOUNCEMENT_LABELS, ARTICLE_LABELS, EVENT_ICONS, EVENT_TYPE_LABELS, BIS_MONTHS_SHORT,
@@ -33,26 +33,46 @@ export function AnnouncementCard({ a, full = false }) {
   );
 }
 
+/**
+ * A round share button in a card's top-right corner. It sits beside the
+ * card's link (a button can't go inside a link) and shares `path`.
+ */
+export function CardShare({ title, path }) {
+  const share = useShare();
+  return (
+    <button
+      type="button" aria-label={`Ipaambit: ${title}`} onClick={() => share(title, path)}
+      className="absolute right-2.5 top-2.5 z-[1] w-9 h-9 rounded-full appearance-none border border-parish-border bg-parish-card/95 text-parish-blue shadow-cardSm cursor-pointer flex items-center justify-center hover:border-[var(--p-blue-border)]"
+    >
+      <Icon name="share" size={17} />
+    </button>
+  );
+}
+
 /** Blog article in a list: cover photo, tag, date, title and summary. `wide` (one or two in a row) uses a shorter cover. */
 export function ArticleCard({ a, wide = false }) {
   const count = (a.photos || []).length;
+  const path = `/pahibalo/artikulo/${a.id}`;
   return (
-    <Link to={`/pahibalo/artikulo/${a.id}`} className="block bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden transition-colors hover:border-[var(--p-blue-border)]">
-      <div className={`relative bg-[#efe6d3] ${wide ? 'aspect-[16/9] lg:aspect-[21/9]' : 'aspect-[16/9]'} flex items-center justify-center text-[var(--p-gold-deep)]`}>
-        {a.photo_url ? <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : <Icon name="church" size={40} />}
-        {count > 0 && (
-          <span className="absolute right-2.5 bottom-2.5 rounded-full bg-black/60 text-white font-bold text-[12px] px-2.5 py-1">{count} ka litrato</span>
-        )}
-      </div>
-      <div className="p-3.5 lg:p-[18px]">
-        <div className="flex gap-2 items-center mb-1.5">
-          <ArticleChip a={a} />
-          <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.held_on)}</span>
+    <div className="relative">
+      <CardShare title={a.title} path={path} />
+      <Link to={path} className="block bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden transition-colors hover:border-[var(--p-blue-border)]">
+        <div className={`relative bg-[#efe6d3] ${wide ? 'aspect-[16/9] lg:aspect-[21/9]' : 'aspect-[16/9]'} flex items-center justify-center text-[var(--p-gold-deep)]`}>
+          {a.photo_url ? <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : <Icon name="church" size={40} />}
+          {count > 0 && (
+            <span className="absolute right-2.5 bottom-2.5 rounded-full bg-black/60 text-white font-bold text-[12px] px-2.5 py-1">{count} ka litrato</span>
+          )}
         </div>
-        <div className="font-serif font-bold text-[20px] lg:text-[22px] leading-[1.2] text-parish-navy">{a.title}</div>
-        {(a.summary || a.body) && <div className="mt-1 text-[14.5px] leading-normal text-[#4d4636] line-clamp-3">{a.summary || excerpt(a.body)}</div>}
-      </div>
-    </Link>
+        <div className="p-3.5 lg:p-[18px]">
+          <div className="flex gap-2 items-center mb-1.5">
+            <ArticleChip a={a} />
+            <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.held_on)}</span>
+          </div>
+          <div className="font-serif font-bold text-[20px] lg:text-[22px] leading-[1.2] text-parish-navy">{a.title}</div>
+          {(a.summary || a.body) && <div className="mt-1 text-[14.5px] leading-normal text-[#4d4636] line-clamp-3">{a.summary || excerpt(a.body)}</div>}
+        </div>
+      </Link>
+    </div>
   );
 }
 
@@ -118,28 +138,36 @@ export function EventCard({ e, showDate = false }) {
       )}
     </>
   );
+  const path = `/misa/kalihokan/${e.id}`;
   if (e.photo_url) {
     return (
-      <Link to={`/misa/kalihokan/${e.id}`} className="block w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)]">
-        <div className="relative h-[170px] lg:h-[200px] bg-[#efe6d3]">
-          <img src={e.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
-          <span className="absolute left-2.5 top-2.5 w-9 h-9 rounded-xl flex items-center justify-center shadow-cardSm" style={{ background: tone.background, color: tone.color }}>
-            <Icon name={EVENT_ICONS[e.type] || 'cal'} size={19} />
-          </span>
-        </div>
-        <div className="p-3">{details}</div>
-      </Link>
+      <div className="relative">
+        <CardShare title={e.title} path={path} />
+        <Link to={path} className="block w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)]">
+          <div className="relative h-[170px] lg:h-[200px] bg-[#efe6d3]">
+            <img src={e.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+            <span className="absolute left-2.5 top-2.5 w-9 h-9 rounded-xl flex items-center justify-center shadow-cardSm" style={{ background: tone.background, color: tone.color }}>
+              <Icon name={EVENT_ICONS[e.type] || 'cal'} size={19} />
+            </span>
+          </div>
+          <div className="p-3">{details}</div>
+        </Link>
+      </div>
     );
   }
+  // pr-14 keeps the text clear of the share button.
   return (
-    <Link to={`/misa/kalihokan/${e.id}`} className="w-full text-left flex gap-3 bg-parish-card border border-parish-border rounded-[14px] p-3 shadow-cardSm">
-      <div className="w-10 h-10 flex-none rounded-xl flex items-center justify-center" style={{ background: tone.background, color: tone.color }}>
-        <Icon name={EVENT_ICONS[e.type] || 'cal'} size={21} />
-      </div>
-      <div className="flex-1 min-w-0">
-        {details}
-      </div>
-    </Link>
+    <div className="relative">
+      <CardShare title={e.title} path={path} />
+      <Link to={path} className="w-full text-left flex gap-3 bg-parish-card border border-parish-border rounded-[14px] p-3 pr-14 shadow-cardSm">
+        <div className="w-10 h-10 flex-none rounded-xl flex items-center justify-center" style={{ background: tone.background, color: tone.color }}>
+          <Icon name={EVENT_ICONS[e.type] || 'cal'} size={21} />
+        </div>
+        <div className="flex-1 min-w-0">
+          {details}
+        </div>
+      </Link>
+    </div>
   );
 }
 

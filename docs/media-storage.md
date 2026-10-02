@@ -94,10 +94,26 @@ in the SQL editor (adds each article's gallery and the History / Kasaysayan tag)
 
 ## How photos are kept tidy
 
-- Article photos land under `articles/YYYY/MM/<random>.jpg`, event covers
+- Article photos are uploaded under `articles/YYYY/MM/<random>.jpg`, event covers
   (Parish Website → Events, after
   [`0028_event_cover_photo.sql`](../supabase/migrations/0028_event_cover_photo.sql))
-  under `events/YYYY/MM/<random>.jpg`.
+  under `events/YYYY/MM/<random>.jpg`: the article or event may not have an ID yet.
+- Once it's saved, they're renamed after its ID (after
+  [`0029_photo_file_names.sql`](../supabase/migrations/0029_photo_file_names.sql)
+  and redeploying the function), so the bucket reads well when you move files by hand:
+
+  | What | File name |
+  | --- | --- |
+  | Article 101's cover | `articles/article101_cover.jpg` (a replacement: `article101_cover_2.jpg`, …) |
+  | Article 101's gallery | `articles/article101_1.jpg`, `article101_2.jpg`, … |
+  | Event 55's cover | `events/event55_cover.jpg` (a replacement: `event55_cover_2.jpg`, …) |
+
+  The ID shows as **#101** in the admin lists and on the article page. Numbers
+  are never reused (photos are cached for a year, so a reused name would keep
+  showing the old photo); after removing photo 3 the next one is 4, not 3, and
+  the gallery order on the website is the order set in the editor, not the
+  number. Photos saved before 0029 are renamed the next time their article or
+  event is saved.
 - Removing a photo from an article, replacing the cover, or deleting the article
   deletes the old file from R2. Photos uploaded in an editor that's then
   cancelled are deleted too.

@@ -142,7 +142,7 @@ export function ArticleDetail() {
         <>
           <div className="flex gap-2 items-center mb-2 flex-wrap">
             <ArticleChip a={a} />
-            <span className="text-[13.5px] text-parish-text2">{[fmtLong(a.held_on), a.place].filter(Boolean).join(' · ')}</span>
+            <span className="text-[13.5px] text-parish-text2">{[`Artikulo #${a.id}`, fmtLong(a.held_on), a.place].filter(Boolean).join(' · ')}</span>
           </div>
           <h1 className={DETAIL_TITLE}>{a.title}</h1>
           <Photo src={a.photo_url} hLg={560} />
