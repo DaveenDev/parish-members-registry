@@ -58,7 +58,7 @@ export default function Home() {
           <>
             {/* Desktop: the photo behind the hero, faded to cream on the left so the text stays readable. */}
             <img src={hero} alt="" aria-hidden="true" className="hidden lg:block absolute inset-0 w-full h-full object-cover" />
-            <div aria-hidden="true" className="hidden lg:block absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(247,242,232,.98) 0%, rgba(247,242,232,.94) 38%, rgba(247,242,232,.55) 62%, rgba(247,242,232,.15) 100%)' }} />
+            <div aria-hidden="true" className="hidden lg:block absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(247,242,232,.97) 0%, rgba(247,242,232,.9) 34%, rgba(247,242,232,.35) 56%, rgba(247,242,232,0) 72%)' }} />
             {/* Phones: the photo as a banner, fading into the hero below it. */}
             <div className="lg:hidden relative h-[210px]">
               <img src={hero} alt={`${PARISH_NAME}`} className="absolute inset-0 w-full h-full object-cover" />
@@ -93,7 +93,7 @@ export default function Home() {
               <span>Pribado ang inyong impormasyon. Ang kawani lang sa parokya ang makakita.</span>
             </div>
           </div>
-          <div className="hidden lg:block"><MassToday mass={mass} /></div>
+          {/* The right column stays empty on desktop so the parish photo shows. */}
         </div>
       </section>
 
