@@ -290,7 +290,7 @@ export default function Households() {
         <Panel className="overflow-hidden">
           {/* Tablets and up: a table. */}
           <div className="hidden md:block overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 900 }}>
+            <table className="w-full border-collapse" style={{ minWidth: 1130 }}>
               <caption className="sr-only">Registered households</caption>
               <thead>
                 <tr className="bg-parish-sunk">
@@ -302,6 +302,7 @@ export default function Households() {
                   {sortHeader('members', 'Members')}
                   {sortHeader('registered', 'Registered')}
                   <th scope="col" className="text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2">Status</th>
+                  <th scope="col" className="text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">Verified by</th>
                   <th scope="col" className="text-right px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2">Actions</th>
                 </tr>
               </thead>
@@ -332,9 +333,11 @@ export default function Households() {
                         {daysAgo(h.created_at)}
                         {sort === 'updated' && h.updated_at && <div className="text-[12px] text-parish-muted">updated {daysAgo(h.updated_at)}</div>}
                       </td>
-                      <td className="px-4 py-3.5">
-                        <StatusPill status={h.status} />
-                        <VerifiedLine household={h} className="mt-1 text-[11.5px] text-parish-muted max-w-[150px]" />
+                      <td className="px-4 py-3.5 align-top"><StatusPill status={h.status} /></td>
+                      <td className="px-4 py-3.5 align-top w-[230px]">
+                        {h.status === 'Verified'
+                          ? <VerifiedLine household={h} className="text-[12px] leading-snug text-parish-muted" />
+                          : <span className="text-[13px] text-parish-muted">—</span>}
                       </td>
                       <td className="px-4 py-3.5">
                         <div className="flex gap-2 justify-end items-center">
@@ -350,7 +353,7 @@ export default function Households() {
                     </tr>
                     {expanded[h.id] && (
                       <tr className="bg-parish-field">
-                        <td colSpan={7} className="px-4 py-4 md:pl-[52px]">
+                        <td colSpan={8} className="px-4 py-4 md:pl-[52px]">
                           <MemberList members={expandedMembers[h.id]} onOpen={setOpenMemberId} />
                         </td>
                       </tr>
