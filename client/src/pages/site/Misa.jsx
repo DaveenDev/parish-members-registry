@@ -120,6 +120,14 @@ function GuideCard({ g }) {
   );
 }
 
+// Desktop columns by how many schedule sections there are, so they share the width evenly.
+const SECTION_COLS = {
+  1: 'lg:grid-cols-1',
+  2: 'lg:grid-cols-2',
+  3: 'lg:grid-cols-2 xl:grid-cols-3',
+  4: 'lg:grid-cols-2 xl:grid-cols-4',
+};
+
 function MassSchedule() {
   const mass = listState(useMassSchedule());
   const ann = listState(useAnnouncements());
@@ -176,7 +184,7 @@ function MassSchedule() {
         emptyText="Wala pay iskedyul nga gi-publish. Tawagi ang opisina para sa oras sa Misa."
       >
         {!sections.length ? <EmptyNote>Walay Misa nga mohaum sa imong pili.</EmptyNote> : (
-          <div className="flex flex-col gap-3.5 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:items-start">
+          <div className={`flex flex-col gap-3.5 lg:grid lg:items-start ${SECTION_COLS[Math.min(sections.length, 4)]}`}>
             {sections.map((s) => (
               <section key={s.key} className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
                 <div className="flex items-center gap-2 flex-wrap px-3.5 py-2.5 lg:px-4 lg:py-3 bg-[#fbf7ef] lg:border-b lg:border-[#f0e8d6]">
