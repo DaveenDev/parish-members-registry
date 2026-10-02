@@ -72,7 +72,7 @@ export default function Home() {
             <h1 className="font-serif font-semibold text-[38px] lg:text-[64px] leading-[1.02] lg:leading-[.98] m-0 mb-1 lg:mb-1.5 text-parish-navy">{PARISH_NAME}</h1>
             <div className="font-serif text-[20px] lg:text-[27px] text-parish-blue tracking-[.04em] mb-4 lg:mb-5">{PARISH_SUB}</div>
             <p className="text-[16px] lg:text-[18.5px] leading-relaxed lg:leading-[1.6] text-[#4d4636] m-0 mb-[22px] lg:mb-[30px] lg:max-w-[560px]">
-              Maayong pag-abot! Irehistro ang inyong pamilya sa parokya aron kita magpabiling magkasinabot, magkauban sa pagsaulog sa mga sakramento, ug mag-alagaray sa usag usa diha sa pagtuo.
+              Welcome! Irehistro ang inyong pamilya sa parokya aron kita magpabiling magkasinabot, magkauban sa pagsaulog sa mga sakramento, ug mag-alagaray sa usag usa diha sa pagtuo.
             </p>
             <div className="lg:flex lg:flex-wrap lg:gap-3 lg:items-center">
               <Link
