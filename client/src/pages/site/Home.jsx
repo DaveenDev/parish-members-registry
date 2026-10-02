@@ -26,7 +26,8 @@ export default function Home() {
   const [dismissed, setDismissed] = useState(readDismissed);
 
   const urgent = ann.rows.find((a) => a.urgent && !dismissed.includes(a.id));
-  const latest = ann.rows.filter((a) => !a.urgent).slice(0, 2);
+  // The two newest by start date, urgent and pinned ones included.
+  const latest = [...ann.rows].sort((a, b) => b.publish_on.localeCompare(a.publish_on) || b.id - a.id).slice(0, 2);
 
   function dismiss() {
     const next = [...dismissed, urgent.id];
@@ -97,7 +98,7 @@ export default function Home() {
         ) : !latest.length ? (
           <p className="m-0 text-parish-text2 text-[15px]">Wala pay pahibalo karong semanaha.</p>
         ) : (
-          <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:gap-3.5 lg:items-start">{latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}</div>
+          <div className={`flex flex-col gap-2.5 lg:grid lg:gap-3.5 lg:items-start ${latest.length > 1 ? 'lg:grid-cols-2' : 'lg:grid-cols-1'}`}>{latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}</div>
         )}
       </section>
 
