@@ -8,6 +8,7 @@ import { PARISH_ADDRESS, PARISH_MAP_URL, useSiteTitle } from './SiteLayout.jsx';
 import { useOffice } from './data.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
+import { StatusCheckCard } from './CheckStatus.jsx';
 
 function ServiceLink({ to, icon, title, sub, red = false }) {
   return (
@@ -30,15 +31,16 @@ function ServiceLink({ to, icon, title, sub, red = false }) {
   );
 }
 
-/** Mga Serbisyo: status check, request forms, blood donor call, contact. */
+/** Mga Serbisyo: the status check first, then the request forms, blood donor call and contact. */
 export default function Serbisyo() {
   return (
     <main className={PAGE}>
       <Eyebrow>Mga Serbisyo</Eyebrow>
       <PageTitle className="mb-1.5">Unsaon namo pagtabang?</PageTitle>
       <p className="m-0 mb-4 lg:mb-[26px] text-[15px] lg:text-[17px] leading-normal text-[#4d4636]">Ang matag hangyo moadto direkta sa kawani sa parokya.</p>
-      <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-3 lg:gap-4">
-        <ServiceLink to="/serbisyo/susiha" icon="search" title="Susiha ang akong rehistro" sub="Gamit ang reference number" />
+      <StatusCheckCard />
+      <h2 className="m-0 mt-7 mb-3 lg:mt-10 lg:mb-4 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy">Ubang mga serbisyo</h2>
+      <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:gap-4">
         <ServiceLink to="/serbisyo/hangyo/sertipiko" icon="doc" title="Pangayo og sertipiko" sub="Bunyag, Kumpil, Kasal" />
         <ServiceLink to="/serbisyo/hangyo/pag-ampo" icon="heart" title="Pangayo og pag-ampo" sub="Pribado, para sa kura paroko" />
         <ServiceLink to="/serbisyo/dugo" icon="drop" title="Blood donor call" sub="Nanginahanglan o mo-donate" red />

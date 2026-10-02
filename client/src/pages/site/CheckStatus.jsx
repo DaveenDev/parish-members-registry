@@ -16,14 +16,11 @@ const STAGES = [
 
 const CERT_BIS = { baptism: 'Sertipiko sa Bunyag', confirmation: 'Sertipiko sa Kumpil', matrimony: 'Sertipiko sa Kasal' };
 
-/** Look up a household registration (OLG-…) or a certificate request (CR-…) by reference number. */
-export default function CheckStatus() {
-  useSiteTitle('Susiha ang Rehistro');
-  const [params] = useSearchParams();
-  const [ref, setRef] = useState(params.get('ref') || '');
+/** The lookup itself: the reference typed, whether it's checking, and the result. */
+function useStatusCheck(initial = '') {
+  const [ref, setRef] = useState(initial);
   const [checking, setChecking] = useState(false);
   const [result, setResult] = useState(null);
-  const portal = usePortalStatus().data;
 
   async function check(e) {
     e?.preventDefault();
@@ -47,8 +44,72 @@ export default function CheckStatus() {
     }
   }
 
+  return { ref, setRef, checking, result, check };
+}
+
+/** Reference number field and the Susiha button. `inline` puts them side by side on desktop. */
+function RefForm({ s, inline = false, id = 'ref-in' }) {
+  return (
+    <form onSubmit={s.check} className={inline ? 'lg:flex lg:gap-2.5 lg:items-end' : ''}>
+      <div className={inline ? 'lg:flex-1' : ''}>
+        <label htmlFor={id} className="block font-bold text-[14px] mb-1.5">Reference number</label>
+        <input
+          id={id}
+          value={s.ref}
+          onChange={(e) => s.setRef(e.target.value.toUpperCase())}
+          placeholder="OLG-2026-XXXXXX"
+          autoCapitalize="characters"
+          autoComplete="off"
+          spellCheck={false}
+          className={`w-full min-h-[54px] px-3.5 font-semibold text-[19px] tracking-[.04em] text-parish-ink bg-parish-card border-[1.5px] border-parish-borderSoft rounded-[14px] outline-none focus:border-parish-blue mb-2.5 ${inline ? 'lg:mb-0' : ''}`}
+        />
+      </div>
+      <button type="submit" disabled={s.checking} className={`w-full min-h-[54px] rounded-[14px] bg-parish-blue text-white font-bold text-[16.5px] flex items-center justify-center gap-2.5 disabled:opacity-80 ${inline ? 'lg:w-[180px]' : ''}`}>
+        {s.checking ? <><Spin />Gisusi…</> : 'Susiha'}
+      </button>
+    </form>
+  );
+}
+
+/** The status check as a card, at the top of Mga Serbisyo. */
+export function StatusCheckCard() {
+  const s = useStatusCheck();
+  const portal = usePortalStatus().data;
+  return (
+    <section aria-labelledby="susiha-title" className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[20px] shadow-card p-4 lg:p-7">
+      <div className="lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
+        <div>
+          <div className="flex items-center gap-2.5 mb-1.5">
+            <span className="w-10 h-10 flex-none rounded-xl flex items-center justify-center" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)' }}><Icon name="search" size={21} /></span>
+            <h2 id="susiha-title" className="m-0 font-serif font-bold text-[23px] lg:text-[30px] leading-tight text-parish-navy">Susiha ang inyong rehistro o hangyo</h2>
+          </div>
+          <p className="m-0 mb-3.5 text-[15px] leading-normal text-[#4d4636]">
+            Isulat ang reference number gikan sa inyong confirmation slip (OLG-…), o sa hangyo sa sertipiko (CR-…). Ang ngalan sa pamilya ug status lang ang ipakita.
+          </p>
+          <RefForm s={s} inline id="ref-card" />
+        </div>
+        <div aria-live="polite" className={s.result ? 'mt-[18px] lg:mt-0' : ''}>
+          {s.result ? <Result r={s.result} censusOpen={!!portal?.open} /> : (
+            <div className="hidden lg:flex h-full min-h-[150px] items-center justify-center rounded-2xl border border-dashed border-[#d9cdb4] px-6 text-center text-[14.5px] text-parish-text2">
+              Ang resulta mogawas diri.
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Look up a household registration (OLG-…) or a certificate request (CR-…) by reference number. */
+export default function CheckStatus() {
+  useSiteTitle('Susiha ang Rehistro');
+  const [params] = useSearchParams();
+  const s = useStatusCheck(params.get('ref') || '');
+  const { result } = s;
+  const portal = usePortalStatus().data;
+
   // Arriving from a form's "Susiha ang status" button: check straight away.
-  useEffect(() => { if (params.get('ref')) check(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (params.get('ref')) s.check(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <main className={`${INNER} lg:max-w-[1080px] lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start`}>
@@ -65,22 +126,7 @@ export default function CheckStatus() {
         <div className="text-[12.5px] text-[#4d4636] mt-1.5">Makita kini sa inyong confirmation slip. Ang hangyo sa sertipiko nagsugod sa CR-.</div>
       </div>
 
-      <form onSubmit={check}>
-        <label htmlFor="ref-in" className="block font-bold text-[14px] mb-1.5">Reference number</label>
-        <input
-          id="ref-in"
-          value={ref}
-          onChange={(e) => setRef(e.target.value.toUpperCase())}
-          placeholder="OLG-2026-XXXXXX"
-          autoCapitalize="characters"
-          autoComplete="off"
-          spellCheck={false}
-          className="w-full min-h-[54px] px-3.5 font-semibold text-[19px] tracking-[.04em] text-parish-ink bg-parish-card border-[1.5px] border-parish-borderSoft rounded-[14px] outline-none focus:border-parish-blue mb-2.5"
-        />
-        <button type="submit" disabled={checking} className="w-full min-h-[54px] rounded-[14px] bg-parish-blue text-white font-bold text-[16.5px] flex items-center justify-center gap-2.5 disabled:opacity-80">
-          {checking ? <><Spin />Gisusi…</> : 'Susiha'}
-        </button>
-      </form>
+      <RefForm s={s} />
       </div>
 
       <div aria-live="polite" className="mt-[18px] lg:mt-0 lg:pt-3 lg:min-h-[200px]">
