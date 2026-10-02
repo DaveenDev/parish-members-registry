@@ -20,7 +20,7 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
         <div className="flex flex-col divide-y divide-parish-line2 border border-parish-edge rounded-xl bg-parish-field">
           {PARTICIPATION_ITEMS.map(([key, label]) => (
             <div key={key} role="radiogroup" aria-label={label} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 px-4 py-3">
-              <span className="font-medium text-[14.5px] text-parish-ink">{label}</span>
+              <span className="font-bold text-[14.5px] text-parish-ink">{label}</span>
               <div className="flex gap-1.5">
                 {PARTICIPATION_LEVELS.map((level) => {
                   const checked = participation[key] === level;
@@ -83,7 +83,7 @@ export function ParticipationReview({ participation = {}, helpWays = [], english
         <div className="flex flex-col divide-y divide-parish-line2 border border-parish-edge rounded-xl bg-parish-field">
           {PARTICIPATION_ITEMS.map(([key, label]) => (
             <div key={key} role="group" aria-label={label} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 px-4 py-2.5">
-              <span className="font-medium text-[14px] text-parish-ink">{label}</span>
+              <span className="font-bold text-[14px] text-parish-ink">{label}</span>
               <div className="flex gap-2">
                 {PARTICIPATION_LEVELS.map((level) => (
                   <label key={level} className={`flex items-center gap-1.5 w-[78px] text-[13px] ${participation[key] === level ? picked : 'text-parish-text2'}`}>

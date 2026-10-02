@@ -376,7 +376,7 @@ function MemberCensusRow({ member: m, row, former, editable, onChange, onEdit, o
       <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fill,minmax(200px,1fr))' }}>
         {PARTICIPATION_ITEMS.map(([key, label]) => (
           <div key={key} role="radiogroup" aria-label={`${name}: ${label}`} className="flex items-center justify-between gap-2">
-            <span className="text-[12.5px] text-parish-text2 truncate" title={label}>{label}</span>
+            <span className="text-[13px] font-bold text-parish-ink truncate" title={label}>{label}</span>
             <div className="flex gap-1 flex-none">
               {PARTICIPATION_LEVELS.map((level) => {
                 const on = row.participation?.[key] === level;
