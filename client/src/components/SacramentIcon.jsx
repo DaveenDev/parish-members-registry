@@ -1,7 +1,7 @@
 import React from 'react';
 
 // Line icons for the sacrament guides, keyed by sacrament_guides.key (0011,
-// 0019). Shared by the website's Mga Sakramento tabs and the admin
+// 0019, 0031). Shared by the website's Mga Sakramento tabs and the admin
 // Sacraments page. Drawn inline (not from the website's icon sprite) so they
 // work on admin pages too.
 const PATHS = {
@@ -30,18 +30,11 @@ const PATHS = {
       <path d="M10.5 6.5L12 4l1.5 2.5" />
     </>
   ),
-  // A cross on a hill
-  funeral: (
+  // A vessel of holy oil with a cross (Anointing of the Sick, 0031)
+  anointing: (
     <>
-      <path d="M12 3v11M8.5 6.5h7" />
-      <path d="M4 21c2-3.5 5-5 8-5s6 1.5 8 5" />
-    </>
-  ),
-  // Light
-  blessing: (
-    <>
-      <circle cx="12" cy="12" r="3" />
-      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" />
+      <path d="M9 3h6M10 3v3.5L6.5 11a5.5 5.5 0 1 0 11 0L14 6.5V3" />
+      <path d="M12 11.5v5M9.5 14h5" />
     </>
   ),
   // A person with a cross
