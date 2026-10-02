@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Avatar, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PAGE, PageHeader, Pills, Skeleton, Skeletons } from '../../components/site/kit.jsx';
 import { phoneHref } from '../../lib/requests.js';
-import { fmtLong, gkkParts, groupGkksByArea, initialsOf } from '../../lib/site.js';
+import { fmtLong, gkkParts, groupGkksByArea, initialsOf, sortCensusGkks } from '../../lib/site.js';
 import { useSiteTitle } from './SiteLayout.jsx';
 import { listState, useCensusProgress, useGkkDirectory } from './data.js';
 
@@ -324,7 +324,12 @@ function CensusProgress() {
   }
   if (c.pct == null) return <EmptyNote>Bag-o pa lang giablihan ang census. Wala pay igo nga na-update aron ipakita.</EmptyNote>;
 
-  const rows = [...(c.gkks || [])].sort((a, b) => (sort === 'pct' ? (b.pct ?? -1) - (a.pct ?? -1) : a.name.localeCompare(b.name)));
+  // "Pinakataas" needs at least two GKKs with a percentage to show; percentages
+  // of GKKs under 5 families are hidden, and those would just come out A–Z.
+  const canRank = (c.gkks || []).filter((r) => r.pct != null).length >= 2;
+  const rows = sortCensusGkks(c.gkks, canRank ? sort : 'name');
+  // Desktop shows two columns; fill them top to bottom so the order reads down each column.
+  const perColumn = Math.ceil(rows.length / 2);
 
   return (
     <div className="lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-6 lg:items-start">
@@ -347,11 +352,14 @@ function CensusProgress() {
       <div>
       <div className="flex items-center justify-between gap-2 mb-2.5 lg:mb-3">
         <h3 className="m-0 font-serif text-[21px] lg:text-[26px] font-bold text-parish-navy">Matag GKK</h3>
-        <Pills options={[['pct', 'Pinakataas'], ['name', 'Ngalan']]} value={sort} onChange={setSort} className="[&>button]:flex-none [&>button]:px-3 [&>button]:min-h-[40px] [&>button]:text-[13.5px]" />
+        {canRank && <Pills options={[['pct', 'Pinakataas'], ['name', 'Ngalan']]} value={sort} onChange={setSort} className="[&>button]:flex-none [&>button]:px-3 [&>button]:min-h-[40px] [&>button]:text-[13.5px]" />}
       </div>
-      <Card className="px-3.5 py-1 shadow-none lg:px-[22px] lg:py-1.5 lg:rounded-[18px] lg:grid lg:grid-cols-2 lg:gap-x-8">
-        {rows.map((r) => (
-          <div key={r.name} className="py-[11px] lg:py-3 border-b border-[#f4eddd] last:border-b-0">
+      <Card
+        className="px-3.5 py-1 shadow-none lg:px-[22px] lg:py-1.5 lg:rounded-[18px] lg:grid lg:grid-cols-2 lg:grid-flow-col lg:gap-x-8 lg:[grid-template-rows:repeat(var(--rows),auto)]"
+        style={{ '--rows': perColumn }}
+      >
+        {rows.map((r, i) => (
+          <div key={r.name} className={`py-[11px] lg:py-3 border-b border-[#f4eddd] last:border-b-0 ${i === perColumn - 1 ? 'lg:border-b-0' : ''}`}>
             <div className="flex items-baseline gap-2 mb-1.5">
               <div className="flex-1 min-w-0 font-semibold text-[14.5px] leading-[1.25]">{r.name}</div>
               {r.pct === 100 && (

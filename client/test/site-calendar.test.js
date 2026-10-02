@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { eventsOnDay, monthCells } from '../src/lib/site.js';
+import { eventsOnDay, monthCells, sortCensusGkks } from '../src/lib/site.js';
 
 describe('monthCells', () => {
   test('pads October 2026 to whole Sunday-first weeks', () => {
@@ -39,5 +39,19 @@ describe('eventsOnDay', () => {
 
   test('skips days outside the event', () => {
     assert.equal(eventsOnDay([novena], '2026-12-12', 6).length, 0);
+  });
+});
+
+describe('sortCensusGkks', () => {
+  const rows = [{ name: 'Sto. Niño -Balabag', pct: 40 }, { name: 'Birhen sa Fatima -Mua-an', pct: null }, { name: 'San Jose -Ginatilan', pct: 90 }, { name: 'Amor -Lumot', pct: null }, { name: 'Santa Monica', pct: 40 }];
+  const names = (list) => list.map((r) => r.name);
+
+  test('Pinakataas: highest first, hidden percentages last, ties by name', () => {
+    assert.deepEqual(names(sortCensusGkks(rows, 'pct')), ['San Jose -Ginatilan', 'Santa Monica', 'Sto. Niño -Balabag', 'Amor -Lumot', 'Birhen sa Fatima -Mua-an']);
+  });
+
+  test('Ngalan: A to Z, and the input is left alone', () => {
+    assert.deepEqual(names(sortCensusGkks(rows, 'name')), ['Amor -Lumot', 'Birhen sa Fatima -Mua-an', 'San Jose -Ginatilan', 'Santa Monica', 'Sto. Niño -Balabag']);
+    assert.equal(rows[0].name, 'Sto. Niño -Balabag');
   });
 });

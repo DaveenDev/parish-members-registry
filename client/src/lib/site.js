@@ -375,6 +375,17 @@ export function groupGkksByArea(gkks, query = '') {
   return groups;
 }
 
+/**
+ * Census progress rows ({ name, pct|null }) in the order picked: 'pct' is
+ * highest first, with GKKs whose percentage is hidden (under 5 families)
+ * last; 'name' is A–Z. Ties go by name.
+ */
+export function sortCensusGkks(rows, sort = 'pct') {
+  const pctOf = (r) => (r.pct == null || Number.isNaN(Number(r.pct)) ? -1 : Number(r.pct));
+  const byName = (a, b) => String(a.name || '').localeCompare(String(b.name || ''), undefined, { sensitivity: 'base', numeric: true });
+  return [...(rows || [])].sort((a, b) => (sort === 'pct' && pctOf(b) - pctOf(a)) || byName(a, b));
+}
+
 export function initialsOf(name) {
   return String(name || '').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 }
