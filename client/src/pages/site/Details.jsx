@@ -35,9 +35,10 @@ function Body({ text, className = READ_TEXT }) {
   return paragraphs(text).map((p, i) => <p key={i} className={`m-0 mb-3.5 lg:mb-4 whitespace-pre-line ${className}`}>{p}</p>);
 }
 
-function Photo({ src, h = 200, hLg = h }) {
+/** A cover photo across the full content width, cropped to a fixed height (article and event pages). */
+function Photo({ src, h = 200, hLg = h, alt = '' }) {
   if (!src) return null;
-  return <img src={src} alt="" loading="lazy" className="w-full object-cover rounded-[14px] lg:rounded-[18px] mb-4 lg:mb-6 bg-[#efe6d3] h-[var(--h)] lg:h-[var(--h-lg)]" style={{ '--h': `${h}px`, '--h-lg': `${hLg}px` }} />;
+  return <img src={src} alt={alt} loading="lazy" className="w-full object-cover rounded-[14px] lg:rounded-[18px] mb-4 lg:mb-6 bg-[#efe6d3] h-[var(--h)] lg:h-[var(--h-lg)]" style={{ '--h': `${h}px`, '--h-lg': `${hLg}px` }} />;
 }
 
 export function EventDetail() {
@@ -49,7 +50,7 @@ export function EventDetail() {
     <Detail
       q={useItem('events', id)}
       notFound="Wala na kini nga kalihokan sa kalendaryo."
-      className={`${INNER} lg:max-w-[1240px] lg:grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-x-10 lg:items-start lg:[grid-template-areas:'head_side''body_side''body_act']`}
+      className={`${INNER} lg:max-w-[1240px] lg:grid lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)] lg:gap-x-10 lg:items-start lg:[grid-template-areas:'head_head''photo_photo''body_side''body_act']`}
     >
       {(e) => {
         const tone = eventTone(e);
@@ -69,11 +70,13 @@ export function EventDetail() {
               </div>
               <h1 className="font-serif font-semibold text-[32px] lg:text-[50px] leading-[1.08] lg:leading-[1.04] mt-2.5 mb-4 lg:mt-3.5 lg:mb-[18px] text-parish-navy">{e.title}</h1>
             </div>
+            {/* Same cover as an article page: full width under the title, then the details. */}
+            {e.photo_url && (
+              <div className="lg:[grid-area:photo]">
+                <Photo src={e.photo_url} hLg={560} alt={e.title} />
+              </div>
+            )}
             <div className="lg:[grid-area:side]">
-              {/* A cover (often a poster) at its own shape, so nothing is cropped: under the title on phones, above the details on desktop. */}
-              {e.photo_url && (
-                <img src={e.photo_url} alt={e.title} className="block w-full max-h-[460px] lg:max-h-[560px] object-cover rounded-[14px] lg:rounded-[20px] mb-4 lg:mb-3 bg-[#efe6d3] lg:shadow-card" />
-              )}
               <Card className="px-3.5 py-1 mb-4 shadow-none lg:px-5 lg:pt-2 lg:pb-2 lg:mb-3 lg:rounded-[20px] lg:shadow-card">
                 <InfoRow icon="cal">{when}{span && <div className="text-[13.5px] font-normal text-parish-text2">{span}</div>}</InfoRow>
                 <InfoRow icon="clock" last={!e.location && !e.organizer}>{eventTime(e)}</InfoRow>
