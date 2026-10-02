@@ -52,7 +52,7 @@ function PageJumps() {
   return (
     <nav aria-label="Niini nga panid" className="flex gap-2 flex-wrap mb-4 lg:mb-6">
       <button type="button" className={btn} onClick={() => go('misa')}><Icon name="clock" size={16} />Iskedyul sa Misa</button>
-      <button type="button" className={btn} onClick={() => go('sakramento')}><Icon name="church" size={16} />Mga Sakramento ↓</button>
+      <button type="button" className={btn} onClick={() => go('sakramento')}><Icon name="church" size={16} />Mga Sakramento ug Pormasyon ↓</button>
     </nav>
   );
 }
@@ -64,7 +64,7 @@ const guideRank = (g) => (GUIDE_FIRST.includes(g.key) ? GUIDE_FIRST.indexOf(g.ke
 const PICKER_COLS = { 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' };
 
 /**
- * Mga Sakramento, under the Mass schedule on a full-width blue band: a card
+ * Mga Sakramento ug Pormasyon, under the Mass schedule on a full-width blue band: a card
  * per sacrament to pick from, then that sacrament's guide. Hidden until
  * guides are published. `jump` (a ?view=sakramento link) scrolls down to it.
  */
@@ -85,7 +85,7 @@ function SacramentGuides({ jump = false }) {
     >
       <div className={WRAP}>
         <Eyebrow>Mga giya</Eyebrow>
-        <h2 id="sakramento-title" className="m-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Mga Sakramento</h2>
+        <h2 id="sakramento-title" className="m-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Mga Sakramento ug Pormasyon</h2>
         <p className="m-0 mt-1 mb-4 lg:mb-6 text-[15px] lg:text-[16.5px] leading-normal text-[#4d4636] lg:max-w-[760px]">
           Unsa ang dad-on ug unsa ang mga lakang sa matag sakramento. Palihug duol sa opisina sa parokya una sa tanan aron makumpirma.
         </p>

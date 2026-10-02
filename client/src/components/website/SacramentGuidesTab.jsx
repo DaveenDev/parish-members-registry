@@ -15,7 +15,7 @@ export default function SacramentGuidesTab() {
 
   return (
     <>
-      <TabIntro text="What families need to know before asking the office: the steps, the documents to bring, seminar schedules and fees. Each sacrament is one guide; published guides show on the website's Misa ug Sakramento page, in the Mga Sakramento section below the Mass schedule. Baptism, Wedding and OCIA start with the usual requirements as drafts — check them against the parish's own rules, add the schedule and fees, then publish." />
+      <TabIntro text="What families need to know before asking the office: the steps, the documents to bring, seminar schedules and fees. Each sacrament is one guide; published guides show on the website's Misa ug Sakramento page, in the Mga Sakramento ug Pormasyon section below the Mass schedule. Baptism, Wedding and OCIA start with the usual requirements as drafts — check them against the parish's own rules, add the schedule and fees, then publish." />
 
       {list.loading ? <Panel><LoadingState /></Panel> : list.error ? <Panel><ErrorState message={list.error} onRetry={list.reload} /></Panel> : !list.rows.length ? (
         <Panel><EmptyState title="No guides found" subtitle="Run the 0011 and 0019 migrations to add the sacrament guides." /></Panel>
