@@ -614,6 +614,15 @@ export const api = {
   async listGkkDetails() {
     return listWebsite('gkks', (q) => q.order('name'), '0013_public_site.sql');
   },
+  /** A new GKK with its details in one insert. */
+  async createGkk(name, patch = {}) {
+    const fields = Object.fromEntries(GKK_DETAIL_FIELDS.filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
+    const { data, error } = await supabase.from('gkks').insert({ name: name.trim(), ...cleanPatch(fields) }).select().single();
+    if (error?.code === '23505') throw new Error('A GKK with this name already exists');
+    if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql migration in Supabase to save GKK details');
+    if (error) throw mapError(error);
+    return data;
+  },
   async saveGkkDetails(id, patch) {
     const fields = Object.fromEntries(GKK_DETAIL_FIELDS.filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
     const { data, error } = await supabase.from('gkks').update(cleanPatch(fields)).eq('id', id).select().single();
