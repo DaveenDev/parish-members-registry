@@ -39,7 +39,7 @@ const URL_ALLOWED = {
 
 const fullName = (m) => [m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ');
 
-/** "Aktibo · 82 ↑ 6": the member's Practicing Catholic level, score and change since the last census. */
+/** "82% Aktibo ↑ 6": the member's Practicing Catholic score and level, and the change since the last census. */
 function PracticeBadge({ m }) {
   if (!m.practice_level) return <span className="text-[13px] text-parish-muted">—</span>;
   const rated = isRated(m.practice_level);
@@ -48,7 +48,7 @@ function PracticeBadge({ m }) {
   return (
     <span className="inline-flex items-center gap-1.5" title={title}>
       <Badge tone={PRACTICE_TONES[m.practice_level]}>
-        {m.practice_level}{rated && m.practice_score != null ? ` · ${Math.round(m.practice_score)}` : ''}
+        {rated && m.practice_score != null ? `${Math.round(m.practice_score)}% ` : ''}{m.practice_level}
       </Badge>
       {trend && <span className={`text-[11.5px] font-bold ${m.practice_trend > 0 ? 'text-parish-ok' : 'text-parish-error'}`}>{trend}</span>}
       {rated && m.practice_source === 'household' && <span className="text-[11px] text-parish-muted" aria-label="household estimate">est.</span>}
