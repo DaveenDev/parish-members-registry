@@ -29,6 +29,7 @@ import Census from './pages/admin/Census.jsx';
 import Website from './pages/admin/Website.jsx';
 import Requests from './pages/admin/Requests.jsx';
 import ManageOrgs from './pages/admin/ManageOrgs.jsx';
+import ChangePassword from './pages/admin/ChangePassword.jsx';
 import ManageStaff from './pages/admin/ManageStaff.jsx';
 import AdminNotFound from './pages/admin/NotFound.jsx';
 import ActivityLog from './pages/admin/ActivityLog.jsx';
@@ -39,7 +40,10 @@ function RequireAuth({ children }) {
   const location = useLocation();
   if (!ready) return null;
   // Remember the page asked for, so signing in goes back to it.
-  if (!user) return <Navigate to="/admin/login" replace state={{ from: location.pathname + location.search + location.hash }} />;
+  const from = location.pathname + location.search + location.hash;
+  if (!user) return <Navigate to="/admin/login" replace state={{ from }} />;
+  // A new account or an admin password reset: choose a password before anything else.
+  if (user.mustChangePassword) return <Navigate to="/admin/change-password" replace state={{ from }} />;
   return children;
 }
 
@@ -67,6 +71,7 @@ export default function App() {
         <Route path="/register" element={<RegistrationApp />} />
         <Route path="/census" element={<CensusPortal />} />
         <Route path="/admin/login" element={<AdminLogin />} />
+        <Route path="/admin/change-password" element={<ChangePassword />} />
         <Route
           path="/admin"
           element={

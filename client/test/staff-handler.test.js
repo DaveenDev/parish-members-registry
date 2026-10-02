@@ -53,8 +53,8 @@ function fakeAdmin({ users, profiles, legacySchema = false }) {
         async listUsers() {
           return { data: { users: users.map((u) => ({ ...u })) }, error: null };
         },
-        async createUser({ email, password, email_confirm }) {
-          calls.push(['createUser', { email, password, email_confirm }]);
+        async createUser({ email, password, email_confirm, user_metadata }) {
+          calls.push(['createUser', { email, password, email_confirm, user_metadata }]);
           if (users.some((u) => u.email === email)) return { data: null, error: { message: 'A user with this email address has already been registered' } };
           const user = { id: `u${users.length + 1}`, email };
           users.push(user);
@@ -125,7 +125,8 @@ describe('manage-staff: create', () => {
   test('creates a confirmed login and fills in the profile the trigger made', async () => {
     const res = await call('u1', { action: 'create', name: ' Juan ', email: 'Juan@Parish.test ', password: 'temp-pass-123', role: 'Encoder', is_admin: false });
     assert.equal(res.status, 200);
-    assert.deepEqual(admin.calls[0], ['createUser', { email: 'juan@parish.test', password: 'temp-pass-123', email_confirm: true }]);
+    // Flagged so the first sign-in goes to "Set a new password".
+    assert.deepEqual(admin.calls[0], ['createUser', { email: 'juan@parish.test', password: 'temp-pass-123', email_confirm: true, user_metadata: { must_change_password: true } }]);
     assert.equal(profiles.filter((p) => p.id === res.body.id).length, 1);
     assert.deepEqual(profiles.at(-1), { id: res.body.id, name: 'Juan', role: 'Encoder', is_admin: false, access: 'full', access_gkk: null });
   });
@@ -184,7 +185,7 @@ describe('manage-staff: edit and reset', () => {
   test('resets a password, enforcing the minimum length', async () => {
     assert.equal((await call('u1', { action: 'reset_password', id: 'u2', password: 'short' })).status, 400);
     assert.equal((await call('u1', { action: 'reset_password', id: 'u2', password: 'new-temp-pass-1' })).status, 200);
-    assert.deepEqual(admin.calls.at(-1), ['updateUserById', 'u2', { password: 'new-temp-pass-1' }]);
+    assert.deepEqual(admin.calls.at(-1), ['updateUserById', 'u2', { password: 'new-temp-pass-1', user_metadata: { must_change_password: true } }]);
   });
 
   test('an id that no longer exists is a 404', async () => {

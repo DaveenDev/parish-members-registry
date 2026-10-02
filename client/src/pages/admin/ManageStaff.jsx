@@ -75,7 +75,7 @@ function PasswordReveal({ who, email, password, onDone }) {
     <div className="flex flex-col gap-4">
       <p className="text-[14px] text-parish-text2 m-0">
         Give this temporary password to <strong>{who}</strong> in person or by phone. They sign in with <strong>{email}</strong>,
-        then change it under <strong>Parish Config → Change password</strong>.
+        and are asked to choose their own password straight away.
       </p>
       <div className="flex items-center gap-2.5">
         <code className="flex-1 font-mono text-[20px] tracking-[.08em] text-parish-navy bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl px-3.5 py-2.5 select-all break-all" aria-label="Temporary password">{password}</code>

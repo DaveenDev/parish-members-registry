@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabaseClient.js';
 
 const AuthContext = createContext(null);
@@ -19,38 +19,55 @@ async function loadProfile(session) {
     isAdmin: !!data?.is_admin,
     access: data?.access || 'full',
     accessGkk: data?.access_gkk || null,
+    // Set by a staff admin on a new account or a password reset (manage-staff);
+    // RequireAuth keeps the person on the change-password screen until it's cleared.
+    mustChangePassword: !!session.user.user_metadata?.must_change_password,
   };
 }
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [ready, setReady] = useState(false);
+  // Auth events can arrive back to back (changing a password signs in again,
+  // then updates the user); only the latest profile load may win, or a
+  // slower earlier one could bring back stale details.
+  const loadSeq = useRef(0);
+  const applySession = useCallback(async (session) => {
+    const seq = ++loadSeq.current;
+    const profile = await loadProfile(session);
+    if (seq === loadSeq.current) setUser(profile);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(async ({ data: { session } }) => {
-      setUser(await loadProfile(session));
+      await applySession(session);
       setReady(true);
     });
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      setUser(await loadProfile(session));
-    });
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => { applySession(session); });
 
     return () => sub.subscription.unsubscribe();
-  }, []);
+  }, [applySession]);
 
   async function login(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw new Error(error.message || 'Invalid email or password');
-    setUser(await loadProfile(data.session));
+    await applySession(data.session);
   }
 
   async function logout() {
+    loadSeq.current++;
     await supabase.auth.signOut();
     setUser(null);
   }
 
-  return <AuthContext.Provider value={{ user, ready, login, logout }}>{children}</AuthContext.Provider>;
+  /** Re-read the signed-in account, e.g. right after changing the password. */
+  async function refreshUser() {
+    const { data: { session } } = await supabase.auth.getSession();
+    await applySession(session);
+  }
+
+  return <AuthContext.Provider value={{ user, ready, login, logout, refreshUser }}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

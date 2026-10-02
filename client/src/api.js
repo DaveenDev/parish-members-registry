@@ -153,7 +153,9 @@ export const api = {
     if (uErr || !user?.email) throw mapError(uErr, { fallback: 'Please sign in again' });
     const { error: authErr } = await supabase.auth.signInWithPassword({ email: user.email, password: currentPassword || '' });
     if (authErr) throw new Error('Current password is incorrect');
-    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    // Also clears the "change your password" flag an admin sets on a new or
+    // reset account (manage-staff), in the same update.
+    const { error } = await supabase.auth.updateUser({ password: newPassword, data: { must_change_password: false } });
     if (error) throw mapError(error);
     return { ok: true };
   },

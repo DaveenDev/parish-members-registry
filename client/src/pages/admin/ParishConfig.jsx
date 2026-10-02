@@ -9,6 +9,7 @@ import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
 import { useTheme, THEMES } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
+import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '../../components/ChangePasswordForm.jsx';
 import { resizePhoto } from '../../lib/images.js';
 
 const MAX_LOGO_BYTES = 500 * 1024;
@@ -167,44 +168,12 @@ function HeroImageCard({ settings, onSaved }) {
 
 function ChangePasswordCard() {
   const toast = useToast();
-  const [form, setForm] = useState({ current: '', next: '', confirm: '' });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-
-  const set = (field) => (e) => { setForm((f) => ({ ...f, [field]: e.target.value })); setError(''); };
-
-  async function submit(e) {
-    e.preventDefault();
-    if (!form.current) { setError('Enter your current password.'); return; }
-    if (form.next !== form.confirm) { setError('The new passwords do not match.'); return; }
-    if (form.next.length < 10) { setError('New password must be at least 10 characters.'); return; }
-
-    setSaving(true);
-    try {
-      await api.changePassword(form.current, form.next);
-      setForm({ current: '', next: '', confirm: '' });
-      toast.success('Password changed');
-    } catch (err) {
-      setError(err.message || 'Could not change password');
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
-    <form onSubmit={submit} className="bg-parish-card border border-parish-border rounded-2xl p-6 shadow-cardSm">
+    <div className="bg-parish-card border border-parish-border rounded-2xl p-6 shadow-cardSm">
       <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Change password</div>
-      <div className="text-[13.5px] text-parish-muted mb-4">Use at least 10 characters. You stay signed in on this device.</div>
-      {error && <div className="mb-3 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
-      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
-        <Field label="Current password"><TextInput type="password" autoComplete="current-password" value={form.current} onChange={set('current')} /></Field>
-        <Field label="New password"><TextInput type="password" autoComplete="new-password" value={form.next} onChange={set('next')} /></Field>
-        <Field label="Confirm new password"><TextInput type="password" autoComplete="new-password" value={form.confirm} onChange={set('confirm')} /></Field>
-      </div>
-      <PrimaryButton type="submit" disabled={saving} className="mt-5 px-[26px] py-3 text-[14.5px]">
-        {saving ? 'Updating…' : 'Update password'}
-      </PrimaryButton>
-    </form>
+      <div className="text-[13.5px] text-parish-muted mb-4">Use at least {MIN_PASSWORD_LENGTH} characters. You stay signed in on this device.</div>
+      <ChangePasswordForm onChanged={() => toast.success('Password changed')} />
+    </div>
   );
 }
 

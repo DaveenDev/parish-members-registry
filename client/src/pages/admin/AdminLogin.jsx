@@ -90,8 +90,8 @@ export default function AdminLogin() {
             </div>
             {showHelp && (
               <div className="mb-4 px-3.5 py-3 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13px] text-parish-info leading-relaxed">
-                Ask a staff admin to reset it from <strong>Settings → Staff</strong>. They'll give you a temporary password,
-                which you can change after signing in under <strong>Parish Config → Change password</strong>.
+                Ask a staff admin to reset it from <strong>Settings → Staff</strong>. They'll give you a temporary password;
+                after signing in with it you'll be asked to choose your own.
               </div>
             )}
             {error && <div className="mb-4 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}

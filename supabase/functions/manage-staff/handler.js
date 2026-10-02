@@ -14,6 +14,11 @@
 export const MIN_PASSWORD_LENGTH = 10; // same rule as Parish Config → Change password
 const DISABLE_FOR = '876000h'; // ~100 years: Supabase's way of disabling a login
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// A password an admin chose (new account or reset) is temporary: the admin
+// panel sends the person to "Set a new password" on their next sign-in, and
+// changing it clears this. user_metadata, since the person must be able to
+// clear it themselves; it only steers the sign-in screen, never access.
+const MUST_CHANGE = { must_change_password: true };
 
 const ok = (body) => ({ status: 200, body: { ok: true, ...body } });
 const fail = (status, error) => ({ status, body: { error } });
@@ -130,7 +135,7 @@ export async function handleStaffRequest({ admin, token, body }) {
       if (access.error) return fail(400, access.error);
 
       const { data: created, error } = await admin.auth.admin.createUser({
-        email: input.email, password: input.password, email_confirm: true,
+        email: input.email, password: input.password, email_confirm: true, user_metadata: MUST_CHANGE,
       });
       if (error) {
         const taken = /already (been )?registered|already exists/i.test(error.message || '');
@@ -182,7 +187,7 @@ export async function handleStaffRequest({ admin, token, body }) {
       if (String(body.password || '').length < MIN_PASSWORD_LENGTH) {
         return fail(400, `The password must be at least ${MIN_PASSWORD_LENGTH} characters`);
       }
-      const { error } = await admin.auth.admin.updateUserById(id, { password: body.password });
+      const { error } = await admin.auth.admin.updateUserById(id, { password: body.password, user_metadata: MUST_CHANGE });
       if (error) return fail(400, error.message || 'Could not reset the password');
       return ok({});
     }
