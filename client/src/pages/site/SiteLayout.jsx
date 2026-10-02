@@ -203,7 +203,17 @@ function DesktopFooter() {
         </div>
         <div className="text-[14.5px] leading-[1.7] text-[#4d4636]">
           <div className="font-bold text-[11.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)] mb-1">Opisina</div>
-          {open.map((r) => <div key={r.label}>{r.label} · {r.hours.join(', ')}</div>)}
+          {/* Each time range on its own line, lined up after the days. */}
+          {open.length > 0 && (
+            <div className="grid grid-cols-[auto_1fr] gap-x-1.5">
+              {open.map((r) => (
+                <React.Fragment key={r.label}>
+                  <div className="whitespace-nowrap">{r.label} ·</div>
+                  <div>{r.hours.map((h, i) => <div key={h} className="whitespace-nowrap">{h}{i < r.hours.length - 1 ? ',' : ''}</div>)}</div>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
           {phone && <div>{phone}</div>}
           {!open.length && !phone && <Link to="/kontak" className="font-semibold text-parish-blue">Tan-awa ang kontak</Link>}
         </div>
