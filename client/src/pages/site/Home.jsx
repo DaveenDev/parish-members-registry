@@ -4,7 +4,7 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
 import { AnnouncementCard, ArticleChip, EventRow, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
-import { excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
+import { censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
@@ -22,7 +22,9 @@ export default function Home() {
   const ann = listState(useAnnouncements());
   const events = listState(useEvents());
   const portal = usePortalStatus().data;
-  const censusOpen = !!useCensusProgress().data?.open;
+  const census = useCensusProgress();
+  const censusOpen = !!census.data?.open;
+  const articles = listState(useArticles());
   const office = useOffice().data;
   const [dismissed, setDismissed] = useState(readDismissed);
   const hero = usePublicData('heroImage', api.publicParishHeroImage).data || null;
@@ -30,6 +32,8 @@ export default function Home() {
   const urgent = ann.rows.find((a) => a.urgent && !dismissed.includes(a.id));
   // The two newest by start date, urgent and pinned ones included.
   const latest = [...ann.rows].sort((a, b) => b.publish_on.localeCompare(a.publish_on) || b.id - a.id).slice(0, 2);
+  // A lone announcement gets the newest article beside it so the row isn't half empty.
+  const pairedArticle = latest.length === 1 ? articles.rows[0] || null : null;
 
   function dismiss() {
     const next = [...dismissed, urgent.id];
@@ -83,7 +87,8 @@ export default function Home() {
               >
                 Irehistro ang Inyong Pamilya
               </Link>
-              {portal?.open && (
+              {/* The census notice below has the same button, so this one only shows without it. */}
+              {portal?.open && !census.loading && !censusOpen && (
                 <Link to="/census" className="w-full min-h-[50px] mt-2.5 flex items-center justify-center font-semibold text-[15.5px] text-parish-blueDeep bg-parish-card border-[1.5px] border-[var(--p-blue-border)] rounded-[14px] lg:w-auto lg:mt-0 lg:min-h-[58px] lg:px-[22px] lg:text-[16px]">
                   Narehistro na? I-update ang inyong rekord
                 </Link>
@@ -100,13 +105,9 @@ export default function Home() {
 
       <CensusNotice />
 
-      <section className="px-3.5 pt-[22px] lg:hidden">
-        <MassToday mass={mass} />
-      </section>
-
-      {/* A full-width navy band, like the census notice, so the page keeps one when no census is open.
-          On desktop it joins the census notice when that shows, with a faint line between. */}
-      <div className={`mt-7 pb-7 bg-parish-navy lg:py-12 ${censusOpen ? 'lg:mt-0 lg:border-t lg:border-white/15' : 'lg:mt-12'}`}>
+      {/* A full-width navy band right under the hero, like the census notice, so the
+          page keeps one when no census is open. It joins the notice when that shows. */}
+      <div className={`pb-7 bg-parish-navy lg:py-12 ${censusOpen ? 'border-t border-white/15' : ''}`}>
       <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:grid lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)] lg:gap-8 lg:items-start">
       <section className="px-3.5 pt-7 lg:p-0">
         <SectionHead dark title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
@@ -115,7 +116,10 @@ export default function Home() {
         ) : !latest.length ? (
           <p className="m-0 text-white/75 text-[15px]">Wala pay pahibalo karong semanaha.</p>
         ) : (
-          <div className={`flex flex-col gap-2.5 lg:grid lg:gap-3.5 lg:items-start ${latest.length > 1 ? 'lg:grid-cols-2' : 'lg:grid-cols-1'}`}>{latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}</div>
+          <div className={`flex flex-col gap-2.5 lg:grid lg:gap-3.5 lg:items-start ${latest.length > 1 || pairedArticle ? 'lg:grid-cols-2' : 'lg:grid-cols-1 lg:max-w-[560px]'}`}>
+            {latest.map((a) => <AnnouncementCard key={a.id} a={a} />)}
+            {pairedArticle && <ArticleMiniCard a={pairedArticle} />}
+          </div>
         )}
       </section>
 
@@ -126,14 +130,18 @@ export default function Home() {
         ) : events.empty ? (
           <p className="m-0 text-white/75 text-[15px]">Walay kalihokan nga naka-iskedyul.</p>
         ) : (
-          // Tinted blue so the events stand apart from the cream announcement cards.
-          <div className="border rounded-2xl lg:rounded-[18px] overflow-hidden shadow-cardSm" style={{ background: 'var(--p-blue-tint)', borderColor: 'var(--p-blue-border)' }}>
-            {events.rows.slice(0, 3).map((e) => <EventRow key={e.id} e={e} tinted />)}
+          // See-through rows on the navy, so the events stand apart from the cream announcement cards.
+          <div className="border border-white/15 rounded-2xl lg:rounded-[18px] overflow-hidden bg-white/[.06]">
+            {events.rows.slice(0, 3).map((e) => <EventRow key={e.id} e={e} dark />)}
           </div>
         )}
       </section>
       </div>
       </div>
+
+      <section className="px-3.5 pt-[22px] lg:hidden">
+        <MassToday mass={mass} />
+      </section>
 
       <ParishStats mass={mass} />
 
@@ -147,7 +155,7 @@ export default function Home() {
         </div>
       </section>
 
-      <LatestArticles />
+      <LatestArticles skipId={pairedArticle?.id} />
 
       <div className="lg:hidden">
         <SiteFooter address={office?.address} />
@@ -158,16 +166,22 @@ export default function Home() {
 }
 
 /**
- * Important notice right under the hero while a census is open: a navy row
- * that stands apart from the cream page, with the way in for families and the
- * parish-wide progress. Hidden while loading and when no census is open.
+ * Important notice right under the hero while a census is open: a full-width
+ * row a shade deeper than the navy band below it, with a gold top line, the
+ * way in for families and the parish-wide progress. Hidden while loading and
+ * when no census is open.
  */
 function CensusNotice() {
   const c = useCensusProgress().data;
   if (!c?.open) return null;
+  const countdown = censusCountdown(c.ends_on, todayIso());
   return (
-    <section aria-labelledby="census-notice" className="mx-3.5 mt-4 rounded-2xl bg-parish-navy text-white shadow-card lg:mx-0 lg:mt-0 lg:rounded-none lg:shadow-none">
-      <div className="px-4 py-5 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:py-7 lg:flex lg:items-center lg:gap-8">
+    <section
+      aria-labelledby="census-notice"
+      className="text-white border-t-[3px]"
+      style={{ background: 'color-mix(in srgb, var(--p-navy) 80%, black)', borderColor: 'var(--p-gold-light)' }}
+    >
+      <div className="px-4 py-6 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:py-7 lg:flex lg:items-center lg:gap-8">
         <div className="flex gap-3.5 items-start flex-1 min-w-0">
           <span className="w-12 h-12 lg:w-14 lg:h-14 flex-none rounded-2xl flex items-center justify-center" style={{ background: 'var(--p-gold-light)', color: 'var(--p-navy)' }}>
             <Icon name="people" size={26} />
@@ -179,9 +193,28 @@ function CensusNotice() {
             </h2>
             <p className="m-0 mt-1.5 text-[15px] lg:text-[16px] leading-normal text-white/85">
               I-update ang rekord sa inyong pamilya gamit ang reference number ug code sa inyong census form
-              {c.ends_on ? <> — abli hangtod <strong className="text-white">{fmtLong(c.ends_on)}</strong></> : null}.
-              {c.pct != null && <> {c.pct}% sa mga pamilya na-update na.</>}
+              {c.ends_on && !countdown ? <> — abli hangtod <strong className="text-white">{fmtLong(c.ends_on)}</strong></> : null}.
             </p>
+            {countdown && (
+              <div className="mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-bold text-[13.5px] text-parish-navy" style={{ background: 'var(--p-gold-light)' }}>
+                <Icon name="clock" size={15} />{countdown} — hangtod {fmtLong(c.ends_on)}
+              </div>
+            )}
+            {c.pct != null && (
+              <div className="mt-3 flex items-center gap-3 max-w-[460px]">
+                <div
+                  role="progressbar"
+                  aria-label="Mga pamilya nga na-update na"
+                  aria-valuenow={c.pct}
+                  aria-valuemin={0}
+                  aria-valuemax={100}
+                  className="flex-1 h-2.5 rounded-full bg-white/15 overflow-hidden"
+                >
+                  <div className="h-full rounded-full" style={{ width: `${c.pct}%`, background: 'var(--p-gold-light)' }} />
+                </div>
+                <span className="flex-none text-[13.5px] text-white/85"><strong className="text-white">{c.pct}%</strong> na-update na</span>
+              </div>
+            )}
           </div>
         </div>
         <div className="mt-4 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:flex-none lg:gap-3">
@@ -290,18 +323,34 @@ function ParishStats({ mass }) {
  * The two newest blog articles, one row each: photo then text on the first,
  * text then photo on the second (stacked, photo first, on phones). A row
  * shows only when there's an article for it; the section hides while
- * loading, on error, or when there are none.
+ * loading, on error, or when there are none. `skipId` is an article already
+ * shown beside the announcements, so it isn't repeated here.
  */
-function LatestArticles() {
+function LatestArticles({ skipId }) {
   const q = listState(useArticles());
-  if (q.loading || q.error || !q.rows.length) return null;
+  const rows = q.rows.filter((a) => a.id !== skipId).slice(0, 2);
+  if (q.loading || q.error || !rows.length) return null;
   return (
     <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12">
       <SectionHead title="Mga Artikulo" to="/pahibalo#artikulo" action="Tanan" actionLg="Tanang artikulo →" />
       <div className="flex flex-col gap-3 lg:gap-5">
-        {q.rows.slice(0, 2).map((a, i) => <ArticleRow key={a.id} a={a} flip={i === 1} />)}
+        {rows.map((a, i) => <ArticleRow key={a.id} a={a} flip={i === 1} />)}
       </div>
     </section>
+  );
+}
+
+/** An article as a card the size of an announcement card, for the navy band. */
+function ArticleMiniCard({ a }) {
+  return (
+    <Link to={`/pahibalo/artikulo/${a.id}`} className="block w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)]">
+      <div className="flex gap-2 items-center mb-1.5 lg:mb-2">
+        <ArticleChip a={a} />
+        <span className="text-[13px] lg:text-[13.5px] text-parish-text2">Artikulo · {fmtShort(a.held_on)}</span>
+      </div>
+      <div className="font-serif font-bold leading-[1.2] lg:leading-[1.18] text-parish-navy text-[20px] lg:text-[23px] lg:mb-1.5">{a.title}</div>
+      {(a.summary || a.body) && <div className="hidden lg:block text-[15px] leading-normal text-[#4d4636]">{excerpt(a.summary || a.body)}</div>}
+    </Link>
   );
 }
 

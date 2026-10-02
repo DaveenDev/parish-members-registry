@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { eventsOnDay, monthCells, sortCensusGkks } from '../src/lib/site.js';
+import { censusCountdown, daysUntil, eventsOnDay, monthCells, sortCensusGkks } from '../src/lib/site.js';
 
 describe('monthCells', () => {
   test('pads October 2026 to whole Sunday-first weeks', () => {
@@ -53,5 +53,23 @@ describe('sortCensusGkks', () => {
   test('Ngalan: A to Z, and the input is left alone', () => {
     assert.deepEqual(names(sortCensusGkks(rows, 'name')), ['Amor -Lumot', 'Birhen sa Fatima -Mua-an', 'San Jose -Ginatilan', 'Santa Monica', 'Sto. Niño -Balabag']);
     assert.equal(rows[0].name, 'Sto. Niño -Balabag');
+  });
+});
+
+describe('census countdown', () => {
+  test('daysUntil counts whole days, 0 on the last day', () => {
+    assert.equal(daysUntil('2026-10-30', '2026-10-02'), 28);
+    assert.equal(daysUntil('2026-10-30', '2026-10-30'), 0);
+    assert.equal(daysUntil('2026-10-30', '2026-10-31'), -1);
+    assert.equal(daysUntil('', '2026-10-02'), null);
+  });
+
+  test('censusCountdown only in the last 7 days', () => {
+    assert.equal(censusCountdown('2026-10-30', '2026-10-02'), null);
+    assert.equal(censusCountdown('2026-10-30', '2026-10-23'), '7 ka adlaw na lang');
+    assert.equal(censusCountdown('2026-10-30', '2026-10-29'), 'Ugma na ang katapusan');
+    assert.equal(censusCountdown('2026-10-30', '2026-10-30'), 'Karon na ang katapusang adlaw');
+    assert.equal(censusCountdown('2026-10-30', '2026-10-31'), null);
+    assert.equal(censusCountdown(null, '2026-10-02'), null);
   });
 });

@@ -350,6 +350,25 @@ export function eventIcs(e, { parishName = 'Parokya', now = new Date() } = {}) {
   return lines.join('\r\n');
 }
 
+// ---- Census ---------------------------------------------------------------
+
+/** Whole days from `todayIsoStr` to `endsOn` (both yyyy-mm-dd): 0 on the last day, negative once past. null without a date. */
+export function daysUntil(endsOn, todayIsoStr) {
+  const isDate = (v) => /^\d{4}-\d{2}-\d{2}/.test(String(v || ''));
+  if (!isDate(endsOn) || !isDate(todayIsoStr)) return null;
+  // Rounded, so a daylight-saving hour can't shift the count.
+  return Math.round((parseIso(endsOn) - parseIso(todayIsoStr)) / 86400000);
+}
+
+/** "5 ka adlaw na lang" style countdown for the last `within` days of a census, or null outside them. */
+export function censusCountdown(endsOn, todayIsoStr, within = 7) {
+  const days = daysUntil(endsOn, todayIsoStr);
+  if (days === null || days < 0 || days > within) return null;
+  if (days === 0) return 'Karon na ang katapusang adlaw';
+  if (days === 1) return 'Ugma na ang katapusan';
+  return `${days} ka adlaw na lang`;
+}
+
 // ---- GKKs -----------------------------------------------------------------
 
 /** "Sto. Niño -Balabag" → { patron: 'Sto. Niño', area: 'Balabag' }. */

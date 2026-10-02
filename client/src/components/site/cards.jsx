@@ -60,31 +60,36 @@ export function eventTone(e) {
   return TONES[EVENT_TONES[e.type] || 'gray'];
 }
 
-export function EventTypeLabel({ e, className = '' }) {
+/** The event type with its icon, in the type's color (or `color`, e.g. on a dark background). */
+export function EventTypeLabel({ e, className = '', color }) {
   return (
-    <span className={`inline-flex items-center gap-[5px] font-bold text-[11.5px] ${className}`} style={{ color: eventTone(e).color }}>
+    <span className={`inline-flex items-center gap-[5px] font-bold text-[11.5px] ${className}`} style={{ color: color || eventTone(e).color }}>
       <Icon name={EVENT_ICONS[e.type] || 'cal'} size={13} />
       {EVENT_TYPE_LABELS[e.type] || e.type}
     </span>
   );
 }
 
-/** Compact row with a date block (Home). `tinted` is for rows on a blue-tint box. */
-export function EventRow({ e, tinted = false }) {
+/**
+ * Compact row with a date block (Home). `tinted` is for rows on a blue-tint
+ * box; `dark` for see-through rows on the navy band (white text, gold dates).
+ */
+export function EventRow({ e, tinted = false, dark = false }) {
   const d = parseIso(e.start_date);
+  const row = dark ? 'border-white/15 hover:bg-white/10' : tinted ? 'hover:bg-white/60' : 'border-[#f0e8d6] hover:bg-[#fbf7ef]';
   return (
     <Link
       to={`/misa/kalihokan/${e.id}`}
-      className={`w-full text-left flex gap-3 lg:gap-3.5 items-center px-3.5 py-3 lg:px-[18px] lg:py-3.5 border-b last:border-b-0 ${tinted ? 'hover:bg-white/60' : 'border-[#f0e8d6] hover:bg-[#fbf7ef]'}`}
-      style={tinted ? { borderColor: 'var(--p-blue-border)' } : undefined}
+      className={`w-full text-left flex gap-3 lg:gap-3.5 items-center px-3.5 py-3 lg:px-[18px] lg:py-3.5 border-b last:border-b-0 ${row}`}
+      style={tinted && !dark ? { borderColor: 'var(--p-blue-border)' } : undefined}
     >
       <div className="w-12 lg:w-[52px] flex-none text-center">
-        <div className="font-bold text-[11px] lg:text-[11.5px] tracking-[.1em] uppercase text-parish-text2">{BIS_MONTHS_SHORT[d.getMonth()]}</div>
-        <div className="font-serif text-[28px] lg:text-[32px] font-bold leading-none text-parish-blue">{d.getDate()}</div>
+        <div className={`font-bold text-[11px] lg:text-[11.5px] tracking-[.1em] uppercase ${dark ? 'text-white/70' : 'text-parish-text2'}`}>{BIS_MONTHS_SHORT[d.getMonth()]}</div>
+        <div className={`font-serif text-[28px] lg:text-[32px] font-bold leading-none ${dark ? 'text-[var(--p-gold-light)]' : 'text-parish-blue'}`}>{d.getDate()}</div>
       </div>
       <div className="flex-1 min-w-0">
-        <EventTypeLabel e={e} className="mb-0.5 lg:text-[12px]" />
-        <div className="font-semibold text-[15px] lg:text-[16px] leading-[1.3]">{e.title}</div>
+        <EventTypeLabel e={e} className="mb-0.5 lg:text-[12px]" color={dark ? 'rgba(255,255,255,.7)' : undefined} />
+        <div className={`font-semibold text-[15px] lg:text-[16px] leading-[1.3] ${dark ? 'text-white' : ''}`}>{e.title}</div>
       </div>
     </Link>
   );
