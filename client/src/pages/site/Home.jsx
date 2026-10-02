@@ -4,12 +4,12 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
 import { AnnouncementCard, ArticleChip, EventRow, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
-import { excerpt, fmtDayMonth, fmtShort, upcomingToday } from '../../lib/site.js';
+import { excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { PARISH_NAME, PARISH_SUB, SiteFooter } from './SiteLayout.jsx';
-import { listState, useAnnouncements, useArticles, useEvents, useMassSchedule, useOffice, usePortalStatus } from './data.js';
+import { listState, useAnnouncements, useArticles, useCensusProgress, useEvents, useMassSchedule, useOffice, usePortalStatus } from './data.js';
 
 const DISMISSED_KEY = 'pmr_dismissed_urgent';
 
@@ -97,6 +97,8 @@ export default function Home() {
         </div>
       </section>
 
+      <CensusNotice />
+
       <section className="px-3.5 pt-[22px] lg:hidden">
         <MassToday mass={mass} />
       </section>
@@ -147,6 +149,46 @@ export default function Home() {
         <CreditFooter inline />
       </div>
     </main>
+  );
+}
+
+/**
+ * Important notice right under the hero while a census is open: a navy row
+ * that stands apart from the cream page, with the way in for families and the
+ * parish-wide progress. Hidden while loading and when no census is open.
+ */
+function CensusNotice() {
+  const c = useCensusProgress().data;
+  if (!c?.open) return null;
+  return (
+    <section aria-labelledby="census-notice" className="mx-3.5 mt-4 rounded-2xl bg-parish-navy text-white shadow-card lg:mx-0 lg:mt-0 lg:rounded-none lg:shadow-none">
+      <div className="px-4 py-5 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:py-7 lg:flex lg:items-center lg:gap-8">
+        <div className="flex gap-3.5 items-start flex-1 min-w-0">
+          <span className="w-12 h-12 lg:w-14 lg:h-14 flex-none rounded-2xl flex items-center justify-center" style={{ background: 'var(--p-gold-light)', color: 'var(--p-navy)' }}>
+            <Icon name="people" size={26} />
+          </span>
+          <div className="min-w-0">
+            <div className="font-bold text-[11.5px] lg:text-[12px] tracking-[.18em] uppercase mb-1" style={{ color: 'var(--p-gold-light)' }}>Importante nga pahibalo</div>
+            <h2 id="census-notice" className="m-0 font-serif font-semibold text-[23px] lg:text-[30px] leading-[1.15]">
+              Nagpadayon ang {c.label || 'census sa parokya'}
+            </h2>
+            <p className="m-0 mt-1.5 text-[15px] lg:text-[16px] leading-normal text-white/85">
+              I-update ang rekord sa inyong pamilya gamit ang reference number ug code sa inyong census form
+              {c.ends_on ? <> — abli hangtod <strong className="text-white">{fmtLong(c.ends_on)}</strong></> : null}.
+              {c.pct != null && <> {c.pct}% sa mga pamilya na-update na.</>}
+            </p>
+          </div>
+        </div>
+        <div className="mt-4 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:flex-none lg:gap-3">
+          <Link to="/census" className="min-h-[52px] px-6 rounded-[14px] flex items-center justify-center font-bold text-[16px] text-parish-navy hover:brightness-105" style={{ background: 'var(--p-gold-light)' }}>
+            I-update ang among rekord
+          </Link>
+          <Link to="/komunidad" className="min-h-[48px] px-5 rounded-[14px] flex items-center justify-center font-semibold text-[15px] text-white border-[1.5px] border-white/40 hover:bg-white/10">
+            Tan-awa ang progreso
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
 
