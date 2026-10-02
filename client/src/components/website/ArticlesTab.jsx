@@ -24,7 +24,7 @@ export default function ArticlesTab() {
 
   // Latest first: newest article date, then most recently added.
   const sorted = [...list.rows].sort((a, b) => b.held_on.localeCompare(a.held_on) || b.id - a.id);
-  const page = urlListPage(sorted, (r) => `${r.title} ${r.summary || ''} ${r.place || ''} ${r.tag}`, url, setUrl);
+  const page = urlListPage(sorted, (r) => `${r.title} ${r.summary || ''} ${r.place || ''} ${r.author || ''} ${r.tag}`, url, setUrl);
 
   return (
     <>
@@ -59,7 +59,7 @@ export default function ArticlesTab() {
                 </div>
                 <div className="font-semibold text-[15px] text-parish-navy">{r.title}</div>
                 {r.summary && <div className="text-[13px] text-parish-text2 line-clamp-2">{r.summary}</div>}
-                <div className="text-[12px] text-parish-muted mt-1">{[`#${r.id}`, fmtDate(r.held_on), r.place].filter(Boolean).join(' · ')}</div>
+                <div className="text-[12px] text-parish-muted mt-1">{[`#${r.id}`, fmtDate(r.held_on), r.place, r.author && `by ${r.author}`].filter(Boolean).join(' · ')}</div>
               </div>
               <div className="flex gap-1.5">
                 <RowButton onClick={() => setEditing(r)}>Edit</RowButton>
@@ -84,7 +84,7 @@ export default function ArticlesTab() {
  */
 function ArticleEditor({ row, onClose, onSaved }) {
   const toast = useToast();
-  const [form, setForm] = useState({ ...row, place: row.place || '', summary: row.summary || '', body: row.body || '', photo_url: row.photo_url || '', photos: row.photos || [] });
+  const [form, setForm] = useState({ ...row, place: row.place || '', author: row.author || '', summary: row.summary || '', body: row.body || '', photo_url: row.photo_url || '', photos: row.photos || [] });
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(0);
   const [error, setError] = useState('');
@@ -152,7 +152,10 @@ function ArticleEditor({ row, onClose, onSaved }) {
     setError('');
     try {
       const photos = form.photos.map((p) => ({ url: p.url, caption: (p.caption || '').trim() }));
-      const saved = await api.saveArticle({ ...form, title: form.title.trim(), photos });
+      // Leave the author out when there never was one, so articles still save before the 0030 migration.
+      const { author, ...fields } = form;
+      const withAuthor = author.trim() || 'author' in row ? { ...fields, author: author.trim() } : fields;
+      const saved = await api.saveArticle({ ...withAuthor, title: form.title.trim(), photos });
       for (const url of removed.current) api.deleteImage(url).catch(() => {});
       added.current.clear();
       // Now that it has an ID: article<ID>_cover.jpg, article<ID>_1.jpg… on R2.
@@ -181,6 +184,7 @@ function ArticleEditor({ row, onClose, onSaved }) {
         <Field label="Date of the event" required><TextInput type="date" value={form.held_on} onChange={(e) => set('held_on')(e.target.value)} /></Field>
         <Field label="Place"><TextInput value={form.place} onChange={(e) => set('place')(e.target.value)} placeholder="e.g. Parish church" /></Field>
       </div>
+      <Field label="Author"><TextInput value={form.author} onChange={(e) => set('author')(e.target.value)} maxLength={120} placeholder="Who wrote it, e.g. Maria Santos or Parish Youth Ministry" /></Field>
       <Field label="Summary">
         <TextArea rows={2} value={form.summary} onChange={(e) => set('summary')(e.target.value)} maxLength={300} placeholder="One or two sentences shown on the article card." />
       </Field>

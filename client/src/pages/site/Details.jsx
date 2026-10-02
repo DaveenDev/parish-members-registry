@@ -145,6 +145,11 @@ export function ArticleDetail() {
             <span className="text-[13.5px] text-parish-text2">{[`Artikulo #${a.id}`, fmtLong(a.held_on), a.place].filter(Boolean).join(' · ')}</span>
           </div>
           <h1 className={DETAIL_TITLE}>{a.title}</h1>
+          {a.author && (
+            <div className="-mt-1.5 mb-4 lg:-mt-2.5 lg:mb-6 text-[15px] lg:text-[16px] text-parish-text2">
+              Sinulat ni <span className="font-semibold text-parish-ink">{a.author}</span>
+            </div>
+          )}
           <Photo src={a.photo_url} hLg={560} />
           <Body text={a.body || a.summary} />
           <Gallery photos={a.photos} />

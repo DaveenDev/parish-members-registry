@@ -679,6 +679,7 @@ export const api = {
     } catch (e) {
       // Before 0021 there's no photos column or History tag.
       if (/photos|articles_tag_check/.test(e.message || '')) throw new Error('Run the 0021_article_gallery.sql migration in Supabase to save Blog Articles');
+      if (/author/.test(e.message || '')) throw new Error('Run the 0030_article_author.sql migration in Supabase to save the author');
       throw e;
     }
   },
