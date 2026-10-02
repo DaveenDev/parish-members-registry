@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api.js';
 import { verifiedText } from './VerifiedLine.jsx';
+import { formatAccessCode } from '../lib/census.js';
 import { fmtDate, ageFromDob, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, HELP_WAYS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
 
@@ -135,7 +136,7 @@ export default function PrintSheet({ data }) {
 }
 
 function HouseholdRecord({ data, parish }) {
-  const { household: h, members = [] } = data;
+  const { household: h, members = [], code } = data;
   const address = [h.street, h.barangay, h.city, h.province, h.zip].filter(Boolean).join(', ');
   return (
     <>
@@ -152,6 +153,7 @@ function HouseholdRecord({ data, parish }) {
         </div>
         <div style={{ marginLeft: 'auto', textAlign: 'right', fontSize: 11, color: '#6b6552' }}>
           <div><strong>Ref:</strong> {h.ref_no || '—'}</div>
+          {code && <div><strong>Census code:</strong> {formatAccessCode(code)}</div>}
           <div><strong>Status:</strong> {h.status}</div>
           {verifiedText(h) && <div>{verifiedText(h)}</div>}
           <div>Printed {new Date().toLocaleDateString()}</div>
@@ -176,6 +178,14 @@ function HouseholdRecord({ data, parish }) {
           ))}
         </tbody>
       </table>
+
+      {code && (
+        <div style={{ border: '1.5px solid #34589c', borderRadius: 6, padding: '6px 10px', margin: '0 0 20px', fontSize: 10.5, color: '#1a2b4a' }}>
+          <strong>Census online:</strong> adto sa <strong>{window.location.origin}/census</strong> ug ibutang ang
+          Ref <strong>{h.ref_no}</strong> ug Code <strong style={{ fontSize: 12, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>{formatAccessCode(code)}</strong>.
+          Ayaw ipakita kini nga code sa uban.
+        </div>
+      )}
 
       <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, margin: '0 0 8px', color: '#1a2b4a' }}>
         Participation in the Parish / GKK

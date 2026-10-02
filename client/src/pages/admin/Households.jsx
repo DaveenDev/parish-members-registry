@@ -8,6 +8,7 @@ import HouseholdEditDrawer from '../../components/HouseholdEditDrawer.jsx';
 import NewHouseholdDrawer from '../../components/NewHouseholdDrawer.jsx';
 import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 import PrintSheet, { printHouseholdSheet } from '../../components/PrintSheet.jsx';
+import CensusCodesDialog from '../../components/CensusCodesDialog.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { useDebounced, useUrlState } from '../../hooks.js';
@@ -50,6 +51,7 @@ export default function Households() {
   // The old /admin/households/new link arrives here with the panel open.
   const [creating, setCreating] = useState(!!location.state?.newHousehold);
   const [printData, setPrintData] = useState(null);
+  const [codesFor, setCodesFor] = useState(null);
   const [selected, setSelected] = useState(() => new Set());
   const [bulkBusy, setBulkBusy] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -132,8 +134,13 @@ export default function Households() {
 
   async function print(list) {
     try {
-      const data = await Promise.all(list.map((h) => api.getHousehold(h.id)));
-      setPrintData(data.length === 1 ? data[0] : data);
+      const [data, codes] = await Promise.all([
+        Promise.all(list.map((h) => api.getHousehold(h.id))),
+        // Census online codes (0008). Without that migration the record prints without them.
+        api.censusAccessCodes(list.map((h) => h.id)).catch(() => ({})),
+      ]);
+      const withCodes = data.map((d) => ({ ...d, code: codes[d.household.id] || null }));
+      setPrintData(withCodes.length === 1 ? withCodes[0] : withCodes);
       // Let React commit the print sheet before handing off to the browser.
       requestAnimationFrame(() => requestAnimationFrame(() => printHouseholdSheet()));
     } catch (e) {
@@ -218,6 +225,7 @@ export default function Households() {
 
   const rowActions = (h) => [
     { label: 'Print record', onClick: () => print([h]) },
+    { label: 'Get codes', onClick: () => setCodesFor(h) },
     canDelete && { label: 'Delete household', tone: 'danger', onClick: () => removeHousehold(h) },
   ];
 
@@ -422,6 +430,7 @@ export default function Households() {
         />
       )}
       <PrintSheet data={printData} />
+      {codesFor && <CensusCodesDialog household={codesFor} canReset={can(user, 'editCensus')} onClose={() => setCodesFor(null)} />}
     </>
   );
 }
