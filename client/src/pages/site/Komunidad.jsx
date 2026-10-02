@@ -10,20 +10,33 @@ import { listState, useArticles, useCensusProgress, useGkkDirectory } from './da
 
 const SMALL = 'Ubos sa 5';
 
-/** Komunidad: latest updates on activities held, then the GKK directory and census progress. */
+/**
+ * Komunidad: latest updates on activities held, then the census progress and
+ * the GKK directory. While a census is open, Census is the first tab and the
+ * one shown by default; with no census open the GKK directory comes first.
+ */
 export default function Komunidad() {
   const [params, setParams] = useSearchParams();
-  const census = useCensusProgress().data;
-  const view = params.get('view') === 'census' ? 'census' : 'gkk';
-  const setView = (v) => setParams(v === 'census' ? { view: 'census' } : {}, { replace: true });
+  const q = useCensusProgress();
+  const census = q.data;
+  const open = !!census?.open;
+  // The default depends on the census, so hold off until it's known (a failed load counts as no census).
+  const ready = !q.loading;
+  const requested = params.get('view');
+  const defaultView = open ? 'census' : 'gkk';
+  const view = requested === 'census' || requested === 'gkk' ? requested : defaultView;
+  // The default tab keeps the address clean; the other one is spelled out.
+  const setView = (v) => setParams(v === defaultView ? {} : { view: v }, { replace: true });
+  const censusTab = ['census', open ? census.label : 'Census'];
+  const gkkTab = ['gkk', 'GKK Directory'];
 
   return (
     <main className={PAGE}>
       <LatestUpdates />
       <PageHeader eyebrow="Komunidad" title="Mga GKK sa parokya">
-        <Segmented label="Komunidad" options={[['gkk', 'GKK Directory'], ['census', census?.open ? census.label : 'Census']]} value={view} onChange={setView} />
+        {ready && <Segmented label="Komunidad" options={open ? [censusTab, gkkTab] : [gkkTab, censusTab]} value={view} onChange={setView} />}
       </PageHeader>
-      {view === 'gkk' ? <GkkDirectory /> : <CensusProgress />}
+      {!ready && !requested ? <Skeletons n={2} h={160} /> : view === 'gkk' ? <GkkDirectory /> : <CensusProgress />}
     </main>
   );
 }
