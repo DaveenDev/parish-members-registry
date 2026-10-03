@@ -132,6 +132,30 @@ Running the seed without removing first stops with:
 Load-test seed is already in the database. Run the cleanup (npm run db:clean-load) first.
 ```
 
+## Census status matching the score
+
+Each test member's census status (the **Active** / **Inactive** badge beside
+their name) follows their Practicing Catholic score: *Dili aktibo* is
+Inactive, *Aktibo* and *Panagsa* are Active. Moved away, deceased, children
+and members not yet rated keep their own status.
+
+Test data seeded before this rule (where a member could score 39% *Dili
+aktibo* and still show **Active**) can be fixed in place, without reseeding:
+
+```bash
+npm run db:fix-load-status
+```
+
+It prints what the test members look like afterwards; the first two numbers
+should be 0:
+
+```
+dili_aktibo_but_active 0 · active_score_but_inactive 0 · active … · inactive …
+```
+
+Only test members change, and their answers in the open census get the same
+status. Running it again changes nothing.
+
 ## Changing the seed
 
 - **More or fewer households:** change `for i in 1..500` near the top of

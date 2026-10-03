@@ -371,6 +371,28 @@ select '[Test] ' || (array['Novena Mass','GKK Rotation','Parish Recollection','C
 from generate_series(1, 40) g
 cross join lateral (select (current_date + floor(random() * 360)::int - 180)::date as d) t;
 
+-- Census status to match the Practicing Catholic score (the status above is
+-- picked at random): Dili aktibo -> Inactive, Aktibo or Panagsa -> Active.
+-- Same rule as load-test-fix-status.sql, which fixes data seeded before this.
+create temp table seed_status_fix on commit drop as
+select v.id as member_id,
+       case v.practice_level when 'Dili aktibo' then 'Inactive' when 'Aktibo' then 'Active' when 'Panagsa' then 'Active' end as status
+from members_with_household v
+join households h on h.id = v.household_id
+where h.ref_no like 'SEED-%'
+  and v.membership_status in ('Active', 'Inactive');
+
+delete from seed_status_fix f
+using members m
+where m.id = f.member_id and (f.status is null or m.membership_status = f.status);
+
+update members m set membership_status = f.status from seed_status_fix f where m.id = f.member_id;
+
+update census_member_responses r
+set status = f.status
+from seed_status_fix f
+where r.member_id = f.member_id and r.status in ('Active', 'Inactive') and r.status <> f.status;
+
 commit;
 
 -- What was added (the last statement's rows are what the CLI prints).

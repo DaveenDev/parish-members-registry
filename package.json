@@ -12,6 +12,7 @@
     "db:wipe-test": "node scripts/playbook-wipe.mjs",
     "db:seed-load": "npx supabase db query --linked -f supabase/seed/load-test.sql",
     "db:clean-load": "npx supabase db query --linked -f supabase/seed/load-test-clean.sql",
+    "db:fix-load-status": "npx supabase db query --linked -f supabase/seed/load-test-fix-status.sql",
     "install:all": "npm install && npm install --prefix client",
     "test": "node --test \"client/test/**/*.test.js\"",
     "test:watch": "node --test --watch \"client/test/**/*.test.js\""
