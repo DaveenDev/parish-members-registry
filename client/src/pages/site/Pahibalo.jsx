@@ -11,6 +11,25 @@ const CATEGORY_FILTERS = [['all', 'Tanan'], ['Parish', 'Parokya'], ['GKK', 'GKK'
 // Values match the articles_tag_check constraint (0021).
 const ARTICLE_TAG_FILTERS = [['all', 'Tanan'], ['History', 'Kasaysayan'], ['Parish', 'Parokya'], ['GKK', 'GKK'], ['Ministry', 'Ministry']];
 const ARTICLES_STEP = 6;
+// Announcements shown at a time: three rows on desktop, six stacked on phones.
+const ANNOUNCEMENTS_STEP = { desktop: 9, phone: 6 };
+// A warm sand band for the articles, from the theme's gold, so it reads apart
+// from both the blue band above and the page's own cream.
+const ARTICLES_BAND = 'color-mix(in srgb, var(--p-gold) 24%, #fbf7ee)';
+
+/** True on desktop widths (Tailwind's lg), following the window as it resizes. */
+function useIsDesktop() {
+  const query = '(min-width: 1024px)';
+  const [on, setOn] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia?.(query);
+    if (!m) return undefined;
+    const change = () => setOn(m.matches);
+    m.addEventListener?.('change', change);
+    return () => m.removeEventListener?.('change', change);
+  }, []);
+  return on;
+}
 
 /** Desktop columns for `n` cards: one fills the row, two split it, three or more go three across. */
 const cols = (n) => (n <= 1 ? 'lg:grid-cols-1' : n === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3');
@@ -47,16 +66,24 @@ export default function Pahibalo() {
 }
 
 /**
- * Mga Pahibalo: urgent ones first, then pinned, then newest. The category
- * filters only show once there's something to filter (4 or more, in at least
- * two categories). A lone card keeps to a readable width.
+ * Mga Pahibalo: urgent ones first, then pinned, then newest, a batch at a
+ * time (9 on desktop, 6 on phones; urgent and pinned ones are always in the
+ * first). The category filters only show once there's something to filter
+ * (4 or more, in at least two categories). A lone card keeps to a readable
+ * width; cards in a row share its height.
  */
 function Announcements() {
   const ann = listState(useAnnouncements());
   const [cat, setCat] = useState('all');
+  const [extra, setExtra] = useState(0);
+  const step = useIsDesktop() ? ANNOUNCEMENTS_STEP.desktop : ANNOUNCEMENTS_STEP.phone;
   const showFilters = ann.rows.length >= 4 && new Set(ann.rows.map((a) => a.category)).size >= 2;
   const active = showFilters ? cat : 'all';
-  const shown = sortAnnouncements(ann.rows).filter((a) => active === 'all' || (active === 'urgent' ? a.urgent : a.category === active));
+  const list = sortAnnouncements(ann.rows).filter((a) => active === 'all' || (active === 'urgent' ? a.urgent : a.category === active));
+  const firstBatch = Math.max(step, list.filter((a) => a.urgent || a.pinned).length);
+  const shown = list.slice(0, firstBatch + extra);
+  const left = list.length - shown.length;
+  const pickCat = (v) => { setCat(v); setExtra(0); };
   // Only offer the categories that have something in them.
   const filters = CATEGORY_FILTERS.filter(([v]) => v === 'all' || ann.rows.some((a) => (v === 'urgent' ? a.urgent : a.category === v)));
 
@@ -72,7 +99,7 @@ function Announcements() {
             <p className="m-0 text-[14.5px] lg:text-[15.5px] text-[#4d4636]">Gikan sa opisina sa parokya, sa mga GKK ug mga ministry.</p>
           </div>
         </div>
-        {showFilters && <Pills scroll options={filters} value={cat} onChange={setCat} />}
+        {showFilters && <Pills scroll options={filters} value={cat} onChange={pickCat} />}
       </div>
       <DataState
         state={ann}
@@ -81,9 +108,17 @@ function Announcements() {
         empty={ann.empty}
         emptyText="Wala pay pahibalo. Balik lang sunod semana."
       >
-        <div className={`flex flex-col gap-2.5 lg:grid lg:gap-4 lg:items-start ${cols(shown.length)} ${shown.length === 1 ? 'lg:max-w-[760px]' : ''}`}>
+        <div className={`flex flex-col gap-2.5 lg:grid lg:gap-4 ${cols(shown.length)} ${shown.length === 1 ? 'lg:max-w-[760px]' : ''}`}>
           {shown.map((a) => <AnnouncementCard key={a.id} a={a} full />)}
         </div>
+        {left > 0 && (
+          <div className="mt-4 lg:mt-5 flex items-center gap-3 flex-wrap">
+            <button type="button" onClick={() => setExtra((n) => n + step)} className="w-full lg:w-auto min-h-[46px] px-5 rounded-[12px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[15px] hover:bg-[var(--p-blue-tint)]">
+              Tan-awa pa ang {Math.min(step, left)}
+            </button>
+            <span className="text-[13.5px] text-parish-text2">Gipakita ang {shown.length} sa {list.length}</span>
+          </div>
+        )}
       </DataState>
     </section>
   );
@@ -117,8 +152,8 @@ function Articles() {
   return (
     <section
       id="artikulo" aria-labelledby="articles-title"
-      className="scroll-mt-16 lg:scroll-mt-[76px] mt-1 lg:mt-12 py-7 lg:py-12 border-y"
-      style={{ background: 'var(--p-gold-tint)', borderColor: 'color-mix(in srgb, var(--p-gold) 35%, white)' }}
+      className="scroll-mt-16 lg:scroll-mt-[76px] py-7 lg:py-12 border-b"
+      style={{ background: ARTICLES_BAND, borderColor: 'color-mix(in srgb, var(--p-gold) 40%, white)' }}
     >
       <div className={WRAP}>
         <div className="flex items-end justify-between gap-x-6 gap-y-3 flex-wrap mb-4 lg:mb-6">
@@ -162,7 +197,7 @@ function UpcomingEvents() {
         <h2 id="upcoming-events" className="m-0 font-serif text-[22px] lg:text-[26px] font-bold text-parish-navy">Umaabot nga Kalihokan</h2>
         <Link to="/misa?view=kalendaryo" className="font-bold text-[14px] lg:text-[15px] text-parish-blueDeep whitespace-nowrap hover:underline">Tan-awa ang kalendaryo →</Link>
       </div>
-      <div className={`flex flex-col gap-2 lg:grid lg:gap-3 ${cols(next.length)}`}>{next.map((e) => <EventCard key={e.id} e={e} showDate />)}</div>
+      <div className={`flex flex-col gap-2 lg:grid lg:gap-3 ${cols(next.length)}`}>{next.map((e) => <EventCard key={e.id} e={e} showDate fill />)}</div>
     </section>
   );
 }

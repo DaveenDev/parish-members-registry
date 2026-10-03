@@ -35,7 +35,7 @@ export function AnnouncementCard({ a, full = false, fill = false }) {
       <AnnouncementMeta a={a} />
       <div className={`font-serif font-bold leading-[1.2] lg:leading-[1.18] text-parish-navy lg:text-[23px] lg:mb-1.5 ${full ? 'text-[21px] mb-1' : 'text-[20px]'}`}>{a.title}</div>
       {a.body && (
-        <div className={`text-[15px] leading-normal text-[#4d4636] ${full ? '' : 'hidden lg:block'} ${fill ? 'lg:line-clamp-3' : ''}`}>{excerpt(a.body, fill ? 260 : 140)}</div>
+        <div className={`text-[15px] leading-normal text-[#4d4636] ${full ? 'line-clamp-3' : 'hidden lg:block'} ${fill ? 'lg:line-clamp-3' : ''}`}>{excerpt(a.body, fill ? 260 : 140)}</div>
       )}
       {fill && <span className="hidden lg:inline-flex mt-auto pt-3 items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha<Icon name="chev" size={16} /></span>}
     </Link>
@@ -119,6 +119,30 @@ export function ArticleCard({ a, wide = false }) {
 export function ArticleFeature({ a }) {
   const count = (a.photos || []).length;
   const path = `/pahibalo/artikulo/${a.id}`;
+  if (!a.photo_url) {
+    // No cover: the text alone, wide, with a gold edge (no empty picture box).
+    return (
+      <div className="relative">
+        <CardShare title={a.title} path={path} />
+        <Link
+          to={path}
+          className="block bg-parish-card border border-parish-border border-l-[6px] rounded-2xl lg:rounded-[20px] shadow-card p-5 pr-14 lg:p-10 lg:pr-20 transition-colors hover:border-[var(--p-blue-border)]"
+          style={{ borderLeftColor: 'var(--p-gold)' }}
+        >
+          <div className="flex gap-2 items-center mb-2 lg:mb-3 flex-wrap">
+            <span className="font-bold text-[11.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)]">Pinakabag-o</span>
+            <ArticleChip a={a} />
+            <span className="text-[13px] lg:text-[14px] text-parish-text2">{fmtShort(a.held_on)}</span>
+            {count > 0 && <span className="text-[13px] lg:text-[14px] text-parish-text2">· {count} ka litrato</span>}
+          </div>
+          <div className="font-serif font-bold text-[24px] lg:text-[36px] leading-[1.15] text-parish-navy lg:max-w-[900px]">{a.title}</div>
+          {(a.summary || a.body) && <p className="m-0 mt-2 lg:mt-3 text-[15px] lg:text-[17px] leading-relaxed text-[#4d4636] line-clamp-3 lg:max-w-[820px]">{a.summary || excerpt(a.body, 320)}</p>}
+          <ArticleByline a={a} className="mt-3" />
+          <span className="mt-3 lg:mt-5 inline-flex items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha ang artikulo<Icon name="chev" size={16} /></span>
+        </Link>
+      </div>
+    );
+  }
   return (
     <div className="relative">
       <CardShare title={a.title} path={path} />
@@ -168,7 +192,7 @@ export function EventCard({ e, showDate = false, fill = false }) {
       {showDate && <div className="text-[13.5px] font-semibold text-parish-navy">{fmtShort(e.start_date)}{e.end_date && e.end_date !== e.start_date ? ` – ${fmtShort(e.end_date)}` : ''}</div>}
       <div className="text-[13.5px] text-parish-text2">{[eventTime(e), e.location].filter(Boolean).join(' · ')}</div>
       {span && (
-        <div className="mt-2 flex items-center gap-2">
+        <div className={`flex items-center gap-2 ${fill ? 'mt-auto pt-2' : 'mt-2'}`}>
           <div className="flex-1 h-1.5 rounded-full opacity-70" style={{ background: tone.color }} />
           <span className="font-bold text-[12px] whitespace-nowrap" style={{ color: tone.color }}>{span}</span>
         </div>
@@ -207,7 +231,8 @@ export function EventCard({ e, showDate = false, fill = false }) {
         <div className="w-10 h-10 flex-none rounded-xl flex items-center justify-center" style={{ background: tone.background, color: tone.color }}>
           <Icon name={EVENT_ICONS[e.type] || 'cal'} size={21} />
         </div>
-        <div className="flex-1 min-w-0">
+        {/* With `fill`, the span bar sits at the bottom of a card stretched to its row. */}
+        <div className={`flex-1 min-w-0 ${fill ? 'flex flex-col' : ''}`}>
           {details}
         </div>
       </Link>
