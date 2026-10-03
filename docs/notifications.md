@@ -80,8 +80,19 @@ Each staff member, on each phone or computer:
   **Share → Add to Home Screen**, open **Parish Admin** from the Home Screen,
   sign in, then **Settings → Notifications → Turn on**.
 
-On the same page each person chooses **Every new request**, **Urgent ones
-only** or **None**, and whether to get the morning summary. **My devices**
+On the same page each person chooses what reaches their devices, and whether
+to get the morning summary:
+
+- **Member requests only** (the default, from
+  [`0037_notify_member_requests.sql`](../supabase/migrations/0037_notify_member_requests.sql)):
+  requests for Dihog (Anointing of the Sick), certificates and OCIA, the
+  blood donor call (blood requests and new donors) and census updates from
+  families.
+- **Every new request**: the same, plus new household registrations.
+- **Urgent ones only**: Anointing of the Sick and blood requests.
+- **None**: nothing as it comes in.
+
+The bell in the admin panel lists everything whatever the choice. **My devices**
 lists where they're turned on; remove an old phone there.
 
 A shared office computer belongs to whoever turned notifications on last.

@@ -6,6 +6,7 @@
 export const NOTIFICATION_KINDS = {
   anointing: { icon: '✚', tone: 'red', label: 'Anointing of the Sick' },
   blood: { icon: '🩸', tone: 'red', label: 'Blood request' },
+  donor: { icon: '❤', tone: 'red', label: 'Blood donor' },
   certificate: { icon: '📜', tone: 'blue', label: 'Certificate' },
   ocia: { icon: '✝', tone: 'blue', label: 'OCIA' },
   registration: { icon: '🏠', tone: 'green', label: 'Registration' },
@@ -15,9 +16,20 @@ export const NOTIFICATION_KINDS = {
 
 export const kindStyle = (kind) => NOTIFICATION_KINDS[kind] || { icon: '•', tone: 'blue', label: 'Notice' };
 
+/**
+ * The kinds "Member requests only" sends: what parishioners ask for from the
+ * website. Same list as notification_push_targets() in
+ * 0037_notify_member_requests.sql; keep the two in sync.
+ */
+export const MEMBER_REQUEST_KINDS = ['anointing', 'certificate', 'ocia', 'blood', 'donor', 'census'];
+
+/** What a new account gets until it chooses (the column default in 0037). */
+export const DEFAULT_PUSH_LEVEL = 'requests';
+
 /** What each account wants sent to its devices (staff_notify_prefs.push_level). */
 export const PUSH_LEVELS = [
-  { key: 'all', label: 'Every new request', note: 'Certificates, OCIA, Anointing of the Sick, blood requests, registrations and census updates, as they come in.' },
+  { key: 'requests', label: 'Member requests only', note: 'The default. Requests for Dihog (Anointing of the Sick), certificates and OCIA, the blood donor call (blood requests and new donors), and census updates from families.' },
+  { key: 'all', label: 'Every new request', note: 'All of the above, plus new household registrations, as they come in.' },
   { key: 'urgent', label: 'Urgent ones only', note: 'Anointing of the Sick and blood requests.' },
   { key: 'none', label: 'None', note: 'Nothing as it comes in; the bell in the admin panel still shows everything.' },
 ];

@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { isUnread, unreadCount, timeAgo, urlBase64ToUint8Array, deviceLabel, pushSupport, kindStyle } from '../src/lib/notifications.js';
+import { isUnread, unreadCount, timeAgo, urlBase64ToUint8Array, deviceLabel, pushSupport, kindStyle, PUSH_LEVELS, DEFAULT_PUSH_LEVEL, MEMBER_REQUEST_KINDS } from '../src/lib/notifications.js';
 
 describe('staff notifications', () => {
   const list = [
@@ -52,5 +52,19 @@ describe('staff notifications', () => {
   test('every kind has a look, unknown ones too', () => {
     assert.equal(kindStyle('anointing').tone, 'red');
     assert.equal(kindStyle('something-new').label, 'Notice');
+  });
+});
+
+describe('push levels', () => {
+  test('member requests only is the default and listed first', () => {
+    assert.equal(DEFAULT_PUSH_LEVEL, 'requests');
+    assert.equal(PUSH_LEVELS[0].key, 'requests');
+    assert.deepEqual(PUSH_LEVELS.map((l) => l.key).sort(), ['all', 'none', 'requests', 'urgent']);
+  });
+  test('member requests leave out registrations and the morning summary', () => {
+    for (const k of ['anointing', 'certificate', 'ocia', 'blood', 'donor', 'census']) assert.ok(MEMBER_REQUEST_KINDS.includes(k), k);
+    assert.ok(!MEMBER_REQUEST_KINDS.includes('registration'));
+    assert.ok(!MEMBER_REQUEST_KINDS.includes('digest'));
+    assert.equal(kindStyle('donor').label, 'Blood donor');
   });
 });

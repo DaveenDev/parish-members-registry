@@ -467,7 +467,7 @@ export const api = {
       if (list.error.code === '42P01' || list.error.code === 'PGRST205') return null;
       throw mapError(list.error);
     }
-    return { items: list.data || [], prefs: prefs.data || { seen_at: null, push_level: 'all', digest: true } };
+    return { items: list.data || [], prefs: prefs.data || { seen_at: null, push_level: 'requests', digest: true } };
   },
 
   /** Opening the bell: everything so far is seen. Returns the database's time. */

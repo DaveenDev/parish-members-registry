@@ -5,7 +5,7 @@ import { PageHeader, PageBody, Panel, EmptyState } from '../../components/admin.
 import { PrimaryButton, GhostButton, Checkbox } from '../../components/ui.jsx';
 import { NotificationRow } from '../../components/NotificationBell.jsx';
 import { useToast } from '../../ToastContext.jsx';
-import { PUSH_LEVELS, timeAgo } from '../../lib/notifications.js';
+import { DEFAULT_PUSH_LEVEL, PUSH_LEVELS, timeAgo } from '../../lib/notifications.js';
 import { browserPushSupport, currentSubscription, enablePush, disablePush } from '../../lib/push.js';
 
 function Section({ title, subtitle, children }) {
@@ -42,7 +42,7 @@ export default function Notifications() {
   useEffect(() => {
     currentSubscription().then(setSub).catch(() => setSub(null));
     loadDevices();
-    const defaults = { seen_at: null, push_level: 'all', digest: true };
+    const defaults = { seen_at: null, push_level: DEFAULT_PUSH_LEVEL, digest: true };
     api.listNotifications(1).then((r) => setPrefs(r?.prefs || defaults)).catch(() => setPrefs(defaults));
   }, []);
 
