@@ -18,9 +18,6 @@ export const CERT_STATUSES = ['Received', 'Being prepared', 'Ready for pick-up',
 export const CERT_OPEN = ['Received', 'Being prepared', 'Ready for pick-up'];
 export const CERT_FLOW = ['Received', 'Being prepared', 'Ready for pick-up', 'Released'];
 
-export const PRAYER_TYPES = ['For the sick', 'Thanksgiving', 'For the departed', 'Special intention'];
-export const PRAYER_STATUSES = ['New', 'Prayed for', 'Archived'];
-
 export const BLOOD_REQUEST_STATUSES = ['Open', 'Contacting donors', 'Fulfilled', 'Closed'];
 export const BLOOD_OPEN = ['Open', 'Contacting donors'];
 export const CONTACT_STATUSES = ['Contacted', 'No answer', 'Agreed', 'Declined', 'Donated'];
@@ -43,8 +40,6 @@ export const STATUS_TONES = {
   Released: 'gray',
   'Cannot issue': 'red',
   New: 'gold',
-  'Prayed for': 'green',
-  Archived: 'gray',
   Open: 'red',
   'Contacting donors': 'gold',
   Fulfilled: 'green',

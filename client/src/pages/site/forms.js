@@ -79,7 +79,7 @@ export const FORMS = {
     submit: (v) => api.submitSacramentRequest({ ...v, sacrament: 'ocia' }),
   },
 
-  // Also "Pangayo ug Dihog Iskedyul" on Mga Serbisyo, in place of the old prayer request.
+  // Also "Pangayo ug Dihog Iskedyul" on Mga Serbisyo.
   pagdihog: {
     title: 'Pangayo ug Dihog Iskedyul',
     short: 'Dihog Iskedyul',

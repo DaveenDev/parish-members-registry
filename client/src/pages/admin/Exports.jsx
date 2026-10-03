@@ -21,7 +21,6 @@ const EXPORTS = [
   { group: 'Registry', path: '/exports/rosters.csv', file: 'ministry-rosters.csv', icon: 'group', tone: 'green', title: 'Ministry & organization rosters', desc: 'One row per member per ministry or organization, sorted by group.' },
   { group: 'Registry', path: '/exports/blood.csv', file: 'blood-directory.csv', icon: 'drop', tone: 'red', title: 'Blood type directory', desc: 'Current members with a blood type on file, with GKK and contact number.' },
   { group: 'Requests', need: 'requests', path: '/exports/certificates.csv', file: 'certificate-requests.csv', icon: 'doc', tone: 'blue', title: 'Certificate requests', desc: 'Every request with its status, fee and OR number, and when it was released.' },
-  { group: 'Requests', need: 'requests', path: '/exports/prayers.csv', file: 'prayer-requests.csv', icon: 'heart', tone: 'gold', title: 'Prayer intentions', desc: 'Intentions received and the Mass they were offered at.' },
   { group: 'Requests', need: 'requests', path: '/exports/donors.csv', file: 'blood-donors.csv', icon: 'drop', tone: 'red', title: 'Blood donors', desc: 'People who agreed to be contacted for blood, with their last donation.' },
   { group: 'Records', need: 'activity', path: '/exports/activity.csv', file: 'activity-log.csv', icon: 'clock', tone: 'green', title: 'Activity log', desc: 'Every recorded change to households, members and sacrament verifications.' },
 ];

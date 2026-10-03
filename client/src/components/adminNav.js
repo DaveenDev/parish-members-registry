@@ -77,6 +77,6 @@ export function navBadges(counts) {
     duplicates: counts.duplicate_groups || 0,
     sacraments: counts.sacraments_waiting || 0,
     census: counts.census_updates || 0,
-    requests: r ? (r.certificates || 0) + (r.ready || 0) + (r.prayers || 0) + (r.blood || 0) + (r.sacraments || 0) : 0,
+    requests: r ? (r.certificates || 0) + (r.ready || 0) + (r.blood || 0) + (r.sacraments || 0) : 0,
   };
 }

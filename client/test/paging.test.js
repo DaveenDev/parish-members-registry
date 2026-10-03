@@ -129,8 +129,8 @@ describe('mergeUrlState', () => {
   const defaults = { view: 'open', q: '', page: 1, size: 10 };
 
   test('keeps keys the list does not own, such as the tab', () => {
-    const out = mergeUrlState(new URLSearchParams('tab=prayers&page=3'), { view: 'all' }, defaults);
-    assert.deepEqual(out, { tab: 'prayers', view: 'all' });
+    const out = mergeUrlState(new URLSearchParams('tab=blood&page=3'), { view: 'all' }, defaults);
+    assert.deepEqual(out, { tab: 'blood', view: 'all' });
   });
 
   test('a filter change goes back to page 1; a page change keeps the filters', () => {

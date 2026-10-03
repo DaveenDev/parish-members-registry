@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { todayItems } from '../src/lib/today.js';
 
-const counts = { requests: { certificates: 2, ready: 1, prayers: 0, blood: 1 }, census_updates: 3, sacraments_waiting: 5 };
+const counts = { requests: { certificates: 2, ready: 1, blood: 1 }, census_updates: 3, sacraments_waiting: 5 };
 const keys = (items) => items.map((i) => i.key);
 
 test('full access sees requests, census, sacraments and the week ahead', () => {
@@ -21,7 +21,7 @@ test('full access sees requests, census, sacraments and the week ahead', () => {
 test('nothing waiting means nothing listed, and this week’s bulletin counts as done', () => {
   const items = todayItems({
     user: { access: 'full' }, today: '2026-10-01',
-    counts: { requests: { certificates: 0, ready: 0, prayers: 0, blood: 0 } },
+    counts: { requests: { certificates: 0, ready: 0, blood: 0 } },
     bulletins: [{ week_of: '2026-09-27', published: true }],
   });
   assert.deepEqual(items, []);

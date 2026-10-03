@@ -56,8 +56,6 @@ function SickCallNote() {
 /** A request form: one step at a time, a review before sending, then the reference number. */
 export default function RequestForm() {
   const { form: formId } = useParams();
-  // The prayer request form was replaced by the anointing schedule request.
-  if (formId === 'pag-ampo') return <Navigate to="/serbisyo/hangyo/pagdihog" replace />;
   const F = FORMS[formId];
   if (!F) return <Navigate to="/serbisyo" replace />;
   return <FormFlow key={formId} F={F} />;

@@ -7,7 +7,7 @@ import { can } from '../lib/access.js';
 import { NAV_GROUPS, navAllowed } from './adminNav.js';
 import MemberDetailModal from './MemberDetailModal.jsx';
 
-const REQUEST_TABS = { certificates: ['Certificate', ''], sacraments: ['Sacrament request', 'sacraments'], prayers: ['Prayer request', 'prayers'], blood: ['Blood request', 'blood'] };
+const REQUEST_TABS = { certificates: ['Certificate', ''], sacraments: ['Sacrament request', 'sacraments'], blood: ['Blood request', 'blood'] };
 
 /** Ctrl+K / ⌘K anywhere in the admin panel, or the sidebar's Search button. */
 export function useCommandPaletteShortcut(open) {
@@ -73,7 +73,7 @@ export default function CommandPalette({ onClose }) {
     }));
     const requests = found.requests.map((r) => {
       const [label, tab] = REQUEST_TABS[r.kind];
-      const view = r.kind === 'prayers' || r.kind === 'sacraments' ? 'All' : 'all';
+      const view = r.kind === 'sacraments' ? 'All' : 'all';
       const params = new URLSearchParams({ ...(tab ? { tab } : {}), view, ...(r.kind === 'blood' ? {} : { q: r.ref_no }) });
       return { key: `r${r.kind}${r.id}`, section: 'Requests', title: `${r.ref_no} · ${r.title}`, sub: `${label} · ${r.status}`, go: () => navigate(`/admin/requests?${params}`) };
     });

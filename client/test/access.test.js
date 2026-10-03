@@ -72,7 +72,7 @@ describe('admin nav', async () => {
   });
 
   test('adds up the request queues for one badge', () => {
-    assert.deepEqual(navBadges({ pending_households: 2, requests: { certificates: 1, ready: 2, prayers: 3, blood: 0 } }),
+    assert.deepEqual(navBadges({ pending_households: 2, requests: { certificates: 1, ready: 2, blood: 0, sacraments: 3 } }),
       { pending: 2, duplicates: 0, sacraments: 0, census: 0, requests: 6 });
   });
 });

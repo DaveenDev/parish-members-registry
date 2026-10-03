@@ -415,9 +415,6 @@ export const api = {
       ['certificates', 'certificate_requests', 'id, ref_no, status, subject_first_name, subject_last_name, requester_name',
         `ref_no.ilike.${like},subject_first_name.ilike.${like},subject_last_name.ilike.${like},requester_name.ilike.${like}`,
         (r) => `${r.subject_first_name} ${r.subject_last_name}`],
-      ['prayers', 'prayer_requests', 'id, ref_no, status, for_name, requester_name, intention_type',
-        `ref_no.ilike.${like},for_name.ilike.${like},requester_name.ilike.${like}`,
-        (r) => r.for_name || r.intention_type],
       ['blood', 'blood_requests', 'id, ref_no, status, patient_name, blood_type',
         `ref_no.ilike.${like},patient_name.ilike.${like}`,
         (r) => `${r.patient_name} (${r.blood_type})`],
@@ -806,19 +803,6 @@ export const api = {
     return listRequests('certificate_requests', '*, member:members(*)');
   },
   saveCertificateRequest: (row) => saveRequestRow('certificate_requests', row, CERT_FIELDS),
-
-  async listPrayerRequests() {
-    return listRequests('prayer_requests');
-  },
-  savePrayerRequest: (row) => saveRequestRow('prayer_requests', row, PRAYER_FIELDS),
-  /** Mark several intentions as prayed for, at the Mass on `offeredOn`. */
-  async markPrayersPrayed(ids, offeredOn) {
-    if (!ids.length) return [];
-    const { data, error } = await supabase.from('prayer_requests')
-      .update({ status: 'Prayed for', offered_on: offeredOn || null }).in('id', ids).select();
-    if (error) throw mapError(error);
-    return data;
-  },
 
   async listSacramentRequests() {
     try {
@@ -1251,7 +1235,7 @@ async function deleteWebsiteRow(table, id) {
   if (error) throw mapError(error);
 }
 
-const REQUEST_TABLES = ['certificate_requests', 'prayer_requests', 'blood_requests', 'blood_donors', 'sacrament_requests'];
+const REQUEST_TABLES = ['certificate_requests', 'blood_requests', 'blood_donors', 'sacrament_requests'];
 
 // The columns staff may set on each request table. Ref numbers, who handled
 // it and the timestamps are filled in by the database.
@@ -1260,10 +1244,6 @@ const CERT_FIELDS = [
   'sacrament_date', 'sacrament_year', 'sacrament_place', 'father_name', 'mother_name', 'spouse_name', 'purpose', 'copies',
   'requester_name', 'requester_mobile', 'requester_email', 'relationship', 'message',
   'member_id', 'fee', 'or_number', 'released_to', 'public_note', 'staff_notes',
-];
-const PRAYER_FIELDS = [
-  'intention_type', 'intention', 'for_name', 'requester_name', 'requester_mobile', 'allow_public', 'show_publicly',
-  'status', 'source', 'offered_on', 'staff_notes',
 ];
 const BLOOD_REQUEST_FIELDS = [
   'patient_name', 'blood_type', 'units', 'hospital', 'needed_by', 'contact_name', 'contact_mobile', 'relationship', 'notes',
@@ -1560,13 +1540,6 @@ export async function downloadWithAuth(path, filename) {
       { label: 'Purpose', value: 'purpose' }, { label: 'Copies', value: 'copies' }, { label: 'Fee', value: 'fee' }, { label: 'OR No.', value: 'or_number' },
       { label: 'Received', value: (r) => r.created_at?.slice(0, 10) }, { label: 'Released', value: (r) => r.released_at?.slice(0, 10) || '' },
       { label: 'Released to', value: 'released_to' }, { label: 'Handled by', value: 'handled_by_name' },
-    ]);
-  } else if (path === '/exports/prayers.csv') {
-    const data = await fetchAll(() => supabase.from('prayer_requests').select('*').order('created_at').order('id'));
-    downloadCsv(filename, data, [
-      { label: 'Reference No.', value: 'ref_no' }, { label: 'Type', value: 'intention_type' }, { label: 'For', value: 'for_name' },
-      { label: 'Intention', value: 'intention' }, { label: 'Requested by', value: 'requester_name' }, { label: 'Status', value: 'status' },
-      { label: 'Offered on', value: 'offered_on' }, { label: 'Received', value: (r) => r.created_at?.slice(0, 10) },
     ]);
   } else if (path === '/exports/donors.csv') {
     const data = await fetchAll(() => supabase.from('blood_donors').select('*').order('full_name').order('id'));
