@@ -275,7 +275,7 @@ export default function Households() {
           <option value="All">All GKKs</option>
           {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
         </FilterSelect>
-        <SearchInput placeholder="Search name, address, contact, ref no…" aria-label="Search households" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
+        <SearchInput placeholder="Search household, member, address, ref no…" aria-label="Search households or members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
       </PageHeader>
       <PageBody>
         <Tabs
@@ -362,6 +362,7 @@ export default function Households() {
                           <span>
                             <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
                             {h.head_name && <span className="block text-[12.5px] text-parish-text2 mt-0.5">Head: {h.head_name}</span>}
+                            <MatchedMembers household={h} search={debouncedSearch} />
                             <span className="block text-[12px] text-parish-muted mt-0.5">{[h.street, h.barangay, h.city].filter(Boolean).join(', ')}</span>
                           </span>
                         </button>
@@ -412,6 +413,7 @@ export default function Households() {
                   <button onClick={() => toggleExpand(h.id)} aria-expanded={!!expanded[h.id]} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-left min-w-0 flex-1">
                     <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
                     <span className="block text-[12.5px] text-parish-text2 mt-0.5">{[h.head_name && `Head: ${h.head_name}`, `${h.member_count} member(s)`].filter(Boolean).join(' · ')}</span>
+                    <MatchedMembers household={h} search={debouncedSearch} />
                     <span className="block text-[12px] text-parish-muted mt-0.5">{[h.gkk, `registered ${daysAgo(h.created_at)}`].filter(Boolean).join(' · ')}</span>
                   </button>
                   <StatusPill status={h.status} />
@@ -467,6 +469,29 @@ export default function Households() {
 }
 
 /** The expanded row: each member, with their roles and groups, opening the member window. */
+/**
+ * When a search found this household through one of its members, say who:
+ * "Member: Juan Duran (Anak nga Lalaki)". Hidden when the household name or
+ * head already shows the match, so searching "Duran" doesn't list every Duran.
+ */
+function MatchedMembers({ household: h, search }) {
+  const q = String(search || '').trim().toLowerCase();
+  const matched = h.matched_members || [];
+  if (!q || !matched.length) return null;
+  if ([h.household_name, h.head_name].some((v) => String(v || '').toLowerCase().includes(q))) return null;
+  const names = matched.map((m) => {
+    const name = [m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ');
+    const rel = bis(RELATIONSHIP_LABELS, m.relationship);
+    return rel ? `${name} (${rel})` : name;
+  });
+  const shown = names.slice(0, 3).join(', ');
+  return (
+    <span className="block text-[12.5px] mt-0.5 text-parish-blue font-semibold">
+      Member: {shown}{names.length > 3 ? ` +${names.length - 3} more` : ''}
+    </span>
+  );
+}
+
 function MemberList({ members, onOpen }) {
   if (!members) return <div className="text-[13px] text-parish-muted" role="status">Loading members…</div>;
   if (!members.length) return <div className="text-[13px] text-parish-muted">No members yet.</div>;

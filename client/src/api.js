@@ -166,12 +166,18 @@ export const api = {
    * sortKey 'registered' (newest first by default), 'name', 'gkk',
    * 'members' or 'updated', with sortDir 'asc' / 'desc'.
    */
+  /**
+   * Households for the admin list. A search also matches members' names; such
+   * rows carry `matched_members` (the members whose name matched).
+   */
   async listHouseholds(params = {}) {
     const { page, pageSize, from, to } = clampPaging(params);
-    const q = householdQuery(supabase.from('households_with_count').select('*', { count: 'exact' }), params).range(from, to);
+    const { params: query, matches } = await withMemberMatches(params);
+    const q = householdQuery(supabase.from('households_with_count').select('*', { count: 'exact' }), query).range(from, to);
     const { data, error, count } = await q;
     if (error) throw mapError(error);
-    return { rows: data, total: count, page, pageSize };
+    const rows = matches ? data.map((h) => (matches.byHousehold.has(h.id) ? { ...h, matched_members: matches.byHousehold.get(h.id) } : h)) : data;
+    return { rows, total: count, page, pageSize };
   },
 
   async getHousehold(id) {
@@ -218,7 +224,8 @@ export const api = {
 
   /** Download households matching listHouseholds-style filters (or `ids`) as CSV. */
   async exportHouseholdsCsv(params, filename = 'households.csv') {
-    const data = await fetchAll(() => householdQuery(supabase.from('households_with_count').select('*'), { sortKey: 'name', ...params }));
+    const { params: query } = await withMemberMatches(params);
+    const data = await fetchAll(() => householdQuery(supabase.from('households_with_count').select('*'), { sortKey: 'name', ...query }));
     downloadCsv(filename, data, HOUSEHOLD_CSV_COLUMNS);
     return data.length;
   },
@@ -1580,13 +1587,52 @@ const BLOOD_CSV_COLUMNS = [
 const HOUSEHOLD_SORTS = { registered: 'created_at', name: 'household_name', gkk: 'gkk', members: 'member_count', updated: 'updated_at' };
 
 /** listHouseholds' filters and sort, on a households_with_count query. */
-function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, sortKey = 'registered', sortDir } = {}) {
+// The most households a member-name search adds to the results, so the id
+// list stays a sensible size in the request URL.
+const MEMBER_MATCH_LIMIT = 300;
+
+/**
+ * Members whose name matches `search`, grouped by household, so the
+ * Households search can find a family by anyone in it:
+ * { ids: [household_id…], byHousehold: Map(household_id → [member…]) }.
+ * Returns null for an empty search.
+ */
+async function memberNameMatches(search) {
+  const s = String(search || '').trim();
+  if (!s) return null;
+  const like = `%${s}%`;
+  const { data, error } = await supabase.from('members_with_household')
+    .select('id, household_id, first_name, middle_name, last_name, suffix, relationship')
+    .or(`full_name.ilike.${like},first_name.ilike.${like},middle_name.ilike.${like},last_name.ilike.${like}`)
+    .order('household_id').order('id')
+    .limit(1000);
+  if (error) throw mapError(error);
+  const byHousehold = new Map();
+  for (const m of data || []) {
+    if (!byHousehold.has(m.household_id)) {
+      if (byHousehold.size >= MEMBER_MATCH_LIMIT) break;
+      byHousehold.set(m.household_id, []);
+    }
+    byHousehold.get(m.household_id).push(m);
+  }
+  return { ids: [...byHousehold.keys()], byHousehold };
+}
+
+/** listHouseholds-style params plus the households a member-name search adds. */
+async function withMemberMatches(params = {}) {
+  const matches = await memberNameMatches(params.search);
+  return { params: matches ? { ...params, memberHouseholdIds: matches.ids } : params, matches };
+}
+
+function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir } = {}) {
   if (status !== 'All') q = q.eq('status', status);
   if (gkk !== 'All') q = q.eq('gkk', gkk);
   if (ids) q = q.in('id', ids);
   if (search && search.trim()) {
     const s = `%${search.trim()}%`;
-    q = q.or(`household_name.ilike.${s},head_name.ilike.${s},street.ilike.${s},barangay.ilike.${s},city.ilike.${s},contact.ilike.${s},ref_no.ilike.${s}`);
+    // Also any household with a member whose name matches (memberNameMatches).
+    const byMember = memberHouseholdIds?.length ? `,id.in.(${memberHouseholdIds.join(',')})` : '';
+    q = q.or(`household_name.ilike.${s},head_name.ilike.${s},street.ilike.${s},barangay.ilike.${s},city.ilike.${s},contact.ilike.${s},ref_no.ilike.${s}${byMember}`);
   }
   const col = HOUSEHOLD_SORTS[sortKey] || HOUSEHOLD_SORTS.registered;
   // Dates read newest first unless asked otherwise; names and counts A→Z / low→high.
