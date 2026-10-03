@@ -54,6 +54,8 @@ supabase/functions/   Edge Functions: manage-staff (staff accounts), media-uploa
                        notifications for staff); they hold server-side keys,
                        so they can't run in the browser
 scripts/               Local demo/reset seeding against a Supabase project
+supabase/seed/         500-household load-test data and its cleanup — see
+                       docs/load-test-data.md
 client/                React + Tailwind frontend (Vite), with its own package.json
 docs/                  Testing guide and browser beta-testing playbooks
 project/               Original Claude Design source files this app was built from
@@ -211,6 +213,8 @@ Run from the project root:
 | `npm run db:demo` | Load sample households and members (see above) |
 | `npm run db:reset` | Delete all households and members |
 | `npm run db:wipe-test -- --yes` | Empty every registry table on the **test** project before a browser playbook run (needs `PLAYBOOK_TEST_PROJECT=yes`; see `.claude/playbooks/staff-journey-playbook.md`) |
+| `npm run db:seed-load` | Add 500 marked test households and the records around them to the linked project, for load testing (see [`docs/load-test-data.md`](docs/load-test-data.md)) |
+| `npm run db:clean-load` | Remove that load-test data, and nothing else |
 | `npm test` | Run the client test suite |
 | `npm run test:watch` | Client tests, watch mode |
 
@@ -243,6 +247,10 @@ keyboard, printing and data-protection checks:
 [`docs/beta-testing/`](docs/beta-testing/README.md). Each check has an ID so bug
 reports can point at exactly what failed, and there are templates for bug
 reports and for the round's run log.
+
+**Load**: to see how the app copes with a full parish, add 500 test
+households (removable in one step). Setup, removing and reseeding are in
+[`docs/load-test-data.md`](docs/load-test-data.md).
 
 > Note: both testing docs still describe the retired Express/PostgreSQL setup
 > in places (e.g. `TEST_DATABASE_URL`, `db:setup`) — treat those specific
