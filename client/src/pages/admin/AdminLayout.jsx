@@ -165,12 +165,37 @@ export default function AdminLayout() {
             const hasCurrent = items.some((n) => n === current || n.to === current?.to);
             const open = openGroups[g.label] ?? hasCurrent;
             const groupBadge = items.reduce((s, n) => s + (n.badge ? badges[n.badge] || 0 : 0), 0);
+            const toggle = () => setOpenGroups((o) => ({ ...o, [g.label]: !open }));
+            if (g.inline) {
+              // An item in the lineup above it (Settings under Parish Website), its pages indented below.
+              return (
+                <div key={g.label} role="group" aria-label={g.label} className="flex flex-col">
+                  <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={toggle}
+                    className={`relative appearance-none border-none bg-transparent cursor-pointer flex items-center gap-3 pl-7 pr-3.5 py-[5px] rounded-lg font-semibold text-[14px] leading-snug text-left transition ${
+                      hasCurrent && !open ? 'bg-white/12 text-white' : 'text-white/70 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {g.label}
+                    {!open && groupBadge > 0 && <span className="w-1.5 h-1.5 rounded-full bg-[var(--p-gold-light)]" aria-label={`${groupBadge} waiting`} />}
+                    <svg className="ml-auto" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}><path d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                  {open && (
+                    <div className="flex flex-col ml-4">
+                      {items.map((n) => <NavItem key={n.to} {...n} count={n.badge ? badges[n.badge] : 0} />)}
+                    </div>
+                  )}
+                </div>
+              );
+            }
             return (
               <div key={g.label} role="group" aria-label={g.label} className="flex flex-col">
                 <button
                   type="button"
                   aria-expanded={open}
-                  onClick={() => setOpenGroups((o) => ({ ...o, [g.label]: !open }))}
+                  onClick={toggle}
                   className="appearance-none border-none bg-transparent cursor-pointer mx-3.5 mt-2 mb-px flex items-center gap-1.5 text-left font-bold text-[10px] tracking-[.15em] uppercase text-[var(--p-gold-light)]/70 hover:text-[var(--p-gold-light)]"
                 >
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ transform: open ? 'rotate(90deg)' : 'none', transition: 'transform .15s' }}><path d="M9 5l7 7-7 7" /></svg>

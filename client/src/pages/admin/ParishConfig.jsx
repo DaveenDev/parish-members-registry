@@ -16,7 +16,18 @@ import { markPasswordResetWorking, saveEmailSettings, sendPasswordReset } from '
 
 const MAX_LOGO_BYTES = 500 * 1024;
 
-function LogoCard({ settings, onSaved }) {
+/** A part of the Parish profile card, below a divider. */
+function ProfileSection({ title, note, children }) {
+  return (
+    <section className="border-t border-parish-line pt-5 mt-5">
+      <div className="font-bold text-[15.5px] text-parish-ink mb-1">{title}</div>
+      <div className="text-[13.5px] text-parish-muted mb-4">{note}</div>
+      {children}
+    </section>
+  );
+}
+
+function LogoSection({ settings, onSaved }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -68,11 +79,7 @@ function LogoCard({ settings, onSaved }) {
   }
 
   return (
-    <Panel className="p-6">
-      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Parish logo</div>
-      <div className="text-[13.5px] text-parish-muted mb-4">
-        Shown on the sign-in screen, the sidebar, and printed household sheets. PNG or JPG, ideally square, under 500&nbsp;KB.
-      </div>
+    <ProfileSection title="Parish logo" note={<>Shown on the sign-in screen, the sidebar, and printed household sheets. PNG or JPG, ideally square, under 500&nbsp;KB.</>}>
       <div className="flex items-center gap-5 flex-wrap">
         <div className="w-24 h-24 rounded-[18px] border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center overflow-hidden flex-none">
           {settings.logo ? (
@@ -95,14 +102,14 @@ function LogoCard({ settings, onSaved }) {
           )}
         </div>
       </div>
-    </Panel>
+    </ProfileSection>
   );
 }
 
 const HERO_MAX_SOURCE_BYTES = 15 * 1024 * 1024;
 
 /** The parish's main photo, shown in the public home page's hero. */
-function HeroImageCard({ settings, onSaved }) {
+function HeroImageSection({ settings, onSaved }) {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
 
@@ -138,11 +145,7 @@ function HeroImageCard({ settings, onSaved }) {
   }
 
   return (
-    <Panel className="p-6">
-      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Parish photo</div>
-      <div className="text-[13.5px] text-parish-muted mb-4">
-        The main photo on the website's home page, e.g. the church front or a parish gathering. A wide (landscape) photo works best; it's resized automatically.
-      </div>
+    <ProfileSection title="Parish photo" note="The main photo on the website's home page, e.g. the church front or a parish gathering. A wide (landscape) photo works best; it's resized automatically.">
       <div className="aspect-[16/7] w-full rounded-[14px] border-2 border-dashed border-parish-borderStrong bg-parish-field overflow-hidden flex items-center justify-center mb-4">
         {settings.hero_image ? (
           <img src={settings.hero_image} alt="Current parish photo" className="w-full h-full object-cover" />
@@ -164,7 +167,7 @@ function HeroImageCard({ settings, onSaved }) {
           </button>
         )}
       </div>
-    </Panel>
+    </ProfileSection>
   );
 }
 
@@ -536,6 +539,7 @@ function ProfileTab() {
   return (
     <div className="grid gap-[18px] lg:grid-cols-2 lg:items-start">
       <div className="flex flex-col gap-[18px] min-w-0">
+      {/* The parish's name, logo and photo in one card. The logo and photo save as soon as they're uploaded. */}
       {canEdit && (
       <Panel className="p-6">
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-[18px]">Parish profile</div>
@@ -551,13 +555,11 @@ function ProfileTab() {
             {saving ? 'Saving…' : 'Save changes'}
           </PrimaryButton>
         </div>
+
+        <LogoSection settings={settings} onSaved={applySaved} />
+        <HeroImageSection settings={settings} onSaved={applySaved} />
       </Panel>
-
       )}
-
-      {canEdit && <LogoCard settings={settings} onSaved={applySaved} />}
-
-      {canEdit && <HeroImageCard settings={settings} onSaved={applySaved} />}
 
       <PrivacyCard />
       </div>
