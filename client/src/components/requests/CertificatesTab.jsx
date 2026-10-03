@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { fmtDate, fmtDateTime } from '../../constants.js';
@@ -109,7 +109,23 @@ function CertificateDrawer({ request: r, onClose, onSaved, onDeleted }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [editing, setEditing] = useState(false);
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  // The box a status change still needs ('released_to' or 'public_note'): outlined in red until filled in.
+  const [missing, setMissing] = useState(null);
+  const fieldRefs = { released_to: useRef(null), public_note: useRef(null) };
+  const set = (k) => (e) => {
+    setForm((f) => ({ ...f, [k]: e.target.value }));
+    if (k === missing && e.target.value.trim()) { setMissing(null); setError(''); }
+  };
+
+  /** Explain what's missing, outline its box and put the cursor in it. */
+  function needField(key, message) {
+    setError(message);
+    setMissing(key);
+    const el = fieldRefs[key].current;
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el?.focus({ preventScroll: true });
+  }
+  const missingCls = (key) => (missing === key ? '!border-parish-error ring-4 ring-parish-error/20 !bg-parish-errorBg/40' : '');
 
   async function save(extra = {}, message = 'Saved') {
     setBusy(true);
@@ -127,9 +143,9 @@ function CertificateDrawer({ request: r, onClose, onSaved, onDeleted }) {
   }
 
   async function moveTo(status) {
-    if (status === 'Released' && !form.released_to.trim()) { setError('Enter who received the certificate before marking it released.'); return; }
+    if (status === 'Released' && !form.released_to.trim()) { needField('released_to', 'Enter who received the certificate before marking it released.'); return; }
     if (status === 'Cannot issue') {
-      if (!form.public_note.trim()) { setError('Write a short note for the requester (e.g. "No record found; please visit the office") before closing it.'); return; }
+      if (!form.public_note.trim()) { needField('public_note', 'Write a short note for the requester (e.g. "No record found; please visit the office") before closing it.'); return; }
       const ok = await confirm({ title: 'Close as “Cannot issue”?', message: 'The requester will see your note when they check the status.', confirmLabel: 'Close request', tone: 'danger' });
       if (!ok) return;
     }
@@ -202,9 +218,19 @@ function CertificateDrawer({ request: r, onClose, onSaved, onDeleted }) {
         <Field label="Fee / donation"><TextInput value={form.fee} onChange={set('fee')} placeholder="e.g. ₱150" /></Field>
         <Field label="OR number"><TextInput value={form.or_number} onChange={set('or_number')} /></Field>
       </div>
-      <Field label="Released to (name of who picked it up)"><TextInput value={form.released_to} onChange={set('released_to')} placeholder="Required when marking it released" /></Field>
-      <Field label="Note to the requester (shown when they check the status)">
-        <TextArea rows={2} value={form.public_note} onChange={set('public_note')} placeholder="e.g. Please bring a valid ID. / No record found under this name; please visit the office." />
+      <Field
+        label="Released to (name of who picked it up)"
+        required={missing === 'released_to'}
+        error={missing === 'released_to' ? 'Needed to mark it released.' : ''}
+      >
+        <TextInput ref={fieldRefs.released_to} value={form.released_to} onChange={set('released_to')} placeholder="Required when marking it released" className={missingCls('released_to')} />
+      </Field>
+      <Field
+        label="Note to the requester (shown when they check the status)"
+        required={missing === 'public_note'}
+        error={missing === 'public_note' ? 'Needed to close it as "Cannot issue": tell the requester why, e.g. No record found; please visit the office.' : ''}
+      >
+        <TextArea ref={fieldRefs.public_note} rows={2} value={form.public_note} onChange={set('public_note')} placeholder="e.g. Please bring a valid ID. / No record found under this name; please visit the office." className={missingCls('public_note')} />
       </Field>
       <Field label="Staff notes (never shown publicly)">
         <TextArea rows={2} value={form.staff_notes} onChange={set('staff_notes')} placeholder="e.g. Book 12, page 34, entry 5" />
