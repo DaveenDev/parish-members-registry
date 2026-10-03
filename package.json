@@ -10,6 +10,8 @@
     "db:demo": "node scripts/supabase-seed.mjs demo",
     "db:reset": "node scripts/supabase-seed.mjs reset",
     "db:wipe-test": "node scripts/playbook-wipe.mjs",
+    "db:seed-load": "npx supabase db query --linked -f supabase/seed/load-test.sql",
+    "db:clean-load": "npx supabase db query --linked -f supabase/seed/load-test-clean.sql",
     "install:all": "npm install && npm install --prefix client",
     "test": "node --test \"client/test/**/*.test.js\"",
     "test:watch": "node --test --watch \"client/test/**/*.test.js\""
