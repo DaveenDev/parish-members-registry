@@ -32,11 +32,13 @@ export function AnnouncementCard({ a, full = false, fill = false }) {
       className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)] ${a.urgent ? 'border-l-[5px]' : ''} ${fill ? 'flex flex-col flex-1' : 'block'}`}
       style={a.urgent ? { borderLeftColor: TONES.red.color } : undefined}
     >
-      <AnnouncementMeta a={a} />
+      <AnnouncementMeta a={a} showEnd={false} />
       <div className={`font-serif font-bold leading-[1.2] lg:leading-[1.18] text-parish-navy lg:text-[23px] lg:mb-1.5 ${full ? 'text-[21px] mb-1' : 'text-[20px]'}`}>{a.title}</div>
       {a.body && (
         <div className={`text-[15px] leading-normal text-[#4d4636] ${full ? 'line-clamp-3' : 'hidden lg:block'} ${fill ? 'lg:line-clamp-3' : ''}`}>{excerpt(a.body, fill ? 260 : 140)}</div>
       )}
+      {/* The end date under the text, not squeezed into the label row where it wraps on its own. */}
+      {a.expires_on && <div className="mt-1.5 text-[13px] lg:text-[13.5px] font-semibold text-[var(--p-eyebrow)]">Hangtod {fmtShort(a.expires_on)}</div>}
       {fill && <span className="hidden lg:inline-flex mt-auto pt-3 items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha<Icon name="chev" size={16} /></span>}
     </Link>
   );
@@ -45,9 +47,9 @@ export function AnnouncementCard({ a, full = false, fill = false }) {
 /**
  * An announcement's labels: its category (or Urgent), date, "Naka-pin" when
  * staff pinned it, "New" in its first 3 days, and "Hangtod …" when it ends
- * on a set date.
+ * on a set date (`showEnd`; cards show it under their text instead).
  */
-export function AnnouncementMeta({ a, className = 'mb-1.5 lg:mb-2' }) {
+export function AnnouncementMeta({ a, className = 'mb-1.5 lg:mb-2', showEnd = true }) {
   return (
     <div className={`flex gap-x-2 gap-y-1 items-center flex-wrap ${className}`}>
       <AnnouncementChip a={a} />
@@ -56,7 +58,7 @@ export function AnnouncementMeta({ a, className = 'mb-1.5 lg:mb-2' }) {
         <span className="inline-flex items-center gap-1 font-bold text-[12px] text-[var(--p-eyebrow)]"><Icon name="tack" size={13} />Naka-pin</span>
       )}
       <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.publish_on)}</span>
-      {a.expires_on && <span className="text-[13px] lg:text-[13.5px] font-semibold text-[var(--p-eyebrow)]">· Hangtod {fmtShort(a.expires_on)}</span>}
+      {showEnd && a.expires_on && <span className="text-[13px] lg:text-[13.5px] font-semibold text-[var(--p-eyebrow)]">· Hangtod {fmtShort(a.expires_on)}</span>}
     </div>
   );
 }

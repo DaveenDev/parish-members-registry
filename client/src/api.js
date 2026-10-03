@@ -12,6 +12,7 @@ import { shapeDashboard, shapeReport } from './lib/stats.js';
 import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus } from './lib/census.js';
 import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName } from './lib/reports.js';
 import { certTypeLabel } from './lib/requests.js';
+import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
 import { resizePhotoBlob } from './lib/images.js';
 
 const MAX_PAGE_SIZE = 100;
@@ -850,10 +851,14 @@ export const api = {
   publicMassSchedules: () => listPublished('mass_schedules', (q) => q.order('day_of_week').order('start_time')),
   /** Published sacrament guides (requirements and steps), in the office's order. */
   publicSacramentGuides: () => listPublished('sacrament_guides', (q) => q.order('sort').order('id')),
-  /** Live announcements: pinned first, then newest. */
+  /**
+   * Live announcements, pinned first, then newest. One with no end date
+   * drops off ANNOUNCEMENT_DAYS after it starts, unless it's pinned
+   * (announcementLastDay in lib/website.js; the admin shows the same).
+   */
   publicAnnouncements: () => listPublished('announcements', (q) => q
     .lte('publish_on', todayLocal())
-    .or(`expires_on.is.null,expires_on.gte.${todayLocal()}`)
+    .or(`expires_on.gte.${todayLocal()},and(expires_on.is.null,pinned.is.true),and(expires_on.is.null,publish_on.gte.${addDays(todayLocal(), -ANNOUNCEMENT_DAYS)})`)
     .order('pinned', { ascending: false }).order('publish_on', { ascending: false }).order('id', { ascending: false })),
   publicBulletins: () => listPublished('bulletins', (q) => q.order('week_of', { ascending: false }).limit(26)),
   /** Events that haven't ended before `fromIso` (YYYY-MM-DD). */

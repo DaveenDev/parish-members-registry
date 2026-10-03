@@ -228,11 +228,28 @@ export function normalizeOfficeHours(saved) {
   }));
 }
 
+/** Days an announcement with no end date stays on the website. */
+export const ANNOUNCEMENT_DAYS = 30;
+/** More pinned announcements than this and a pin stops meaning much; the admin warns. */
+export const MAX_PINNED = 2;
+
+/**
+ * The last day an announcement shows on the website: its end date, or
+ * ANNOUNCEMENT_DAYS after it starts. null for a pinned one with no end date,
+ * which stays until it's unpinned.
+ */
+export function announcementLastDay(a) {
+  if (a.expires_on) return a.expires_on;
+  if (a.pinned || !a.publish_on) return null;
+  return addDays(a.publish_on, ANNOUNCEMENT_DAYS);
+}
+
 /** Where an announcement stands today: Draft, Scheduled, Expired or Live. */
 export function announcementState(a, today = todayIso()) {
   if (!a.published) return 'Draft';
   if (a.publish_on > today) return 'Scheduled';
-  if (a.expires_on && a.expires_on < today) return 'Expired';
+  const last = announcementLastDay(a);
+  if (last && last < today) return 'Expired';
   return 'Live';
 }
 

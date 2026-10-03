@@ -5,7 +5,7 @@ import { FilterSelect, SearchInput, Pagination, EmptyState, LoadingState, ErrorS
 import { fmtDate } from '../../constants.js';
 import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
-import { ANNOUNCEMENT_CATEGORIES, announcementState, todayIso } from '../../lib/website.js';
+import { ANNOUNCEMENT_CATEGORIES, ANNOUNCEMENT_DAYS, MAX_PINNED, announcementLastDay, announcementState, todayIso } from '../../lib/website.js';
 import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton } from './shared.jsx';
 
 const STATES = ['Live', 'Scheduled', 'Draft', 'Expired'];
@@ -26,14 +26,22 @@ export default function AnnouncementsTab() {
   const sorted = [...list.rows].sort((a, b) => b.publish_on.localeCompare(a.publish_on) || b.id - a.id);
   const filtered = state === 'All' ? sorted : sorted.filter((r) => announcementState(r, today) === state);
   const page = urlListPage(filtered, (r) => `${r.title} ${r.body || ''} ${r.category}`, url, setUrl);
+  // Pinned ones that are on the website now (urgent ones show as cards, not in the pinned strip).
+  const livePinned = list.rows.filter((r) => r.pinned && !r.urgent && announcementState(r, today) === 'Live');
 
   return (
     <>
-      <TabIntro text="News for parishioners. Set a start date to schedule one ahead and an end date so it drops off by itself. Urgent ones will show as a banner on the website's home page.">
+      <TabIntro text={`News for parishioners. Set a start date to schedule one ahead. It drops off the website on its end date, or ${ANNOUNCEMENT_DAYS} days after it starts if it has none (pinned ones stay until unpinned). Urgent ones will show as a banner on the website's home page.`}>
         <AddButton onClick={() => setEditing({ title: '', body: '', category: 'Parish', urgent: false, pinned: false, publish_on: today, expires_on: '', published: true })}>
           New announcement
         </AddButton>
       </TabIntro>
+
+      {livePinned.length > MAX_PINNED && (
+        <PinWarning>
+          {livePinned.length} announcements are pinned on the website. A pin stands out when it's rare: keep it to {MAX_PINNED} or fewer and unpin the rest.
+        </PinWarning>
+      )}
 
       {list.rows.length > 0 && (
         <div className="flex gap-2.5 flex-wrap mb-4">
@@ -62,9 +70,7 @@ export default function AnnouncementsTab() {
                 </div>
                 <div className="font-semibold text-[15px] text-parish-navy">{r.title}</div>
                 {r.body && <div className="text-[13px] text-parish-text2 line-clamp-2 whitespace-pre-line">{r.body}</div>}
-                <div className="text-[12px] text-parish-muted mt-1">
-                  From {fmtDate(r.publish_on)}{r.expires_on ? ` until ${fmtDate(r.expires_on)}` : ''}
-                </div>
+                <div className="text-[12px] text-parish-muted mt-1">From {fmtDate(r.publish_on)} {untilText(r)}</div>
               </div>
               <div className="flex gap-1.5">
                 <RowButton onClick={() => setEditing(r)}>Edit</RowButton>
@@ -77,12 +83,35 @@ export default function AnnouncementsTab() {
         <Pagination page={page.page} pageSize={page.pageSize} total={page.total} onPage={page.setPage} onPageSize={page.setPageSize} alwaysShow />
       </Panel>
 
-      {editing && <AnnouncementEditor row={editing} onClose={() => setEditing(null)} onSaved={(saved) => { list.upsert(saved); setEditing(null); }} />}
+      {editing && (
+        <AnnouncementEditor
+          row={editing}
+          otherPinned={livePinned.filter((r) => r.id !== editing.id).length}
+          onClose={() => setEditing(null)}
+          onSaved={(saved) => { list.upsert(saved); setEditing(null); }}
+        />
+      )}
     </>
   );
 }
 
-function AnnouncementEditor({ row, onClose, onSaved }) {
+/** "until 12 Oct 2026", "until 2 Nov 2026 (30 days)" or "until unpinned". */
+function untilText(r) {
+  if (r.expires_on) return `until ${fmtDate(r.expires_on)}`;
+  if (r.pinned) return '· no end date, stays while pinned';
+  const last = announcementLastDay(r);
+  return last ? `until ${fmtDate(last)} (${ANNOUNCEMENT_DAYS} days, no end date set)` : '';
+}
+
+function PinWarning({ children }) {
+  return (
+    <div role="status" className="mb-4 rounded-xl border px-4 py-3 text-[13.5px] leading-relaxed bg-parish-warnBg border-parish-warnBorder text-parish-warnStrong">
+      {children}
+    </div>
+  );
+}
+
+function AnnouncementEditor({ row, otherPinned, onClose, onSaved }) {
   const toast = useToast();
   const [form, setForm] = useState({ ...row, expires_on: row.expires_on || '' });
   const [saving, setSaving] = useState(false);
@@ -121,6 +150,13 @@ function AnnouncementEditor({ row, onClose, onSaved }) {
         <Field label="Show from" required><TextInput type="date" value={form.publish_on} onChange={(e) => set('publish_on')(e.target.value)} /></Field>
         <Field label="Until (optional)"><TextInput type="date" value={form.expires_on} min={form.publish_on} onChange={(e) => set('expires_on')(e.target.value)} /></Field>
       </div>
+      {!form.expires_on && (
+        <div className="-mt-2 text-[12.5px] text-parish-muted">
+          {form.pinned
+            ? 'No end date: it stays on the website while it\'s pinned.'
+            : `No end date: it drops off the website ${ANNOUNCEMENT_DAYS} days after it starts${form.publish_on ? `, after ${fmtDate(announcementLastDay(form))}` : ''}.`}
+        </div>
+      )}
       <div className="flex gap-5 flex-wrap">
         <label className="flex items-center gap-2 text-[14px] font-semibold text-parish-navy cursor-pointer">
           <Checkbox checked={!!form.urgent} onChange={(e) => set('urgent')(e.target.checked)} /> Urgent
@@ -129,6 +165,11 @@ function AnnouncementEditor({ row, onClose, onSaved }) {
           <Checkbox checked={!!form.pinned} onChange={(e) => set('pinned')(e.target.checked)} /> Pin to the top
         </label>
       </div>
+      {form.pinned && !form.urgent && otherPinned >= MAX_PINNED && (
+        <PinWarning>
+          {otherPinned} other announcement{otherPinned === 1 ? ' is' : 's are'} already pinned. A pin stands out when it's rare; consider unpinning one of them, or leave this one unpinned.
+        </PinWarning>
+      )}
       <PublishSwitch checked={!!form.published} onChange={set('published')} />
     </SidePanel>
   );
