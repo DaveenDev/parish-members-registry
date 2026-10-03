@@ -6,6 +6,7 @@ import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSe
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
+import { MEN_ONLY_NOTE, menOnlyBlocked, menOnlyMessage } from '../lib/ministries.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS, BLOOD_UNKNOWN_LABEL } from '../lib/bisaya.js';
 import { STATUS_TONES } from '../lib/census.js';
 import { PRACTICE_MAX, PRACTICE_TONES, PRACTICE_LEVEL_HELP, expectedSacraments, isRated, scoreMember, trendText, practiceSourceText } from '../lib/practice.js';
@@ -25,6 +26,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   const canEdit = can(user, 'editRegistry');
   const [member, setMember] = useState(null);
   const [ministryList, setMinistryList] = useState([]);
+  const [menOnly, setMenOnly] = useState(null); // men-only ministries, e.g. Kaabag (0038)
   const [orgList, setOrgList] = useState([]);
   const [parishRoleList, setParishRoleList] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -48,6 +50,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
       if (res.member.household_id) api.getHousehold(res.member.household_id).then((h) => setHousemates(h.members)).catch(() => {});
     }).catch((e) => setError(e.message));
     api.listMinistries().then((res) => setMinistryList(res.rows.map((r) => r.name))).catch(() => {});
+    api.menOnlyMinistries().then(setMenOnly).catch(() => setMenOnly(null));
     api.listOrganizations().then((res) => setOrgList(res.rows.map((r) => r.name))).catch(() => {});
     api.listParishPositions().then((res) => setParishRoleList(res.rows.map((r) => r.name))).catch(() => {});
     loadVerifications();
@@ -298,7 +301,10 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
             </div>
 
             <SectionLabel>Ministries</SectionLabel>
-            <GroupChecks options={ministryList} selected={member.ministries || []} onToggle={(name) => toggleGroup('ministries', name)} />
+            <GroupChecks
+              options={ministryList} selected={member.ministries || []} onToggle={(name) => toggleGroup('ministries', name)}
+              blocked={(name, checked) => menOnlyBlocked(name, member.sex, menOnly, checked)}
+            />
 
             <SectionLabel>Organizations</SectionLabel>
             <GroupChecks options={orgList} selected={member.organizations || []} onToggle={(name) => toggleGroup('organizations', name)} />
@@ -428,15 +434,18 @@ function SacRow({ label, checked, onCheck, status, children }) {
   );
 }
 
-function GroupChecks({ options, selected, onToggle }) {
+/** `blocked(name, checked)`: true greys a choice out (men-only ministries, for women). */
+function GroupChecks({ options, selected, onToggle, blocked }) {
   return (
     <div className="grid gap-2 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
       {options.map((name) => {
         const checked = selected.includes(name);
+        const off = !!blocked?.(name, checked);
         return (
-          <label key={name} className="flex items-center gap-2 cursor-pointer border-[1.5px] rounded-lg px-2.5 py-2" style={{ borderColor: checked ? 'rgb(var(--c-focus-line))' : 'rgb(var(--c-border-soft))', background: checked ? 'var(--p-blue-tint)' : 'rgb(var(--c-field))' }}>
-            <Checkbox checked={checked} onChange={() => onToggle(name)} className="w-4 h-4" />
+          <label key={name} title={off ? menOnlyMessage(name) : undefined} className={`flex items-center gap-2 border-[1.5px] rounded-lg px-2.5 py-2 ${off ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`} style={{ borderColor: checked ? 'rgb(var(--c-focus-line))' : 'rgb(var(--c-border-soft))', background: checked ? 'var(--p-blue-tint)' : 'rgb(var(--c-field))' }}>
+            <Checkbox checked={checked} disabled={off} onChange={() => onToggle(name)} className="w-4 h-4" />
             <span className="font-medium text-[13.5px] text-parish-ink">{name}</span>
+            {off && <span className="ml-auto text-[11.5px] font-semibold text-parish-muted whitespace-nowrap">{MEN_ONLY_NOTE}</span>}
           </label>
         );
       })}

@@ -4,6 +4,7 @@ import { PageHeader, PageBody, FilterSelect, SearchInput, EmptyState, ErrorState
 import { ageFromDob } from '../constants.js';
 import { memberFullName } from '../lib/util.js';
 import { groupByGkk } from '../lib/household.js';
+import { MEN_ONLY_NOTE, menOnlyBlocked, menOnlyMessage } from '../lib/ministries.js';
 import { PrimaryButton, TextInput, Badge } from './ui.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import { useToast } from '../ToastContext.jsx';
@@ -240,6 +241,12 @@ function AddToGroupModal({ group, column, onClose, onAdded }) {
   const [loading, setLoading] = useState(false);
   const [busyId, setBusyId] = useState(null);
   const [added, setAdded] = useState([]);
+  // Kaabag and other men-only ministries: women can't be added (0038).
+  const [menOnly, setMenOnly] = useState(null);
+  useEffect(() => {
+    if (column === 'ministries') api.menOnlyMinistries().then(setMenOnly).catch(() => setMenOnly(null));
+  }, [column]);
+  const forMenOnly = column === 'ministries' && !!menOnly?.has(group);
 
   useEffect(() => {
     const onKey = (e) => e.key === 'Escape' && onClose();
@@ -280,7 +287,10 @@ function AddToGroupModal({ group, column, onClose, onAdded }) {
             <h3 className="font-serif text-[23px] font-semibold m-0 text-parish-navy">Add to {group}</h3>
             <button onClick={onClose} aria-label="Close" className="appearance-none border-none bg-none cursor-pointer text-parish-muted text-2xl leading-none">×</button>
           </div>
-          <p className="text-[13px] text-parish-muted mt-0 mb-3.5">Search the registry by member name, household, or contact number.</p>
+          <p className="text-[13px] text-parish-muted mt-0 mb-3.5">
+            Search the registry by member name, household, or contact number.
+            {forMenOnly && <> <strong className="text-parish-text2">{menOnlyMessage(group)}</strong></>}
+          </p>
           <TextInput autoFocus placeholder="e.g. Juan Duran" value={search} onChange={(e) => setSearch(e.target.value)} aria-label="Search members" />
         </div>
         <div className="overflow-auto px-5 sm:px-6 pb-5 flex flex-col gap-2">
@@ -288,6 +298,7 @@ function AddToGroupModal({ group, column, onClose, onAdded }) {
           {!loading && debouncedSearch.trim() && !results.length && <div className="text-[13px] text-parish-muted py-2">No members match “{debouncedSearch}”.</div>}
           {results.map((m) => {
             const isMember = (m[column] || []).includes(group) || added.includes(m.id);
+            const blocked = forMenOnly && menOnlyBlocked(group, m.sex, menOnly, isMember);
             return (
               <div key={m.id} className="flex items-center gap-3 border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field">
                 <div className="min-w-0 flex-1">
@@ -296,6 +307,8 @@ function AddToGroupModal({ group, column, onClose, onAdded }) {
                 </div>
                 {isMember ? (
                   <span className="text-[12.5px] font-semibold text-parish-ok whitespace-nowrap">✓ Member</span>
+                ) : blocked ? (
+                  <span className="text-[12.5px] font-semibold text-parish-muted whitespace-nowrap" title={menOnlyMessage(group)}>{MEN_ONLY_NOTE}</span>
                 ) : (
                   <button
                     onClick={() => add(m)}

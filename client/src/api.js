@@ -13,6 +13,7 @@ import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus } from './
 import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName } from './lib/reports.js';
 import { certTypeLabel } from './lib/requests.js';
 import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
+import { MEN_ONLY_FALLBACK, menOnlyBlocked, menOnlyMessage } from './lib/ministries.js';
 import { resizePhotoBlob } from './lib/images.js';
 
 const MAX_PAGE_SIZE = 100;
@@ -623,6 +624,16 @@ export const api = {
 
   // ---- ministries / organizations (identical shape, different table) --
   listMinistries: (opts) => listGroup('ministries', opts),
+  /** Names of the ministries only men may join (ministries.men_only, 0038), as a Set. */
+  async menOnlyMinistries() {
+    const { data, error } = await supabase.from('ministries').select('name, men_only');
+    if (error) {
+      // Before the 0038 migration there's no men_only column: Kaabag by name.
+      if (error.code === '42703' || /men_only/.test(error.message || '')) return new Set(MEN_ONLY_FALLBACK);
+      throw mapError(error);
+    }
+    return new Set((data || []).filter((r) => r.men_only).map((r) => r.name));
+  },
   addMinistry: (name) => addGroup('ministries', name),
   renameMinistry: (oldName, newName) => renameGroup('rename_ministry', oldName, newName, 'An item with this name'),
   deleteMinistry: (name) => deleteGroup('delete_ministry', name),
@@ -1447,8 +1458,12 @@ function applyMemberFilters(q, params = {}) {
 
 async function changeGroupMembership(memberId, column, name, join) {
   if (!GROUP_COLUMNS.includes(column)) throw new Error(`Unknown group column: ${column}`);
-  const { data, error } = await supabase.from('members').select(column).eq('id', memberId).single();
+  const { data, error } = await supabase.from('members').select(`${column}, sex`).eq('id', memberId).single();
   if (error) throw mapError(error, { fallback: 'Member not found' });
+  // Kaabag and other men-only ministries (0038); the database refuses it too.
+  if (join && column === 'ministries' && menOnlyBlocked(name, data.sex, await api.menOnlyMinistries(), (data.ministries || []).includes(name))) {
+    throw new Error(menOnlyMessage(name));
+  }
   const current = data[column] || [];
   const next = join ? [...new Set([...current, name])] : current.filter((n) => n !== name);
   if (next.length === current.length && next.every((n, i) => n === current[i])) return { unchanged: true };

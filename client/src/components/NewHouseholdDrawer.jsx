@@ -4,6 +4,7 @@ import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSe
 import ParticipationSurvey, { ParticipationReview } from './ParticipationSurvey.jsx';
 import { useHouseholdNameTaken } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
+import { MEN_ONLY_NOTE, isMale, menOnlyBlocked, menOnlyMessage } from '../lib/ministries.js';
 import { syncSpouses, weddingPartners, toPayloadMember, WEDDING_FIELDS } from '../lib/household.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS, BLOOD_UNKNOWN_LABEL } from '../lib/bisaya.js';
 import {
@@ -71,6 +72,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
   const [errorFocusTick, setErrorFocusTick] = useState(0);
   const [saving, setSaving] = useState(false);
   const [ministryOptions, setMinistryOptions] = useState([]);
+  const [menOnly, setMenOnly] = useState(null); // men-only ministries, e.g. Kaabag (0038)
   const [orgOptions, setOrgOptions] = useState([]);
   const [parishRoleOptions, setParishRoleOptions] = useState([]);
   const nameTaken = useHouseholdNameTaken(household.householdName);
@@ -81,6 +83,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
 
   useEffect(() => {
     api.listMinistries().then((r) => setMinistryOptions(r.rows.map((x) => x.name))).catch(() => {});
+    api.menOnlyMinistries().then(setMenOnly).catch(() => setMenOnly(null));
     api.listOrganizations().then((r) => setOrgOptions(r.rows.map((x) => x.name))).catch(() => {});
     api.listParishPositions().then((r) => setParishRoleOptions(r.rows.map((x) => x.name))).catch(() => {});
   }, []);
@@ -153,6 +156,8 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
       const next = { ...m, [field]: value };
       if (i > 0 && field === 'relationship') next.civilFromHead = value === 'Spouse';
       if (i > 0 && field === 'civilStatus') next.civilFromHead = false;
+      // No longer male: off any men-only ministry (Kaabag) ticked earlier.
+      if (field === 'sex' && !isMale(value) && menOnly) next.ministries = (next.ministries || []).filter((n) => !menOnly.has(n));
       return next;
     }), WEDDING_FIELDS.includes(field) ? i : -1));
     const cleared = field === 'relationship' ? [field, 'civilStatus'] : [field];
@@ -245,7 +250,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
     household, err, onHouseholdField: updateHousehold, gkkOptions, nameTaken,
     onParticipation: setParticipation, onToggleHelpWay: toggleHelpWay,
     memberViews, onMemberField: updateMember, onAddMember: addMember, onRemoveMember: removeMember, onToggleGroup: toggleGroup,
-    ministryOptions, orgOptions, parishRoleOptions,
+    ministryOptions, menOnly, orgOptions, parishRoleOptions,
     status, setStatus, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent,
     onGoStep: goStep,
   };
@@ -627,15 +632,18 @@ function MemberLabel({ mv, htmlFor }) {
   );
 }
 
-function GroupChecks({ options, selected, onToggle }) {
+/** `blocked(name)`: true greys a choice out (men-only ministries, for women). */
+function GroupChecks({ options, selected, onToggle, blocked }) {
   return (
     <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
       {options.map((name) => {
         const checked = (selected || []).includes(name);
+        const off = !!blocked?.(name, checked);
         return (
-          <label key={name} className="flex items-center gap-2 cursor-pointer border-[1.5px] rounded-lg px-2.5 py-2" style={{ borderColor: checked ? 'rgb(var(--c-focus-line))' : 'rgb(var(--c-border-soft))', background: checked ? 'var(--p-blue-tint)' : 'rgb(var(--c-field))' }}>
-            <Checkbox checked={checked} onChange={() => onToggle(name)} className="w-4 h-4 flex-none" />
+          <label key={name} title={off ? menOnlyMessage(name) : undefined} className={`flex items-center gap-2 border-[1.5px] rounded-lg px-2.5 py-2 ${off ? 'cursor-not-allowed opacity-60' : 'cursor-pointer'}`} style={{ borderColor: checked ? 'rgb(var(--c-focus-line))' : 'rgb(var(--c-border-soft))', background: checked ? 'var(--p-blue-tint)' : 'rgb(var(--c-field))' }}>
+            <Checkbox checked={checked} disabled={off} onChange={() => onToggle(name)} className="w-4 h-4 flex-none" />
             <span className="font-medium text-[13.5px] text-parish-ink">{name}</span>
+            {off && <span className="ml-auto text-[11.5px] font-semibold text-parish-muted whitespace-nowrap">{MEN_ONLY_NOTE}</span>}
           </label>
         );
       })}
@@ -644,7 +652,7 @@ function GroupChecks({ options, selected, onToggle }) {
 }
 
 function StepParticipation({
-  memberViews, onMemberField, onToggleGroup, ministryOptions, orgOptions, parishRoleOptions,
+  memberViews, onMemberField, onToggleGroup, ministryOptions, menOnly, orgOptions, parishRoleOptions,
   status, setStatus, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent,
 }) {
   const groups = [
@@ -659,7 +667,10 @@ function StepParticipation({
             {memberViews.map((mv) => (
               <fieldset key={mv.mi} className="border-none p-0 m-0 min-w-0">
                 <legend className="mb-2"><MemberLabel mv={mv} /></legend>
-                <GroupChecks options={options} selected={mv[key]} onToggle={(name) => onToggleGroup(mv.mi, key, name)} />
+                <GroupChecks
+                  options={options} selected={mv[key]} onToggle={(name) => onToggleGroup(mv.mi, key, name)}
+                  blocked={key === 'ministries' ? (name, checked) => menOnlyBlocked(name, mv.sex, menOnly, checked) : undefined}
+                />
               </fieldset>
             ))}
           </div>
