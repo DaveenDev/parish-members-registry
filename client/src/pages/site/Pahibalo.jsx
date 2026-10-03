@@ -1,14 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { DataState, EmptyNote, Eyebrow, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, DataState, EmptyNote, Eyebrow, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { AnnouncementCard, ArticleCard, ArticleFeature, EventCard } from '../../components/site/cards.jsx';
 import { ANNOUNCEMENT_LABELS, fmtLong, sortAnnouncements } from '../../lib/site.js';
 import { listState, useAnnouncements, useArticles, useBulletins, useEvents } from './data.js';
 
-// The page's content width (like PAGE in kit.jsx); the articles band runs
-// full width behind it.
-const WRAP = 'px-3.5 lg:max-w-[1240px] lg:mx-auto lg:px-6';
 
 const CATEGORY_FILTERS = [['all', 'Tanan'], ['Parish', 'Parokya'], ['GKK', 'GKK'], ['Ministry', 'Ministry'], ['Schedule change', ANNOUNCEMENT_LABELS['Schedule change']], ['urgent', 'Urgent']];
 // Values match the articles_tag_check constraint (0021).
@@ -19,7 +16,7 @@ const ARTICLES_STEP = 6;
 const cols = (n) => (n <= 1 ? 'lg:grid-cols-1' : n === 2 ? 'lg:grid-cols-2' : 'lg:grid-cols-3');
 
 /**
- * Pahibalo ug Kalihokan: upcoming events and announcements on the cream page,
+ * Pahibalo ug Kalihokan: upcoming events and announcements on the blue band,
  * the blog articles on their own warm band below, and the weekly bulletin
  * archive under its own tab.
  */
@@ -30,21 +27,21 @@ export default function Pahibalo() {
 
   return (
     <main className="animate-fadeUp">
-      <div className={`${WRAP} pt-4 lg:pt-9 ${view === 'bulletin' ? 'pb-7 lg:pb-0' : ''}`}>
-        <PageHeader eyebrow="Pahibalo ug Kalihokan" title="Balita sa parokya">
-          <Segmented label="Pahibalo" options={[['list', 'Mga Pahibalo'], ['bulletin', 'Bulletin']]} value={view} onChange={setView} />
-        </PageHeader>
-        {view === 'bulletin' && <Bulletins />}
-      </div>
-      {view === 'list' && (
-        <>
-          <div className={WRAP}>
-            <UpcomingEvents />
-            <Announcements />
-          </div>
-          <Articles />
-        </>
-      )}
+      {/* The first section (events and announcements, or the bulletin archive) on the light-blue band. */}
+      <Band aria-label="Balita sa parokya">
+        <div className={`${WRAP} ${BAND_PAD}`}>
+          <PageHeader eyebrow="Pahibalo ug Kalihokan" title="Balita sa parokya">
+            <Segmented label="Pahibalo" options={[['list', 'Mga Pahibalo'], ['bulletin', 'Bulletin']]} value={view} onChange={setView} />
+          </PageHeader>
+          {view === 'bulletin' ? <Bulletins /> : (
+            <>
+              <UpcomingEvents />
+              <Announcements />
+            </>
+          )}
+        </div>
+      </Band>
+      {view === 'list' && <Articles />}
     </main>
   );
 }
@@ -64,7 +61,7 @@ function Announcements() {
   const filters = CATEGORY_FILTERS.filter(([v]) => v === 'all' || ann.rows.some((a) => (v === 'urgent' ? a.urgent : a.category === v)));
 
   return (
-    <section aria-labelledby="announcements-title" className="pb-7 lg:pb-0">
+    <section aria-labelledby="announcements-title">
       <div className="flex items-end justify-between gap-x-6 gap-y-3 flex-wrap mb-3.5 lg:mb-5">
         <div className="flex items-center gap-3 min-w-0">
           <span className="w-11 h-11 lg:w-12 lg:h-12 flex-none rounded-2xl flex items-center justify-center border" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)', borderColor: 'var(--p-blue-border)' }}>

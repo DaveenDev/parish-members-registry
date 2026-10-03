@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { Avatar, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PAGE, PageHeader, Pills, Skeleton, Skeletons } from '../../components/site/kit.jsx';
+import { Avatar, BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { phoneHref } from '../../lib/requests.js';
 import { fmtLong, gkkParts, groupGkksByArea, initialsOf, sortCensusGkks } from '../../lib/site.js';
 import { useSiteTitle } from './SiteLayout.jsx';
@@ -18,17 +18,32 @@ export default function Komunidad() {
   const open = !!q.data?.open;
 
   return (
-    <main className={PAGE}>
-      {q.loading && <Skeleton h={220} className="mb-8 lg:mb-12 lg:h-[420px]" />}
+    // The first section sits on the light-blue band: the census progress while a
+    // census is open, otherwise the GKK directory (then the only section).
+    <main className="animate-fadeUp">
+      {q.loading && <div className={`${WRAP} ${BAND_PAD}`}><Skeleton h={220} className="lg:h-[420px]" /></div>}
       {open && (
-        <section aria-labelledby="census-h" className="mb-8 lg:mb-12 lg:pb-10 lg:border-b lg:border-[#e7dcc4]">
-          <Eyebrow>Census sa parokya</Eyebrow>
-          <h2 id="census-h" className="sr-only">Progreso sa census</h2>
-          <CensusProgress />
-        </section>
+        <Band aria-labelledby="census-h">
+          <div className={`${WRAP} ${BAND_PAD}`}>
+            <Eyebrow>Census sa parokya</Eyebrow>
+            <h2 id="census-h" className="sr-only">Progreso sa census</h2>
+            <CensusProgress />
+          </div>
+        </Band>
       )}
-      <PageHeader eyebrow="Komunidad" title="Mga GKK sa parokya" />
-      <GkkDirectory />
+      {open ? (
+        <div className={`${WRAP} pt-7 pb-7 lg:pt-12 lg:pb-0`}>
+          <PageHeader eyebrow="Komunidad" title="Mga GKK sa parokya" />
+          <GkkDirectory />
+        </div>
+      ) : !q.loading && (
+        <Band aria-label="Mga GKK sa parokya">
+          <div className={`${WRAP} ${BAND_PAD}`}>
+            <PageHeader eyebrow="Komunidad" title="Mga GKK sa parokya" />
+            <GkkDirectory />
+          </div>
+        </Band>
+      )}
     </main>
   );
 }

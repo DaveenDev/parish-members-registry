@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import SacramentIcon from '../../components/SacramentIcon.jsx';
-import { DataState, EmptyNote, Eyebrow, PageHeader, Pills, Segmented, Skeleton, Skeletons } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, DataState, EmptyNote, Eyebrow, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { EventCard, MassRow, eventTone } from '../../components/site/cards.jsx';
 import {
   BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, agendaDays, calendarMonths, eventsOnDay, fmtTime12, guideShortTitle,
@@ -11,14 +11,10 @@ import {
 import { EVENT_TYPES, massType, todayIso } from '../../lib/website.js';
 import { listState, useAnnouncements, useEvents, useMassSchedule, useSacramentGuides } from './data.js';
 
-// The page's content width (like PAGE in kit.jsx); the sacraments band runs
-// edge to edge outside it, with this width inside.
-const WRAP = 'px-3.5 lg:max-w-[1240px] lg:mx-auto lg:px-6';
-
 /**
- * Misa ug Sakramento: the weekly Mass schedule, then the sacrament guides on
- * their own full-width band so the two read as separate sections; or the
- * events agenda (Kalendaryo).
+ * Misa ug Sakramento: the weekly Mass schedule (or the events agenda,
+ * Kalendaryo) on a full-width blue band, then the sacrament guides on the
+ * plain page, so the two read as separate sections.
  */
 export default function Misa() {
   const [params, setParams] = useSearchParams();
@@ -27,17 +23,20 @@ export default function Misa() {
 
   return (
     <main className="animate-fadeUp">
-      <div className={`${WRAP} pt-4 pb-7 lg:pt-9 lg:pb-0`}>
-        <PageHeader eyebrow="Misa ug Sakramento" title="Iskedyul ug mga giya">
-          <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={setView} />
-        </PageHeader>
-        {view === 'sched' ? (
-          <>
-            <PageJumps />
-            <div id="misa" className="scroll-mt-24"><MassSchedule /></div>
-          </>
-        ) : <EventsAgenda />}
-      </div>
+      {/* Iskedyul ug mga giya on the light-blue band; the sacraments follow on the plain page. */}
+      <Band aria-label="Iskedyul ug mga giya">
+        <div className={`${WRAP} ${BAND_PAD}`}>
+          <PageHeader eyebrow="Misa ug Sakramento" title="Iskedyul ug mga giya">
+            <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={setView} />
+          </PageHeader>
+          {view === 'sched' ? (
+            <>
+              <PageJumps />
+              <div id="misa" className="scroll-mt-24"><MassSchedule /></div>
+            </>
+          ) : <EventsAgenda />}
+        </div>
+      </Band>
       {view === 'sched' && <SacramentGuides jump={params.get('view') === 'sakramento'} />}
     </main>
   );
@@ -64,7 +63,7 @@ const guideRank = (g) => (GUIDE_FIRST.includes(g.key) ? GUIDE_FIRST.indexOf(g.ke
 const PICKER_COLS = { 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' };
 
 /**
- * Mga Sakramento ug Pormasyon, under the Mass schedule on a full-width blue band: a card
+ * Mga Sakramento ug Pormasyon, on the plain page under the blue schedule band: a card
  * per sacrament to pick from, then that sacrament's guide. Hidden until
  * guides are published. `jump` (a ?view=sakramento link) scrolls down to it.
  */
@@ -80,8 +79,7 @@ function SacramentGuides({ jump = false }) {
   return (
     <section
       ref={ref} id="sakramento" aria-labelledby="sakramento-title"
-      className="scroll-mt-16 lg:scroll-mt-[76px] lg:mt-12 py-7 lg:py-12 border-y"
-      style={{ background: 'var(--p-blue-tint)', borderColor: 'var(--p-blue-border)' }}
+      className="scroll-mt-16 lg:scroll-mt-[76px] py-7 lg:py-12"
     >
       <div className={WRAP}>
         <Eyebrow>Mga giya</Eyebrow>

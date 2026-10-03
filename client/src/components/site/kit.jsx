@@ -30,6 +30,23 @@ export function Chip({ tone = 'blue', children }) {
 export const PAGE = 'px-3.5 pt-4 pb-7 animate-fadeUp lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-9 lg:pb-0';
 /** Inner pages (opened from a list): the layout shows "Balik" above them on desktop. */
 export const INNER = 'px-4 pt-[18px] pb-7 animate-fadeUp lg:mx-auto lg:px-6 lg:pb-0';
+/** Page content width without padding top/bottom, for content inside a full-width band. */
+export const WRAP = 'px-3.5 lg:max-w-[1240px] lg:mx-auto lg:px-6';
+/** Top/bottom padding for a page's first section when it sits on a Band. */
+export const BAND_PAD = 'pt-4 pb-7 lg:pt-9 lg:pb-12';
+
+/**
+ * A full-width light-blue band that sets a page's first section apart from
+ * what follows (Misa ug Sakramento, Pahibalo ug Kalihokan, Komunidad). Put a
+ * WRAP inside it so the content keeps the page width.
+ */
+export function Band({ as: Tag = 'section', className = '', style, children, ...rest }) {
+  return (
+    <Tag className={`border-b ${className}`} style={{ background: 'var(--p-blue-tint)', borderColor: 'var(--p-blue-border)', ...style }} {...rest}>
+      {children}
+    </Tag>
+  );
+}
 
 export function Eyebrow({ children, className = '' }) {
   return <div className={`font-bold text-[11.5px] lg:text-[12px] tracking-[.18em] uppercase text-[var(--p-eyebrow)] ${className}`}>{children}</div>;
