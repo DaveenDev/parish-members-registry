@@ -85,7 +85,7 @@ export default function SacramentVerifyDialog({ member, sacrament, verification,
     try {
       await api.verifySacrament(member.id, sacrament.key, source, reference);
       toast.success(`${sacrament.label} verified for ${name}`);
-      onChanged?.();
+      onChanged?.({ memberId: member.id, sacrament: sacrament.key, verified: true });
       onClose();
     } catch (e) {
       toast.error(e.message || 'Could not save the verification');
@@ -106,7 +106,7 @@ export default function SacramentVerifyDialog({ member, sacrament, verification,
     try {
       await api.unverifySacrament(member.id, sacrament.key);
       toast.success('Verification removed');
-      onChanged?.();
+      onChanged?.({ memberId: member.id, sacrament: sacrament.key, verified: false });
       onClose();
     } catch (e) {
       toast.error(e.message || 'Could not remove the verification');

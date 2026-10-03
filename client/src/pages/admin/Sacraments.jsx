@@ -45,18 +45,33 @@ export default function Sacraments() {
 
   // The sacrament filters are applied server-side; filtering a single page
   // client-side would make both the row list and the total incorrect.
-  function reload() {
-    setLoading(true);
+  // `quiet` refreshes behind the rows already on screen, without the spinner.
+  function reload({ quiet = false } = {}) {
+    if (!quiet) setLoading(true);
     setError('');
     api.listMembers({ ...filters, search: debouncedSearch, page, pageSize, sortKey: 'household', sortDir: 'asc' })
       .then((res) => { setRows(res.rows); setTotal(res.total); })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e) => { if (!quiet) setError(e.message); })
+      .finally(() => { if (!quiet) setLoading(false); });
   }
   function reloadCounts() {
     api.sacramentVerificationCounts({ gkk: filters.gkk }).then(setCounts).catch(() => setCounts(null));
   }
-  function refreshAll() { reload(); reloadCounts(); }
+  function refreshAll() { reload({ quiet: true }); reloadCounts(); }
+
+  /**
+   * A verification was saved or removed: flip the chip and the waiting count
+   * at once, then re-read in the background (the server counts take a moment).
+   */
+  function verificationChanged({ memberId, sacrament, verified }) {
+    const key = `${sacrament}_verified`;
+    const row = rows.find((r) => r.id === memberId);
+    if (row && !!row[key] !== verified) {
+      setRows((rs) => rs.map((r) => (r.id === memberId ? { ...r, [key]: verified } : r)));
+      setCounts((c) => c && { ...c, [sacrament]: { ...c[sacrament], verified: c[sacrament].verified + (verified ? 1 : -1) } });
+    }
+    refreshAll();
+  }
 
   useEffect(() => { reload(); }, [filterKey, debouncedSearch, page, pageSize]);
   useEffect(() => { reloadCounts(); }, [filters.gkk]);
@@ -185,7 +200,7 @@ export default function Sacraments() {
           sacrament={verifying.sacrament}
           verification={verifying.verification}
           onClose={() => setVerifying(null)}
-          onChanged={refreshAll}
+          onChanged={verificationChanged}
         />
       )}
     </>
