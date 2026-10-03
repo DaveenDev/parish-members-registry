@@ -64,14 +64,10 @@ export default function Households() {
 
   const [counts, setCounts] = useState({});
   function loadCounts() {
-    const base = { gkk, search: debouncedSearch, page: 1, pageSize: 10 };
-    Promise.all(['Pending', 'Verified'].map((st) => api.listHouseholds({ ...base, status: st }).then((r) => [st, r.total]).catch(() => [st, null])))
-      .then((pairs) => {
-        const c = Object.fromEntries(pairs);
-        // A household is either Pending or Verified, so All is the two together.
-        c.All = c.Pending != null && c.Verified != null ? c.Pending + c.Verified : null;
-        setCounts(c);
-      });
+    api.householdStatusCounts({ gkk, search: debouncedSearch })
+      // A household is either Pending or Verified, so All is the two together.
+      .then((c) => setCounts({ ...c, All: c.Pending + c.Verified }))
+      .catch(() => setCounts({}));
   }
   useEffect(() => { loadCounts(); }, [gkk, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 

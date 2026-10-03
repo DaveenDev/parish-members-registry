@@ -182,6 +182,22 @@ export const api = {
     return { rows, total: count, page, pageSize };
   },
 
+  /**
+   * { Pending, Verified } households under listHouseholds-style filters (not
+   * status), for the Households tabs. Count-only, with the member-name search
+   * run once for both.
+   */
+  async householdStatusCounts(params = {}) {
+    const { params: query } = await withMemberMatches(params);
+    const count = async (status) => {
+      const { count: n, error } = await householdQuery(supabase.from('households').select('id', { count: 'exact', head: true }), { ...query, status });
+      if (error) throw mapError(error);
+      return n || 0;
+    };
+    const [Pending, Verified] = await Promise.all([count('Pending'), count('Verified')]);
+    return { Pending, Verified };
+  },
+
   async getHousehold(id) {
     const { data: household, error } = await supabase.from('households').select('*').eq('id', id).single();
     if (error) throw mapError(error, { fallback: 'Household not found' });
@@ -1002,8 +1018,8 @@ export const api = {
 
   /** { 'Not started': n, 'Partly confirmed': n, Confirmed: n } households. */
   async censusHouseholdProgressCounts(cycleId) {
-    const { data, error } = await supabase.rpc('census_household_progress', { p_cycle_id: cycleId }).select('progress');
-    if (error) throw mapError(error);
+    // Every household, past the 1,000-row cap; only the progress column comes back.
+    const data = await fetchAll(() => supabase.rpc('census_household_progress', { p_cycle_id: cycleId }).select('progress').order('household_id'));
     const counts = { 'Not started': 0, 'Partly confirmed': 0, Confirmed: 0 };
     for (const r of data) counts[r.progress] = (counts[r.progress] || 0) + 1;
     return counts;
@@ -1060,6 +1076,14 @@ export const api = {
   },
 
   /** Online updates families sent in this census (Pending by default). */
+  /** How many online updates in this census wait for review (count only, for the tab badge). */
+  async pendingCensusSubmissionCount(cycleId) {
+    const { count, error } = await supabase.from('census_submissions').select('id', { count: 'exact', head: true })
+      .eq('cycle_id', cycleId).eq('status', 'Pending');
+    if (error) throw mapError(error);
+    return count || 0;
+  },
+
   /** Every update in one status (past the 1,000-row cap), oldest first; the tab searches and pages them. */
   async listCensusSubmissions(cycleId, status = 'Pending') {
     return fetchAll(() => supabase

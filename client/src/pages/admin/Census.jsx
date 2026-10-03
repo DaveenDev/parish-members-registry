@@ -73,7 +73,7 @@ export default function Census() {
   // Before the 0008 migration there are no online updates; the count stays 0.
   useEffect(() => {
     if (!cycleId) return;
-    api.listCensusSubmissions(cycleId).then((rows) => setPendingCount(rows.length)).catch(() => setPendingCount(0));
+    api.pendingCensusSubmissionCount(cycleId).then(setPendingCount).catch(() => setPendingCount(0));
   }, [cycleId, refreshKey]);
 
   async function closeCycle() {
@@ -269,11 +269,15 @@ function HouseholdsTab({ cycle, parish, ownGkk, refreshKey, onChanged }) {
       .then((res) => { setRows(res.rows); setTotal(res.total); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+  }
+  // The tiles cover the whole census, so paging and searching don't reload them.
+  function reloadTiles() {
     api.censusHouseholdProgressCounts(cycle.id).then(setCounts).catch(() => setCounts(null));
     api.censusSummary(cycle.id).then((r) => setSummary(summarizeCensus(r))).catch(() => setSummary(null));
   }
 
   useEffect(() => { reload(); }, [cycle.id, gkk, progress, debouncedSearch, page, pageSize, refreshKey]);
+  useEffect(() => { reloadTiles(); }, [cycle.id, refreshKey]);
   useEffect(() => { setPage(1); }, [cycle.id, gkk, progress, debouncedSearch]);
   useEffect(() => { if (!ownGkk) api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, [ownGkk]);
 
