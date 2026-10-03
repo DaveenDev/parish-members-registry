@@ -42,6 +42,7 @@ export const NAV_GROUPS = [
     collapsible: true,
     items: [
       { to: '/admin/settings', end: true, label: 'Parish Config' },
+      { to: '/admin/settings/notifications', label: 'Notifications' },
       { to: '/admin/settings/organizations', label: 'Ministries & organizations', need: 'manageLists' },
       { to: '/admin/duplicates', label: 'Duplicates', need: 'registry', badge: 'duplicates', badgeLabel: 'groups to review' },
       { to: '/admin/settings/staff', label: 'Staff', adminOnly: true },

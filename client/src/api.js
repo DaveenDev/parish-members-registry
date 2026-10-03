@@ -443,6 +443,83 @@ export const api = {
     return { pending_households: pending.count || 0, requests };
   },
 
+  // ---- staff notifications (0034) -----------------------------------
+  /**
+   * The latest notifications this account may see, and its own settings
+   * (when the bell was last opened, what goes to its devices). null before
+   * the 0034 migration, so the bell stays hidden.
+   */
+  async listNotifications(limit = 30) {
+    const [list, prefs] = await Promise.all([
+      supabase.from('staff_notifications')
+        .select('id, kind, area, ref_no, title, detail, link, urgent, created_at')
+        .order('created_at', { ascending: false }).limit(limit),
+      supabase.from('staff_notify_prefs').select('seen_at, push_level, digest').maybeSingle(),
+    ]);
+    if (list.error) {
+      if (list.error.code === '42P01' || list.error.code === 'PGRST205') return null;
+      throw mapError(list.error);
+    }
+    return { items: list.data || [], prefs: prefs.data || { seen_at: null, push_level: 'all', digest: true } };
+  },
+
+  /** Opening the bell: everything so far is seen. Returns the database's time. */
+  async markNotificationsSeen() {
+    const { data, error } = await supabase.rpc('mark_staff_notifications_seen');
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async saveNotifyPrefs(patch) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const { error } = await supabase.from('staff_notify_prefs')
+      .upsert({ user_id: session?.user?.id, ...patch, updated_at: new Date().toISOString() }, { onConflict: 'user_id' });
+    if (error) throw mapError(error);
+    return null;
+  },
+
+  /** Calls `onNew(row)` for each new notification this account may see. Returns the unsubscribe. */
+  subscribeNotifications(onNew) {
+    const channel = supabase.channel(`staff-notifications-${Math.random().toString(36).slice(2)}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'staff_notifications' }, (msg) => onNew(msg.new))
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  },
+
+  /** The push key the browser subscribes with (made on first use by the notify-staff function). */
+  async pushPublicKey() {
+    const data = await callNotifyFunction({ action: 'setup', site: window.location.origin });
+    return data.publicKey;
+  },
+
+  async savePushSubscription(subscription, device) {
+    const json = subscription.toJSON();
+    const { error } = await supabase.rpc('save_push_subscription', {
+      p_endpoint: json.endpoint, p_p256dh: json.keys?.p256dh, p_auth: json.keys?.auth, p_device: device,
+    });
+    if (error) throw mapError(error);
+    return null;
+  },
+
+  async listMyPushDevices() {
+    const { data, error } = await supabase.from('staff_push_subscriptions')
+      .select('id, endpoint, device, created_at, last_ok_at').order('created_at');
+    if (error) throw mapError(error);
+    return data || [];
+  },
+
+  async removePushDevice({ id, endpoint }) {
+    const q = supabase.from('staff_push_subscriptions').delete();
+    const { error } = await (id ? q.eq('id', id) : q.eq('endpoint', endpoint));
+    if (error) throw mapError(error);
+    return null;
+  },
+
+  /** A test notification to this device (`endpoint`), or to all of this account's. */
+  async sendTestPush(endpoint) {
+    return callNotifyFunction({ action: 'test', endpoint: endpoint || undefined });
+  },
+
   // ---- sacrament verification (admin) --------------------------------
   /** Staff verifications for one member, keyed by sacrament ('baptism', …). */
   async getSacramentVerifications(memberId) {
@@ -1380,6 +1457,18 @@ async function callMediaFunction(body) {
   if (payload?.error) throw new Error(payload.error);
   if (res?.status === 404 || error.name === 'FunctionsFetchError') {
     throw new Error('Photo uploads aren’t set up yet: deploy the media-upload Edge Function (see docs/media-storage.md).');
+  }
+  throw new Error(error.message || 'Request failed');
+}
+
+async function callNotifyFunction(body) {
+  const { data, error } = await supabase.functions.invoke('notify-staff', { body });
+  if (!error) return data;
+  const res = error.context;
+  const payload = res && typeof res.json === 'function' ? await res.json().catch(() => null) : null;
+  if (payload?.error) throw new Error(payload.error);
+  if (res?.status === 404 || error.name === 'FunctionsFetchError') {
+    throw new Error('Phone notifications aren’t set up yet: deploy the notify-staff Edge Function (see docs/notifications.md).');
   }
   throw new Error(error.message || 'Request failed');
 }

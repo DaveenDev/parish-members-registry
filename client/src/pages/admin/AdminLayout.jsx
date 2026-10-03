@@ -7,8 +7,46 @@ import { useAdminColorMode } from '../../ThemeContext.jsx';
 import { PageHeader, PageBody, EmptyState } from '../../components/admin.jsx';
 import CommandPalette, { useCommandPaletteShortcut } from '../../components/CommandPalette.jsx';
 import IdleSignOut from '../../components/IdleSignOut.jsx';
+import NotificationBell, { useStaffNotifications } from '../../components/NotificationBell.jsx';
 import { NAV_GROUPS, navAllowed, navItemFor, navBadges } from '../../components/adminNav.js';
 import { accessLabel } from '../../lib/access.js';
+import { keepServiceWorker } from '../../lib/push.js';
+
+// Lets a phone add the admin panel to its Home Screen (needed on iPhone for
+// notifications). Only on admin pages, so the public website isn't offered
+// as an app.
+const APP_LINKS = [
+  ['link', { rel: 'manifest', href: '/admin.webmanifest' }],
+  ['link', { rel: 'apple-touch-icon', href: '/icons/apple-touch-icon.png' }],
+  ['meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }],
+  ['meta', { name: 'apple-mobile-web-app-title', content: 'Parish Admin' }],
+  ['meta', { name: 'theme-color', content: '#1a2b4a' }],
+];
+
+function useAdminAppLinks() {
+  useEffect(() => {
+    const added = APP_LINKS.map(([tag, attrs]) => {
+      const el = document.createElement(tag);
+      Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+      document.head.appendChild(el);
+      return el;
+    });
+    return () => added.forEach((el) => el.remove());
+  }, []);
+}
+
+/** A tapped phone notification, when the admin is already open: go to its page here. */
+function useNotificationTaps(navigate) {
+  useEffect(() => {
+    keepServiceWorker();
+    if (!('serviceWorker' in navigator)) return undefined;
+    const onMessage = (e) => {
+      if (e.data?.type === 'open' && typeof e.data.url === 'string' && e.data.url.startsWith('/admin')) navigate(e.data.url);
+    };
+    navigator.serviceWorker.addEventListener('message', onMessage);
+    return () => navigator.serviceWorker.removeEventListener('message', onMessage);
+  }, [navigate]);
+}
 
 function NavItem({ to, end, label, count, badgeLabel, onNavigate }) {
   return (
@@ -60,6 +98,9 @@ export default function AdminLayout() {
     api.navCounts().then(setNavCounts).catch(() => {});
   }, []);
   useEffect(refreshNavCounts, [location.pathname, refreshNavCounts]);
+  const bell = useStaffNotifications({ onNew: refreshNavCounts });
+  useAdminAppLinks();
+  useNotificationTaps(navigate);
   const badges = navBadges(navCounts);
   const requestCounts = navCounts?.requests || null;
   const current = navItemFor(location.pathname);
@@ -102,15 +143,17 @@ export default function AdminLayout() {
         </div>
       </div>
 
-      <div className="px-3 pt-3">
+      <div className="px-3 pt-3 flex gap-2">
         <button
           type="button" onClick={openSearch}
-          className="w-full appearance-none cursor-pointer flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white/75 text-[13.5px] font-semibold text-left"
+          className="flex-1 min-w-0 appearance-none cursor-pointer flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-white/15 bg-white/5 hover:bg-white/10 text-white/75 text-[13.5px] font-semibold text-left"
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
           <span className="flex-1">Search</span>
-          <kbd className="text-[10.5px] font-semibold text-white/55 border border-white/20 rounded px-1.5 py-px">Ctrl K</kbd>
+          <kbd className={`text-[10.5px] font-semibold text-white/55 border border-white/20 rounded px-1.5 py-px ${bell.available ? 'lg:hidden' : ''}`}>Ctrl K</kbd>
         </button>
+        {/* On phones the bell is in the top bar instead. */}
+        <NotificationBell bell={bell} dark className="hidden lg:flex" />
       </div>
 
       <nav className="px-3 py-1.5 flex flex-col flex-1 overflow-auto" aria-label="Admin sections">
@@ -208,12 +251,13 @@ export default function AdminLayout() {
           {parish?.logo && (
             <img src={parish.logo} alt="" className="w-[30px] h-[30px] object-contain rounded-md bg-parish-surface flex-none" />
           )}
-          <span className="font-serif text-[19px] font-semibold text-parish-navy truncate">{parish?.name || 'Parish Registry'}</span>
+          <span className="font-serif text-[19px] font-semibold text-parish-navy truncate flex-1 min-w-0">{parish?.name || 'Parish Registry'}</span>
+          <NotificationBell bell={bell} />
         </div>
 
         {/* Pages that change parish settings (logo, name) push them back here so the sidebar updates without a reload. */}
         {allowed ? (
-          <Outlet context={{ parish, setParish, requestCounts, navCounts, refreshRequestCounts: refreshNavCounts, refreshNavCounts }} />
+          <Outlet context={{ parish, setParish, requestCounts, navCounts, refreshRequestCounts: refreshNavCounts, refreshNavCounts, bell }} />
         ) : (
           <>
             <PageHeader title={current.label} />

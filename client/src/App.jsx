@@ -34,6 +34,7 @@ import ManageStaff from './pages/admin/ManageStaff.jsx';
 import AdminNotFound from './pages/admin/NotFound.jsx';
 import ActivityLog from './pages/admin/ActivityLog.jsx';
 import Trash from './pages/admin/Trash.jsx';
+import Notifications from './pages/admin/Notifications.jsx';
 
 function RequireAuth({ children }) {
   const { user, ready } = useAuth();
@@ -101,6 +102,7 @@ export default function App() {
           <Route path="settings/staff" element={<ManageStaff />} />
           <Route path="settings/activity" element={<ActivityLog />} />
           <Route path="settings/trash" element={<Trash />} />
+          <Route path="settings/notifications" element={<Notifications />} />
           {/* A mistyped admin URL stays inside the admin, not on the public home page. */}
           <Route path="*" element={<AdminNotFound />} />
         </Route>
