@@ -3,8 +3,6 @@ import { Link, useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, ErrorState, LoadingState, Panel } from '../../components/admin.jsx';
 import { useAsyncData } from '../../hooks.js';
-import { daysAgo } from '../../constants.js';
-import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 import { todayItems } from '../../lib/today.js';
@@ -75,7 +73,7 @@ function BreakdownBars({ data, color1, color2 }) {
 const TONE_DOT = { gold: 'var(--p-gold)', blue: 'var(--p-blue)', red: 'rgb(var(--c-error))', green: 'rgb(var(--c-ok-text))' };
 
 /**
- * What's waiting today: requests, census, sacraments to verify, the week's
+ * What's waiting today: households and sacraments to verify, requests, census, the week's
  * events and bulletin. Each part loads on its own and is left out quietly if
  * it can't be (an account without access, or a migration not run yet).
  */
@@ -132,67 +130,6 @@ function TodayPanel({ counts }) {
   );
 }
 
-/** The newest households still waiting for staff to verify them, with one-click Verify. */
-function PendingQueue({ pendingCount, onVerified }) {
-  const toast = useToast();
-  const queue = useAsyncData(() => api.listHouseholds({ status: 'Pending', pageSize: 8 }), []);
-  const [busyId, setBusyId] = useState(null);
-  const { user } = useAuth();
-  const canVerify = can(user, 'editRegistry');
-
-  async function verify(h) {
-    setBusyId(h.id);
-    try {
-      await api.updateHousehold(h.id, { status: 'Verified' });
-      toast.success(`${h.household_name} marked Verified`);
-      queue.reload();
-      onVerified();
-    } catch (e) {
-      toast.error(e.message || 'Could not verify this household');
-    } finally {
-      setBusyId(null);
-    }
-  }
-
-  const rows = queue.data?.rows || [];
-  return (
-    <Panel className="px-[22px] py-5 mb-[18px]">
-      <div className="flex items-baseline justify-between gap-3 flex-wrap mb-0.5">
-        <h2 className="font-serif text-[20px] font-semibold text-parish-navy m-0">Awaiting verification</h2>
-        {pendingCount > 0 && (
-          <Link to="/admin/households?status=Pending" className="font-semibold text-[13px] text-parish-blue">View all {pendingCount} pending →</Link>
-        )}
-      </div>
-      <div className="text-[12.5px] text-parish-muted mb-4">Newest registrations first. Check the details against the family before verifying.</div>
-      {queue.loading && !queue.data && <LoadingState label="Loading pending households…" />}
-      {queue.error && !queue.loading && <ErrorState message={queue.error} onRetry={queue.reload} />}
-      {queue.data && !rows.length && <div className="text-[13.5px] text-parish-muted py-2">Nothing waiting. Every household has been verified.</div>}
-      {!!rows.length && (
-        <ul className="list-none m-0 p-0 flex flex-col divide-y divide-parish-line">
-          {rows.map((h) => (
-            <li key={h.id} className="flex items-center gap-3 py-2.5 flex-wrap">
-              <div className="min-w-0 flex-1">
-                <div className="font-semibold text-[14.5px] text-parish-navy truncate">{h.household_name}</div>
-                <div className="text-[12.5px] text-parish-muted truncate">
-                  {[h.head_name && `Head: ${h.head_name}`, h.gkk || 'No GKK', `${h.member_count} member(s)`, `registered ${daysAgo(h.created_at)}`].filter(Boolean).join(' · ')}
-                </div>
-              </div>
-              <Link to={`/admin/households?status=Pending&q=${encodeURIComponent(h.household_name)}`} className="px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg no-underline">Open</Link>
-              {canVerify && <button
-                onClick={() => verify(h)}
-                disabled={busyId === h.id}
-                className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap disabled:opacity-60"
-              >
-                {busyId === h.id ? 'Verifying…' : 'Verify'}
-              </button>}
-            </li>
-          ))}
-        </ul>
-      )}
-    </Panel>
-  );
-}
-
 export default function Dashboard() {
   const { data: stats, loading, error, reload } = useAsyncData(() => api.dashboardStats(), []);
   const layout = useOutletContext();
@@ -227,8 +164,6 @@ export default function Dashboard() {
         )}
 
         <TodayPanel counts={layout?.navCounts} />
-
-        <PendingQueue pendingCount={stats.pendingCount} onVerified={() => { reload(); layout?.refreshNavCounts?.(); }} />
 
         <div className="grid gap-[18px] mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))' }}>
           <Panel className="px-[22px] py-5">

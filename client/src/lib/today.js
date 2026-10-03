@@ -1,5 +1,5 @@
-// The Dashboard's "Today" list: what's waiting for staff right now, drawn
-// from the sidebar counts, the open census, events and bulletins. Pure, so
+// The Dashboard's "Today" list: what's waiting for staff right now (households
+// to verify first), drawn from the sidebar counts, the open census, events and bulletins. Pure, so
 // it can be unit tested. Each item: { key, label, detail, n, to, tone }.
 import { can } from './access.js';
 import { addDays, sundayOf } from './website.js';
@@ -9,6 +9,9 @@ export function todayItems({ user, counts, census, events = [], bulletins = [], 
   const r = counts?.requests;
   const push = (item) => { if (item.n || item.always) items.push(item); };
 
+  if (can(user, 'registry') && counts?.pending_households) {
+    push({ key: 'households', label: 'Households awaiting verification', detail: 'New registrations: check the details against the family', n: counts.pending_households, to: '/admin/households?status=Pending', tone: 'gold' });
+  }
   if (can(user, 'requests') && r) {
     push({ key: 'ready', label: 'Certificates ready for pick-up', detail: 'Let the requester know, then mark them released', n: r.ready, to: '/admin/requests?view=ready', tone: 'gold' });
     push({ key: 'certs', label: 'Certificate requests to prepare', n: r.certificates, to: '/admin/requests', tone: 'blue' });
