@@ -119,7 +119,7 @@ export default function Census() {
       </>
     );
   }
-  if (!cycles) return <div className="p-8 text-parish-muted">Loading census…</div>;
+  if (!cycles) return <LoadingState label="Loading census…" />;
 
   return (
     <>

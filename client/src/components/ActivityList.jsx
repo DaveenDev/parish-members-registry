@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { fmtDateTime } from '../constants.js';
 import { describeActivity, activityActor } from '../lib/activity.js';
+import { LoadingState } from './admin.jsx';
 
 /** One activity log entry: what happened, who did it and when, and each field that changed. */
 export function ActivityEntry({ entry, showLabel = false, onOpen }) {
@@ -50,7 +51,7 @@ export default function ActivityList({ householdId, memberId, reloadKey }) {
   }, [householdId, memberId, page, reloadKey]);
 
   if (error) return <div className="text-[13px] text-parish-muted">{error}</div>;
-  if (!rows) return <div className="text-[13px] text-parish-muted" role="status">Loading history…</div>;
+  if (!rows) return <LoadingState label="Loading history…" compact />;
   if (!rows.length) return <div className="text-[13px] text-parish-muted">No changes recorded yet. Changes are recorded from the 0014 migration on.</div>;
   return (
     <>

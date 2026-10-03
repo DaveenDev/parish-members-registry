@@ -10,6 +10,7 @@ import { MEMBERSHIP_STATUSES, FORMER_STATUSES, CENSUS_SOURCES, STATUS_TONES, cle
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { useAuth } from '../AuthContext.jsx';
+import { LoadingState } from './admin.jsx';
 import { can } from '../lib/access.js';
 
 const SHORT_LEVEL = { Aktibo: 'A', Panagsa: 'P', Wala: 'W' };
@@ -215,7 +216,7 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
 
         <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-5">
           {loadError && <div className="text-parish-error text-[13.5px]" role="alert">{loadError}</div>}
-          {!data && !loadError && <div className="text-[13.5px] text-parish-muted py-3">Loading household…</div>}
+          {!data && !loadError && <LoadingState label="Loading household…" compact />}
 
           {data && (
             <>

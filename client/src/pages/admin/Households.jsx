@@ -493,7 +493,7 @@ function MatchedMembers({ household: h, search }) {
 }
 
 function MemberList({ members, onOpen }) {
-  if (!members) return <div className="text-[13px] text-parish-muted" role="status">Loading members…</div>;
+  if (!members) return <LoadingState label="Loading members…" compact />;
   if (!members.length) return <div className="text-[13px] text-parish-muted">No members yet.</div>;
   return (
     <div className="flex flex-col gap-2">

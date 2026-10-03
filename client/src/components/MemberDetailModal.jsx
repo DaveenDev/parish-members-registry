@@ -10,6 +10,7 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { STATUS_TONES } from '../lib/census.js';
 import { PRACTICE_MAX, PRACTICE_TONES, PRACTICE_LEVEL_HELP, expectedSacraments, isRated, scoreMember, trendText, practiceSourceText } from '../lib/practice.js';
 import { useAuth } from '../AuthContext.jsx';
+import { LoadingState } from './admin.jsx';
 import { can } from '../lib/access.js';
 import ActivityList from './ActivityList.jsx';
 
@@ -175,7 +176,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
     <div className="fixed inset-0 z-50 bg-parish-scrim/45 backdrop-blur-sm flex items-center justify-center p-5" onClick={onClose}>
       <div className="bg-parish-surface rounded-2xl max-w-[720px] w-full shadow-2xl max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
         {!member ? (
-          <div className="p-10 text-center text-parish-muted">Loading…</div>
+          <LoadingState label="Loading member…" />
         ) : (
           <div className="p-[26px]" style={{ padding: '28px' }}>
             <div className="flex items-center justify-between mb-1">

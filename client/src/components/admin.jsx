@@ -116,9 +116,17 @@ export function ErrorState({ message, onRetry }) {
   );
 }
 
-/** Neutral placeholder while a list is loading, so tables don't flash "no results". */
-export function LoadingState({ label = 'Loading…' }) {
-  return <div className="py-12 px-5 text-center text-[14px] text-parish-muted" role="status" aria-live="polite">{label}</div>;
+/**
+ * Spinner while something is loading, so tables don't flash "no results".
+ * `label` is read out to screen readers; `compact` fits a drawer or panel row.
+ */
+export function LoadingState({ label = 'Loading…', compact = false }) {
+  return (
+    <div className={`${compact ? 'py-4' : 'py-12'} px-5 flex justify-center`} role="status" aria-live="polite">
+      <span className={`${compact ? 'w-5 h-5 border-2' : 'w-8 h-8 border-[3px]'} shrink-0 rounded-full border-parish-blue/20 border-t-parish-blue animate-spinSlow`} aria-hidden="true" />
+      <span className="sr-only">{label}</span>
+    </div>
+  );
 }
 
 export function EmptyState({ title, subtitle }) {

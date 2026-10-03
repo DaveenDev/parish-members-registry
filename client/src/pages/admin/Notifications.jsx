@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, Panel, EmptyState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, Panel, EmptyState, LoadingState } from '../../components/admin.jsx';
 import { PrimaryButton, GhostButton, Checkbox } from '../../components/ui.jsx';
 import { NotificationRow } from '../../components/NotificationBell.jsx';
 import { useToast } from '../../ToastContext.jsx';
@@ -163,7 +163,7 @@ export default function Notifications() {
           </Section>
 
           <Section title="What to send to my devices" subtitle="For every phone and computer you turned notifications on for.">
-            {!prefs ? <div className="text-[14px] text-parish-muted">Loading…</div> : (
+            {!prefs ? <LoadingState label="Loading your notification choices…" compact /> : (
               <>
                 <fieldset className="border-0 p-0 m-0 flex flex-col gap-2.5">
                   <legend className="sr-only">New requests</legend>
@@ -196,7 +196,7 @@ export default function Notifications() {
           </Section>
 
           <Section title="My devices" subtitle="Where this account gets notifications. Remove a phone you no longer use.">
-            {devices === null && <div className="text-[14px] text-parish-muted">Loading…</div>}
+            {devices === null && <LoadingState label="Loading your devices…" compact />}
             {devices && !devices.length && <div className="text-[14px] text-parish-muted">None yet.</div>}
             {!!devices?.length && (
               <ul className="list-none m-0 p-0 divide-y divide-parish-line border border-parish-line rounded-xl">

@@ -10,6 +10,7 @@ import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
+import { LoadingState } from './admin.jsx';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
 import ActivityList from './ActivityList.jsx';
@@ -236,7 +237,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
             </div>
             <p className="text-[12.5px] text-parish-muted mt-1 mb-3">Adding, editing and removing members saves right away.</p>
             {membersError && <div className="mb-3 text-parish-error text-[13.5px]">{membersError}</div>}
-            {!members && !membersError && <div className="text-[13.5px] text-parish-muted py-3">Loading members…</div>}
+            {!members && !membersError && <LoadingState label="Loading members…" compact />}
             {members && (
               <div className="flex flex-col gap-2">
                 {members.map((m) => (
