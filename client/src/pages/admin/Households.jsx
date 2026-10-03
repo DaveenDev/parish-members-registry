@@ -20,7 +20,7 @@ import { daysAgo, fmtDateTime } from '../../constants.js';
 const SORTS = [['registered', 'Registered'], ['name', 'Household'], ['gkk', 'GKK'], ['members', 'Members'], ['updated', 'Last updated']];
 // The status tabs. Keys are the ?status= values, so dashboard links like
 // ?status=Pending open on the verification queue.
-const STATUS_TABS = [['All', 'All Households'], ['Pending', 'On Queue for Verification'], ['Verified', 'Verified Households']];
+const STATUS_TABS = [['Verified', 'Verified Households'], ['Pending', 'On Queue for Verification'], ['All', 'All Households']];
 
 const URL_DEFAULTS = { status: 'All', gkk: 'All', q: '', sort: 'registered', dir: '', page: 1, size: 10 };
 const URL_ALLOWED = { status: ['All', 'Verified', 'Pending'], sort: SORTS.map(([k]) => k), dir: ['', 'asc', 'desc'], size: [10, 20, 50] };
