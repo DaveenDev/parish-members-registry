@@ -181,14 +181,19 @@ and nothing is saved.
 ## Load-speed baseline
 
 Database time with the test data in (504 households, about 2,000 members),
-measured on 3 October 2026 as a full-access account. This is the database
-alone; the browser adds network and rendering time on top.
+as a full-access account, before and after
+[`0039_faster_access_checks.sql`](../supabase/migrations/0039_faster_access_checks.sql)
+(3 and 4 October 2026). This is the database alone; the browser adds network
+and rendering time on top.
 
-| Screen | Database time |
-|---|---|
-| Households list | 0.19 s |
-| Member search | 0.09 s |
-| Members list | 1.3 s |
-| Sidebar counts (loaded on every admin page) | 1.8 s |
-| Reports | 2.1 s |
-| Dashboard | 4.3 s |
+| Screen | Before 0039 | After 0039 |
+|---|---|---|
+| Sidebar counts (loaded on every admin page) | 2.1 s | 0.04 s |
+| Dashboard | 4.0 s | 0.12 s |
+| Households list | 0.16 s | under 0.01 s |
+| Members list | 2.3 s | 0.14 s |
+| Sacraments | 5.9 s | 0.14 s |
+| Census | 1.1 s | 0.02 s |
+| Reports | 1.9 s | 0.01 s |
+
+A GKK leader's Dashboard went from 10.4 s to 0.12 s.
