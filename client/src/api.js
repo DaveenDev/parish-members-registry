@@ -1060,15 +1060,15 @@ export const api = {
   },
 
   /** Online updates families sent in this census (Pending by default). */
+  /** Every update in one status (past the 1,000-row cap), oldest first; the tab searches and pages them. */
   async listCensusSubmissions(cycleId, status = 'Pending') {
-    const { data, error } = await supabase
+    return fetchAll(() => supabase
       .from('census_submissions')
       .select('*, households(household_name, ref_no, gkk)')
       .eq('cycle_id', cycleId)
       .eq('status', status)
-      .order('submitted_at', { ascending: true });
-    if (error) throw mapError(error);
-    return data;
+      .order('submitted_at', { ascending: true })
+      .order('id', { ascending: true }));
   },
 
   async approveCensusSubmission(id) {

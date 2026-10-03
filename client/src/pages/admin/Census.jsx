@@ -11,7 +11,7 @@ import { fmtDate } from '../../constants.js';
 import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission } from '../../lib/census.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
-import { useDebounced } from '../../hooks.js';
+import { useClientList, useDebounced } from '../../hooks.js';
 
 const PROGRESS = ['Not started', 'Partly confirmed', 'Confirmed'];
 const PROGRESS_TONES = { 'Not started': 'gray', 'Partly confirmed': 'gold', Confirmed: 'green' };
@@ -386,17 +386,23 @@ function HouseholdsTab({ cycle, parish, ownGkk, refreshKey, onChanged }) {
   );
 }
 
+/** What the Online updates search looks in. */
+const updateSearchText = (r) => [r.households?.household_name, r.households?.ref_no, r.households?.gkk, r.reviewed_by_name, r.review_note, r.message].filter(Boolean).join(' ');
+
 function UpdatesTab({ cycle, refreshKey, onChanged }) {
   const [status, setStatus] = useState('Pending');
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [openRow, setOpenRow] = useState(null);
+  // All of a cycle's updates in one status are loaded, then searched and paged here.
+  const list = useClientList(rows, updateSearchText, 20);
 
   function load() {
     setError('');
     api.listCensusSubmissions(cycle.id, status).then(setRows).catch((e) => setError(e.message));
   }
   useEffect(() => { setRows(null); load(); }, [cycle.id, status, refreshKey]);
+  useEffect(() => { list.setPage(1); }, [cycle.id, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -405,6 +411,7 @@ function UpdatesTab({ cycle, refreshKey, onChanged }) {
           Families open their record at <strong className="text-parish-navy">{window.location.origin}/census</strong> with the reference number and
           code printed on their census form. Nothing changes in the registry until you approve their update.
         </p>
+        <SearchInput placeholder="Search household, ref no, GKK…" aria-label="Search online updates" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
         <FilterSelect aria-label="Update status" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="Pending">Waiting for review</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option>
         </FilterSelect>
@@ -417,10 +424,12 @@ function UpdatesTab({ cycle, refreshKey, onChanged }) {
             {!rows && !error && <LoadingState label="Loading online updates…" />}
             {error && <ErrorState message={error} onRetry={load} />}
             {rows && !rows.length && <EmptyState title={status === 'Pending' ? 'No updates waiting' : `No ${status.toLowerCase()} updates`} />}
+            {rows && !!rows.length && !list.total && <EmptyState title="No updates found" subtitle="Try another name, reference number or GKK." />}
+            {rows && <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />}
           </>
         }
       >
-        {(rows || []).map((r) => {
+        {list.rows.map((r) => {
           const d = diffSubmission(r);
           const answered = [...d.members, ...d.newMembers].filter((m) => m.status).length;
           return (
