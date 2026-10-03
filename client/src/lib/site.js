@@ -424,19 +424,15 @@ export function gkkParts(name) {
   return { patron: s.slice(0, i).trim(), area: s.slice(i + 2).trim() };
 }
 
-/** GKKs whose name, area, puroks or chapel address contain the search text, grouped by area in first-seen order. */
-export function groupGkksByArea(gkks, query = '') {
+/**
+ * GKKs whose name (and so its barangay), puroks or chapel address contain the
+ * search text, in the order given, each with its patron and area split out.
+ */
+export function filterGkks(gkks, query = '') {
   const q = query.trim().toLowerCase();
-  const groups = [];
-  for (const g of gkks) {
-    const { patron, area } = gkkParts(g.name);
-    if (q && !`${g.name} ${g.puroks || ''} ${g.chapel_address || ''}`.toLowerCase().includes(q)) continue;
-    const key = area || 'Uban pa';
-    let grp = groups.find((x) => x.area === key);
-    if (!grp) { grp = { area: key, items: [] }; groups.push(grp); }
-    grp.items.push({ ...g, patron, area });
-  }
-  return groups;
+  return gkks
+    .filter((g) => !q || `${g.name} ${g.puroks || ''} ${g.chapel_address || ''}`.toLowerCase().includes(q))
+    .map((g) => ({ ...g, ...gkkParts(g.name) }));
 }
 
 /**

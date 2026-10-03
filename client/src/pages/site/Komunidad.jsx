@@ -3,7 +3,7 @@ import { Link, useParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Avatar, BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { phoneHref } from '../../lib/requests.js';
-import { fmtLong, gkkParts, groupGkksByArea, initialsOf, sortCensusGkks } from '../../lib/site.js';
+import { filterGkks, fmtLong, gkkParts, initialsOf, sortCensusGkks } from '../../lib/site.js';
 import { useSiteTitle } from './SiteLayout.jsx';
 import { listState, useCensusProgress, useGkkDirectory } from './data.js';
 
@@ -51,8 +51,8 @@ export default function Komunidad() {
 function GkkDirectory() {
   const dir = listState(useGkkDirectory());
   const [q, setQ] = useState('');
-  const groups = groupGkksByArea(dir.rows, q);
-  const count = groups.reduce((n, g) => n + g.items.length, 0);
+  const items = filterGkks(dir.rows, q);
+  const count = items.length;
   const examples = [...new Set(dir.rows.map((g) => gkkParts(g.name).area).filter(Boolean))].slice(0, 3);
 
   return (
@@ -95,15 +95,10 @@ function GkkDirectory() {
             <BigButton variant="secondary" to="/kontak" className="!w-auto inline-flex px-4">Kontaka ang opisina</BigButton>
           </div>
         ) : (
-          <div className="flex flex-col gap-5 lg:gap-7">
-            {groups.map((grp) => (
-              <div key={grp.area}>
-                <h2 className="m-0 mb-2 lg:mb-2.5 flex items-center gap-1.5 font-bold text-[13px] lg:text-[13.5px] tracking-[.1em] uppercase text-[#4d4636]"><Icon name="pin" size={15} />{grp.area}</h2>
-                <div className="flex flex-col gap-2.5 lg:hidden">{grp.items.map((g) => <GkkCard key={g.name} g={g} />)}</div>
-                <GkkTable items={grp.items} />
-              </div>
-            ))}
-          </div>
+          <>
+            <div className="flex flex-col gap-2.5 lg:hidden">{items.map((g) => <GkkCard key={g.name} g={g} />)}</div>
+            <GkkTable items={items} />
+          </>
         )}
       </DataState>
     </>
@@ -112,7 +107,7 @@ function GkkDirectory() {
 
 const gkkPath = (name) => `/komunidad/gkk/${encodeURIComponent(name)}`;
 
-/** Desktop: one area's GKKs as a table; the GKK name opens its page. */
+/** Desktop: every GKK in one table; the GKK name opens its page. */
 function GkkTable({ items }) {
   const th = 'text-left px-4 py-2.5 font-bold text-[12px] tracking-[.08em] uppercase text-[#4d4636]';
   return (
