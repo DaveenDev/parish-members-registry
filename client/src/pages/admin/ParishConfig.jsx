@@ -11,6 +11,8 @@ import { useTheme, THEMES } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '../../components/ChangePasswordForm.jsx';
 import { resizePhoto } from '../../lib/images.js';
+import { fmtDateTime } from '../../constants.js';
+import { markPasswordResetWorking, saveEmailSettings, sendPasswordReset } from '../../emailApi.js';
 
 const MAX_LOGO_BYTES = 500 * 1024;
 
@@ -322,6 +324,171 @@ function PhotoStorageCard() {
   );
 }
 
+const emailForm = (s) => ({ outgoingEmail: s?.outgoing_email || '', outgoingName: s?.outgoing_name || '' });
+
+/**
+ * Email (staff admins only): the parish email address, and password reset by
+ * email. Supabase Auth sends the reset emails through the parish Gmail, set
+ * up once in the Supabase dashboard (docs/email-setup.md); the Gmail App
+ * Password is kept there, never here. A test email the admin confirms
+ * arrived marks password reset as working.
+ */
+function EmailCard() {
+  const toast = useToast();
+  const { user } = useAuth();
+  const [settings, setSettings] = useState(null);
+  const [form, setForm] = useState(emailForm(null));
+  const [error, setError] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [test, setTest] = useState('idle'); // idle | sending | asking | failed
+
+  useEffect(() => {
+    api.getSettings()
+      .then(({ settings: s }) => { setSettings(s); setForm(emailForm(s)); })
+      .catch((e) => setError(e.message));
+  }, []);
+
+  const migrated = !!settings && 'outgoing_email' in settings;
+  const working = !!settings?.password_reset_verified_at;
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const site = window.location.origin;
+
+  async function save() {
+    if (form.outgoingEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.outgoingEmail.trim())) { toast.error('Enter a valid email address.'); return; }
+    setBusy(true);
+    try {
+      const s = await saveEmailSettings(form);
+      setSettings(s);
+      setForm(emailForm(s));
+      setEditing(false);
+      toast.success('Email settings saved');
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function sendTest() {
+    setTest('sending');
+    try {
+      await sendPasswordReset(user.email);
+      setTest('asking');
+    } catch (e) {
+      toast.error(e.message);
+      setTest('idle');
+    }
+  }
+
+  async function confirm(arrived) {
+    if (!arrived) { setTest('failed'); return; }
+    setBusy(true);
+    try {
+      setSettings(await markPasswordResetWorking(true));
+      setTest('idle');
+      toast.success('Password reset by email is working');
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Panel className="p-6">
+      <div className="flex items-center gap-2.5 flex-wrap mb-1">
+        <div className="font-serif text-[22px] font-semibold text-parish-navy">Email</div>
+        {settings && <Badge tone={working ? 'green' : 'gold'}>{working ? 'Password reset working' : 'Not set up'}</Badge>}
+      </div>
+      <div className="text-[13.5px] text-parish-muted mb-4">
+        The parish email staff use for sending. For now it lets staff reset a forgotten password by email; sending documents by email comes later.
+      </div>
+      {error ? <div className="text-[13.5px] text-parish-error">{error}</div> : settings && (
+        <>
+          {!migrated && (
+            <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13px] font-medium" role="status">
+              Run the <strong>0036_email_integration.sql</strong> migration in Supabase to save these settings.
+            </div>
+          )}
+          <fieldset disabled={!editing} className={`grid gap-4 sm:grid-cols-2 border-none p-0 m-0 min-w-0 ${editing ? '' : 'opacity-60 [&_input]:cursor-not-allowed'}`}>
+            <Field label="Parish email (Gmail)"><TextInput type="email" value={form.outgoingEmail} onChange={set('outgoingEmail')} placeholder="parish.office@gmail.com" autoComplete="off" spellCheck={false} /></Field>
+            <Field label="Sender name"><TextInput value={form.outgoingName} onChange={set('outgoingName')} placeholder={settings.name || 'Our Lady of Guadalupe Quasi-Parish'} autoComplete="off" /></Field>
+          </fieldset>
+          <div className="flex items-center gap-4 mt-4 flex-wrap">
+            {editing ? (
+              <>
+                <PrimaryButton onClick={save} disabled={busy} className="px-[22px] py-2.5 text-[14px]">{busy ? 'Saving…' : 'Save email'}</PrimaryButton>
+                <button type="button" onClick={() => { setForm(emailForm(settings)); setEditing(false); }} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13.5px] text-parish-muted p-0">Cancel</button>
+              </>
+            ) : (
+              <button type="button" onClick={() => setEditing(true)} disabled={!migrated} className="appearance-none cursor-pointer px-4 py-2 rounded-xl border-[1.5px] border-parish-borderSoft bg-parish-card font-semibold text-[13.5px] text-parish-text2 disabled:opacity-50">
+                Edit email…
+              </button>
+            )}
+          </div>
+
+          <div className="mt-6 pt-5 border-t border-parish-line">
+            <div className="font-semibold text-[15px] text-parish-navy mb-1">Password reset by email</div>
+            <div className="text-[13px] text-parish-muted mb-3">
+              "Forgot password?" on the staff sign-in page emails a reset link. Set this up once (details in <code>docs/email-setup.md</code>):
+            </div>
+            <ol className="m-0 pl-5 flex flex-col gap-2 text-[13.5px] text-parish-ink leading-relaxed">
+              <li>On the parish Gmail, turn on <strong>2-Step Verification</strong>, then create an <strong>App Password</strong> (Google Account → Security → App passwords).</li>
+              <li>
+                In Supabase: <strong>Authentication → Emails → SMTP Settings</strong>, turn on custom SMTP: host <code>smtp.gmail.com</code>, port <code>465</code>,
+                username = the Gmail address, password = the App Password, sender email and name = the ones above.
+              </li>
+              <li>
+                In Supabase: <strong>Authentication → URL Configuration</strong>: Site URL <code>https://olgqp-registry.vercel.app</code>; under Redirect URLs add
+                {' '}<code>https://olgqp-registry.vercel.app/**</code>{site !== 'https://olgqp-registry.vercel.app' && <> and <code>{site}/**</code></>}.
+              </li>
+              <li>Send yourself a test below.</li>
+            </ol>
+            <div className="mt-4 p-3.5 rounded-xl bg-parish-field border border-parish-line">
+              {test === 'asking' ? (
+                <div>
+                  <div className="text-[13.5px] text-parish-ink mb-2.5">A reset email was sent to <strong>{user.email}</strong>. Did it arrive (check spam too)?</div>
+                  <div className="flex gap-2.5 flex-wrap">
+                    <PrimaryButton onClick={() => confirm(true)} disabled={busy} className="px-4 py-2 text-[13.5px]">Yes, it arrived</PrimaryButton>
+                    <button type="button" onClick={() => confirm(false)} className="appearance-none cursor-pointer px-4 py-2 rounded-xl border-[1.5px] border-parish-borderSoft bg-parish-card font-semibold text-[13.5px] text-parish-text2">No</button>
+                  </div>
+                  <div className="text-[12px] text-parish-muted mt-2">You don't have to use the link; your password stays the same unless you do.</div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 flex-wrap">
+                  <button type="button" onClick={sendTest} disabled={test === 'sending'} className="appearance-none border-none cursor-pointer px-4 py-2 rounded-xl bg-parish-fill text-white font-semibold text-[13.5px] disabled:opacity-60">
+                    {test === 'sending' ? 'Sending…' : working ? 'Send another test' : 'Send test reset email'}
+                  </button>
+                  <span className="text-[13px] text-parish-muted">
+                    {working ? `Confirmed working on ${fmtDateTime(settings.password_reset_verified_at, { time: false })}.` : `To ${user.email}.`}
+                  </span>
+                </div>
+              )}
+              {test === 'failed' && (
+                <div className="mt-3 text-[13px] text-parish-warnStrong leading-relaxed">
+                  Check that: the App Password was pasted without spaces; the port is 465; the sender email is the same Gmail; and
+                  the Redirect URLs are added. Supabase → Authentication → Logs shows why an email failed.
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </Panel>
+  );
+}
+
+/** Platform Integrations (staff admins only): the outside services the site uses. */
+function IntegrationsTab() {
+  return (
+    <div className="grid gap-[18px] lg:grid-cols-2 lg:items-start">
+      <PhotoStorageCard />
+      <EmailCard />
+    </div>
+  );
+}
+
 function ChangePasswordCard() {
   const toast = useToast();
   return (
@@ -408,8 +575,6 @@ function ProfileTab() {
         </div>
       </Panel>
 
-      {user?.isAdmin && <PhotoStorageCard />}
-
       <ChangePasswordCard />
       </div>
     </div>
@@ -469,23 +634,25 @@ function ParishThemeRow({ canEdit, onSaved }) {
   );
 }
 
-const CONFIG_TABS =[['config', 'Parish Config'], ['gkk', 'Parish GKK']];
+const CONFIG_TABS = [['config', 'Parish Config'], ['gkk', 'Parish GKK'], ['integrations', 'Platform Integrations']];
 
 export default function ParishConfig() {
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
-  const tabs = can(user, 'settings') ? CONFIG_TABS : CONFIG_TABS.slice(0, 1);
+  // GKKs for staff who may change settings; integrations for staff admins only.
+  const tabs = CONFIG_TABS.filter(([k]) => k === 'config' || (k === 'gkk' && can(user, 'settings')) || (k === 'integrations' && user?.isAdmin));
   const tab = tabs.some(([k]) => k === params.get('tab')) ? params.get('tab') : tabs[0][0];
   const setTab = (k) => setParams(k === CONFIG_TABS[0][0] ? {} : { tab: k }, { replace: true });
 
   return (
     <>
-      <PageHeader title="Parish Config" subtitle="Profile, privacy & GKK settings" />
+      <PageHeader title="Parish Config" subtitle="Profile, privacy, GKK settings & integrations" />
       <PageBody>
         <div className="max-w-[1180px]">
           {tabs.length > 1 && <Tabs tabs={tabs} value={tab} onChange={setTab} />}
           {tab === 'config' && <ProfileTab />}
           {tab === 'gkk' && <GkkManager />}
+          {tab === 'integrations' && <IntegrationsTab />}
         </div>
       </PageBody>
     </>

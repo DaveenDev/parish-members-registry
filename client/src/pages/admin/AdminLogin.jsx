@@ -3,6 +3,7 @@ import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { IDLE_LIMIT_MINUTES } from '../../lib/idle.js';
 import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
+import { sendPasswordReset } from '../../emailApi.js';
 import { adminReturnPath } from '../../lib/util.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
@@ -18,7 +19,8 @@ export default function AdminLogin() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showHelp, setShowHelp] = useState(false);
+  // "Forgot password?": open straight away when coming back from an expired reset link.
+  const [showHelp, setShowHelp] = useState(!!location.state?.forgot);
   const [logo, setLogo] = useState(null);
   const [parishName, setParishName] = useState('');
 
@@ -88,20 +90,66 @@ export default function AdminLogin() {
                 Forgot password?
               </button>
             </div>
-            {showHelp && (
-              <div className="mb-4 px-3.5 py-3 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13px] text-parish-info leading-relaxed">
-                Ask a staff admin to reset it from <strong>Settings → Staff</strong>. They'll give you a temporary password;
-                after signing in with it you'll be asked to choose your own.
-              </div>
-            )}
             {error && <div className="mb-4 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
             <PrimaryButton type="submit" disabled={loading} className="w-full py-3.5 text-[16px]">
               {loading ? 'Signing in…' : 'Sign in'}
             </PrimaryButton>
           </form>
+          {showHelp && <ForgotPassword initialEmail={email} />}
         </div>
       </div>
       <CreditFooter dark />
+    </div>
+  );
+}
+
+/**
+ * "Forgot password?": emails a reset link (Supabase Auth, sent through the
+ * parish Gmail; docs/email-setup.md). The reply is the same whether or not
+ * the email is a staff account. Admins can still reset a password by hand.
+ */
+function ForgotPassword({ initialEmail }) {
+  const [email, setEmail] = useState(initialEmail || '');
+  const [state, setState] = useState('idle'); // idle | sending | sent
+  const [error, setError] = useState('');
+
+  async function send(e) {
+    e.preventDefault();
+    if (!email.trim()) { setError('Enter the email you sign in with.'); return; }
+    setState('sending');
+    setError('');
+    try {
+      await sendPasswordReset(email);
+      setState('sent');
+    } catch (err) {
+      setError(err.message);
+      setState('idle');
+    }
+  }
+
+  return (
+    <div className="mt-5 px-4 py-4 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
+      {state === 'sent' ? (
+        <div role="status">
+          <div className="font-semibold text-parish-navy mb-1">Check your email</div>
+          If <strong>{email.trim()}</strong> belongs to a staff account, a reset link is on its way. It works once, for an hour.
+          Check your spam folder too.
+        </div>
+      ) : (
+        <form onSubmit={send}>
+          <div className="font-semibold text-parish-navy mb-2">Reset your password by email</div>
+          <div className="flex gap-2 flex-wrap">
+            <TextInput type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Your sign-in email" aria-label="Your sign-in email" className="flex-1 min-w-[180px] !py-2.5" />
+            <button type="submit" disabled={state === 'sending'} className="appearance-none border-none cursor-pointer px-4 py-2.5 rounded-xl bg-parish-fill text-white font-semibold text-[14px] disabled:opacity-60">
+              {state === 'sending' ? 'Sending…' : 'Send reset link'}
+            </button>
+          </div>
+          {error && <div className="mt-2 text-parish-error font-medium" role="alert">{error}</div>}
+        </form>
+      )}
+      <div className="mt-3 text-[12.5px] text-parish-muted">
+        No email? Ask a staff admin to reset it from <strong>Settings → Staff</strong>; you'll get a temporary password to change on sign-in.
+      </div>
     </div>
   );
 }
