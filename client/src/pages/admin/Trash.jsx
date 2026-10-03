@@ -29,7 +29,7 @@ export default function Trash() {
     try {
       const res = await api.restoreDeleted(r.id);
       toast.success(`${r.label} is back in the registry`, {
-        action: { label: 'Open', onClick: () => navigate(res.kind === 'household' ? `/admin/households?q=${encodeURIComponent(r.label)}` : `/admin/members?q=${encodeURIComponent(r.label)}`) },
+        action: { label: 'Open', onClick: () => navigate(res.kind === 'household' ? `/admin/households?status=All&q=${encodeURIComponent(r.label)}` : `/admin/members?q=${encodeURIComponent(r.label)}`) },
       });
       trash.reload();
       layout?.refreshNavCounts?.();

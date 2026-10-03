@@ -25,7 +25,7 @@ export default function ActivityLog() {
 
   function open(e) {
     if (e.member_id && e.action !== 'trash') setOpenMemberId(e.member_id);
-    else if (e.table_name === 'households' && e.action !== 'trash') navigate(`/admin/households?q=${encodeURIComponent(e.label || '')}`);
+    else if (e.table_name === 'households' && e.action !== 'trash') navigate(`/admin/households?status=All&q=${encodeURIComponent(e.label || '')}`);
     else navigate('/admin/settings/trash');
   }
 

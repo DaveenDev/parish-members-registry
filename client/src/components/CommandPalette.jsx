@@ -64,7 +64,7 @@ export default function CommandPalette({ onClose }) {
     const households = found.households.map((h) => ({
       key: `h${h.id}`, section: 'Households', title: h.household_name,
       sub: [h.head_name && `Head: ${h.head_name}`, h.gkk, h.ref_no].filter(Boolean).join(' · '),
-      go: () => navigate(`/admin/households?q=${encodeURIComponent(h.household_name)}`),
+      go: () => navigate(`/admin/households?status=All&q=${encodeURIComponent(h.household_name)}`),
     }));
     const members = found.members.map((m) => ({
       key: `m${m.id}`, section: 'Members', title: [m.first_name, m.last_name, m.suffix].filter(Boolean).join(' '),

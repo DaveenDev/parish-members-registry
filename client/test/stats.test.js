@@ -40,7 +40,7 @@ describe('shapeDashboard', () => {
   test('breakdown widths are relative to the largest, GKK bars link to households', () => {
     const { gkkBreak, ministryBreak } = shapeDashboard(raw);
     assert.deepEqual(gkkBreak.map((g) => g.w), ['100%', '50%']);
-    assert.equal(gkkBreak[0].to, '/admin/households?gkk=GKK%20Sto.%20Ni%C3%B1o');
+    assert.equal(gkkBreak[0].to, '/admin/households?status=All&gkk=GKK%20Sto.%20Ni%C3%B1o');
     assert.deepEqual(ministryBreak.map((g) => g.w), ['100%', '25%']);
   });
 

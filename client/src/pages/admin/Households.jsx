@@ -18,11 +18,11 @@ import { can } from '../../lib/access.js';
 import { daysAgo, fmtDateTime } from '../../constants.js';
 
 const SORTS = [['registered', 'Registered'], ['name', 'Household'], ['gkk', 'GKK'], ['members', 'Members'], ['updated', 'Last updated']];
-// The status tabs. Keys are the ?status= values, so dashboard links like
+// The status tabs; the page opens on Verified. Keys are the ?status= values, so links like
 // ?status=Pending open on the verification queue.
 const STATUS_TABS = [['Verified', 'Verified Households'], ['Pending', 'On Queue for Verification'], ['All', 'All Households']];
 
-const URL_DEFAULTS = { status: 'All', gkk: 'All', q: '', sort: 'registered', dir: '', page: 1, size: 10 };
+const URL_DEFAULTS = { status: 'Verified', gkk: 'All', q: '', sort: 'registered', dir: '', page: 1, size: 10 };
 const URL_ALLOWED = { status: ['All', 'Verified', 'Pending'], sort: SORTS.map(([k]) => k), dir: ['', 'asc', 'desc'], size: [10, 20, 50] };
 // Dates sort newest first by default, everything else A→Z (see householdQuery in api.js).
 const defaultDir = (key) => (key === 'registered' || key === 'updated' ? 'desc' : 'asc');
@@ -459,7 +459,7 @@ export default function Households() {
         <NewHouseholdDrawer
           gkkOptions={gkkOptions}
           onClose={() => setCreating(false)}
-          onSaved={() => { setCreating(false); setUrl({ page: 1 }); changed(); }}
+          onSaved={() => { setCreating(false); setUrl({ status: 'All', page: 1 }); changed(); }}
         />
       )}
       <PrintSheet data={printData} />

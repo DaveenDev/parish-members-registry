@@ -99,7 +99,7 @@ export default function Duplicates() {
                             </div>
                             <div className="flex gap-2 mt-1">
                               <button onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none cursor-pointer px-3 py-1.5 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">Open member</button>
-                              <Link to={`/admin/households?q=${encodeURIComponent(m.household_name)}`} className="px-3 py-1.5 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg no-underline">View household</Link>
+                              <Link to={`/admin/households?status=All&q=${encodeURIComponent(m.household_name)}`} className="px-3 py-1.5 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg no-underline">View household</Link>
                             </div>
                           </div>
                         ))}

@@ -39,7 +39,7 @@ export function shapeDashboard(raw = {}) {
 
   return {
     statCards: [
-      { label: 'Households', value: households, note: `${verified} verified · ${pending} pending`, accent: '#34589c', to: '/admin/households' },
+      { label: 'Households', value: households, note: `${verified} verified · ${pending} pending`, accent: '#34589c', to: '/admin/households?status=All' },
       { label: 'Members', value: num(raw.members), note: 'across all households', accent: '#c39b4e', to: '/admin/members' },
       {
         label: 'Active Catholics',
@@ -60,7 +60,7 @@ export function shapeDashboard(raw = {}) {
       const age = ageFilterFor(b.label);
       return { label: b.label, n: num(b.n), to: age ? `/admin/members?age=${age}` : null };
     })),
-    gkkBreak: withWidths((raw.by_gkk || []).map((g) => ({ label: g.label, n: num(g.n), to: `/admin/households?gkk=${encodeURIComponent(g.label)}` }))),
+    gkkBreak: withWidths((raw.by_gkk || []).map((g) => ({ label: g.label, n: num(g.n), to: `/admin/households?status=All&gkk=${encodeURIComponent(g.label)}` }))),
     ministryBreak: withWidths((raw.top_groups || []).map((g) => ({ label: g.label, n: num(g.n), to: `/admin/members?ministry=${encodeURIComponent(g.label)}` }))),
     sacStats: [
       { label: 'Baptism', n: num(sac.baptism), to: '/admin/sacraments?baptism=Yes' },
