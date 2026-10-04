@@ -20,8 +20,8 @@ export const PARISH_COORDS = { latitude: 7.0464909, longitude: 125.1619933 };
 
 const TABS = [
   { to: '/', label: 'Home', icon: 'home', match: (p) => p === '/' },
-  { to: '/misa', label: 'Misa', icon: 'church', match: (p) => p.startsWith('/misa') },
   { to: '/pahibalo', label: 'Pahibalo', icon: 'mega', match: (p) => p.startsWith('/pahibalo') },
+  { to: '/misa', label: 'Misa', icon: 'church', match: (p) => p.startsWith('/misa') },
   { to: '/komunidad', label: 'Komunidad', icon: 'people', match: (p) => p.startsWith('/komunidad') },
   { to: '/serbisyo', label: 'Serbisyo', icon: 'grid', match: (p) => p.startsWith('/serbisyo') || p.startsWith('/kontak') },
 ];
@@ -32,8 +32,8 @@ const ROOTS = TABS.map((t) => t.to);
 // `short` is shown on small laptops (under 1280px), where the full names don't fit.
 const DESK_NAV = [
   { to: '/', label: 'Home', match: (p) => p === '/' },
-  { to: '/misa', label: 'Misa ug Sakramento', short: 'Misa', match: (p) => p.startsWith('/misa') },
   { to: '/pahibalo', label: 'Pahibalo ug Kalihokan', short: 'Pahibalo', match: (p) => p.startsWith('/pahibalo') },
+  { to: '/misa', label: 'Misa ug Sakramento', short: 'Misa', match: (p) => p.startsWith('/misa') },
   { to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad') },
   { to: '/serbisyo', label: 'Mga Serbisyo', short: 'Serbisyo', match: (p) => p.startsWith('/serbisyo') },
   { to: '/kontak', label: 'Kontak', match: (p) => p.startsWith('/kontak') },
