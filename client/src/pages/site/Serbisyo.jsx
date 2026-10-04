@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { Card, ErrorNote, Eyebrow, INNER, MessengerButton, PAGE, PageTitle, Skeletons } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, Card, ErrorNote, Eyebrow, INNER, MessengerButton, PageTitle, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { mapEmbedUrl, messengerLink, validCoords } from '../../lib/website.js';
 import { phoneHref } from '../../lib/requests.js';
 import { officeHourRows, officeOpenNow } from '../../lib/site.js';
@@ -32,21 +32,31 @@ function ServiceLink({ to, icon, title, sub, red = false }) {
   );
 }
 
-/** Mga Serbisyo: the status check first, then the request forms, blood donor call and contact. */
+/**
+ * Mga Serbisyo: the title and the status check on the light-blue band, like
+ * the other main pages' first section; then the request forms, blood donor
+ * call and contact on the plain page.
+ */
 export default function Serbisyo() {
   return (
-    <main className={PAGE}>
-      <Eyebrow>Mga Serbisyo</Eyebrow>
-      <PageTitle className="mb-1.5">Unsaon namo pagtabang?</PageTitle>
-      <p className="m-0 mb-4 lg:mb-[26px] text-[15px] lg:text-[17px] leading-normal text-[#4d4636]">Ang matag hangyo moadto direkta sa kawani sa parokya.</p>
-      <StatusCheckCard />
-      <h2 className="m-0 mt-7 mb-3 lg:mt-10 lg:mb-4 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy">Ubang mga serbisyo</h2>
-      <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:gap-4">
-        <ServiceLink to="/serbisyo/hangyo/sertipiko" icon="doc" title="Pangayo og sertipiko" sub="Bunyag, Kumpil, Kasal" />
-        <ServiceLink to="/serbisyo/hangyo/pagdihog" icon="cal" title="Pangayo ug Dihog Iskedyul" sub="Pagbisita sa pari aron dihogan ang masakiton" />
-        <ServiceLink to="/serbisyo/dugo" icon="drop" title="Blood donor call" sub="Nanginahanglan o mo-donate" red />
-        <ServiceLink to="/kontak" icon="phone" title="Kontak ug oras sa opisina" sub="Tawag, text, mapa" />
-      </div>
+    <main className="animate-fadeUp">
+      <Band aria-label="Unsaon namo pagtabang?">
+        <div className={`${WRAP} ${BAND_PAD}`}>
+          <Eyebrow>Mga Serbisyo</Eyebrow>
+          <PageTitle className="mb-1.5">Unsaon namo pagtabang?</PageTitle>
+          <p className="m-0 mb-4 lg:mb-[26px] text-[15px] lg:text-[17px] leading-normal text-[#4d4636]">Ang matag hangyo moadto direkta sa kawani sa parokya.</p>
+          <StatusCheckCard />
+        </div>
+      </Band>
+      <section aria-labelledby="ubang-serbisyo" className={`${WRAP} py-7 lg:py-12`}>
+        <h2 id="ubang-serbisyo" className="m-0 mb-3 lg:mb-4 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy">Ubang mga serbisyo</h2>
+        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 xl:grid-cols-4 lg:gap-4">
+          <ServiceLink to="/serbisyo/hangyo/sertipiko" icon="doc" title="Pangayo og sertipiko" sub="Bunyag, Kumpil, Kasal" />
+          <ServiceLink to="/serbisyo/hangyo/pagdihog" icon="cal" title="Pangayo ug Dihog Iskedyul" sub="Pagbisita sa pari aron dihogan ang masakiton" />
+          <ServiceLink to="/serbisyo/dugo" icon="drop" title="Blood donor call" sub="Nanginahanglan o mo-donate" red />
+          <ServiceLink to="/kontak" icon="phone" title="Kontak ug oras sa opisina" sub="Tawag, text, mapa" />
+        </div>
+      </section>
     </main>
   );
 }
