@@ -11,7 +11,7 @@ import Komunidad, { GkkDetail } from './pages/site/Komunidad.jsx';
 import Serbisyo, { Kontak, Blood } from './pages/site/Serbisyo.jsx';
 import CheckStatus from './pages/site/CheckStatus.jsx';
 import RequestForm from './pages/site/RequestForm.jsx';
-import { EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail } from './pages/site/Details.jsx';
+import { EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail, ArticleRedirect } from './pages/site/Details.jsx';
 import AdminLogin from './pages/admin/AdminLogin.jsx';
 import AdminLayout from './pages/admin/AdminLayout.jsx';
 import Dashboard from './pages/admin/Dashboard.jsx';
@@ -58,10 +58,12 @@ export default function App() {
           <Route path="/misa/kalihokan/:id" element={<EventDetail />} />
           <Route path="/pahibalo" element={<Pahibalo />} />
           <Route path="/pahibalo/bulletin/:id" element={<BulletinDetail />} />
-          <Route path="/pahibalo/artikulo/:id" element={<ArticleDetail />} />
+          {/* Articles moved to Komunidad: old shared links still open them. */}
+          <Route path="/pahibalo/artikulo/:id" element={<ArticleRedirect />} />
           <Route path="/pahibalo/:id" element={<AnnouncementDetail />} />
           <Route path="/komunidad" element={<Komunidad />} />
-          <Route path="/komunidad/balita/:id" element={<ArticleDetail />} />
+          <Route path="/komunidad/artikulo/:id" element={<ArticleDetail />} />
+          <Route path="/komunidad/balita/:id" element={<ArticleRedirect />} />
           <Route path="/komunidad/gkk/:name" element={<GkkDetail />} />
           <Route path="/serbisyo" element={<Serbisyo />} />
           <Route path="/serbisyo/susiha" element={<CheckStatus />} />

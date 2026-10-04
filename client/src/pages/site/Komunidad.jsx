@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { Avatar, BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { Avatar, BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import ArticlesSection from './Articles.jsx';
 import { phoneHref } from '../../lib/requests.js';
 import { filterGkks, fmtLong, gkkParts, initialsOf, sortCensusGkks } from '../../lib/site.js';
 import { useSiteTitle } from './SiteLayout.jsx';
@@ -9,19 +10,31 @@ import { listState, useCensusProgress, useGkkDirectory } from './data.js';
 
 const SMALL = 'Ubos sa 5';
 
+const VIEWS = [['artikulo', 'Mga Artikulo'], ['gkk', 'Mga GKK']];
+
 /**
- * Komunidad: the census progress (only while a census is open) and, below it,
- * the GKK directory.
+ * Komunidad: the parish's stories and its GKKs, under two tabs. It opens on
+ * the articles (the GKK directory is reference); ?view=gkk opens the GKKs.
+ * While a census is open, the GKK tab has its full progress on top (on the
+ * light-blue band, with every GKK); the articles tab a one-line strip.
  */
 export default function Komunidad() {
+  const [params, setParams] = useSearchParams();
+  const view = params.get('view') === 'gkk' ? 'gkk' : 'artikulo';
+  const setView = (v) => setParams(v === 'gkk' ? { view: 'gkk' } : {}, { replace: true });
   const q = useCensusProgress();
-  const open = !!q.data?.open;
+  // The full census progress only on the GKK tab; the articles tab has the strip.
+  const open = view === 'gkk' && !!q.data?.open;
+
+  const header = (
+    <PageHeader eyebrow="Komunidad" title="Ang atong komunidad">
+      <Segmented label="Komunidad" options={VIEWS} value={view} onChange={setView} />
+    </PageHeader>
+  );
 
   return (
-    // The first section sits on the light-blue band: the census progress while a
-    // census is open, otherwise the GKK directory (then the only section).
     <main className="animate-fadeUp">
-      {q.loading && <div className={`${WRAP} ${BAND_PAD}`}><Skeleton h={220} className="lg:h-[420px]" /></div>}
+      {q.loading && view === 'gkk' && <div className={`${WRAP} ${BAND_PAD}`}><Skeleton h={220} className="lg:h-[420px]" /></div>}
       {open && (
         <Band aria-labelledby="census-h">
           <div className={`${WRAP} ${BAND_PAD}`}>
@@ -31,20 +44,45 @@ export default function Komunidad() {
           </div>
         </Band>
       )}
-      {open ? (
-        <div className={`${WRAP} pt-7 pb-7 lg:pt-12 lg:pb-0`}>
-          <PageHeader eyebrow="Komunidad" title="Mga GKK sa parokya" />
-          <GkkDirectory />
-        </div>
+      {view === 'artikulo' ? (
+        // The articles: the title and census strip on the blue band, then their warm band.
+        // flow-root keeps the bottom margins inside the band (no gap above the articles).
+        <>
+          <Band as="div">
+            <div className={`${WRAP} pt-4 lg:pt-9 flow-root`}>
+              {header}
+              {q.data?.open && q.data.pct != null && <CensusStrip c={q.data} onMore={() => setView('gkk')} />}
+            </div>
+          </Band>
+          <ArticlesSection />
+        </>
       ) : !q.loading && (
-        <Band aria-label="Mga GKK sa parokya">
-          <div className={`${WRAP} ${BAND_PAD}`}>
-            <PageHeader eyebrow="Komunidad" title="Mga GKK sa parokya" />
-            <GkkDirectory />
-          </div>
-        </Band>
+        // The GKKs: on the blue band with the title, or under the census band on the page's cream.
+        open ? (
+          <div className={`${WRAP} pt-7 pb-7 lg:pt-12 lg:pb-0`}>{header}<GkkDirectory /></div>
+        ) : (
+          <Band aria-label="Mga GKK sa parokya">
+            <div className={`${WRAP} ${BAND_PAD}`}>{header}<GkkDirectory /></div>
+          </Band>
+        )
       )}
     </main>
+  );
+}
+
+/** The open census in one line, for the articles tab: how far along, update, and the full progress. */
+function CensusStrip({ c, onMore }) {
+  return (
+    <div className="mb-4 lg:mb-[22px] bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm px-3.5 py-3 lg:px-5 flex items-center gap-3 lg:gap-4 flex-wrap">
+      <div role="img" aria-label={`${c.pct} porsyento`} className="w-12 h-12 flex-none rounded-full flex items-center justify-center" style={{ background: `conic-gradient(var(--p-blue) 0 ${c.pct}%, #ece2cd 0)` }}>
+        <span className="w-9 h-9 rounded-full bg-parish-card flex items-center justify-center font-bold text-[12.5px] text-parish-blue">{c.pct}%</span>
+      </div>
+      <div className="flex-1 min-w-[180px]">
+        <div className="font-bold text-[15px] lg:text-[16px] text-parish-navy leading-snug">{c.label}: {c.pct}% sa mga pamilya na-update na</div>
+        <button type="button" onClick={onMore} className="p-0 border-0 bg-transparent cursor-pointer font-semibold text-[13.5px] text-parish-blueDeep hover:underline">Tan-awa ang progreso matag GKK →</button>
+      </div>
+      <BigButton to="/census" className="!w-full lg:!w-auto min-h-[46px] px-5 text-[15px]">I-update ang among rekord</BigButton>
+    </div>
   );
 }
 
@@ -208,7 +246,7 @@ export function GkkDetail() {
   const pad = `${INNER} lg:max-w-[760px]`;
   if (dir.loading) return <main className={pad}><Skeletons n={3} h={90} /></main>;
   if (dir.error) return <main className={pad}><ErrorNote onRetry={dir.reload}>Wala ma-load ang GKK.</ErrorNote></main>;
-  if (!found) return <main className={pad}><EmptyNote>Wala namo makit-i kini nga GKK.</EmptyNote><BigButton variant="secondary" to="/komunidad">Tan-awa ang tanang GKK</BigButton></main>;
+  if (!found) return <main className={pad}><EmptyNote>Wala namo makit-i kini nga GKK.</EmptyNote><BigButton variant="secondary" to="/komunidad?view=gkk">Tan-awa ang tanang GKK</BigButton></main>;
   const g = found;
   const c = g.coordinator;
 

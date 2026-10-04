@@ -5,7 +5,7 @@ import { Chip, TONES, useShare } from './kit.jsx';
 import { EVENT_TONES, todayIso } from '../../lib/website.js';
 import {
   ANNOUNCEMENT_LABELS, ARTICLE_LABELS, EVENT_ICONS, EVENT_TYPE_LABELS, BIS_MONTHS_SHORT,
-  eventCountdown, eventSpan, eventTime, excerpt, fmtShort, fmtTime12, isRecent, massKindLabel, parseIso, readingTime,
+  articlePath, eventCountdown, eventSpan, eventTime, excerpt, fmtShort, fmtTime12, isRecent, massKindLabel, parseIso, readingTime,
 } from '../../lib/site.js';
 
 const ANN_TONES = { Parish: 'blue', GKK: 'gray', Ministry: 'gray', 'Schedule change': 'gold' };
@@ -89,7 +89,7 @@ export function CardShare({ title, path }) {
 /** Blog article in a list: cover photo, tag, date, title and summary. `wide` (one or two in a row) uses a shorter cover. */
 export function ArticleCard({ a, wide = false }) {
   const count = (a.photos || []).length;
-  const path = `/pahibalo/artikulo/${a.id}`;
+  const path = articlePath(a.id);
   return (
     <div className="relative">
       <CardShare title={a.title} path={path} />
@@ -120,7 +120,7 @@ export function ArticleCard({ a, wide = false }) {
  */
 export function ArticleFeature({ a }) {
   const count = (a.photos || []).length;
-  const path = `/pahibalo/artikulo/${a.id}`;
+  const path = articlePath(a.id);
   if (!a.photo_url) {
     // No cover: the text alone, wide, with a gold edge (no empty picture box).
     return (

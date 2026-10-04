@@ -192,7 +192,12 @@ export function sortAnnouncements(rows) {
 }
 
 export const ANNOUNCEMENT_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', 'Schedule change': 'Kausaban sa iskedyul' };
-export const ARTICLE_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', History: 'Kasaysayan' };
+// Articles live on Komunidad (its "Mga Artikulo" tab, the one it opens on).
+// Older links, /pahibalo/artikulo/:id and /komunidad/balita/:id, redirect here.
+export const ARTICLES_PAGE = '/komunidad';
+export const articlePath = (id) => `/komunidad/artikulo/${id}`;
+
+export const ARTICLE_LABELS ={ Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', History: 'Kasaysayan' };
 
 /** Paragraphs of a typed body: blank lines split paragraphs. */
 export function paragraphs(text) {

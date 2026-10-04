@@ -4,7 +4,7 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
 import { AnnouncementCard, ArticleChip, CardShare, EventCard, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
-import { censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
+import { ARTICLES_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
@@ -227,7 +227,7 @@ function CensusNotice() {
           <Link to="/census" className="min-h-[52px] px-6 rounded-[14px] flex items-center justify-center font-bold text-[16px] text-parish-navy hover:brightness-105" style={{ background: 'var(--p-gold-light)' }}>
             I-update ang among rekord
           </Link>
-          <Link to="/komunidad" className="min-h-[48px] px-5 rounded-[14px] flex items-center justify-center font-semibold text-[15px] text-white border-[1.5px] border-white/40 hover:bg-white/10">
+          <Link to="/komunidad?view=gkk" className="min-h-[48px] px-5 rounded-[14px] flex items-center justify-center font-semibold text-[15px] text-white border-[1.5px] border-white/40 hover:bg-white/10">
             Tan-awa ang progreso
           </Link>
         </div>
@@ -338,7 +338,7 @@ function LatestArticles() {
   if (q.loading || q.error || !rows.length) return null;
   return (
     <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12">
-      <SectionHead title="Mga Artikulo" to="/pahibalo#artikulo" action="Tanan" actionLg="Tanang artikulo →" />
+      <SectionHead title="Mga Artikulo" to={ARTICLES_PAGE} action="Tanan" actionLg="Tanang artikulo →" />
       <div className="flex flex-col gap-3 lg:gap-5">
         {rows.map((a, i) => <ArticleRow key={a.id} a={a} flip={i === 1} />)}
       </div>
@@ -347,7 +347,7 @@ function LatestArticles() {
 }
 
 function ArticleRow({ a, flip }) {
-  const path = `/pahibalo/artikulo/${a.id}`;
+  const path = articlePath(a.id);
   return (
     <div className="relative">
       <CardShare title={a.title} path={path} />

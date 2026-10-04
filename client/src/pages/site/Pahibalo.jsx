@@ -1,21 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { Band, DataState, EmptyNote, Eyebrow, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
-import { AnnouncementCard, ArticleCard, ArticleFeature, EventCard } from '../../components/site/cards.jsx';
-import { ANNOUNCEMENT_LABELS, fmtLong, fmtShort, sortAnnouncements } from '../../lib/site.js';
+import { Band, DataState, EmptyNote, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { AnnouncementCard, EventCard } from '../../components/site/cards.jsx';
+import { ANNOUNCEMENT_LABELS, ARTICLES_PAGE, fmtLong, fmtShort, sortAnnouncements } from '../../lib/site.js';
 import { listState, useAnnouncements, useArticles, useBulletins, useEvents } from './data.js';
 
 
 const CATEGORY_FILTERS = [['all', 'Tanan'], ['Parish', 'Parokya'], ['GKK', 'GKK'], ['Ministry', 'Ministry'], ['Schedule change', ANNOUNCEMENT_LABELS['Schedule change']], ['urgent', 'Urgent']];
-// Values match the articles_tag_check constraint (0021).
-const ARTICLE_TAG_FILTERS = [['all', 'Tanan'], ['History', 'Kasaysayan'], ['Parish', 'Parokya'], ['GKK', 'GKK'], ['Ministry', 'Ministry']];
-const ARTICLES_STEP = 6;
 // Announcements shown at a time: three rows on desktop, six stacked on phones.
 const ANNOUNCEMENTS_STEP = { desktop: 9, phone: 6 };
-// A warm sand band for the articles, from the theme's gold, so it reads apart
-// from both the blue band above and the page's own cream.
-const ARTICLES_BAND = 'color-mix(in srgb, var(--p-gold) 24%, #fbf7ee)';
 
 /** True on desktop widths (Tailwind's lg), following the window as it resizes. */
 function useIsDesktop() {
@@ -39,21 +33,20 @@ const cols = (n) => (n <= 1 ? 'lg:grid-cols-1' : n === 2 ? 'lg:grid-cols-2' : 'l
 const JUMP_TARGET = 'scroll-mt-[118px] lg:scroll-mt-[92px]';
 
 /**
- * Pahibalo ug Kalihokan: upcoming events and announcements on the blue band,
- * the blog articles on their own warm band below, and the weekly bulletin
- * archive under its own tab. Jump links under the title go to each part.
+ * Pahibalo ug Kalihokan: what's happening now and next. Upcoming events and
+ * announcements on the blue band, and the weekly bulletin archive under its
+ * own tab. Jump links under the title go to each part. The articles (stories
+ * after the fact) are on Komunidad; a line at the end points there.
  */
 export default function Pahibalo() {
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'bulletin' ? 'bulletin' : 'list';
   const setView = (v) => setParams(v === 'bulletin' ? { view: 'bulletin' } : {}, { replace: true });
-  // Same cache as the sections themselves: only link to the parts that are there.
+  // Same cache as the section itself: only link to the parts that are there.
   const events = listState(useEvents());
-  const articles = listState(useArticles());
   const jumps = [
     events.rows.length > 0 && ['kalihokan', 'Kalihokan'],
     ['pahibalo', 'Pahibalo'],
-    articles.rows.length > 0 && ['artikulo', 'Artikulo'],
   ].filter(Boolean);
 
   // The blue band is split around the jump bar (it can only stay stuck to the
@@ -76,17 +69,17 @@ export default function Pahibalo() {
             <>
               <UpcomingEvents />
               <Announcements />
+              <ArticlesPointer />
             </>
           )}
         </div>
       </Band>
-      {view === 'list' && <Articles />}
     </main>
   );
 }
 
 /**
- * Kalihokan · Pahibalo · Artikulo, under the title. On phones it sticks below
+ * Kalihokan · Pahibalo, under the title. On phones it sticks below
  * the site header while scrolling, with a line under it once it's stuck.
  */
 function JumpLinks({ links }) {
@@ -219,61 +212,24 @@ function PinnedStrip({ rows }) {
 }
 
 /**
- * Mga Artikulo, on a full-width warm band so it reads apart from the
- * announcements: the newest article wide, then the rest three across, six
- * more at a time. Tag filters show once articles use two or more tags.
- * Hidden while loading, on error, or when there are none.
+ * The articles moved to Komunidad; this line at the end of the page points
+ * there for anyone looking for them here. Hidden until there's one to read.
  */
-function Articles() {
+function ArticlesPointer() {
   const q = listState(useArticles());
-  const [tag, setTag] = useState('all');
-  const [count, setCount] = useState(ARTICLES_STEP);
-  const { hash } = useLocation();
-  const ready = !q.loading && q.rows.length > 0;
-  // Coming back from an article ("Tanang artikulo"): scroll here once the list is in.
-  useEffect(() => {
-    if (ready && hash === '#artikulo') document.getElementById('artikulo')?.scrollIntoView();
-  }, [ready, hash]);
   if (q.loading || q.error || !q.rows.length) return null;
-
-  const tags = new Set(q.rows.map((a) => a.tag));
-  const filters = tags.size >= 2 ? ARTICLE_TAG_FILTERS.filter(([v]) => v === 'all' || tags.has(v)) : null;
-  const list = q.rows.filter((a) => !filters || tag === 'all' || a.tag === tag);
-  const [first, ...rest] = list;
-  const shown = rest.slice(0, count);
-  const pickTag = (v) => { setTag(v); setCount(ARTICLES_STEP); };
-
   return (
-    <section
-      id="artikulo" aria-labelledby="articles-title"
-      className={`${JUMP_TARGET} py-7 lg:py-12 border-b`}
-      style={{ background: ARTICLES_BAND, borderColor: 'color-mix(in srgb, var(--p-gold) 40%, white)' }}
+    <Link
+      to={ARTICLES_PAGE}
+      className="mt-6 lg:mt-8 flex items-center gap-3 rounded-2xl lg:rounded-[18px] border border-parish-border bg-parish-card px-4 py-3.5 lg:px-5 shadow-cardSm hover:border-[var(--p-blue-border)]"
     >
-      <div className={WRAP}>
-        <div className="flex items-end justify-between gap-x-6 gap-y-3 flex-wrap mb-4 lg:mb-6">
-          <div className="min-w-0">
-            <Eyebrow>Mga istorya sa parokya</Eyebrow>
-            <h2 id="articles-title" className="m-0 font-serif text-[28px] lg:text-[36px] font-bold text-parish-navy leading-tight">Mga Artikulo</h2>
-            <p className="m-0 mt-0.5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636]">Kasaysayan sa parokya ug mga kalihokan nga nahitabo.</p>
-          </div>
-          {filters && <Pills scroll options={filters} value={tag} onChange={pickTag} />}
-        </div>
-        {first && <ArticleFeature a={first} />}
-        {shown.length > 0 && (
-          <div className="mt-3 lg:mt-5 flex flex-col gap-3 lg:grid lg:grid-cols-3 lg:gap-4 lg:items-start">
-            {shown.map((a) => <ArticleCard key={a.id} a={a} />)}
-          </div>
-        )}
-        {rest.length > count && (
-          <div className="mt-4 lg:mt-6 flex items-center gap-3 flex-wrap">
-            <button type="button" onClick={() => setCount((c) => c + ARTICLES_STEP)} className="w-full lg:w-auto min-h-[46px] px-5 rounded-[12px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[15px] hover:bg-[var(--p-blue-tint)]">
-              Tan-awa pa ang {Math.min(ARTICLES_STEP, rest.length - count)}
-            </button>
-            <span className="text-[13.5px] text-parish-text2">Gipakita ang {1 + shown.length} sa {list.length}</span>
-          </div>
-        )}
-      </div>
-    </section>
+      <span className="w-10 h-10 flex-none rounded-xl flex items-center justify-center bg-[var(--p-gold-tint)] text-[var(--p-gold-deep)]"><Icon name="church" size={20} /></span>
+      <span className="flex-1 min-w-0">
+        <span className="block font-bold text-[15.5px] text-parish-navy">Mga artikulo ug kasaysayan sa parokya</span>
+        <span className="block text-[13.5px] text-parish-text2">Anaa na sa Komunidad</span>
+      </span>
+      <Icon name="chev" size={18} />
+    </Link>
   );
 }
 

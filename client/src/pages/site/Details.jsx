@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, Navigate, useParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BigButton, Card, EmptyNote, ErrorNote, INNER, InfoRow, Skeletons, useShare, useSiteToast } from '../../components/site/kit.jsx';
 import { AnnouncementChip, ArticleChip, eventTone } from '../../components/site/cards.jsx';
 import { triggerDownload } from '../../lib/csv.js';
 import {
-  BIS_DAYS, EVENT_ICONS, EVENT_TYPE_LABELS, eventDays, eventIcs, eventSpan, eventTime, fmtLong, fmtShort, paragraphs, parseIso,
+  ARTICLES_PAGE, BIS_DAYS, EVENT_ICONS, EVENT_TYPE_LABELS, articlePath, eventDays, eventIcs, eventSpan, eventTime, fmtLong, fmtShort, paragraphs, parseIso,
 } from '../../lib/site.js';
 import { PARISH_NAME, useSiteTitle } from './SiteLayout.jsx';
 import { useItem } from './data.js';
@@ -149,6 +149,12 @@ export function BulletinDetail() {
   );
 }
 
+/** An old article link (/pahibalo/artikulo/:id, /komunidad/balita/:id): to its place on Komunidad. */
+export function ArticleRedirect() {
+  const { id } = useParams();
+  return <Navigate to={articlePath(id)} replace />;
+}
+
 export function ArticleDetail() {
   const { id } = useParams();
   useSiteTitle('Artikulo');
@@ -172,7 +178,7 @@ export function ArticleDetail() {
           <Body text={a.body || a.summary} />
           <Gallery photos={a.photos} />
           <BigButton className={SHARE} onClick={() => share(a.title)}><Icon name="share" />Ipaambit sa Messenger</BigButton>
-          <Link to="/pahibalo#artikulo" className="block text-center mt-4 min-h-[44px] font-bold text-[15px] text-parish-blue lg:inline-flex lg:items-center lg:ml-5 lg:mt-0">Tanang artikulo</Link>
+          <Link to={ARTICLES_PAGE} className="block text-center mt-4 min-h-[44px] font-bold text-[15px] text-parish-blue lg:inline-flex lg:items-center lg:ml-5 lg:mt-0">Tanang artikulo</Link>
         </>
       )}
     </Detail>
