@@ -357,7 +357,7 @@ export default function RegistrationApp() {
           onAddMember={addMember} onRemoveMember={removeMember}
           volunteer={volunteer} setVolunteer={(v) => { setVolunteer(v); setBanner(''); }}
           notifyOptin={notifyOptin} setNotifyOptin={setNotifyOptin}
-          consent={consent} setConsent={setConsent}
+          consent={consent} setConsent={setConsent} consentMissing={!consent && !!banner}
           onBack={back} onNext={next} onGoStep={goStep}
           submitting={submitting} onOpenConfirm={openConfirm}
         />
@@ -904,7 +904,7 @@ function WeddingBlock({ mv, sharedWith, onField }) {
   );
 }
 
-function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrganization, parishRoleOptions, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent }) {
+function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrganization, parishRoleOptions, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent, consentMissing = false }) {
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Pag-apil sa Simbahan</h2>
@@ -986,8 +986,12 @@ function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrgani
           <Checkbox checked={notifyOptin} onChange={(e) => setNotifyOptin(e.target.checked)} className="mt-0.5" />
           <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">Ilakip kami sa email list sa parokya para sa iskedyul sa Misa, mga pista, ug mga pahibalo.</span>
         </label>
-        <label className="flex items-start gap-3 cursor-pointer p-4 rounded-xl border-[1.5px] transition" style={{ borderColor: consent ? '#9db9e0' : '#e0d6c1', background: consent ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
-          <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5" />
+        {/* Red when it's what stops "Padayon"; aria-invalid lets the wizard scroll to it. */}
+        <label
+          className={`flex items-start gap-3 cursor-pointer p-4 rounded-xl border-[1.5px] transition ${consentMissing ? 'ring-4 ring-parish-error/20' : ''}`}
+          style={{ borderColor: consent ? '#9db9e0' : consentMissing ? '#a13d29' : '#e0d6c1', background: consent ? 'var(--p-blue-tint)' : consentMissing ? '#fbeeea' : '#fdfbf6' }}
+        >
+          <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} aria-invalid={consentMissing ? true : undefined} className="mt-0.5" />
           <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">
             <strong className="text-parish-navy">Pagtugot sa Data Privacy <span className="text-parish-gold">*</span></strong> — Nagtugot ko nga kolektahon ug tipigan sa parokya kini nga impormasyon. Pribado kini ug makita lamang sa awtorisadong kawani sa parokya, subay sa Data Privacy Act.
           </span>

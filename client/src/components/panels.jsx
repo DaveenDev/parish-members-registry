@@ -1,5 +1,5 @@
 import React, { useEffect, useId, useRef } from 'react';
-import { PrimaryButton, GhostButton } from './ui.jsx';
+import { PrimaryButton, GhostButton, INVALID_INPUT } from './ui.jsx';
 
 /**
  * Slide-in editor panel used by the Parish Website and Requests pages. Same
@@ -76,7 +76,7 @@ export const TextArea = React.forwardRef(function TextArea({ className = '', ...
     <textarea
       ref={ref}
       {...props}
-      className={`w-full px-3.5 py-3 text-[15px] leading-relaxed text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15 ${className}`}
+      className={`w-full px-3.5 py-3 text-[15px] leading-relaxed text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15 ${INVALID_INPUT} ${className}`}
     />
   );
 });

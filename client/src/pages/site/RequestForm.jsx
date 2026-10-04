@@ -212,7 +212,8 @@ const INPUT = 'w-full min-h-[52px] px-3.5 text-[17px] text-parish-ink bg-parish-
 
 function FieldView({ f, value, error, onChange, gkks }) {
   const id = `fld-${f.k}`;
-  const border = error ? 'border-parish-error' : 'border-parish-borderSoft';
+  // A missing or wrong answer: red outline, light red fill and glow, still red while focused.
+  const border = error ? '!border-parish-error !bg-parish-errorBg/40 ring-4 ring-parish-error/20' : 'border-parish-borderSoft';
   const star = f.req && <span className="text-[var(--p-gold-deep)]" aria-hidden="true"> *</span>;
   const label = <label htmlFor={id} className="block font-bold text-[14.5px] mb-1.5">{f.label}{star}</label>;
   const describedBy = [f.hint && `${id}-hint`, error && `${id}-err`].filter(Boolean).join(' ') || undefined;
@@ -246,7 +247,7 @@ function FieldView({ f, value, error, onChange, gkks }) {
                 aria-checked={on}
                 onClick={() => onChange(v)}
                 className={`min-h-[52px] flex items-center gap-2.5 px-3 rounded-xl border-[1.5px] text-left font-semibold text-[15.5px] ${f.grid ? 'justify-center' : ''}`}
-                style={{ borderColor: on ? 'var(--p-blue)' : error ? '#a13d29' : '#e0d6c1', background: on ? 'var(--p-blue-tint)' : '#fffdf8' }}
+                style={{ borderColor: on ? 'var(--p-blue)' : error ? '#a13d29' : '#e0d6c1', background: on ? 'var(--p-blue-tint)' : error ? '#fbeeea' : '#fffdf8' }}
               >
                 <span className="w-5 h-5 flex-none rounded-full border-2 flex items-center justify-center" style={{ borderColor: on ? 'var(--p-blue)' : '#cfc4ab' }}>
                   {on && <span className="w-2.5 h-2.5 rounded-full bg-parish-blue" />}

@@ -40,8 +40,13 @@ export function Field({ label, required, error, children, inputId }) {
   );
 }
 
+// An invalid box (Field passes aria-invalid when it has an error) is outlined
+// in red with a light red fill and glow, and stays red while focused, so a
+// missing required field is easy to spot.
+export const INVALID_INPUT = 'aria-[invalid=true]:!border-parish-error aria-[invalid=true]:!bg-parish-errorBg/40 aria-[invalid=true]:ring-4 aria-[invalid=true]:!ring-parish-error/20';
+
 const inputBase =
-  'w-full px-3.5 py-3 text-[16px] text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15';
+  `w-full px-3.5 py-3 text-[16px] text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15 ${INVALID_INPUT}`;
 
 export const TextInput = React.forwardRef(function TextInput(props, ref) {
   return <input ref={ref} {...props} className={`${inputBase} ${props.className || ''}`} />;
