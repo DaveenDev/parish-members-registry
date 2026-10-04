@@ -2,7 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { ThemePickerPopover } from '../../components/ThemePicker.jsx';
 import { Icon, IconSprite } from '../../components/site/Icons.jsx';
-import { SiteToastContext } from '../../components/site/kit.jsx';
+import { FOOTER_CREAM, SAND, SiteToastContext } from '../../components/site/kit.jsx';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { api } from '../../api.js';
 import CreditFooter from '../../components/CreditFooter.jsx';
@@ -193,13 +193,17 @@ function DesktopHeader({ pathname, logo }) {
 function DesktopFooter() {
   const o = useOffice().data || {};
   // The Kontak page already shows the hours, phone and Message Me, so the footer leaves them out there.
-  const onKontak = useLocation().pathname.startsWith('/kontak');
+  const { pathname } = useLocation();
+  const onKontak = pathname.startsWith('/kontak');
+  // Komunidad's articles band took the footer's cream, so there the footer is the sand, right under the band with no gap.
+  const onKomunidad = pathname.startsWith('/komunidad');
+  const tint = onKomunidad ? SAND : FOOTER_CREAM;
   const open = officeHourRows(o.office_hours).filter((r) => r.hours).slice(0, 2);
   const phone = o.mobile || o.contact;
   const messenger = messengerLink(o.secretary_messenger);
   const logo = useParishLogo();
   return (
-    <footer className="hidden lg:block mt-14 bg-[#f1ead9] border-t border-[#e7dcc4]">
+    <footer className={`hidden lg:block border-t ${onKomunidad ? '' : 'mt-14'}`} style={tint}>
       <div className={`max-w-[1240px] mx-auto px-6 py-8 grid gap-8 items-start ${onKontak ? 'grid-cols-[1.4fr_1fr]' : 'grid-cols-[1.4fr_1fr_1fr]'}`}>
         <div className="flex gap-3">
           <span className="flex-none"><ParishMark size={34} logo={logo} /></span>

@@ -1,17 +1,14 @@
 import React, { useState } from 'react';
-import { DataState, Eyebrow, Pills, Skeleton, WRAP } from '../../components/site/kit.jsx';
+import { DataState, Eyebrow, FOOTER_CREAM, Pills, Skeleton, WRAP } from '../../components/site/kit.jsx';
 import { ArticleCard, ArticleFeature } from '../../components/site/cards.jsx';
 import { listState, useArticles } from './data.js';
 
 // Values match the articles_tag_check constraint (0021).
 const ARTICLE_TAG_FILTERS = [['all', 'Tanan'], ['History', 'Kasaysayan'], ['Parish', 'Parokya'], ['GKK', 'GKK'], ['Ministry', 'Ministry']];
 const ARTICLES_STEP = 6;
-// A warm sand band for the articles, from the theme's gold, so it reads apart
-// from both the blue band above and the page's own cream.
-const ARTICLES_BAND = 'color-mix(in srgb, var(--p-gold) 24%, #fbf7ee)';
 
 /**
- * Mga Artikulo, Komunidad's main tab, on a full-width warm band under the
+ * Mga Artikulo, Komunidad's main tab, on a full-width cream band (the footer's color) under the
  * page's blue header: the newest article wide, then the rest three across,
  * six more at a time. Tag filters show once articles use two or more tags.
  */
@@ -31,7 +28,7 @@ export default function ArticlesSection() {
     <section
       id="artikulo" aria-labelledby="articles-title"
       className="py-7 lg:py-12 border-b"
-      style={{ background: ARTICLES_BAND, borderColor: 'color-mix(in srgb, var(--p-gold) 40%, white)' }}
+      style={FOOTER_CREAM}
     >
       <div className={WRAP}>
         <div className="flex items-end justify-between gap-x-6 gap-y-3 flex-wrap mb-4 lg:mb-6">

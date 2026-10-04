@@ -31,6 +31,12 @@ export const PAGE = 'px-3.5 pt-4 pb-7 animate-fadeUp lg:max-w-[1240px] lg:mx-aut
 /** Inner pages (opened from a list): the layout shows "Balik" above them on desktop. */
 export const INNER = 'px-4 pt-[18px] pb-7 animate-fadeUp lg:mx-auto lg:px-6 lg:pb-0';
 /** Page content width without padding top/bottom, for content inside a full-width band. */
+// The two warm backgrounds of the site: the footer's cream, and a sand from the
+// theme's gold. On Komunidad they trade places: the articles band is the cream
+// and the footer the sand.
+export const FOOTER_CREAM = { background: '#f1ead9', borderColor: '#e7dcc4' };
+export const SAND = { background: 'color-mix(in srgb, var(--p-gold) 24%, #fbf7ee)', borderColor: 'color-mix(in srgb, var(--p-gold) 40%, white)' };
+
 export const WRAP = 'px-3.5 lg:max-w-[1240px] lg:mx-auto lg:px-6';
 /** Top/bottom padding for a page's first section when it sits on a Band. */
 export const BAND_PAD = 'pt-4 pb-7 lg:pt-9 lg:pb-12';
