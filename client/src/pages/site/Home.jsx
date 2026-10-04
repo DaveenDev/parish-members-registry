@@ -225,7 +225,7 @@ function CensusNotice() {
           </div>
         </div>
         <div className="mt-4 flex flex-col gap-2 lg:mt-0 lg:flex-row lg:flex-none lg:gap-3">
-          <Link to="/census" className="min-h-[52px] px-6 rounded-[14px] flex items-center justify-center font-bold text-[16px] text-parish-navy hover:brightness-105" style={{ background: 'var(--p-gold-light)' }}>
+          <Link to="/census" className="census-update-cta min-h-[52px] px-6 rounded-[14px] flex items-center justify-center font-bold text-[16px] text-parish-navy hover:brightness-105" style={{ background: 'var(--p-gold-light)' }}>
             I-update ang among rekord
           </Link>
           <Link to="/komunidad?view=gkk" className="min-h-[48px] px-5 rounded-[14px] flex items-center justify-center font-semibold text-[15px] text-white border-[1.5px] border-white/40 hover:bg-white/10">

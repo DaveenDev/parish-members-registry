@@ -1,9 +1,3 @@
-1. in the members registration step 3
-if the member in question is the Asawa or Spouse of the Household
-Head, the Kasal/Marriage date and venue (parish) and type of
-marriage "Civil","Simbahang Katoliko" should be shared by both.
-
-2. in the members registration step 5 (last),
-
-for displaying for Partisipasyon and Paagi sa pagtabang
-should be in a checkbox (disabled) form.
+1. modify the notifications option, add a default "Member Request Only"
+where it will notify when someone hits the Request for Dihog, request for Certificate, 
+request for OCIA and Blood Donor and the Important Census Update

@@ -6,9 +6,10 @@ import { FOOTER_CREAM, SiteToastContext } from '../../components/site/kit.jsx';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { api } from '../../api.js';
 import CreditFooter from '../../components/CreditFooter.jsx';
-import { officeHourRows } from '../../lib/site.js';
+import { daysUntil, fmtLong, officeHourRows } from '../../lib/site.js';
+import { todayIso } from '../../lib/website.js';
 import { messengerLink } from '../../lib/website.js';
-import { useOffice } from './data.js';
+import { useCensusProgress, useOffice } from './data.js';
 
 export const PARISH_NAME = 'Our Lady of Guadalupe';
 export const PARISH_SUB = 'Quasi-Parish · Mua-an';
@@ -113,6 +114,8 @@ export default function SiteLayout() {
             <ThemePickerPopover align="right" label="Theme" />
           </header>
 
+          {pathname !== '/' && !pathname.startsWith('/komunidad') && <CensusTicker />}
+
           {!isRoot && (
             <div className="hidden lg:block w-full max-w-[1240px] mx-auto px-6 pt-[18px]">
               <button type="button" onClick={back} className="min-h-[40px] inline-flex items-center gap-1.5 font-bold text-[15px] text-parish-blue hover:text-parish-blueDeep">
@@ -153,6 +156,40 @@ export default function SiteLayout() {
         </nav>
       </TitleContext.Provider>
     </SiteToastContext.Provider>
+  );
+}
+
+/** A shared, English census reminder below the nav on the inner public pages. */
+function CensusTicker() {
+  const census = useCensusProgress().data;
+  if (!census?.open) return null;
+
+  const days = daysUntil(census.ends_on, todayIso());
+  const remaining = days === null ? '' : days === 0 ? 'The census ends today.' : `${days} day${days === 1 ? '' : 's'} left until it ends.`;
+  const message = `Alert! ${census.label || 'The 2026 Census'} is ongoing. ${remaining} Participate now!`;
+
+  return (
+    <section aria-label="Census announcement" className="census-ticker border-b border-white/15 text-white" style={{ background: 'var(--p-navy)' }}>
+      <div className="max-w-[1240px] mx-auto min-h-[48px] px-3 lg:px-6 flex items-center gap-3">
+        <div className="census-ticker__window flex-1 min-w-0" aria-live="polite">
+          <div className="census-ticker__track">
+            <span className="inline-flex items-center gap-2 whitespace-nowrap font-bold text-[14px] lg:text-[15px]">
+              <Icon name="alert" size={18} className="text-[#fb923c] flex-none" />
+              {message}
+              {census.ends_on && <span className="font-semibold text-white/70">Ends {fmtLong(census.ends_on)}.</span>}
+            </span>
+            <span aria-hidden="true" className="inline-flex items-center gap-2 whitespace-nowrap font-bold text-[14px] lg:text-[15px]">
+              <Icon name="alert" size={18} className="text-[#fb923c] flex-none" />
+              {message}
+              {census.ends_on && <span className="font-semibold text-white/70">Ends {fmtLong(census.ends_on)}.</span>}
+            </span>
+          </div>
+        </div>
+        <Link to="/census" className="flex-none inline-flex items-center justify-center min-h-[36px] px-3.5 rounded-lg font-bold text-[13.5px] text-parish-navy whitespace-nowrap hover:brightness-105" style={{ background: 'var(--p-gold-light)' }}>
+          Update your record
+        </Link>
+      </div>
+    </section>
   );
 }
 

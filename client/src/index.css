@@ -159,6 +159,35 @@
 
 * { box-sizing: border-box; }
 
+.census-ticker__window { overflow: hidden; }
+.census-ticker__track {
+  display: inline-flex;
+  width: max-content;
+  gap: 4rem;
+  animation: census-ticker-scroll 24s linear infinite;
+}
+@keyframes census-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .census-ticker__track { animation: none; }
+}
+
+.census-update-cta {
+  animation: census-cta-attention 3.6s ease-in-out infinite;
+  box-shadow: 0 8px 20px -10px rgba(228, 192, 106, .95);
+}
+.census-update-cta:hover { animation-play-state: paused; }
+@keyframes census-cta-attention {
+  0%, 68%, 100% { transform: translateY(0) scale(1); box-shadow: 0 8px 20px -10px rgba(228, 192, 106, .95); }
+  74% { transform: translateY(-2px) scale(1.025); box-shadow: 0 12px 24px -8px rgba(228, 192, 106, .98); }
+  80% { transform: translateY(0) scale(1); box-shadow: 0 8px 20px -10px rgba(228, 192, 106, .95); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .census-update-cta { animation: none; }
+}
+
 body {
   margin: 0;
   background: rgb(var(--c-bg));
