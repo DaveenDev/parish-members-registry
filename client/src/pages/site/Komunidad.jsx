@@ -12,6 +12,30 @@ const SMALL = 'Ubos sa 5';
 
 const VIEWS = [['artikulo', 'Mga Artikulo'], ['gkk', 'Mga GKK']];
 
+// The open census's card stands out from everything else on the page: warm
+// gold, a stronger gold edge, and the alert badges on top.
+const CENSUS_CARD = {
+  background: 'linear-gradient(135deg, color-mix(in srgb, var(--p-gold-light) 38%, #fffaf0) 0%, color-mix(in srgb, var(--p-gold-light) 70%, #fff6df) 100%)',
+  borderColor: 'var(--p-gold)',
+  borderWidth: 2,
+};
+
+/** "IMPORTANT" and "ALERT! 2026 CENSUS IS ONGOING", on top of the census card. */
+function CensusAlertBadges({ label, className = '' }) {
+  return (
+    <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
+      <span className="inline-flex items-center rounded-md px-2 py-[3px] font-bold text-[11px] tracking-[.1em] uppercase text-white bg-parish-navy">Important</span>
+      <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-[3px] font-bold text-[11px] tracking-[.06em] uppercase text-white" style={{ background: '#b3261e' }}>
+        <span className="relative flex w-2 h-2" aria-hidden>
+          <span className="absolute inline-flex w-full h-full rounded-full bg-white opacity-75 motion-safe:animate-ping" />
+          <span className="relative inline-flex w-2 h-2 rounded-full bg-white" />
+        </span>
+        Alert! {String(label || 'Census').toUpperCase()} is ongoing
+      </span>
+    </div>
+  );
+}
+
 /**
  * Komunidad: the parish's stories and its GKKs, under two tabs. It opens on
  * the articles (the GKK directory is reference); ?view=gkk opens the GKKs.
@@ -73,8 +97,9 @@ export default function Komunidad() {
 /** The open census in one line, for the articles tab: how far along, update, and the full progress. */
 function CensusStrip({ c, onMore }) {
   return (
-    <div className="mb-4 lg:mb-[22px] bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm px-3.5 py-3 lg:px-5 flex items-center gap-3 lg:gap-4 flex-wrap">
-      <div role="img" aria-label={`${c.pct} porsyento`} className="w-12 h-12 flex-none rounded-full flex items-center justify-center" style={{ background: `conic-gradient(var(--p-blue) 0 ${c.pct}%, #ece2cd 0)` }}>
+    <div className="mb-4 lg:mb-[22px] border rounded-2xl lg:rounded-[18px] shadow-card px-3.5 py-3 lg:px-5 flex items-center gap-3 lg:gap-4 flex-wrap" style={CENSUS_CARD}>
+      <CensusAlertBadges label={c.label} className="w-full" />
+      <div role="img" aria-label={`${c.pct} porsyento`} className="w-12 h-12 flex-none rounded-full flex items-center justify-center" style={{ background: `conic-gradient(var(--p-blue) 0 ${c.pct}%, rgba(255,255,255,.85) 0)` }}>
         <span className="w-9 h-9 rounded-full bg-parish-card flex items-center justify-center font-bold text-[12.5px] text-parish-blue">{c.pct}%</span>
       </div>
       <div className="flex-1 min-w-[180px]">
@@ -381,8 +406,9 @@ function CensusProgress() {
 
   return (
     <div className="lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-6 lg:items-start">
-      <Card className="px-4 py-[18px] text-center mb-4 shadow-card lg:sticky lg:top-24 lg:mb-0 lg:px-6 lg:py-7 lg:rounded-[20px]">
-        <div role="img" aria-label={`${c.pct} porsyento`} className="w-[132px] h-[132px] lg:w-[180px] lg:h-[180px] rounded-full mx-auto mb-3 lg:mb-4 flex items-center justify-center" style={{ background: `conic-gradient(var(--p-blue) 0 ${c.pct}%, #ece2cd 0)` }}>
+      <Card className="px-4 py-[18px] text-center mb-4 shadow-card lg:sticky lg:top-24 lg:mb-0 lg:px-6 lg:py-7 lg:rounded-[20px]" style={CENSUS_CARD}>
+        <CensusAlertBadges label={c.label} className="justify-center mb-3 lg:mb-4" />
+        <div role="img" aria-label={`${c.pct} porsyento`} className="w-[132px] h-[132px] lg:w-[180px] lg:h-[180px] rounded-full mx-auto mb-3 lg:mb-4 flex items-center justify-center" style={{ background: `conic-gradient(var(--p-blue) 0 ${c.pct}%, rgba(255,255,255,.85) 0)` }}>
           <div className="w-[104px] h-[104px] lg:w-[144px] lg:h-[144px] rounded-full bg-parish-card flex flex-col items-center justify-center">
             <div className="font-serif text-[40px] lg:text-[54px] font-bold leading-none text-parish-blue">{c.pct}%</div>
             <div className="text-[12px] lg:text-[13px] text-parish-text2">na-update</div>
