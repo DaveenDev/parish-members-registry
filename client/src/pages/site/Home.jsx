@@ -180,7 +180,8 @@ export default function Home() {
 function CensusNotice() {
   const c = useCensusProgress().data;
   if (!c?.open) return null;
-  const countdown = censusCountdown(c.ends_on, todayIso());
+  // The days left show the whole time the census is open, not only in its last week.
+  const countdown = censusCountdown(c.ends_on, todayIso(), Infinity);
   return (
     <section
       aria-labelledby="census-notice"
@@ -195,7 +196,7 @@ function CensusNotice() {
           <div className="min-w-0">
             <div className="font-bold text-[11.5px] lg:text-[12px] tracking-[.18em] uppercase mb-1" style={{ color: 'var(--p-gold-light)' }}>Importante nga pahibalo</div>
             <h2 id="census-notice" className="m-0 font-serif font-semibold text-[23px] lg:text-[30px] leading-[1.15]">
-              <span className="font-bold" style={{ color: '#fb923c' }}>ALERT!</span> Nagpadayon ang {c.label || 'census sa parokya'}
+              <span className="font-bold" style={{ color: '#fb923c' }}>ALERT! Nagpadayon ang {c.label || 'census sa parokya'}</span>
             </h2>
             <p className="m-0 mt-1.5 text-[15px] lg:text-[16px] leading-normal text-white/85">
               I-update ang rekord sa inyong pamilya gamit ang reference number ug code sa inyong census form

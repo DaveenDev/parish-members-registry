@@ -4,7 +4,8 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { Avatar, BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
 import { phoneHref } from '../../lib/requests.js';
-import { filterGkks, fmtLong, gkkParts, initialsOf, sortCensusGkks } from '../../lib/site.js';
+import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, initialsOf, sortCensusGkks } from '../../lib/site.js';
+import { todayIso } from '../../lib/website.js';
 import { useSiteTitle } from './SiteLayout.jsx';
 import { listState, useCensusProgress, useGkkDirectory } from './data.js';
 
@@ -19,6 +20,17 @@ const CENSUS_CARD = {
   borderColor: 'var(--p-gold)',
   borderWidth: 2,
 };
+
+/** "26 ka adlaw na lang · hangtod 30 Okt 2026": the days left while the census is open (nothing without an end date). */
+function CensusCountdown({ endsOn, className = '' }) {
+  const left = censusCountdown(endsOn, todayIso(), Infinity);
+  if (!left) return null;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-bold text-[13px] text-parish-navy ${className}`} style={{ background: 'var(--p-gold-light)' }}>
+      <Icon name="clock" size={15} />{left} · hangtod {fmtShort(endsOn)}
+    </span>
+  );
+}
 
 /** "IMPORTANT" and "ALERT! 2026 CENSUS IS ONGOING", on top of the census card. */
 function CensusAlertBadges({ label, className = '' }) {
@@ -100,6 +112,7 @@ function CensusStrip({ c, onMore }) {
   return (
     <div className="mb-4 lg:mb-[22px] border rounded-2xl lg:rounded-[18px] shadow-card px-3.5 py-3 lg:px-5 flex items-center gap-3 lg:gap-4 flex-wrap" style={CENSUS_CARD}>
       <CensusAlertBadges label={c.label} className="w-full" />
+      <CensusCountdown endsOn={c.ends_on} className="w-full justify-center sm:w-auto sm:justify-start" />
       <div role="img" aria-label={`${c.pct} porsyento`} className="w-12 h-12 flex-none rounded-full flex items-center justify-center" style={{ background: `conic-gradient(var(--p-blue) 0 ${c.pct}%, rgba(255,255,255,.85) 0)` }}>
         <span className="w-9 h-9 rounded-full bg-parish-card flex items-center justify-center font-bold text-[12.5px] text-parish-blue">{c.pct}%</span>
       </div>
@@ -408,7 +421,8 @@ function CensusProgress() {
   return (
     <div className="lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-6 lg:items-start">
       <Card className="px-4 py-[18px] text-center mb-4 shadow-card lg:sticky lg:top-24 lg:mb-0 lg:px-6 lg:py-7 lg:rounded-[20px]" style={CENSUS_CARD}>
-        <CensusAlertBadges label={c.label} className="justify-center mb-3 lg:mb-4" />
+        <CensusAlertBadges label={c.label} className="justify-center mb-2" />
+        <CensusCountdown endsOn={c.ends_on} className="mb-3 lg:mb-4" />
         <div role="img" aria-label={`${c.pct} porsyento`} className="w-[132px] h-[132px] lg:w-[180px] lg:h-[180px] rounded-full mx-auto mb-3 lg:mb-4 flex items-center justify-center" style={{ background: `conic-gradient(var(--p-blue) 0 ${c.pct}%, rgba(255,255,255,.85) 0)` }}>
           <div className="w-[104px] h-[104px] lg:w-[144px] lg:h-[144px] rounded-full bg-parish-card flex flex-col items-center justify-center">
             <div className="font-serif text-[40px] lg:text-[54px] font-bold leading-none text-parish-blue">{c.pct}%</div>
