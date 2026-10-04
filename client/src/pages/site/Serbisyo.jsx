@@ -4,7 +4,7 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { BAND_PAD, Band, Card, ErrorNote, Eyebrow, INNER, MessengerButton, PageTitle, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { mapEmbedUrl, messengerLink, validCoords } from '../../lib/website.js';
 import { phoneHref } from '../../lib/requests.js';
-import { officeHourRows, officeOpenNow } from '../../lib/site.js';
+import { officeHourRows, officeStatus } from '../../lib/site.js';
 import { PARISH_ADDRESS, PARISH_COORDS, PARISH_MAP_URL, useSiteTitle } from './SiteLayout.jsx';
 import { useOffice } from './data.js';
 import { api } from '../../api.js';
@@ -66,13 +66,17 @@ export function Kontak() {
   const q = useOffice();
   const o = q.data || {};
   const rows = officeHourRows(o.office_hours);
-  const open = officeOpenNow(o.office_hours);
+  const status = officeStatus(o.office_hours);
+  const open = status ? status.open : null;
   const mobile = o.mobile || o.contact;
   const messenger = messengerLink(o.secretary_messenger);
   // A link saved in admin wins; otherwise the church's Google Maps page.
   const mapUrl = o.map_url || PARISH_MAP_URL;
   // The pin saved in admin wins; otherwise the church's own coordinates.
   const pin = validCoords(o.latitude, o.longitude) ? o : PARISH_COORDS;
+  // The route to the church in Google Maps; Waze for drivers who prefer it.
+  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${pin.latitude},${pin.longitude}`;
+  const wazeUrl = `https://waze.com/ul?ll=${pin.latitude},${pin.longitude}&navigate=yes`;
 
   if (q.loading) return <main className={`${INNER} lg:max-w-[1240px]`}><Skeletons n={3} h={120} /></main>;
 
@@ -94,23 +98,24 @@ export function Kontak() {
       )}
 
       <Card className="p-3.5 mb-4 shadow-none lg:col-start-1 lg:row-start-1 lg:mb-0 lg:p-[18px] lg:rounded-[18px]">
-        <div className="flex items-center justify-between mb-2.5">
-          <h2 className="m-0 font-serif text-[22px] lg:text-[24px] font-bold text-parish-navy">Oras sa opisina</h2>
-          {open != null && (
-            <span className={`inline-flex items-center gap-1.5 font-bold text-[13px] rounded-full px-2.5 py-1 border ${open ? 'text-parish-ok bg-parish-okBg border-parish-okBorder' : 'text-[#4d4636] bg-[#f1ead9] border-parish-borderSoft'}`}>
-              <span className={`w-2 h-2 rounded-full ${open ? 'bg-parish-ok' : 'bg-[#8a836f]'}`} />{open ? 'Abli karon' : 'Sirado karon'}
-            </span>
-          )}
-        </div>
+        <h2 className="m-0 mb-2.5 font-serif text-[22px] lg:text-[24px] font-bold text-parish-navy">Oras sa opisina</h2>
+        {status && (
+          <div
+            role="status"
+            className={`flex items-center gap-2.5 mb-3 rounded-xl px-3.5 py-3 font-bold text-[16px] lg:text-[17px] border ${open ? 'text-parish-ok bg-parish-okBg border-parish-okBorder' : 'text-[#4d4636] bg-[#f1ead9] border-parish-borderSoft'}`}
+          >
+            <span className={`w-3 h-3 flex-none rounded-full ${open ? 'bg-parish-ok' : 'bg-[#8a836f]'}`} aria-hidden />{status.text}
+          </div>
+        )}
         {!rows.length ? (
           <div className="text-[15px] text-parish-text2">Tawagi ang opisina para sa oras.</div>
         ) : rows.map((r) => (
           <div
             key={r.label}
-            className={`flex justify-between gap-2.5 py-[9px] text-[15px] ${r.today ? 'px-2 -mx-2 rounded-lg' : 'border-t border-[#f4eddd]'}`}
-            style={r.today ? { background: 'var(--p-blue-tint)' } : undefined}
+            className={`flex justify-between gap-2.5 py-[9px] text-[15px] ${r.today ? 'px-2 -mx-2 rounded-lg border-l-4' : 'border-t border-[#f4eddd]'}`}
+            style={r.today ? { background: 'var(--p-blue-tint)', borderLeftColor: 'var(--p-blue)' } : undefined}
           >
-            <span className={r.today ? 'font-bold' : ''}>{r.label}</span>
+            <span className={r.today ? 'font-bold' : ''}>{r.label}{r.today ? ' · karon' : ''}</span>
             <span className={`text-right ${r.hours ? '' : 'text-parish-text2'}`}>
               {r.hours ? r.hours.map((h) => <span key={h} className="block">{h}</span>) : 'Sirado'}
             </span>
@@ -118,24 +123,29 @@ export function Kontak() {
         ))}
       </Card>
 
-      {(mobile || messenger || o.facebook_url || o.email) && (
+      {(
       <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2 lg:bg-parish-card lg:border lg:border-parish-border lg:rounded-[18px] lg:p-[18px]">
       <h2 className="hidden lg:block m-0 mb-3 font-serif text-[24px] font-bold text-parish-navy">Kontaka kami</h2>
       {mobile && (
         <>
-          <div className="hidden lg:block font-serif text-[30px] font-bold text-parish-blue">{mobile}</div>
-          <div className="hidden lg:block text-[13px] text-parish-text2 mb-3">Tawag o text</div>
-          <div className="grid grid-cols-2 gap-2 mb-2 lg:mb-3.5">
-            <a href={`tel:${phoneHref(mobile)}`} className="min-h-[52px] rounded-xl bg-parish-blue text-white font-bold text-[16px] flex items-center justify-center gap-2"><Icon name="phone" size={19} />Tawag</a>
-            <a href={`sms:${phoneHref(mobile)}`} className="min-h-[52px] rounded-xl border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[16px] flex items-center justify-center gap-2"><Icon name="sms" size={19} />Text</a>
-          </div>
-          <div className="text-[14px] text-[#4d4636] text-center mb-3 lg:hidden">{mobile}</div>
+          <div className="text-[12px] font-bold tracking-[.14em] uppercase text-[var(--p-eyebrow)]">Opisina sa parokya · tawag o text</div>
+          <div className="font-serif text-[28px] lg:text-[30px] font-bold text-parish-blue leading-tight mb-3">{mobile}</div>
         </>
       )}
-      {messenger && <MessengerButton href={messenger} className="mb-3 lg:mb-3.5" />}
+      {/* The three things people come here for, equal: call, message, find the church. */}
+      <div className="grid gap-2 mb-2.5 lg:mb-3.5 sm:grid-cols-3">
+        {mobile && <a href={`tel:${phoneHref(mobile)}`} className="min-h-[56px] rounded-xl bg-parish-blue text-white font-bold text-[16px] flex items-center justify-center gap-2"><Icon name="phone" size={19} />Tawag</a>}
+        {messenger && <MessengerButton href={messenger} className="!min-h-[56px]" />}
+        <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className="min-h-[56px] rounded-xl border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[16px] flex items-center justify-center gap-2"><Icon name="pin" size={19} />Mga direksyon</a>
+      </div>
 
-      {(o.facebook_url || o.email) && (
+      {(mobile || o.facebook_url || o.email) && (
         <div className="bg-parish-card border border-parish-border rounded-2xl overflow-hidden mb-4 lg:mb-0 lg:rounded-none lg:border-x-0 lg:border-b-0 lg:border-[#f0e8d6] lg:pt-1.5">
+          {mobile && (
+            <a href={`sms:${phoneHref(mobile)}`} className="w-full min-h-[52px] flex items-center gap-3 px-3.5 font-semibold text-[15px] border-b border-[#f0e8d6]">
+              <Icon name="sms" className="text-parish-blue" /><span className="flex-1">Mag-text</span><Icon name="chev" size={16} className="text-parish-muted" />
+            </a>
+          )}
           {o.facebook_url && (
             <a href={o.facebook_url} target="_blank" rel="noopener noreferrer" className="w-full min-h-[52px] flex items-center gap-3 px-3.5 font-semibold text-[15px] border-b border-[#f0e8d6] last:border-b-0">
               <Icon name="fb" className="text-parish-blue" /><span className="flex-1">Facebook page</span><Icon name="chev" size={16} className="text-parish-muted" />
@@ -166,7 +176,10 @@ export function Kontak() {
           <h2 className="m-0 mb-1.5 font-serif text-[22px] lg:text-[24px] font-bold text-parish-navy">Asa mi makit-an</h2>
           <div className="font-bold text-[15.5px] lg:text-[16.5px]">{o.address || PARISH_ADDRESS}</div>
           {o.directions && <div className="text-[14px] lg:text-[15px] leading-[1.45] text-[#4d4636] mt-[3px] whitespace-pre-line">{o.directions}</div>}
-          <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="inline-block font-bold text-[14.5px] lg:text-[15px] text-parish-blue mt-2.5">Ablihi sa Google Maps →</a>
+          <div className="flex gap-x-4 gap-y-1 flex-wrap mt-2.5 font-bold text-[14.5px] lg:text-[15px] text-parish-blue">
+            <a href={mapUrl} target="_blank" rel="noopener noreferrer">Ablihi sa Google Maps →</a>
+            <a href={wazeUrl} target="_blank" rel="noopener noreferrer">Waze →</a>
+          </div>
         </div>
       </section>
     </main>

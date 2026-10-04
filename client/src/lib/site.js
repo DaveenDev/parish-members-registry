@@ -499,6 +499,36 @@ export function officeOpenNow(hours, now = new Date()) {
   return true;
 }
 
+/**
+ * The office's status line for the Kontak page: { open, text }, or null when
+ * no hours are set. "Abli karon hangtod 4:00 PM" while open (until the break
+ * if there is one), else when it opens next: later today, "ugma", or the day.
+ */
+export function officeStatus(hours, now = new Date()) {
+  if (!Array.isArray(hours) || hours.length !== 7) return null;
+  const t = now.getHours() * 60 + now.getMinutes();
+  const today = hours[now.getDay()];
+  const worked = (d) => d && !d.closed && d.open && d.close;
+  if (officeOpenNow(hours, now)) {
+    const until = today.break_from && today.break_to && t < minutesOf(today.break_from) ? today.break_from : today.close;
+    return { open: true, text: `Abli karon hangtod ${fmtTime12(until)}` };
+  }
+  if (worked(today)) {
+    if (t < minutesOf(today.open)) return { open: false, text: `Sirado pa. Abli karon sa ${fmtTime12(today.open)}` };
+    if (today.break_from && today.break_to && t >= minutesOf(today.break_from) && t < minutesOf(today.break_to)) {
+      return { open: false, text: `Pahulay. Abli balik sa ${fmtTime12(today.break_to)}` };
+    }
+  }
+  for (let i = 1; i <= 7; i++) {
+    const day = (now.getDay() + i) % 7;
+    if (worked(hours[day])) {
+      const when = i === 1 ? 'ugma' : `sa ${BIS_DAYS[day]}`;
+      return { open: false, text: `Sirado na. Abli ${when} sa ${fmtTime12(hours[day].open)}` };
+    }
+  }
+  return { open: false, text: 'Sirado karon' };
+}
+
 // ---- Forms ----------------------------------------------------------------
 
 /** Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX, spaces and dashes allowed. */

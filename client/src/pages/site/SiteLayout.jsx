@@ -192,21 +192,23 @@ function DesktopHeader({ pathname, logo }) {
 /** Desktop footer on every page: parish, office, privacy note and staff sign-in. */
 function DesktopFooter() {
   const o = useOffice().data || {};
+  // The Kontak page already shows the hours, phone and Message Me, so the footer leaves them out there.
+  const onKontak = useLocation().pathname.startsWith('/kontak');
   const open = officeHourRows(o.office_hours).filter((r) => r.hours).slice(0, 2);
   const phone = o.mobile || o.contact;
   const messenger = messengerLink(o.secretary_messenger);
   const logo = useParishLogo();
   return (
     <footer className="hidden lg:block mt-14 bg-[#f1ead9] border-t border-[#e7dcc4]">
-      <div className="max-w-[1240px] mx-auto px-6 py-8 grid grid-cols-[1.4fr_1fr_1fr] gap-8 items-start">
+      <div className={`max-w-[1240px] mx-auto px-6 py-8 grid gap-8 items-start ${onKontak ? 'grid-cols-[1.4fr_1fr]' : 'grid-cols-[1.4fr_1fr_1fr]'}`}>
         <div className="flex gap-3">
           <span className="flex-none"><ParishMark size={34} logo={logo} /></span>
           <div>
             <div className="font-serif text-[21px] font-bold text-parish-navy">{PARISH_NAME} {PARISH_SUB.split(' · ')[0]}</div>
-            <div className="text-[14.5px] leading-normal text-[#4d4636] mt-0.5">{o.address || PARISH_ADDRESS}</div>
+            {!onKontak && <div className="text-[14.5px] leading-normal text-[#4d4636] mt-0.5">{o.address || PARISH_ADDRESS}</div>}
           </div>
         </div>
-        <div className="text-[14.5px] leading-[1.7] text-[#4d4636]">
+        {!onKontak && <div className="text-[14.5px] leading-[1.7] text-[#4d4636]">
           <div className="font-bold text-[11.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)] mb-1">Opisina</div>
           {/* Each time range on its own line, lined up after the days. */}
           {open.length > 0 && (
@@ -226,7 +228,7 @@ function DesktopFooter() {
             </a>
           )}
           {!open.length && !phone && !messenger && <Link to="/kontak" className="font-semibold text-parish-blue">Tan-awa ang kontak</Link>}
-        </div>
+        </div>}
         <div className="flex flex-col gap-1.5 items-start">
           <div className="flex gap-1.5 text-[13.5px] leading-[1.45] text-[#4d4636]">
             <Icon name="lock" size={15} className="flex-none mt-0.5" />Pribado ang datos sa mga pamilya, sumala sa Data Privacy Act of 2012.

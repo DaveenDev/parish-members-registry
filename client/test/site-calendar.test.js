@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { censusCountdown, daysUntil, eventCountdown, eventsOnDay, guideShortTitle, isRecent, monthCells, readingTime, sortAnnouncements, sortCensusGkks } from '../src/lib/site.js';
+import { censusCountdown, daysUntil, eventCountdown, eventsOnDay, guideShortTitle, isRecent, monthCells, officeStatus, readingTime, sortAnnouncements, sortCensusGkks } from '../src/lib/site.js';
 
 describe('monthCells', () => {
   test('pads October 2026 to whole Sunday-first weeks', () => {
@@ -135,5 +135,26 @@ describe('sortAnnouncements', () => {
     ];
     assert.deepEqual(sortAnnouncements(rows).map((r) => r.id), [3, 2, 4, 1]);
     assert.equal(rows[0].id, 1);
+  });
+});
+
+describe('officeStatus', () => {
+  const day = { closed: false, open: '09:00', close: '17:00', break_from: '12:00', break_to: '13:00' };
+  const shut = { closed: true };
+  // Sunday first; Monday to Friday 9-5 with a noon break, weekend closed.
+  const hours = [shut, day, day, day, day, day, shut];
+  const at = (iso) => new Date(iso); // local time
+  test('open: until the break, then until closing', () => {
+    assert.deepEqual(officeStatus(hours, at('2026-10-05T10:00:00')), { open: true, text: 'Abli karon hangtod 12:00 NN' });
+    assert.deepEqual(officeStatus(hours, at('2026-10-05T14:00:00')), { open: true, text: 'Abli karon hangtod 5:00 PM' });
+  });
+  test('closed: before opening, on the break, after closing', () => {
+    assert.equal(officeStatus(hours, at('2026-10-05T07:30:00')).text, 'Sirado pa. Abli karon sa 9:00 AM');
+    assert.equal(officeStatus(hours, at('2026-10-05T12:30:00')).text, 'Pahulay. Abli balik sa 1:00 PM');
+    assert.equal(officeStatus(hours, at('2026-10-05T18:00:00')).text, 'Sirado na. Abli ugma sa 9:00 AM');
+  });
+  test('the weekend points to Monday; no hours means null', () => {
+    assert.equal(officeStatus(hours, at('2026-10-03T10:00:00')).text, 'Sirado na. Abli sa Lunes sa 9:00 AM');
+    assert.equal(officeStatus(null), null);
   });
 });
