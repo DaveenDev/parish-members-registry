@@ -3,7 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Band, DataState, EmptyNote, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { AnnouncementCard, EventCard } from '../../components/site/cards.jsx';
-import { ANNOUNCEMENT_LABELS, ARTICLES_PAGE, fmtLong, fmtShort, sortAnnouncements } from '../../lib/site.js';
+import { ANNOUNCEMENT_LABELS, ARTICLES_PAGE, bulletinLists, fmtLong, fmtShort, paragraphs, sortAnnouncements } from '../../lib/site.js';
 import { listState, useAnnouncements, useArticles, useBulletins, useEvents } from './data.js';
 
 
@@ -269,28 +269,55 @@ function UpcomingEvents() {
   );
 }
 
+/**
+ * The bulletin tab: the newest two bulletins in full, side by side on
+ * desktop, then a list of the earlier ones (just their titles), kept to the
+ * last 3 months when there are a lot.
+ */
 function Bulletins() {
   const bul = listState(useBulletins());
+  const { latest, earlier, hidden } = bulletinLists(bul.rows);
   return (
-    <>
-      <p className="m-0 mb-3 lg:mb-4 text-[15px] lg:text-[16px] leading-normal text-[#4d4636]">Ang semanal nga bulletin sa parokya. Basaha diri.</p>
-      <DataState state={bul} skeleton={<Skeleton h={220} />} errorText="Wala ma-load ang bulletin." empty={bul.empty} emptyText="Wala pay bulletin nga gi-publish.">
-        {!bul.rows.length ? <EmptyNote /> : (
+    <DataState state={bul} skeleton={<Skeleton h={320} />} errorText="Wala ma-load ang bulletin." empty={bul.empty} emptyText="Wala pay bulletin nga gi-publish.">
+      <p className="m-0 mb-3 lg:mb-4 text-[15px] lg:text-[16px] leading-normal text-[#4d4636]">Ang semanal nga bulletin sa parokya.</p>
+      <div className={`grid gap-4 lg:gap-5 items-start ${latest.length > 1 ? 'lg:grid-cols-2' : 'lg:max-w-[820px]'}`}>
+        {latest.map((b, i) => <BulletinPost key={b.id} b={b} newest={i === 0} />)}
+      </div>
+
+      {earlier.length > 0 && (
+        <section className="mt-8 lg:mt-12" aria-labelledby="earlier-bulletins">
+          <h2 id="earlier-bulletins" className="m-0 mb-1 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy">Mga naunang bulletin</h2>
+          <p className="m-0 mb-3 text-[14px] lg:text-[15px] text-parish-text2">
+            {hidden > 0 ? 'Ang katapusang 3 ka bulan.' : 'Tanang naunang bulletin.'}
+          </p>
           <div className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] overflow-hidden lg:max-w-[820px]">
-            {bul.rows.map((b) => (
-              <div key={b.id} className="flex items-center gap-2.5 py-3 pr-3 pl-3.5 lg:gap-4 lg:py-3.5 lg:px-[18px] border-b border-[#f0e8d6] last:border-b-0">
-                <div className="flex-1 min-w-0 lg:flex lg:items-baseline lg:gap-4">
-                  <div className="font-serif text-[20px] lg:text-[22px] font-bold text-parish-navy leading-tight lg:min-w-[120px]">{b.title}</div>
-                  <div className="text-[13.5px] lg:text-[15px] text-parish-text2">{fmtLong(b.week_of)}</div>
-                </div>
-                <Link to={`/pahibalo/bulletin/${b.id}`} className="min-h-[44px] lg:min-h-[42px] px-3 lg:px-4 inline-flex items-center rounded-[10px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[14px] lg:text-[14.5px] hover:bg-[var(--p-blue-tint)]">
-                  Basaha
-                </Link>
-              </div>
+            {earlier.map((b) => (
+              <Link key={b.id} to={`/pahibalo/bulletin/${b.id}`} className="flex items-center gap-3 py-3 pr-3 pl-3.5 lg:py-3.5 lg:px-[18px] border-b border-[#f0e8d6] last:border-b-0 hover:bg-[var(--p-blue-tint)]">
+                <span className="flex-1 min-w-0 lg:flex lg:items-baseline lg:gap-4">
+                  <span className="block font-serif text-[19px] lg:text-[21px] font-bold text-parish-navy leading-tight">{b.title}</span>
+                  <span className="block text-[13.5px] lg:text-[15px] text-parish-text2">{fmtLong(b.week_of)}</span>
+                </span>
+                <Icon name="chev" size={18} className="text-parish-muted" />
+              </Link>
             ))}
           </div>
-        )}
-      </DataState>
-    </>
+        </section>
+      )}
+    </DataState>
+  );
+}
+
+/** One bulletin shown in full: its week, title and text, with a link to its own page (for sharing). */
+function BulletinPost({ b, newest }) {
+  return (
+    <article className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm p-4 lg:p-6 min-w-0">
+      <div className="flex gap-2 items-center flex-wrap mb-1.5">
+        {newest && <span className="font-bold text-[11.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)]">Pinakabag-o</span>}
+        <span className="text-[13.5px] lg:text-[14px] text-parish-text2">Semana sa {fmtLong(b.week_of)}</span>
+      </div>
+      <h2 className="m-0 mb-3 font-serif text-[24px] lg:text-[30px] font-bold leading-[1.15] text-parish-navy">{b.title}</h2>
+      {paragraphs(b.body).map((p, i) => <p key={i} className="m-0 mb-3 text-[15.5px] lg:text-[16.5px] leading-[1.65] text-parish-ink whitespace-pre-line">{p}</p>)}
+      <Link to={`/pahibalo/bulletin/${b.id}`} className="inline-flex items-center gap-1 mt-1 min-h-[40px] font-bold text-[14.5px] text-parish-blue">Ablihi sa tibuok panid ug ipaambit<Icon name="chev" size={16} /></Link>
+    </article>
   );
 }

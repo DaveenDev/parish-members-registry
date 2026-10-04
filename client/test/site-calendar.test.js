@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { censusCountdown, daysUntil, eventCountdown, eventsOnDay, guideShortTitle, isRecent, monthCells, officeStatus, readingTime, sortAnnouncements, sortCensusGkks } from '../src/lib/site.js';
+import { censusCountdown, daysUntil, eventCountdown, eventsOnDay, guideShortTitle, bulletinLists, isRecent, monthCells, officeStatus, readingTime, sortAnnouncements, sortCensusGkks } from '../src/lib/site.js';
 
 describe('monthCells', () => {
   test('pads October 2026 to whole Sunday-first weeks', () => {
@@ -156,5 +156,28 @@ describe('officeStatus', () => {
   test('the weekend points to Monday; no hours means null', () => {
     assert.equal(officeStatus(hours, at('2026-10-03T10:00:00')).text, 'Sirado na. Abli sa Lunes sa 9:00 AM');
     assert.equal(officeStatus(null), null);
+  });
+});
+
+describe('bulletinLists', () => {
+  // Weekly bulletins, newest first, from 2026-10-04 back n weeks.
+  const weeks = (n) => Array.from({ length: n }, (_, i) => { const d = new Date(2026, 9, 4 - 7 * i); return { id: i + 1, week_of: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }; });
+  test('the newest two in full, the rest listed, when there are few', () => {
+    const r = bulletinLists(weeks(10));
+    assert.deepEqual(r.latest.map((b) => b.id), [1, 2]);
+    assert.equal(r.earlier.length, 8);
+    assert.equal(r.hidden, 0);
+  });
+  test('with many, only the last 3 months before the newest are listed', () => {
+    const r = bulletinLists(weeks(52));
+    assert.deepEqual(r.latest.map((b) => b.id), [1, 2]);
+    assert.ok(r.earlier.every((b) => b.week_of >= '2026-07-04'));
+    assert.equal(r.earlier.length, 12);
+    assert.equal(r.hidden, 50 - 12);
+  });
+  test('a quiet spell keeps at least 6, and nothing at all is fine', () => {
+    const old = weeks(30).map((b, i) => (i < 2 ? b : { ...b, week_of: '2025-01-05' }));
+    assert.equal(bulletinLists(old).earlier.length, 6);
+    assert.deepEqual(bulletinLists([]), { latest: [], earlier: [], hidden: 0 });
   });
 });

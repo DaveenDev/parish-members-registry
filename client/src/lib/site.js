@@ -204,6 +204,27 @@ export function paragraphs(text) {
   return String(text || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 }
 
+/**
+ * The bulletin page's two lists, from bulletins newest first: `latest` (the
+ * newest `show`, shown in full) and `earlier` (the rest). When more than
+ * `many` bulletins are older than the latest ones, `earlier` keeps only
+ * those from the last `months` months before the newest bulletin (counted
+ * from it, so a quiet spell doesn't empty the list), and `hidden` says how
+ * many were left out. At least `floor` are always kept.
+ */
+export function bulletinLists(rows, { show = 2, months = 3, many = 13, floor = 6 } = {}) {
+  const list = rows || [];
+  const latest = list.slice(0, show);
+  const older = list.slice(show);
+  if (older.length <= many || !latest.length) return { latest, earlier: older, hidden: 0 };
+  const from = new Date(parseIso(latest[0].week_of));
+  from.setMonth(from.getMonth() - months);
+  const cutoff = isoOf(from);
+  const recent = older.filter((b) => String(b.week_of) >= cutoff);
+  const earlier = recent.length >= floor ? recent : older.slice(0, floor);
+  return { latest, earlier, hidden: older.length - earlier.length };
+}
+
 /** The first `max` characters of `text`, cut at a word. */
 export function excerpt(text, max = 140) {
   const flat = String(text || '').replace(/\s+/g, ' ').trim();
