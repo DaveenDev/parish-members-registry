@@ -14,6 +14,27 @@ export const certTypeShort = (key) => CERT_TYPES.find((t) => t.key === key)?.sho
 /** The registry sacrament a certificate type is checked against. */
 export const certSacrament = (key) => SACRAMENTS.find((s) => s.key === key);
 
+/**
+ * Where a certificate request's sacrament stands in the registry, for its
+ * row in the list: null (not linked to a member yet), 'none' (the member has
+ * no such sacrament on record), 'unverified' (claimed, not checked against
+ * the parish register yet) or 'verified'. `r.member.verifications` is the
+ * member's sacrament_verifications rows (api.listCertificateRequests).
+ */
+export function certClaimState(r) {
+  const s = certSacrament(r?.cert_type);
+  const m = r?.member;
+  if (!m || !s) return null;
+  if (!m[s.has]) return 'none';
+  return (m.verifications || []).some((v) => v.sacrament === s.key) ? 'verified' : 'unverified';
+}
+
+export const CLAIM_BADGES = {
+  verified: { tone: 'green', label: 'Verified claim' },
+  unverified: { tone: 'gold', label: 'Not yet verified claim' },
+  none: { tone: 'gray', label: 'No claim on record' },
+};
+
 export const CERT_STATUSES = ['Received', 'Being prepared', 'Ready for pick-up', 'Released', 'Cannot issue'];
 export const CERT_OPEN = ['Received', 'Being prepared', 'Ready for pick-up'];
 export const CERT_FLOW = ['Received', 'Being prepared', 'Ready for pick-up', 'Released'];

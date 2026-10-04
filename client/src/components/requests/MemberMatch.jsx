@@ -13,15 +13,16 @@ import { certSacrament, subjectName } from '../../lib/requests.js';
  * them, and check (or record) the sacrament's verification against the
  * parish register before the certificate is issued.
  */
-export default function MemberMatch({ request, onLink, busy }) {
+export default function MemberMatch({ request, onLink, busy, onVerificationChanged }) {
   const sacrament = certSacrament(request.cert_type);
   const member = request.member;
 
-  if (member) return <LinkedMember member={member} sacrament={sacrament} onUnlink={() => onLink(null)} busy={busy} />;
+  if (member) return <LinkedMember member={member} sacrament={sacrament} onUnlink={() => onLink(null)} busy={busy} onVerificationChanged={onVerificationChanged} />;
   return <MemberSearch initial={subjectName(request)} sacrament={sacrament} onPick={(m) => onLink(m.id)} busy={busy} />;
 }
 
-function LinkedMember({ member, sacrament, onUnlink, busy }) {
+/** `onVerificationChanged`: after verifying (or un-verifying), so the list's claim badge follows. */
+function LinkedMember({ member, sacrament, onUnlink, busy, onVerificationChanged }) {
   const [verification, setVerification] = useState(undefined);
   const [verifying, setVerifying] = useState(false);
   const claimed = !!member[sacrament.has];
@@ -65,7 +66,7 @@ function LinkedMember({ member, sacrament, onUnlink, busy }) {
           sacrament={sacrament}
           verification={verification}
           onClose={() => setVerifying(false)}
-          onChanged={() => { setVerifying(false); load(); }}
+          onChanged={() => { setVerifying(false); load(); onVerificationChanged?.(); }}
         />
       )}
     </div>

@@ -916,7 +916,7 @@ export const api = {
   },
 
   async listCertificateRequests() {
-    return listRequests('certificate_requests', '*, member:members(*)');
+    return listRequests('certificate_requests', CERT_SELECT);
   },
   saveCertificateRequest: (row) => saveRequestRow('certificate_requests', row, CERT_FIELDS),
 
@@ -1402,12 +1402,16 @@ async function listRequests(table, select = '*', order = (q) => q.order('created
 async function saveRequestRow(table, row, fields, dupLabel) {
   const patch = cleanPatch(Object.fromEntries(fields.filter((f) => f in row).map((f) => [f, typeof row[f] === 'string' ? row[f].trim() : row[f]])));
   const q = row.id ? supabase.from(table).update(patch).eq('id', row.id) : supabase.from(table).insert(patch);
-  const { data, error } = await q.select(table === 'certificate_requests' ? '*, member:members(*)' : '*').single();
+  const { data, error } = await q.select(table === 'certificate_requests' ? CERT_SELECT : '*').single();
   if (error) throw mapError(error, { dupLabel });
   return data;
 }
 
 const GROUP_COLUMNS = ['ministries', 'organizations'];
+
+// A certificate request with its linked member and which of that member's
+// sacraments are verified against the register (certClaimState).
+const CERT_SELECT = '*, member:members(*, verifications:sacrament_verifications(sacrament))';
 
 /**
  * The member-list filters shared by listMembers and memberCountsByGkk, so a

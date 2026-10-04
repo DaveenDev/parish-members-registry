@@ -11,8 +11,8 @@ import { SidePanel, SectionLabel, TextArea, RowButton, Panel, TabIntro, AddButto
 import MemberMatch from './MemberMatch.jsx';
 import { useRows, StatusBadge, ContactLinks, FilterChips, receivedText, SourceNote } from './common.jsx';
 import {
-  CERT_TYPES, CERT_OPEN, CERT_FLOW, SOURCES,
-  certTypeLabel, certTypeShort, certSearchText, subjectName, certificateReadySms,
+  CERT_TYPES, CERT_OPEN, CERT_FLOW, SOURCES, CLAIM_BADGES,
+  certTypeLabel, certTypeShort, certSearchText, subjectName, certificateReadySms, certClaimState, certSacrament,
 } from '../../lib/requests.js';
 
 const URL_DEFAULTS = { view: 'open', type: 'All', q: '', page: 1, size: 10 };
@@ -86,8 +86,9 @@ export default function CertificatesTab({ onCountsChanged }) {
                   {r.ref_no} · asked by {r.requester_name} · {receivedText(r.created_at)}
                 </div>
               </div>
-              <div className="text-[12.5px] font-semibold text-right">
+              <div className="text-[12.5px] font-semibold text-right flex flex-col items-end gap-1">
                 {r.member ? <span className="text-parish-ok">Linked to registry</span> : <span className="text-parish-warn">Not linked yet</span>}
+                <ClaimBadge request={r} />
               </div>
             </div>
           ))
@@ -95,13 +96,28 @@ export default function CertificatesTab({ onCountsChanged }) {
         <Pagination page={page.page} pageSize={page.pageSize} total={page.total} onPage={page.setPage} onPageSize={page.setPageSize} />
       </Panel>
 
-      {open && <CertificateDrawer key={open.id} request={open} onClose={() => setOpenId(null)} onSaved={saved} onDeleted={() => { list.drop(open.id); setOpenId(null); onCountsChanged(); }} />}
+      {open && (
+        <CertificateDrawer
+          key={open.id} request={open} onClose={() => setOpenId(null)} onSaved={saved}
+          onDeleted={() => { list.drop(open.id); setOpenId(null); onCountsChanged(); }}
+          onVerificationChanged={list.reload}
+        />
+      )}
       {creating && <CertificateForm onClose={() => setCreating(false)} onSaved={(row) => { saved(row); setCreating(false); setOpenId(row.id); }} />}
     </>
   );
 }
 
-function CertificateDrawer({ request: r, onClose, onSaved, onDeleted }) {
+/** Whether the linked member's sacrament is verified against the parish register (nothing until linked). */
+function ClaimBadge({ request }) {
+  const state = certClaimState(request);
+  if (!state) return null;
+  const { tone, label } = CLAIM_BADGES[state];
+  const sacrament = certSacrament(request.cert_type)?.label;
+  return <Badge tone={tone} title={sacrament ? `${sacrament} in the member's record` : undefined}>{label}</Badge>;
+}
+
+function CertificateDrawer({ request: r, onClose, onSaved, onDeleted, onVerificationChanged }) {
   const toast = useToast();
   const confirm = useConfirm();
   const layout = useOutletContext();
@@ -202,7 +218,7 @@ function CertificateDrawer({ request: r, onClose, onSaved, onDeleted }) {
       <div><RowButton tone="gray" onClick={() => setEditing(true)}>Edit request details</RowButton></div>
 
       <SectionLabel>Check against the registry</SectionLabel>
-      <MemberMatch request={r} busy={busy} onLink={(memberId) => save({ member_id: memberId }, memberId ? 'Linked to member' : 'Unlinked')} />
+      <MemberMatch request={r} busy={busy} onLink={(memberId) => save({ member_id: memberId }, memberId ? 'Linked to member' : 'Unlinked')} onVerificationChanged={onVerificationChanged} />
 
       <SectionLabel>Requested by</SectionLabel>
       <div className="grid gap-3 sm:grid-cols-2">
