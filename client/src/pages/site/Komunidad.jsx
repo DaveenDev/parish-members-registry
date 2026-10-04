@@ -24,7 +24,8 @@ const CENSUS_CARD = {
 function CensusAlertBadges({ label, className = '' }) {
   return (
     <div className={`flex flex-wrap items-center gap-1.5 ${className}`}>
-      <span className="inline-flex items-center rounded-md px-2 py-[3px] font-bold text-[11px] tracking-[.1em] uppercase text-white bg-parish-navy">Important</span>
+      {/* Orange, with navy text so the small letters stay readable (and apart from the red alert). */}
+      <span className="inline-flex items-center rounded-md px-2 py-[3px] font-bold text-[11px] tracking-[.1em] uppercase" style={{ background: '#fb923c', color: '#1a2b4a' }}>Important</span>
       <span className="inline-flex items-center gap-1.5 rounded-md px-2 py-[3px] font-bold text-[11px] tracking-[.06em] uppercase text-white" style={{ background: '#b3261e' }}>
         <span className="relative flex w-2 h-2" aria-hidden>
           <span className="absolute inline-flex w-full h-full rounded-full bg-white opacity-75 motion-safe:animate-ping" />

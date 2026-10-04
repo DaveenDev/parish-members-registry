@@ -195,7 +195,7 @@ function CensusNotice() {
           <div className="min-w-0">
             <div className="font-bold text-[11.5px] lg:text-[12px] tracking-[.18em] uppercase mb-1" style={{ color: 'var(--p-gold-light)' }}>Importante nga pahibalo</div>
             <h2 id="census-notice" className="m-0 font-serif font-semibold text-[23px] lg:text-[30px] leading-[1.15]">
-              Nagpadayon ang {c.label || 'census sa parokya'}
+              <span className="font-bold" style={{ color: '#fb923c' }}>ALERT!</span> Nagpadayon ang {c.label || 'census sa parokya'}
             </h2>
             <p className="m-0 mt-1.5 text-[15px] lg:text-[16px] leading-normal text-white/85">
               I-update ang rekord sa inyong pamilya gamit ang reference number ug code sa inyong census form

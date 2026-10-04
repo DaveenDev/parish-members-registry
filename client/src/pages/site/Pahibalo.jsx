@@ -33,9 +33,9 @@ const cols = (n) => (n <= 1 ? 'lg:grid-cols-1' : n === 2 ? 'lg:grid-cols-2' : 'l
 const JUMP_TARGET = 'scroll-mt-[118px] lg:scroll-mt-[92px]';
 
 /**
- * Pahibalo ug Kalihokan: what's happening now and next. Upcoming events and
- * announcements on the blue band, and the weekly bulletin archive under its
- * own tab. Jump links under the title go to each part. The articles (stories
+ * Pahibalo ug Kalihokan: what's happening now and next. Upcoming events on
+ * the blue band, the announcements below it on the page's cream, and the
+ * weekly bulletin archive under its own tab. Jump links under the title go to each part. The articles (stories
  * after the fact) are on Komunidad; a line at the end points there.
  */
 export default function Pahibalo() {
@@ -62,18 +62,20 @@ export default function Pahibalo() {
         </div>
       </Band>
       {view === 'list' && jumps.length > 1 && <JumpLinks links={jumps} />}
-      {/* Events and announcements, or the bulletin archive, on the light-blue band. */}
+      {/* The upcoming events, or the bulletin archive, on the light-blue band
+          (the events section brings its own bottom margin). */}
       <Band aria-label="Balita sa parokya">
-        <div className={`${WRAP} pb-7 lg:pb-12 ${view === 'list' ? 'pt-3 lg:pt-1' : 'pt-1'}`}>
-          {view === 'bulletin' ? <Bulletins /> : (
-            <>
-              <UpcomingEvents />
-              <Announcements />
-              <ArticlesPointer />
-            </>
-          )}
+        <div className={`${WRAP} ${view === 'list' ? 'pt-3 pb-2 lg:pt-1 lg:pb-5' : 'pt-1 pb-7 lg:pb-12'}`}>
+          {view === 'bulletin' ? <Bulletins /> : <UpcomingEvents />}
         </div>
       </Band>
+      {/* The announcements below it, on the page's own cream, then the pointer to the articles. */}
+      {view === 'list' && (
+        <div className={`${WRAP} pt-6 pb-7 lg:pt-10 lg:pb-0`}>
+          <Announcements />
+          <ArticlesPointer />
+        </div>
+      )}
     </main>
   );
 }
