@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import RegistrationApp from './pages/RegistrationApp.jsx';
 import CensusPortal from './pages/CensusPortal.jsx';
+import MaintenanceGate from './components/MaintenanceGate.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Home from './pages/site/Home.jsx';
 import Misa from './pages/site/Misa.jsx';
@@ -52,6 +53,7 @@ export default function App() {
   return (
     <AuthProvider>
       <Routes>
+        <Route element={<MaintenanceGate />}>
         <Route element={<SiteLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/misa" element={<Misa />} />
@@ -73,6 +75,7 @@ export default function App() {
         </Route>
         <Route path="/register" element={<RegistrationApp />} />
         <Route path="/census" element={<CensusPortal />} />
+        </Route>
         <Route path="/admin/login" element={<AdminLogin />} />
         <Route path="/admin/change-password" element={<ChangePassword />} />
         <Route

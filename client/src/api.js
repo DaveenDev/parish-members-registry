@@ -149,6 +149,16 @@ export const api = {
     return data || null;
   },
 
+  /**
+   * { on, message, parish } for the public site's maintenance notice (0049).
+   * Before that migration (or on any error) the site stays open.
+   */
+  async publicMaintenance() {
+    const { data, error } = await supabase.rpc('public_maintenance');
+    if (error || !data) return { on: false, message: null, parish: '' };
+    return data;
+  },
+
   /** True when no household (any status) already uses this name, ignoring case. */
   async householdNameAvailable(name) {
     const { data, error } = await supabase.rpc('household_name_available', { candidate: name });
@@ -700,6 +710,9 @@ export const api = {
     if ('theme' in patch) cleaned.theme = patch.theme || null;
     // Whether the census uses last year's household list (0048 migration).
     if ('last_year_list_enabled' in patch) cleaned.last_year_list_enabled = !!patch.last_year_list_enabled;
+    // Maintenance mode for the public website (0049 migration).
+    if ('maintenance_mode' in patch) cleaned.maintenance_mode = !!patch.maintenance_mode;
+    if ('maintenance_message' in patch) cleaned.maintenance_message = String(patch.maintenance_message || '').trim() || null;
     // Where printed census links and QR codes point (0042 migration); blank uses the default.
     if ('site_url' in patch) cleaned.site_url = normalizeSiteUrl(patch.site_url) || null;
     for (const key of ['latitude', 'longitude']) {
@@ -712,6 +725,7 @@ export const api = {
     const { data, error } = await supabase.from('parish_settings').update(cleaned).eq('id', 1).select().single();
     if ('hero_image' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0020_parish_hero_image.sql migration in Supabase to save the parish photo');
     if ('site_url' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0042_public_site_url.sql migration in Supabase to save the website address');
+    if (('maintenance_mode' in cleaned || 'maintenance_message' in cleaned) && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0049_maintenance_mode.sql migration in Supabase to use maintenance mode');
     if ('last_year_list_enabled' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error("Run the 0048_last_year_list_switch.sql migration in Supabase to turn last year's list off");
     if (error) throw mapError(error);
     return { settings: data };

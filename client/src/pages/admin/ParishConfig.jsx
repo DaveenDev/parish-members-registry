@@ -614,6 +614,7 @@ function ProfileTab() {
             </div>
           </ConfigCard>
         </form>
+        <MaintenanceCard settings={saved} onSaved={applySaved} />
         <PrivacyCard />
       </div>
 
@@ -624,6 +625,81 @@ function ProfileTab() {
         </ConfigCard>
       </div>
     </div>
+  );
+}
+
+/**
+ * Maintenance mode: when on, visitors to the public website, /register and
+ * /census see a "ginaayo pa" notice (with the optional note) instead of the
+ * page. Signed-in staff still see the site; the admin is never affected.
+ */
+function MaintenanceCard({ settings, onSaved }) {
+  const toast = useToast();
+  const ready = 'maintenance_mode' in settings;
+  const on = !!settings.maintenance_mode;
+  const [message, setMessage] = useState(settings.maintenance_message || '');
+  const [busy, setBusy] = useState(false);
+  const dirty = message.trim() !== (settings.maintenance_message || '');
+
+  async function save(patch, done) {
+    setBusy(true);
+    try {
+      const res = await api.updateSettings(patch);
+      onSaved(res.settings);
+      setMessage(res.settings.maintenance_message || '');
+      toast.success(done);
+    } catch (e) {
+      toast.error(e.message || 'Could not change this');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <ConfigCard
+      title="Maintenance mode"
+      note="Closes the public website for a while, e.g. during updates. The admin keeps working."
+    >
+      {!ready ? (
+        <div className="text-[13.5px] text-parish-muted">Run the <strong>0049_maintenance_mode.sql</strong> migration in Supabase to use maintenance mode.</div>
+      ) : (
+        <div className="flex flex-col gap-4">
+          <label className={`flex items-center gap-3 cursor-pointer select-none ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
+            <span className="relative inline-flex">
+              <input
+                type="checkbox" role="switch" aria-label="Maintenance mode" checked={on} disabled={busy}
+                onChange={(e) => save({ maintenance_mode: e.target.checked, ...(dirty ? { maintenance_message: message } : {}) }, e.target.checked ? 'Maintenance mode is on: the website is closed to the public' : 'Maintenance mode is off: the website is open again')}
+                className="peer sr-only"
+              />
+              <span className="w-12 h-7 rounded-full bg-parish-sunk border border-parish-border transition peer-checked:bg-[#c2410c] peer-checked:border-transparent peer-focus-visible:ring-4 peer-focus-visible:ring-parish-blue/20" />
+              <span className="absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
+            </span>
+            <span className={`font-semibold text-[14px] ${on ? 'text-[#c2410c]' : 'text-parish-text2'}`}>
+              {on ? 'On: the website is closed to the public' : 'Off: the website is open'}
+            </span>
+          </label>
+          {on && (
+            <div className="px-4 py-3 rounded-xl border border-[#fdba74] bg-[#fff7ed] text-[13px] text-[#9a3412] leading-relaxed">
+              Visitors see a "Ginaayo pa ang website" notice on every public page, including registration and the census. You still see the site while signed in.
+            </div>
+          )}
+          <Field label="Note to visitors (optional)">
+            <textarea
+              rows={3} value={message} onChange={(e) => setMessage(e.target.value)}
+              placeholder="pananglitan: Mobalik ang website sa Lunes, Oktubre 12."
+              className="w-full px-3.5 py-3 text-[15px] text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15 resize-y"
+            />
+          </Field>
+          {dirty && (
+            <div className="flex">
+              <PrimaryButton type="button" disabled={busy} onClick={() => save({ maintenance_message: message }, 'Note saved')} className="ml-auto px-5 py-2.5 text-[14px]">
+                {busy ? 'Saving…' : 'Save note'}
+              </PrimaryButton>
+            </div>
+          )}
+        </div>
+      )}
+    </ConfigCard>
   );
 }
 
