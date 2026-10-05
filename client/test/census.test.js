@@ -3,10 +3,10 @@ import assert from 'node:assert/strict';
 
 import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
-  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, householdsVsLastYear,
+  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, listStatus,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
-  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus,
+  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, vsLastYearTable,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
 
@@ -205,74 +205,79 @@ describe('diffSubmission', () => {
   });
 });
 
-describe('householdsVsLastYear', () => {
-  const gkks = [{ name: 'San Roque', previous_households: 40 }, { name: 'Bethany', previous_households: 10 }, { name: 'Calvary', previous_households: null }];
-  const counts = new Map([['San Roque', { started: 12, confirmed: 9 }], ['Bethany', { started: 13, confirmed: 13 }], ['Calvary', { started: 5, confirmed: 2 }], [null, { started: 2, confirmed: 1 }]]);
+describe('registryVsLastYear (list on: registered = in the registry)', () => {
+  const head = (household_id, gkk, first_name, last_name, status = 'Pending') => ({ household_id, household_name: `${last_name} family`, gkk, status, first_name, last_name });
+  const gkks = [{ name: 'San Roque', previous_households: 40 }, { name: 'Bethany', previous_households: 2 }, { name: 'Calvary', previous_households: null }];
+  const heads = [
+    ...Array.from({ length: 12 }, (_, i) => head(100 + i, 'San Roque', 'X', `Y${i}`, i < 9 ? 'Verified' : 'Pending')),
+    head(1, 'Bethany', 'Ana', 'Bautista'), head(2, 'Bethany', 'Carlo', 'Diaz'), head(3, 'Bethany', 'Elena', 'Flores', 'Verified'),
+    head(4, 'Calvary', 'G', 'H'), head(5, null, 'I', 'J'),
+  ];
 
-  test('registered and not yet per GKK against last year', () => {
-    const { rows } = householdsVsLastYear(gkks, counts);
+  test('against the typed count: registered is every household on the queue or verified', () => {
+    const { rows } = registryVsLastYear(gkks, heads, []);
     assert.deepEqual(rows.map((r) => r.label), ['Bethany', 'Calvary', 'San Roque', 'No GKK']);
-    const roque = rows.find((r) => r.label === 'San Roque');
-    assert.deepEqual(roque, { label: 'San Roque', lastYear: 40, registered: 12, confirmed: 9, notYet: 28, pct: 30, fromList: false });
+    assert.deepEqual(rows.find((r) => r.label === 'San Roque'),
+      { label: 'San Roque', registered: 12, verified: 9, pending: 3, fromList: false, lastYear: 40, notYet: 28, pct: 30 });
     // More households than last year: nothing left, capped at 100%.
-    const bethany = rows.find((r) => r.label === 'Bethany');
-    assert.equal(bethany.notYet, 0);
-    assert.equal(bethany.pct, 100);
+    assert.deepEqual(['notYet', 'pct'].map((k) => rows.find((r) => r.label === 'Bethany')[k]), [0, 100]);
+    const calvary = rows.find((r) => r.label === 'Calvary');
+    assert.deepEqual([calvary.lastYear, calvary.notYet, calvary.pct, calvary.registered], [null, null, null, 1]);
   });
 
-  test('a GKK without a baseline has no not-yet or share', () => {
-    const calvary = householdsVsLastYear(gkks, counts).rows.find((r) => r.label === 'Calvary');
-    assert.equal(calvary.lastYear, null);
-    assert.equal(calvary.notYet, null);
-    assert.equal(calvary.pct, null);
-    assert.equal(calvary.registered, 5);
-  });
-
-  test('the total covers only GKKs with a baseline', () => {
-    const { total, hasBaseline } = householdsVsLastYear(gkks, counts);
+  test('the total covers only GKKs with a baseline; a leader sees only their GKK', () => {
+    const { total, hasBaseline } = registryVsLastYear(gkks, heads, []);
     assert.equal(hasBaseline, true);
-    assert.equal(total.lastYear, 50);
-    assert.equal(total.registered, 25);
-    assert.equal(total.notYet, 28);
-    // Share of last year's households no longer outstanding: Bethany's extra households don't offset San Roque's.
-    assert.equal(total.pct, 44);
-    assert.equal(total.registeredAll, 32);
+    assert.deepEqual([total.lastYear, total.registered, total.notYet, total.pct, total.registeredAll], [42, 15, 28, 33, 17]);
+    const mine = registryVsLastYear(gkks, heads, [], 'San Roque');
+    assert.deepEqual(mine.rows.map((r) => r.label), ['San Roque']);
+    assert.equal(mine.total.notYet, 28);
+    assert.equal(registryVsLastYear([{ name: 'A' }], [], []).hasBaseline, false);
   });
 
-  test('a GKK leader sees only their GKK', () => {
-    const { rows, total } = householdsVsLastYear(gkks, counts, 'San Roque');
-    assert.deepEqual(rows.map((r) => r.label), ['San Roque']);
-    assert.equal(total.notYet, 28);
+  test('a GKK with names measures against them; names found in the registry count as registered', () => {
+    const list = [
+      { id: 1, gkk: 'Bethany', head_name: 'Bautista, Ana', purok: 'P1', status: 'Not yet' }, // on the queue
+      { id: 2, gkk: 'Bethany', head_name: 'Zed Zulu', purok: 'P2', status: 'Not yet' },
+      { id: 3, gkk: 'Bethany', head_name: 'Ticked Off', purok: 'P1', status: 'Registered' },
+      { id: 4, gkk: 'Bethany', head_name: 'Gone Away', purok: '', status: 'Moved away' },
+      { id: 5, gkk: 'Bethany', head_name: 'Amy Q', purok: 'P1', note: 'blue gate', status: 'Not yet' },
+    ];
+    const { rows, notYet, matches } = registryVsLastYear(gkks, heads, list);
+    const bethany = rows.find((r) => r.label === 'Bethany');
+    assert.deepEqual([bethany.fromList, bethany.lastYear, bethany.notYet, bethany.pct, bethany.registered], [true, 4, 2, 50, 3]);
+    assert.deepEqual([...matches.keys()], [1]);
+    assert.deepEqual(notYet.map((n) => [n.title, n.detail]), [['Amy Q', 'P1 · blue gate'], ['Zed Zulu', 'P2']]);
+  });
+});
+
+describe('matching last year\'s names to the registry', () => {
+  const h = (household_id, gkk, first_name, last_name) => ({ household_id, gkk, first_name, last_name });
+  const n = (id, gkk, head_name, status = 'Not yet') => ({ id, gkk, head_name, status });
+
+  test('last name words all there, and one first name word, in the same GKK', () => {
+    const heads = [h(1, 'A', 'Juan Pedro', 'Dela Cruz'), h(2, 'A', 'María', 'Santos'), h(3, 'B', 'Ana', 'Reyes')];
+    const m = matchListToRegistry([
+      n(1, 'A', 'Dela Cruz, Juan P.'), n(2, 'A', 'MARIA SANTOS'), n(3, 'A', 'Ana Reyes'), n(4, 'A', 'Juan Cruz'), n(5, 'B', 'Reyes Ana', 'Moved away'),
+    ], heads);
+    assert.deepEqual([...m.entries()].map(([id, x]) => [id, x.household_id]), [[1, 1], [2, 2]]);
   });
 
-  test('no baselines entered', () => {
-    const { hasBaseline, total } = householdsVsLastYear([{ name: 'A' }], new Map());
-    assert.equal(hasBaseline, false);
-    assert.equal(total.lastYear, null);
-    assert.equal(total.notYet, null);
+  test('one household per name, and suffixes and initials are ignored', () => {
+    const heads = [h(1, 'A', 'Juan', 'Cruz')];
+    const m = matchListToRegistry([n(1, 'A', 'Juan Cruz Jr.'), n(2, 'A', 'Juan Cruz Sr.')], heads);
+    assert.deepEqual([...m.keys()], [1]);
+    assert.deepEqual(nameWords('Ma. Dela Cruz, Jr. (P.)'), ['ma', 'dela', 'cruz']);
+    assert.equal(listStatus(n(2, 'A', 'x'), m), 'Not yet');
+    assert.equal(listStatus(n(1, 'A', 'x'), m), 'Registered');
   });
 });
 
 describe('last year\'s list', () => {
-  test('a GKK with a list uses it in place of the typed count', () => {
-    const lists = countLastYearList([
-      ...Array(30).fill({ gkk: 'San Roque', status: 'Not yet' }),
-      ...Array(8).fill({ gkk: 'San Roque', status: 'Registered' }),
-      { gkk: 'San Roque', status: 'Moved away' }, { gkk: 'San Roque', status: 'Duplicate' },
-    ]);
-    assert.deepEqual(lists.get('San Roque'), { total: 40, notYet: 30, registered: 8, setAside: 2 });
-    const gkks = [{ name: 'San Roque', previous_households: 99 }, { name: 'Bethany', previous_households: 10 }];
-    const counts = new Map([['San Roque', { started: 12, confirmed: 9 }], ['Bethany', { started: 4, confirmed: 4 }]]);
-    const { rows, total } = householdsVsLastYear(gkks, counts, null, lists);
-    const roque = rows.find((r) => r.label === 'San Roque');
-    assert.equal(roque.fromList, true);
-    assert.equal(roque.lastYear, 38);
-    assert.equal(roque.notYet, 30);
-    assert.equal(roque.registered, 12);
-    assert.equal(roque.pct, 21);
-    assert.equal(rows.find((r) => r.label === 'Bethany').fromList, false);
-    assert.equal(total.lastYear, 48);
-    assert.equal(total.notYet, 36);
+  test('counts per GKK, with names found in the registry as registered', () => {
+    const rows = [{ id: 1, gkk: 'A', status: 'Not yet' }, { id: 2, gkk: 'A', status: 'Not yet' }, { id: 3, gkk: 'A', status: 'Registered' }, { id: 4, gkk: 'A', status: 'Deceased' }];
+    assert.deepEqual(countLastYearList(rows).get('A'), { total: 4, notYet: 2, registered: 1, setAside: 1 });
+    assert.deepEqual(countLastYearList(rows, new Map([[2, {}]])).get('A'), { total: 4, notYet: 1, registered: 2, setAside: 1 });
   });
 
   test('names already on the list or repeated are left out', () => {
@@ -373,5 +378,14 @@ describe('householdsVsPreviousCensus (0048: no last year list)', () => {
     const cycles = [{ id: 7 }, { id: 3 }, { id: 5 }];
     assert.equal(previousCensus(cycles, { id: 7 }).id, 5);
     assert.equal(previousCensus(cycles, { id: 3 }), null);
+  });
+});
+
+describe('vsLastYearTable', () => {
+  test('list mode: verified and on-the-queue columns, and the total', () => {
+    const res = registryVsLastYear([{ name: 'A', previous_households: 4 }], [{ household_id: 1, gkk: 'A', status: 'Verified' }, { household_id: 2, gkk: 'A', status: 'Pending' }], []);
+    const t = vsLastYearTable({ mode: 'list', ...res }, { label: '2026 Census' });
+    assert.equal(t.title, "2026 Census: households vs last year's list");
+    assert.deepEqual(t.rows, [['A', 'Count', 4, 2, 1, 1, 2, '50%'], ['All GKKs', '', 4, 2, 1, 1, 2, '50%']]);
   });
 });

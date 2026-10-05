@@ -9,7 +9,7 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
-import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl } from './lib/census.js';
+import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, registryVsLastYear, householdsVsPreviousCensus, previousCensus, vsLastYearTable } from './lib/census.js';
 import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName } from './lib/reports.js';
 import { certTypeLabel } from './lib/requests.js';
 import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
@@ -1128,21 +1128,57 @@ export const api = {
    * confirmed (partly or fully). Compared against each GKK's
    * previous_households baseline (0040).
    */
+  /** Whether the parish uses last year's household list (on unless turned off, 0048). */
+  async lastYearListEnabled() {
+    const { data, error } = await supabase.from('parish_settings').select('last_year_list_enabled').eq('id', 1).maybeSingle();
+    return error ? true : data?.last_year_list_enabled !== false;
+  },
+  /**
+   * Every household in the registry (on the verification queue or verified)
+   * with its head of household's name, for matching last year's list:
+   * [{ household_id, household_name, gkk, status, first_name, last_name }].
+   * GKK leaders get their own GKK's (row level security).
+   */
+  async registryHeads() {
+    const [households, heads] = await Promise.all([
+      fetchAll(() => supabase.from('households').select('id, household_name, gkk, status').order('id')),
+      fetchAll(() => supabase.from('members').select('household_id, first_name, last_name').eq('relationship', 'Head of Household').order('id')),
+    ]);
+    const head = new Map();
+    for (const m of heads) if (!head.has(m.household_id)) head.set(m.household_id, m);
+    return households.map((h) => ({
+      household_id: h.id, household_name: h.household_name, gkk: h.gkk, status: h.status,
+      first_name: head.get(h.id)?.first_name || '', last_name: head.get(h.id)?.last_name || '',
+    }));
+  },
+  /**
+   * Households registered against last year, as the Census page and Reports
+   * show it, following Parish Config -> Last year's list (0048):
+   * - list on: registryVsLastYear(): the GKK's names on last year's list (or
+   *   its typed count) against the households in the registry, queued or verified;
+   * - list off: householdsVsPreviousCensus(): the households that took part
+   *   in the census before `cycle` against this one (`noPrevious` when there
+   *   is none).
+   * Both give { mode, rows, total, hasBaseline, notYet: [{ key, title, detail, gkk }], previous }.
+   */
+  async censusVsLastYear(cycle, cycles, ownGkk = null) {
+    if (await api.lastYearListEnabled()) {
+      const [details, heads, list] = await Promise.all([api.listGkkDetails(), api.registryHeads(), api.listLastYear('All').catch(() => [])]);
+      return { mode: 'list', previous: null, ...registryVsLastYear(details.rows, heads, list, ownGkk) };
+    }
+    const previous = cycle ? previousCensus(cycles, cycle) : null;
+    if (!previous) return { mode: 'census', previous: null, noPrevious: true, rows: [], total: null, hasBaseline: false, notYet: [] };
+    const [before, now] = await Promise.all([api.censusHouseholdProgressRows(previous.id), api.censusHouseholdProgressRows(cycle.id)]);
+    const res = householdsVsPreviousCensus(before, now, ownGkk);
+    const notYet = res.notYetHouseholds.map((h) => ({
+      key: `h${h.household_id}`, title: h.household_name, detail: [h.head_name, h.ref_no].filter(Boolean).join(' · '), gkk: h.gkk, purok: '', note: [h.head_name, h.ref_no].filter(Boolean).join(' · '),
+    }));
+    return { mode: 'census', previous, ...res, notYet };
+  },
   /** Every household's progress in one census: [{ household_id, household_name, head_name, ref_no, gkk, progress }]. */
   async censusHouseholdProgressRows(cycleId) {
     return fetchAll(() => supabase.rpc('census_household_progress', { p_cycle_id: cycleId })
       .select('household_id, household_name, head_name, ref_no, gkk, progress').order('household_id'));
-  },
-  async censusGkkHouseholdCounts(cycleId) {
-    const data = await fetchAll(() => supabase.rpc('census_household_progress', { p_cycle_id: cycleId }).select('gkk, progress').order('household_id'));
-    const out = new Map();
-    for (const r of data) {
-      const c = out.get(r.gkk) || { started: 0, confirmed: 0 };
-      if (r.progress !== 'Not started') c.started += 1;
-      if (r.progress === 'Confirmed') c.confirmed += 1;
-      out.set(r.gkk, c);
-    }
-    return out;
   },
 
   // ---- last year's household list (0041 migration) -------------------
@@ -1347,7 +1383,7 @@ export const api = {
       Members: { types: ['By GKK', 'By Sacrament', 'By Ministry / Organization'] },
       Households: { types: ['By Status', 'By GKK', 'By registration month'] },
       Sacraments: { types: ['Verification progress by GKK'] },
-      Census: { types: ['Results by GKK', 'Members not confirmed'] },
+      Census: { types: ['Results by GKK', 'Households vs last year', 'Not yet registered', 'Members not confirmed'] },
       Requests: { types: ['Certificate turnaround'] },
     };
     return { sources: Object.keys(types), types };
@@ -1379,7 +1415,25 @@ export const api = {
 
     if (source === 'Census') {
       if (!cycleId) throw new Error('Choose a census');
-      const cycle = (await api.listCensusCycles()).find((c) => c.id === Number(cycleId));
+      const cycles = await api.listCensusCycles();
+      const cycle = cycles.find((c) => c.id === Number(cycleId));
+      // Against last year's list or the previous census, as Parish Config -> Last year's list says (0048).
+      if (type === 'Households vs last year' || type === 'Not yet registered') {
+        const res = await api.censusVsLastYear(cycle, cycles, gkk === 'All' ? null : gkk);
+        const where = gkk === 'All' ? '' : ` · ${gkk}`;
+        const baseline = res.mode === 'census' ? (res.previous ? `the ${res.previous.label}` : 'no earlier census') : "last year's list";
+        if (type === 'Households vs last year') {
+          const t = vsLastYearTable(res, cycle);
+          const meta = res.hasBaseline
+            ? `${res.total.pct}% registered against ${baseline} · ${res.total.notYet} of ${res.total.lastYear} not yet${where}`
+            : `No baseline to compare with (${baseline}): add last year's names or counts, or turn the list off once there's an earlier census${where}`;
+          return table(t.title, meta, t.columns, t.rows);
+        }
+        const list = res.mode === 'list'
+          ? { columns: ['GKK', 'Head of household', 'Purok', 'Note'], rows: res.notYet.map((n) => [n.gkk, n.title, n.purok || '—', n.note || '—']) }
+          : { columns: ['GKK', 'Household', 'Head · ref no'], rows: res.notYet.map((n) => [n.gkk || 'No GKK', n.title, n.detail || '—']) };
+        return table(`${cycle?.label || 'Census'}: not yet registered`, `${res.notYet.length} famil${res.notYet.length === 1 ? 'y' : 'ies'} from ${baseline} not yet registered${where}`, list.columns, list.rows);
+      }
       if (type === 'Results by GKK') {
         const sum = summarizeCensus(await api.censusSummary(cycleId));
         const row = (r) => [r.label, ...sum.columns.map((c) => r.counts[c]), r.total, `${r.pct}%`];

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api.js';
 import { FilterSelect, SearchInput, Pagination, ErrorState, LoadingState, EmptyState, Panel, DataTable } from './admin.jsx';
@@ -9,7 +9,7 @@ import { useConfirm } from './ConfirmDialog.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { parseCsv } from '../lib/csv.js';
 import {
-  LAST_YEAR_STATUSES, LAST_YEAR_STATUS_TONES, parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
+  LAST_YEAR_STATUSES, LAST_YEAR_STATUS_TONES, parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames, matchListToRegistry, listStatus,
 } from '../lib/census.js';
 
 const textareaClass = 'w-full px-3.5 py-3 text-[15px] text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15 font-mono leading-relaxed';
@@ -30,7 +30,8 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
   const fileRef = useRef(null);
   const [gkk, setGkk] = useState(ownGkk || initialGkk);
   const [gkkNames, setGkkNames] = useState(ownGkk ? [ownGkk] : []);
-  const [overview, setOverview] = useState(null); // Map of GKK → counts, for the all-GKK view
+  const [allRows, setAllRows] = useState(null); // every GKK's names, for the all-GKK view
+  const [heads, setHeads] = useState([]); // the registry's households, to find names already registered
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [status, setStatus] = useState('All');
@@ -39,9 +40,16 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
   const [printRows, setPrintRows] = useState(null);
   const [busy, setBusy] = useState(false);
 
-  const shown = (rows || []).filter((r) => status === 'All' || (status === 'Set aside' ? !['Not yet', 'Registered'].includes(r.status) : r.status === status));
+  // A name still "Not yet" counts as registered once its household is in the
+  // registry (on the queue or verified), as on the Census page's results.
+  const matches = useMemo(() => matchListToRegistry(rows || [], heads), [rows, heads]);
+  const overview = useMemo(() => (allRows ? countLastYearList(allRows, matchListToRegistry(allRows, heads)) : null), [allRows, heads]);
+  const shown = (rows || []).filter((r) => {
+    const s = listStatus(r, matches);
+    return status === 'All' || (status === 'Set aside' ? !['Not yet', 'Registered'].includes(s) : s === status);
+  });
   const list = useClientList(shown, rowText, 25);
-  const counts = rows ? countLastYearList(rows).get(gkk) || { total: 0, notYet: 0, registered: 0, setAside: 0 } : null;
+  const counts = rows ? countLastYearList(rows, matches).get(gkk) || { total: 0, notYet: 0, registered: 0, setAside: 0 } : null;
 
   function load() {
     setError('');
@@ -49,11 +57,12 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
       setRows(null);
       api.listLastYear(gkk).then(setRows).catch((e) => setError(e.message));
     } else {
-      setOverview(null);
-      api.listLastYear('All').then((all) => setOverview(countLastYearList(all))).catch((e) => setError(e.message));
+      setAllRows(null);
+      api.listLastYear('All').then(setAllRows).catch((e) => setError(e.message));
     }
   }
   useEffect(() => { load(); }, [gkk]);
+  useEffect(() => { api.registryHeads().then(setHeads).catch(() => setHeads([])); }, []);
   useEffect(() => { setStatus('All'); list.setQuery(''); }, [gkk]);
   useEffect(() => { if (!ownGkk) api.listGkks().then((r) => setGkkNames(r.rows.map((x) => x.name))).catch(() => {}); }, [ownGkk]);
 
@@ -151,7 +160,7 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
   }
 
   function print() {
-    const notYet = (rows || []).filter((r) => r.status === 'Not yet').sort(byPurok);
+    const notYet = (rows || []).filter((r) => listStatus(r, matches) === 'Not yet').sort(byPurok);
     if (!notYet.length) { toast.error('Everyone on the list is ticked off'); return; }
     setPrintRows(notYet);
     requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
@@ -161,7 +170,7 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
     <>
       <div className="flex flex-wrap items-start gap-3 mb-4">
         <p className="m-0 text-[13.5px] text-parish-muted max-w-[640px]">
-          The households on last year's paper census, typed in per GKK. Tick each one off as it registers in this census; the ones left are the households not yet registered. Only parish staff and the GKK's own leader can see these names.
+          The households on last year's paper census, typed in per GKK. A name counts as registered once its household is in the registry (on the verification queue or verified), found by the head of household's name, or when you tick it off; the ones left are the households not yet registered. Only parish staff and the GKK's own leader can see these names.
         </p>
       </div>
 
@@ -258,10 +267,15 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
                         {[r.purok, r.note].filter(Boolean).join(' · ') || <span className="text-parish-faint">No purok</span>}
                         {r.checked_by_name && r.status !== 'Not yet' && <span className="text-parish-muted"> · {r.status.toLowerCase()} by {r.checked_by_name}</span>}
                       </div>
+                      {matches.has(r.id) && (
+                        <div className="text-[12.5px] font-semibold text-parish-ok mt-0.5">
+                          ✓ In the registry: {matches.get(r.id).household_name} · {matches.get(r.id).status === 'Verified' ? 'verified' : 'on the verification queue'}
+                        </div>
+                      )}
                     </div>
                     {canEdit ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        {r.status === 'Not yet' && <RowButton tone="green" onClick={() => setRowStatus(r, 'Registered')}>✓ Registered</RowButton>}
+                        {r.status === 'Not yet' && !matches.has(r.id) && <RowButton tone="green" onClick={() => setRowStatus(r, 'Registered')}>✓ Registered</RowButton>}
                         <FilterSelect aria-label={`Status of ${r.head_name}`} value={r.status} onChange={(e) => setRowStatus(r, e.target.value)} className="!py-1.5 !text-[12.5px]">
                           {LAST_YEAR_STATUSES.map((s) => <option key={s} value={s}>{s === 'Not yet' ? 'Not yet registered' : s}</option>)}
                         </FilterSelect>
@@ -269,7 +283,7 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
                         <RowButton tone="red" onClick={() => remove(r)}>Remove</RowButton>
                       </div>
                     ) : (
-                      <Badge tone={LAST_YEAR_STATUS_TONES[r.status]}>{r.status === 'Not yet' ? 'Not yet registered' : r.status}</Badge>
+                      <Badge tone={LAST_YEAR_STATUS_TONES[listStatus(r, matches)]}>{listStatus(r, matches) === 'Not yet' ? 'Not yet registered' : listStatus(r, matches)}</Badge>
                     )}
                   </li>
                 ))}

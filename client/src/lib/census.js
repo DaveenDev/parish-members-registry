@@ -214,50 +214,115 @@ export function dropRepeatedNames(rows, existing) {
   return { fresh, repeated };
 }
 
-/** Map of GKK → { total, notYet, registered, setAside } from list rows ({ gkk, status }). */
-export function countLastYearList(rows) {
+/**
+ * Map of GKK → { total, notYet, registered, setAside } from list rows
+ * ({ id, gkk, status }). `matches` (matchListToRegistry()) counts a name
+ * still "Not yet" as registered once it's found in the registry.
+ */
+export function countLastYearList(rows, matches = null) {
   const out = new Map();
   for (const r of rows || []) {
     const c = out.get(r.gkk) || { total: 0, notYet: 0, registered: 0, setAside: 0 };
+    const status = listStatus(r, matches);
     c.total += 1;
-    if (r.status === 'Not yet') c.notYet += 1;
-    else if (r.status === 'Registered') c.registered += 1;
+    if (status === 'Not yet') c.notYet += 1;
+    else if (status === 'Registered') c.registered += 1;
     else c.setAside += 1;
     out.set(r.gkk, c);
   }
   return out;
 }
 
+const NAME_SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v']);
+
+/** A name's words for matching: no accents, case, punctuation, initials or suffixes ("Ma. Dela Cruz, Jr." → ma, dela, cruz). */
+export function nameWords(name) {
+  return String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1 && !NAME_SUFFIXES.has(w));
+}
+
 /**
- * Households registered in this census against each GKK's households last
- * year. `gkks` is [{ name, previous_households }]; `counts` is a Map of GKK
- * name (null for no GKK) → { started, confirmed } from
- * censusGkkHouseholdCounts(); `lists` is countLastYearList() output.
- * "Registered" is every household with at least one member confirmed.
- *
- * A GKK with last year's list (0041) uses it: last year is the names not
- * set aside, and "not yet" the names not yet ticked off. Otherwise the
- * typed count (gkks.previous_households, 0040) is the baseline and "not yet"
- * is that count minus those registered, never below zero (new households can
- * push a GKK past it). A GKK with neither has lastYear, notYet and pct null.
- * Pass `onlyGkk` for a GKK leader's own GKK.
+ * Which names on last year's list are already in the registry. `heads` is
+ * one row per registered household ({ household_id, gkk, first_name,
+ * last_name, ... }, its head of household). A name still "Not yet" matches
+ * a household in the same GKK when every word of the head's last name and at
+ * least one word of their first name are in it, so "Dela Cruz, Juan P." and
+ * "Juan Dela Cruz Jr." both find Juan Pedro Dela Cruz. Each household
+ * matches one name at most, in list order. Returns a Map of list id → head.
  */
-export function householdsVsLastYear(gkks, counts, onlyGkk = null, lists = null) {
+export function matchListToRegistry(listRows, heads) {
+  const free = new Map(); // GKK → heads not matched yet
+  for (const h of heads || []) {
+    const last = nameWords(h.last_name);
+    const first = nameWords(h.first_name);
+    if (!last.length || !first.length) continue;
+    if (!free.has(h.gkk)) free.set(h.gkk, []);
+    free.get(h.gkk).push({ h, last, first });
+  }
+  const out = new Map();
+  for (const r of listRows || []) {
+    if (r.status !== 'Not yet') continue;
+    const words = new Set(nameWords(r.head_name));
+    const pool = free.get(r.gkk) || [];
+    const i = pool.findIndex((p) => p.last.every((w) => words.has(w)) && p.first.some((w) => words.has(w)));
+    if (i < 0) continue;
+    out.set(r.id, pool[i].h);
+    pool.splice(i, 1);
+  }
+  return out;
+}
+
+/** A list name's status, counting a name found in the registry (`matches`) as Registered. */
+export function listStatus(row, matches = null) {
+  return row.status === 'Not yet' && matches?.has(row.id) ? 'Registered' : row.status;
+}
+
+/**
+ * Households registered against last year while the parish uses last year's
+ * list (0041, 0048). "Registered" is every household in the registry: on
+ * the verification queue (Pending) or Verified. `gkks` is [{ name,
+ * previous_households }]; `heads` is one row per household ({ household_id,
+ * household_name, gkk, status, first_name, last_name }); `listRows` is the
+ * list (listLastYear()).
+ *
+ * A GKK with names on the list measures against them: last year is the
+ * names not set aside, and "not yet" the names neither ticked off nor found
+ * in the registry (matchListToRegistry()). A GKK without names but with the
+ * household count typed in Parish GKK (0040) measures against that count:
+ * "not yet" is the count minus the households registered, never below zero.
+ * A GKK with neither has lastYear, notYet and pct null. Pass `onlyGkk` for a
+ * GKK leader's own GKK. Also returns `notYet`: the names to visit, by GKK
+ * then purok, as { key, title, detail, gkk, purok, note }.
+ */
+export function registryVsLastYear(gkks, heads, listRows, onlyGkk = null) {
   const share = (done, of) => (of > 0 ? Math.min(Math.round((done / of) * 100), 100) : done ? 100 : 0);
-  const row = (label, lastYear, c = {}, list = null) => {
-    const registered = c.started || 0;
-    const base = { label, registered, confirmed: c.confirmed || 0, fromList: false };
-    if (list && list.total) {
+  const mine = (r) => !onlyGkk || r.gkk === onlyGkk;
+  const myHeads = (heads || []).filter(mine);
+  const myList = (listRows || []).filter(mine);
+  const matches = matchListToRegistry(myList, myHeads);
+  const lists = countLastYearList(myList, matches);
+
+  const reg = new Map(); // GKK → { registered, verified, pending }
+  for (const h of myHeads) {
+    const c = reg.get(h.gkk ?? null) || { registered: 0, verified: 0, pending: 0 };
+    c.registered += 1;
+    if (h.status === 'Verified') c.verified += 1; else c.pending += 1;
+    reg.set(h.gkk ?? null, c);
+  }
+
+  const row = (label, count, c = { registered: 0, verified: 0, pending: 0 }, list = null) => {
+    const base = { label, ...c, fromList: false };
+    if (list && list.total - list.setAside > 0) {
       const of = list.total - list.setAside;
       return { ...base, fromList: true, lastYear: of, notYet: list.notYet, pct: share(of - list.notYet, of) };
     }
-    if (lastYear == null) return { ...base, lastYear: null, notYet: null, pct: null };
-    return { ...base, lastYear, notYet: Math.max(lastYear - registered, 0), pct: share(registered, lastYear) };
+    if (count == null) return { ...base, lastYear: null, notYet: null, pct: null };
+    return { ...base, lastYear: count, notYet: Math.max(count - c.registered, 0), pct: share(c.registered, count) };
   };
-  const list = (gkks || []).filter((g) => !onlyGkk || g.name === onlyGkk).sort((a, b) => a.name.localeCompare(b.name));
-  const rows = list.map((g) => row(g.name, g.previous_households ?? null, counts?.get(g.name), lists?.get(g.name)));
-  const none = counts?.get(null);
-  if (!onlyGkk && none && none.started) rows.push(row('No GKK', null, none));
+  const named = (gkks || []).filter((g) => !onlyGkk || g.name === onlyGkk).sort((a, b) => a.name.localeCompare(b.name));
+  const rows = named.map((g) => row(g.name, g.previous_households ?? null, reg.get(g.name), lists.get(g.name)));
+  if (!onlyGkk && reg.get(null)) rows.push(row('No GKK', null, reg.get(null)));
+
   // The total covers only the GKKs with a baseline, so a missing one doesn't read as "not yet".
   const withBase = rows.filter((r) => r.lastYear != null);
   const sum = (k, rs) => rs.reduce((n, r) => n + r[k], 0);
@@ -265,11 +330,16 @@ export function householdsVsLastYear(gkks, counts, onlyGkk = null, lists = null)
   const notYet = withBase.length ? sum('notYet', withBase) : null;
   const total = {
     label: 'All GKKs', lastYear, notYet, fromList: false,
-    registered: sum('registered', withBase), confirmed: sum('confirmed', withBase),
+    registered: sum('registered', withBase), verified: sum('verified', withBase), pending: sum('pending', withBase),
     pct: lastYear == null ? null : share(lastYear - notYet, lastYear),
     registeredAll: sum('registered', rows),
   };
-  return { rows, total, hasBaseline: withBase.length > 0 };
+
+  const byPurok = (a, b) => String(a.gkk).localeCompare(String(b.gkk)) || String(a.purok || '').localeCompare(String(b.purok || ''), undefined, { numeric: true }) || a.title.localeCompare(b.title);
+  const visits = myList.filter((r) => listStatus(r, matches) === 'Not yet')
+    .map((r) => ({ key: `l${r.id}`, title: r.head_name, detail: [r.purok, r.note].filter(Boolean).join(' · '), gkk: r.gkk, purok: r.purok || '', note: r.note || '' }))
+    .sort(byPurok);
+  return { rows, total, hasBaseline: withBase.length > 0, notYet: visits, matches };
 }
 
 /** The census before `cycle` in `cycles` (newest first, as listCensusCycles() returns them), or null. */
@@ -480,4 +550,25 @@ export function diffSubmission({ before, proposed }) {
   }));
   const changeCount = household.length + members.reduce((n, m) => n + m.changes.length, 0) + newMembers.length;
   return { household, members, newMembers, changeCount };
+}
+
+/**
+ * The households-vs-last-year table (api.censusVsLastYear() result) as
+ * { title, columns, rows } for a CSV or report, one row per GKK and the total.
+ */
+export function vsLastYearTable(res, cycle) {
+  const census = res.mode === 'census';
+  const from = (r) => (r.lastYear == null || r === res.total ? '' : census ? res.previous.label : r.fromList ? 'List' : 'Count');
+  const pct = (r) => (r.pct == null ? '' : `${r.pct}%`);
+  const columns = census
+    ? ['GKK', 'Last year', 'Registered', 'Fully confirmed', 'Not yet', 'Registered %']
+    : ['GKK', 'Last year from', 'Last year', 'Registered', 'Verified', 'On the queue', 'Not yet', 'Registered %'];
+  const cells = (r) => (census
+    ? [r.label, r.lastYear ?? '', r.registered, r.confirmed, r.notYet ?? '', pct(r)]
+    : [r.label, from(r), r.lastYear ?? '', r.registered, r.verified, r.pending, r.notYet ?? '', pct(r)]);
+  return {
+    title: `${cycle?.label || 'Census'}: households vs ${census ? `the ${res.previous.label}` : "last year's list"}`,
+    columns,
+    rows: res.hasBaseline ? [...res.rows, res.total].map(cells) : [],
+  };
 }

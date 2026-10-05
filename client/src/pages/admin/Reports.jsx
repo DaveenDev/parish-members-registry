@@ -40,12 +40,12 @@ const REPORTS = {
   Members: { types: ['By GKK', 'By Sacrament', 'By Ministry / Organization'] },
   Households: { types: ['By Status', 'By GKK', 'By registration month'] },
   Sacraments: { types: ['Verification progress by GKK'] },
-  Census: { types: ['Results by GKK', 'Members not confirmed'], need: 'census' },
+  Census: { types: ['Results by GKK', 'Households vs last year', 'Not yet registered', 'Members not confirmed'], need: 'census' },
   Requests: { types: ['Certificate turnaround'], need: 'requests' },
 };
 function scopeFor(source, type) {
   return {
-    gkk: ['Members', 'Households', 'Sacraments'].includes(source) || type === 'Members not confirmed',
+    gkk: ['Members', 'Households', 'Sacraments'].includes(source) || ['Members not confirmed', 'Households vs last year', 'Not yet registered'].includes(type),
     status: type === 'By Status',
     dateRange: source === 'Households' || source === 'Requests',
     sacrament: type === 'By Sacrament',
@@ -89,7 +89,8 @@ export default function Reports() {
   async function generate() {
     setGenerating(true);
     try {
-      setReport(await api.generateReport({ source: genSource, type: genType, ...scope }));
+      // A GKK leader's reports cover their own GKK.
+      setReport(await api.generateReport({ source: genSource, type: genType, ...scope, gkk: leaderGkk(user) || scope.gkk }));
     } catch (e) {
       toast.error(e.message || 'Could not generate this report');
     } finally {
