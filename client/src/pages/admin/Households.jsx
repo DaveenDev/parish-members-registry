@@ -18,11 +18,12 @@ import { can, leaderGkk } from '../../lib/access.js';
 import { daysAgo, fmtDateTime } from '../../constants.js';
 
 const SORTS = [['registered', 'Registered'], ['name', 'Household'], ['gkk', 'GKK'], ['members', 'Members'], ['updated', 'Last updated']];
-// The status tabs; the page opens on Verified. Keys are the ?status= values, so links like
-// ?status=Pending open on the verification queue.
-const STATUS_TABS = [['Verified', 'Verified Households'], ['Pending', 'On Queue for Verification'], ['All', 'All Households']];
+// The status tabs; the page opens on the verification queue, or on Verified
+// when the queue is empty. Keys are the ?status= values, so links like
+// ?status=Verified open on that tab.
+const STATUS_TABS = [['Pending', 'On Queue for Verification'], ['Verified', 'Verified Households'], ['All', 'All Households']];
 
-const URL_DEFAULTS = { status: 'Verified', gkk: 'All', q: '', sort: 'registered', dir: '', page: 1, size: 10 };
+const URL_DEFAULTS = { status: 'Pending', gkk: 'All', q: '', sort: 'registered', dir: '', page: 1, size: 10 };
 const URL_ALLOWED = { status: ['All', 'Verified', 'Pending'], sort: SORTS.map(([k]) => k), dir: ['', 'asc', 'desc'], size: [10, 20, 50] };
 // Dates sort newest first by default, everything else A→Z (see householdQuery in api.js).
 const defaultDir = (key) => (key === 'registered' || key === 'updated' ? 'desc' : 'asc');
@@ -62,12 +63,23 @@ export default function Households() {
 
   const filters = { status, gkk, search: debouncedSearch };
 
+  // Opened without a tab in the link: start on the queue, but go straight to
+  // Verified when nothing is waiting. The list waits for that choice, so an
+  // empty queue never flashes up first.
+  const [tabChosen, setTabChosen] = useState(() => new URLSearchParams(location.search).has('status'));
+
   const [counts, setCounts] = useState({});
   function loadCounts() {
     api.householdStatusCounts({ gkk, search: debouncedSearch })
       // A household is either Pending or Verified, so All is the two together.
-      .then((c) => setCounts({ ...c, All: c.Pending + c.Verified }))
-      .catch(() => setCounts({}));
+      .then((c) => {
+        setCounts({ ...c, All: c.Pending + c.Verified });
+        if (!tabChosen) {
+          if (!c.Pending && c.Verified) setUrl({ status: 'Verified' });
+          setTabChosen(true);
+        }
+      })
+      .catch(() => { setCounts({}); setTabChosen(true); });
   }
   useEffect(() => { loadCounts(); }, [gkk, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -89,7 +101,7 @@ export default function Households() {
   // the register itself is empty, not the search.
   const isFiltered = gkk !== 'All' || !!debouncedSearch;
 
-  useEffect(() => { reload(); }, [status, gkk, debouncedSearch, sort, dir, page, pageSize]);
+  useEffect(() => { if (tabChosen) reload(); }, [tabChosen, status, gkk, debouncedSearch, sort, dir, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
   // A selection only ever covers the rows on screen.
   useEffect(() => { setSelected(new Set()); }, [status, gkk, debouncedSearch, sort, dir, page, pageSize]);
   useEffect(() => { api.listGkks().then((res) => setGkkOptions(res.rows.map((r) => r.name))).catch(() => {}); }, []);
