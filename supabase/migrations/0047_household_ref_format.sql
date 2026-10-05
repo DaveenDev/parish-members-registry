@@ -164,42 +164,40 @@ begin
 end;
 $$;
 
-drop table if exists pg_temp.ref_renumbered;
-create temporary table ref_renumbered (old_ref text, new_ref text);
-
-alter table households disable trigger trg_households_log;
-alter table households disable trigger trg_households_track_changes;
-alter table households disable trigger trg_00_guard_staff_write;
-
+-- One block, so the triggers are never left switched off: if anything
+-- fails, the whole block (switching them off included) is undone. (No
+-- temporary tables: the Supabase SQL editor may not keep one session.)
 do $$
 declare
   h record;
-  new_ref text;
+  t text;
 begin
+  foreach t in array array['trg_households_log', 'trg_households_track_changes', 'trg_00_guard_staff_write'] loop
+    if exists (select 1 from pg_trigger where tgrelid = 'public.households'::regclass and tgname = t) then
+      execute format('alter table households disable trigger %I', t);
+    end if;
+  end loop;
+
   for h in select id, ref_no, gkk, barangay, created_at from households
            where not is_household_ref(ref_no) order by created_at, id loop
-    new_ref := next_household_ref(h.gkk, h.barangay, h.created_at);
-    update households set ref_no = new_ref, previous_ref_no = coalesce(previous_ref_no, h.ref_no) where id = h.id;
-    if h.ref_no is not null then insert into ref_renumbered values (h.ref_no, new_ref); end if;
+    update households set ref_no = next_household_ref(h.gkk, h.barangay, h.created_at),
+                          previous_ref_no = coalesce(previous_ref_no, h.ref_no)
+    where id = h.id;
   end loop;
-end;
-$$;
 
-alter table households enable trigger trg_households_log;
-alter table households enable trigger trg_households_track_changes;
-alter table households enable trigger trg_00_guard_staff_write;
+  foreach t in array array['trg_households_log', 'trg_households_track_changes', 'trg_00_guard_staff_write'] loop
+    if exists (select 1 from pg_trigger where tgrelid = 'public.households'::regclass and tgname = t) then
+      execute format('alter table households enable trigger %I', t);
+    end if;
+  end loop;
 
--- The bell's registration and census notifications show the number and link to it.
-do $$
-begin
+  -- The bell's registration and census notifications show the number and link to it.
   if to_regclass('public.staff_notifications') is not null then
-    update staff_notifications n set ref_no = r.new_ref, link = replace(n.link, r.old_ref, r.new_ref)
-    from ref_renumbered r where n.ref_no = r.old_ref;
+    update staff_notifications n set ref_no = hh.ref_no, link = replace(n.link, hh.previous_ref_no, hh.ref_no)
+    from households hh where hh.previous_ref_no is not null and n.ref_no = hh.previous_ref_no;
   end if;
 end;
 $$;
-
-drop table if exists pg_temp.ref_renumbered;
 
 -- ---------------------------------------------------------------------------
 -- Lookups by number also take the old OLG-… number.
