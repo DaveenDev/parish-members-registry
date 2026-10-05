@@ -290,10 +290,12 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
                     </div>
                     {canEdit ? (
                       <div className="flex flex-wrap items-center gap-2">
+                        {/* The status first, as everyone sees it, so the buttons after it read as actions. */}
+                        <StatusBadge row={r} matches={matches} />
                         {r.status === 'Not yet' && !matches.has(r.id) && (
                           <>
                             <RowButton onClick={() => setChoosing(r)} title="The family registered under another head or name: pick its household">Choose household</RowButton>
-                            <RowButton tone="green" onClick={() => setRowStatus(r, 'Registered')}>✓ Registered</RowButton>
+                            <RowButton onClick={() => setRowStatus(r, 'Registered')} title="Tick this name off by hand, e.g. the family registered on paper">Mark as registered</RowButton>
                           </>
                         )}
                         <FilterSelect aria-label={`Status of ${r.head_name}`} value={r.status} onChange={(e) => setRowStatus(r, e.target.value)} className="!py-1.5 !text-[12.5px]">
@@ -303,7 +305,7 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
                         <RowButton tone="red" onClick={() => remove(r)}>Remove</RowButton>
                       </div>
                     ) : (
-                      <Badge tone={LAST_YEAR_STATUS_TONES[listStatus(r, matches)]}>{listStatus(r, matches) === 'Not yet' ? 'Not yet registered' : listStatus(r, matches)}</Badge>
+                      <StatusBadge row={r} matches={matches} />
                     )}
                   </li>
                 ))}
@@ -337,6 +339,12 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
 }
 
 /** Type or paste names, one household per line. */
+/** A name's status as the census counts it: found in the registry counts as Registered. */
+function StatusBadge({ row, matches }) {
+  const s = listStatus(row, matches);
+  return <Badge tone={LAST_YEAR_STATUS_TONES[s]}>{s === 'Not yet' ? 'Not yet registered' : s}</Badge>;
+}
+
 function AddNamesPanel({ gkk, onClose, onAdd }) {
   const [text, setText] = useState('');
   const [saving, setSaving] = useState(false);
