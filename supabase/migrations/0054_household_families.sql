@@ -33,7 +33,7 @@ begin
   if to_regprocedure('public.submit_registration_base(jsonb)') is null
      or to_regclass('public.household_access_codes') is null
      or to_regprocedure('public.household_by_ref(text)') is null then
-    raise exception 'Run 0040_registration_access_code.sql and 0047_household_ref_format.sql before this migration';
+    raise exception 'Run 00401_registration_access_code.sql and 0047_household_ref_format.sql before this migration';
   end if;
 end;
 $$;
