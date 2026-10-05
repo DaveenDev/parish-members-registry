@@ -2,8 +2,8 @@ import { can } from '../lib/access.js';
 
 /**
  * The admin sidebar, in groups. `need` is the lib/access.js permission a
- * page requires; `leaderOnly` shows it to GKK leaders only; `badge` names
- * a count from api.navCounts().
+ * page requires; `leaderOnly` shows it to GKK leaders only; `leaderLabel`
+ * is its name for GKK leaders; `badge` names a count from api.navCounts().
  */
 export const NAV_GROUPS = [
   {
@@ -44,7 +44,7 @@ export const NAV_GROUPS = [
     label: 'Settings',
     collapsible: true,
     items: [
-      { to: '/admin/settings', end: true, label: 'Parish Config' },
+      { to: '/admin/settings', end: true, label: 'Parish Config', leaderLabel: 'GKK Config' },
       { to: '/admin/settings/notifications', label: 'Notifications' },
       { to: '/admin/settings/organizations', label: 'Ministries & organizations', need: 'manageLists' },
       { to: '/admin/duplicates', label: 'Duplicates', need: 'registry', badge: 'duplicates', badgeLabel: 'groups to review' },
@@ -59,6 +59,11 @@ export function navAllowed(item, user) {
   if (item.adminOnly && !user?.isAdmin) return false;
   if (item.leaderOnly && user?.access !== 'gkk_leader') return false;
   return !item.need || can(user, item.need);
+}
+
+/** The item's name for this account: GKK leaders see some pages under their own name. */
+export function navLabel(item, user) {
+  return (user?.access === 'gkk_leader' && item.leaderLabel) || item.label;
 }
 
 /** The nav item a path belongs to (the longest matching link), or null. */

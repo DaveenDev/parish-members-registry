@@ -657,12 +657,14 @@ export default function ParishConfig() {
   // GKKs for staff who may change settings (GKK leaders have My GKK);
   // integrations for staff admins only.
   const tabs = CONFIG_TABS.filter(([k]) => k === 'config' || (k === 'gkk' && can(user, 'settings')) || (k === 'integrations' && user?.isAdmin));
+  // GKK leaders see this page as "GKK Config" (as in the sidebar).
+  const title = user?.access === 'gkk_leader' ? 'GKK Config' : 'Parish Config';
   const tab = tabs.some(([k]) => k === params.get('tab')) ? params.get('tab') : tabs[0][0];
   const setTab = (k) => setParams(k === CONFIG_TABS[0][0] ? {} : { tab: k }, { replace: true });
 
   return (
     <>
-      <PageHeader title="Parish Config" subtitle="Profile, privacy, GKK settings & integrations" />
+      <PageHeader title={title} subtitle={user?.access === 'gkk_leader' ? 'Appearance, password and data privacy' : 'Profile, privacy, GKK settings & integrations'} />
       <PageBody>
         <div className="max-w-[1180px]">
           {tabs.length > 1 && <Tabs tabs={tabs} value={tab} onChange={setTab} />}

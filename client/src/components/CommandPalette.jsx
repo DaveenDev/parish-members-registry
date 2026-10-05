@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 import { useDebounced } from '../hooks.js';
 import { can } from '../lib/access.js';
-import { NAV_GROUPS, navAllowed } from './adminNav.js';
+import { NAV_GROUPS, navAllowed, navLabel } from './adminNav.js';
 import MemberDetailModal from './MemberDetailModal.jsx';
 
 const REQUEST_TABS = { certificates: ['Certificate', ''], sacraments: ['Sacrament request', 'sacraments'], blood: ['Blood request', 'blood'] };
@@ -57,7 +57,7 @@ export default function CommandPalette({ onClose }) {
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const pages = NAV_GROUPS.flatMap((g) => g.items.filter((i) => navAllowed(i, user)).map((i) => ({ ...i, group: g.label })))
+    const pages = NAV_GROUPS.flatMap((g) => g.items.filter((i) => navAllowed(i, user)).map((i) => ({ ...i, label: navLabel(i, user), group: g.label })))
       .filter((i) => !q || i.label.toLowerCase().includes(q) || i.group.toLowerCase().includes(q))
       .slice(0, q ? 5 : 8)
       .map((i) => ({ key: `p${i.to}`, section: 'Pages', title: i.label, sub: i.group, go: () => navigate(i.to) }));

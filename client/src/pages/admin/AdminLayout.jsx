@@ -8,7 +8,7 @@ import { PageHeader, PageBody, EmptyState } from '../../components/admin.jsx';
 import CommandPalette, { useCommandPaletteShortcut } from '../../components/CommandPalette.jsx';
 import IdleSignOut from '../../components/IdleSignOut.jsx';
 import NotificationBell, { useStaffNotifications } from '../../components/NotificationBell.jsx';
-import { NAV_GROUPS, navAllowed, navItemFor, navBadges } from '../../components/adminNav.js';
+import { NAV_GROUPS, navAllowed, navItemFor, navBadges, navLabel } from '../../components/adminNav.js';
 import { accessLabel } from '../../lib/access.js';
 import { keepServiceWorker } from '../../lib/push.js';
 
@@ -158,7 +158,7 @@ export default function AdminLayout() {
 
       <nav className="px-3 py-1.5 flex flex-col flex-1 overflow-auto" aria-label="Admin sections">
         {NAV_GROUPS.map((g) => {
-          const items = g.items.filter((n) => navAllowed(n, user));
+          const items = g.items.filter((n) => navAllowed(n, user)).map((n) => ({ ...n, label: navLabel(n, user) }));
           if (!items.length) return null;
           if (g.collapsible) {
             // Collapsed by default; opens on its own while one of its pages is showing.
@@ -261,7 +261,7 @@ export default function AdminLayout() {
           <Outlet context={{ parish, setParish, requestCounts, navCounts, refreshRequestCounts: refreshNavCounts, refreshNavCounts, bell }} />
         ) : (
           <>
-            <PageHeader title={current.label} />
+            <PageHeader title={navLabel(current, user)} />
             <PageBody>
               <EmptyState title="Not available for your account" subtitle={`Your access level is ${accessLabel(user?.access)}. Ask a staff admin if you need this page.`} />
             </PageBody>

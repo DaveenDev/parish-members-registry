@@ -71,6 +71,14 @@ describe('admin nav', async () => {
     assert.ok(navAllowed(navItemFor('/admin/settings'), { access: 'read_only' }));
   });
 
+  test('GKK leaders see Parish Config as GKK Config', async () => {
+    const { navLabel } = await import('../src/components/adminNav.js');
+    const config = navItemFor('/admin/settings');
+    assert.equal(navLabel(config, { access: 'gkk_leader' }), 'GKK Config');
+    assert.equal(navLabel(config, { access: 'full' }), 'Parish Config');
+    assert.equal(navLabel(navItemFor('/admin/census'), { access: 'gkk_leader' }), 'Census');
+  });
+
   test('My GKK is for GKK leaders only', () => {
     const mine = navItemFor('/admin/my-gkk');
     assert.equal(mine.label, 'My GKK');
