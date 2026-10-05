@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, Tabs, Panel } from '../../components/admin.jsx';
+import { PageHeader, PageBody, Tabs, Panel, LoadingState } from '../../components/admin.jsx';
 import { GkkManager } from '../../components/GkkManager.jsx';
 import MyGkk from './MyGkk.jsx';
 import { useAuth } from '../../AuthContext.jsx';
@@ -13,19 +13,53 @@ import { useToast } from '../../ToastContext.jsx';
 import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '../../components/ChangePasswordForm.jsx';
 import { resizePhoto } from '../../lib/images.js';
 import { fmtDateTime } from '../../constants.js';
-import { DEFAULT_SITE_URL } from '../../lib/census.js';
+import { DEFAULT_SITE_URL, normalizeSiteUrl } from '../../lib/census.js';
 import { markPasswordResetWorking, saveEmailSettings, sendPasswordReset } from '../../emailApi.js';
 
 const MAX_LOGO_BYTES = 500 * 1024;
 
-/** A part of the Parish profile card, below a divider. */
-function ProfileSection({ title, note, children }) {
+/** A titled card on the Parish Config tab, with an optional note under the title. */
+function ConfigCard({ title, note, children, footer }) {
   return (
-    <section className="border-t border-parish-line pt-5 mt-5">
-      <div className="font-bold text-[15.5px] text-parish-ink mb-1">{title}</div>
-      <div className="text-[13.5px] text-parish-muted mb-4">{note}</div>
+    <Panel className="overflow-hidden">
+      <div className="p-6">
+        <div className="font-serif text-[22px] font-semibold text-parish-navy">{title}</div>
+        {note && <div className="text-[13.5px] text-parish-muted mt-1">{note}</div>}
+        <div className="mt-5">{children}</div>
+      </div>
+      {footer && <div className="px-6 py-3.5 border-t border-parish-line2 bg-parish-card flex items-center gap-3 flex-wrap">{footer}</div>}
+    </Panel>
+  );
+}
+
+/** One image of the Logo & photo card: its name, where it shows, then the picture and its buttons. */
+function ImageBlock({ title, usedOn, note, children }) {
+  return (
+    <section className="first:pt-0 first:mt-0 first:border-t-0 border-t border-parish-line pt-5 mt-5">
+      <div className="flex items-center gap-2 flex-wrap mb-1">
+        <span className="font-bold text-[15px] text-parish-ink">{title}</span>
+        {usedOn.map((u) => <Badge key={u} tone="gray">{u}</Badge>)}
+      </div>
+      <div className="text-[13px] text-parish-muted mb-3.5">{note}</div>
       {children}
     </section>
+  );
+}
+
+/** Upload / Replace and Remove for one image. */
+function ImageButtons({ has, busy, noun, onFile, onRemove }) {
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      <label className={`cursor-pointer px-4 py-2 font-semibold text-[13.5px] text-white bg-parish-fill rounded-xl inline-block ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
+        {busy ? 'Saving…' : has ? `Replace ${noun}` : `Upload ${noun}`}
+        <input type="file" accept="image/*" onChange={onFile} className="hidden" disabled={busy} />
+      </label>
+      {has && (
+        <button type="button" onClick={onRemove} disabled={busy} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-error p-0 disabled:opacity-60">
+          Remove
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -81,9 +115,9 @@ function LogoSection({ settings, onSaved }) {
   }
 
   return (
-    <ProfileSection title="Parish logo" note={<>Shown on the sign-in screen, the sidebar, and printed household sheets. PNG or JPG, ideally square, under 500&nbsp;KB.</>}>
+    <ImageBlock title="Logo" usedOn={['Sign-in', 'Sidebar', 'Printed sheets']} note={<>PNG or JPG, ideally square with a plain or clear background, under 500&nbsp;KB.</>}>
       <div className="flex items-center gap-5 flex-wrap">
-        <div className="w-24 h-24 rounded-[18px] border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center overflow-hidden flex-none">
+        <div className={`w-24 h-24 rounded-[18px] bg-parish-field flex items-center justify-center overflow-hidden flex-none ${settings.logo ? 'border border-parish-line2 p-1.5' : 'border-2 border-dashed border-parish-borderStrong'}`}>
           {settings.logo ? (
             <img src={settings.logo} alt="Current parish logo" className="w-full h-full object-contain" />
           ) : (
@@ -92,19 +126,12 @@ function LogoSection({ settings, onSaved }) {
             </span>
           )}
         </div>
-        <div className="flex flex-col gap-2.5 items-start">
-          <label className={`cursor-pointer px-[18px] py-2.5 font-semibold text-[14px] text-white bg-parish-fill rounded-xl inline-block ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
-            {busy ? 'Uploading…' : settings.logo ? 'Replace logo' : 'Upload logo'}
-            <input type="file" accept="image/*" onChange={onFile} className="hidden" disabled={busy} />
-          </label>
-          {settings.logo && (
-            <button onClick={removeLogo} disabled={busy} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13px] text-parish-error p-0">
-              Remove logo
-            </button>
-          )}
+        <div className="flex flex-col gap-2 items-start min-w-0">
+          <div className="text-[13px] text-parish-text2">{settings.logo ? 'Current logo' : 'No logo yet: a star emblem shows instead.'}</div>
+          <ImageButtons has={!!settings.logo} busy={busy} noun="logo" onFile={onFile} onRemove={removeLogo} />
         </div>
       </div>
-    </ProfileSection>
+    </ImageBlock>
   );
 }
 
@@ -147,8 +174,8 @@ function HeroImageSection({ settings, onSaved }) {
   }
 
   return (
-    <ProfileSection title="Parish photo" note="The main photo on the website's home page, e.g. the church front or a parish gathering. A wide (landscape) photo works best; it's resized automatically.">
-      <div className="aspect-[16/7] w-full rounded-[14px] border-2 border-dashed border-parish-borderStrong bg-parish-field overflow-hidden flex items-center justify-center mb-4">
+    <ImageBlock title="Parish photo" usedOn={['Website home page']} note="The church front or a parish gathering. A wide (landscape) photo works best; it's resized for you.">
+      <div className={`aspect-[16/7] w-full rounded-[14px] bg-parish-field overflow-hidden flex items-center justify-center mb-3.5 ${settings.hero_image ? 'border border-parish-line2' : 'border-2 border-dashed border-parish-borderStrong'}`}>
         {settings.hero_image ? (
           <img src={settings.hero_image} alt="Current parish photo" className="w-full h-full object-cover" />
         ) : (
@@ -158,18 +185,8 @@ function HeroImageSection({ settings, onSaved }) {
           </div>
         )}
       </div>
-      <div className="flex items-center gap-4 flex-wrap">
-        <label className={`cursor-pointer px-[18px] py-2.5 font-semibold text-[14px] text-white bg-parish-fill rounded-xl inline-block ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
-          {busy ? 'Uploading…' : settings.hero_image ? 'Replace photo' : 'Upload photo'}
-          <input type="file" accept="image/*" onChange={onFile} className="hidden" disabled={busy} />
-        </label>
-        {settings.hero_image && (
-          <button onClick={remove} disabled={busy} className="appearance-none border-none bg-none cursor-pointer font-semibold text-[13px] text-parish-error p-0">
-            Remove photo
-          </button>
-        )}
-      </div>
-    </ProfileSection>
+      <ImageButtons has={!!settings.hero_image} busy={busy} noun="photo" onFile={onFile} onRemove={remove} />
+    </ImageBlock>
   );
 }
 
@@ -505,80 +522,105 @@ function ChangePasswordCard() {
   );
 }
 
+/**
+ * Parish Config: the parish's details (name and website address, saved
+ * with the button) on the left with the privacy note; its logo and photo
+ * (saved as soon as they're uploaded) on the right.
+ */
 function ProfileTab() {
   const toast = useToast();
   const layout = useOutletContext();
-  const { user } = useAuth();
   const [settings, setSettings] = useState(null);
+  const [saved, setSaved] = useState(null); // as last loaded or saved
   const [saving, setSaving] = useState(false);
+  const [nameError, setNameError] = useState('');
+  const [urlError, setUrlError] = useState('');
 
-  useEffect(() => { api.getSettings().then((r) => setSettings(r.settings)).catch((e) => toast.error(e.message)); }, []);
-  if (!settings) return null;
-  const canEdit = can(user, 'settings');
+  useEffect(() => {
+    api.getSettings().then((r) => { setSettings(r.settings); setSaved(r.settings); }).catch((e) => toast.error(e.message));
+  }, []);
+  if (!settings) return <LoadingState label="Loading…" />;
+  const hasSiteUrl = 'site_url' in settings;
+  const dirty = (settings.name || '') !== (saved.name || '') || (hasSiteUrl && (settings.site_url || '') !== (saved.site_url || ''));
 
   function set(field, value) { setSettings((s) => ({ ...s, [field]: value })); }
 
   /** Keep this form and the admin sidebar (logo + parish name) in step after a save. */
-  function applySaved(saved) {
-    setSettings(saved);
-    layout?.setParish?.(saved);
+  function applySaved(next) {
+    // An image saved at once keeps any unsaved typing in the details.
+    setSettings((s) => ({ ...next, name: s.name, ...(hasSiteUrl ? { site_url: s.site_url } : {}) }));
+    setSaved(next);
+    layout?.setParish?.(next);
   }
 
-  async function save() {
+  async function save(e) {
+    e?.preventDefault();
+    if (!(settings.name || '').trim()) { setNameError('Enter the parish name.'); return; }
+    if (hasSiteUrl) {
+      try { normalizeSiteUrl(settings.site_url); } catch (err) { setUrlError(err.message); return; }
+    }
     setSaving(true);
     try {
       // site_url only once the 0042 migration has added the column.
-      const res = await api.updateSettings({ name: settings.name, ...('site_url' in settings ? { site_url: settings.site_url } : {}) });
-      applySaved(res.settings);
-      toast.success('Parish profile saved');
-    } catch (e) {
-      toast.error(e.message || 'Could not save changes');
+      const res = await api.updateSettings({ name: settings.name, ...(hasSiteUrl ? { site_url: settings.site_url } : {}) });
+      setSettings(res.settings);
+      setSaved(res.settings);
+      layout?.setParish?.(res.settings);
+      toast.success('Parish details saved');
+    } catch (err) {
+      toast.error(err.message || 'Could not save changes');
     } finally {
       setSaving(false);
     }
   }
 
-  // Desktop: the parish's identity on the left, this account and device on the right.
   return (
-    <div className="grid gap-[18px] lg:grid-cols-2 lg:items-start">
+    <div className="grid gap-[18px] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)] lg:items-start">
       <div className="flex flex-col gap-[18px] min-w-0">
-      {/* The parish's name, logo and photo in one card. The logo and photo save as soon as they're uploaded. */}
-      {canEdit && (
-      <Panel className="p-6">
-        <div className="font-serif text-[22px] font-semibold text-parish-navy mb-[18px]">Parish profile</div>
-        <div className="flex flex-col gap-4">
-          <Field label="Parish name"><TextInput value={settings.name || ''} onChange={(e) => set('name', e.target.value)} /></Field>
-          <Field label="Public website address">
-            <TextInput
-              type="url" inputMode="url" value={settings.site_url || ''} onChange={(e) => set('site_url', e.target.value)}
-              placeholder={DEFAULT_SITE_URL} disabled={!('site_url' in settings)} autoComplete="off" spellCheck={false}
-            />
-          </Field>
-          <div className="text-[13px] text-parish-muted -mt-2">
-            {'site_url' in settings
-              ? <>Where the QR code and census link on printed household sheets point. Leave blank to use {DEFAULT_SITE_URL.replace('https://', '')}. Change it if the parish moves to its own domain.</>
-              : <>Run the <strong>0042_public_site_url.sql</strong> migration in Supabase to set the address printed sheets point to.</>}
-          </div>
-          <div className="text-[13.5px] text-parish-muted">
-            The address, phone, email and office hours are in{' '}
-            <Link to="/admin/website?tab=office" className="font-semibold text-parish-blue">Parish Website → Office &amp; Contact</Link>.
-          </div>
-        </div>
-        <div className="flex items-center gap-3 mt-5">
-          <PrimaryButton onClick={save} disabled={saving} className="px-[26px] py-3 text-[14.5px]">
-            {saving ? 'Saving…' : 'Save changes'}
-          </PrimaryButton>
-        </div>
-
-        <LogoSection settings={settings} onSaved={applySaved} />
-        <HeroImageSection settings={settings} onSaved={applySaved} />
-      </Panel>
-      )}
-
+        <form onSubmit={save}>
+          <ConfigCard
+            title="Parish details"
+            note="Used across the admin, the website and printed household sheets."
+            footer={(
+              <>
+                <span className={`text-[13px] ${dirty ? 'font-semibold text-[#c2410c]' : 'text-parish-muted'}`}>{dirty ? 'Unsaved changes' : 'All changes saved'}</span>
+                <PrimaryButton type="submit" disabled={saving || !dirty} className="ml-auto px-6 py-2.5 text-[14px]">{saving ? 'Saving…' : 'Save details'}</PrimaryButton>
+              </>
+            )}
+          >
+            <div className="flex flex-col gap-4">
+              <Field label="Parish name" required error={nameError}>
+                <TextInput value={settings.name || ''} onChange={(e) => { set('name', e.target.value); setNameError(''); }} />
+              </Field>
+              <div>
+                <Field label="Public website address" error={urlError}>
+                  <TextInput
+                    type="url" inputMode="url" value={settings.site_url || ''} onChange={(e) => { set('site_url', e.target.value); setUrlError(''); }}
+                    placeholder={DEFAULT_SITE_URL} disabled={!hasSiteUrl} autoComplete="off" spellCheck={false}
+                  />
+                </Field>
+                <div className="text-[12.5px] text-parish-muted mt-1.5 leading-relaxed">
+                  {hasSiteUrl
+                    ? <>Where the QR code and census link on printed household sheets point. Leave blank to use <span className="font-semibold text-parish-text2">{DEFAULT_SITE_URL.replace('https://', '')}</span>; change it if the parish moves to its own domain.</>
+                    : <>Run the <strong>0042_public_site_url.sql</strong> migration in Supabase to set the address printed sheets point to.</>}
+                </div>
+              </div>
+              <Link to="/admin/website?tab=office" className="flex items-center gap-3 px-4 py-3 rounded-xl border border-parish-line2 bg-parish-field no-underline hover:border-[var(--p-blue-border)]">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p-blue)" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" className="flex-none" aria-hidden><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></svg>
+                <span className="flex-1 min-w-0 text-[13.5px] text-parish-text2">Address, phone, email and office hours are kept in <span className="font-semibold text-parish-blue">Parish Website → Office &amp; Contact</span></span>
+                <span className="text-parish-blue text-[18px] leading-none" aria-hidden>›</span>
+              </Link>
+            </div>
+          </ConfigCard>
+        </form>
+        <PrivacyCard />
       </div>
 
-      <div className="flex flex-col gap-[18px] min-w-0">
-      <PrivacyCard />
+      <div className="min-w-0">
+        <ConfigCard title="Logo & photo" note="These save as soon as you upload or remove them.">
+          <LogoSection settings={settings} onSaved={applySaved} />
+          <HeroImageSection settings={settings} onSaved={applySaved} />
+        </ConfigCard>
       </div>
     </div>
   );
