@@ -1,4 +1,7 @@
-import { PARTNERED_STATUSES, WEDDING_TYPES, HEAD, FAMILY_HEAD } from '../constants.js';
+import {
+  PARTNERED_STATUSES, WEDDING_TYPES, HEAD, FAMILY_HEAD, ageFromDob,
+  COMMUNION_MIN_AGE, CONFIRMATION_MIN_AGE, MATRIMONY_MIN_AGE, ROLE_MIN_AGE,
+} from '../constants.js';
 import { toNameCase, toSuffixCase } from './util.js';
 
 /**
@@ -88,6 +91,84 @@ export function familyTitle(group) {
   return group?.familyNo === 1 ? 'Household Head’s family' : `Family ${group?.familyNo ?? ''}`.trim();
 }
 
+/** "Family #2": a member's family, shown beside their name on the registration forms. */
+export const familyTag = (m) => `Family #${familyNoOf(m)}`;
+
+/**
+ * Renumber the families 1, 2, 3… in the same order, so removing a family
+ * from a form leaves no gap. Returns the same array when nothing changes.
+ */
+export function compactFamilies(members) {
+  const nos = [...new Set(members.map(familyNoOf))].sort((a, b) => a - b);
+  if (nos.every((n, i) => n === i + 1)) return members;
+  const to = new Map(nos.map((n, i) => [n, i + 1]));
+  return members.map((m) => ({ ...m, familyNo: to.get(familyNoOf(m)) }));
+}
+
+// ---- the same person entered twice -----------------------------------------
+
+const normName = (s) => String(s ?? '').toLowerCase().replace(/[.,]/g, '').replace(/\s+/g, ' ').trim();
+const namePart = (m, key, rowKey) => normName(m?.[key] ?? m?.[rowKey]);
+
+/**
+ * Whether two members (form members or database rows) are the same person:
+ * the same first name, last name and suffix, with no middle name or birthday
+ * telling them apart. A father and son of the same name differ by birthday
+ * or by "Jr.".
+ */
+export function samePerson(a, b) {
+  const first = namePart(a, 'firstName', 'first_name');
+  const last = namePart(a, 'lastName', 'last_name');
+  if (!first || !last) return false;
+  if (first !== namePart(b, 'firstName', 'first_name') || last !== namePart(b, 'lastName', 'last_name')) return false;
+  if (namePart(a, 'suffix', 'suffix') !== namePart(b, 'suffix', 'suffix')) return false;
+  const differ = (x, y) => !!x && !!y && x !== y;
+  return !differ(namePart(a, 'middleName', 'middle_name'), namePart(b, 'middleName', 'middle_name'))
+    && !differ(String(a?.dob || ''), String(b?.dob || ''));
+}
+
+/** Index of the member before `i` (the Household Head first) that members[i] repeats, or -1. */
+export function repeatedMember(members, i) {
+  for (let j = 0; j < i; j++) if (samePerson(members[i], members[j])) return j;
+  return -1;
+}
+
+/** A Spouse's sex from their family head's: 'Female' for a male head, 'Male' for a female head, '' otherwise. */
+export function spouseSex(headSex) {
+  if (headSex === 'Male') return 'Female';
+  if (headSex === 'Female') return 'Male';
+  return '';
+}
+
+// ---- what a member is old enough for ---------------------------------------
+
+/**
+ * What registration asks of a member at their age: { communion,
+ * confirmation, matrimony, roles } (roles: Katungdanan sa GKK / Parish).
+ * Everything while the birthday is unknown.
+ */
+export function askedForAge(dob, today = new Date()) {
+  const age = ageFromDob(dob, today);
+  const from = (min) => age === null || age >= min;
+  return {
+    communion: from(COMMUNION_MIN_AGE),
+    confirmation: from(CONFIRMATION_MIN_AGE),
+    matrimony: from(MATRIMONY_MIN_AGE),
+    roles: from(ROLE_MIN_AGE),
+  };
+}
+
+/** A member with what they're too young for cleared, e.g. a box ticked before the birthday was entered. */
+export function clearForAge(m, today = new Date()) {
+  const asked = askedForAge(m.dob, today);
+  const out = { ...m };
+  if (!asked.communion) Object.assign(out, { hasCommunion: false, communionDate: '', communionChurch: '' });
+  if (!asked.confirmation) Object.assign(out, { hasConfirmation: false, confDate: '', confChurch: '', confName: '', confSponsor: '' });
+  if (!asked.matrimony) Object.assign(out, { hasMatrimony: false, matDate: '', matChurch: '', matType: '' });
+  if (!asked.roles) Object.assign(out, { gkkRole: '', parishRole: '' });
+  return out;
+}
+
 // ---- weddings and spouses --------------------------------------------------
 
 export const WEDDING_FIELDS = ['matType', 'hasMatrimony', 'matDate', 'matChurch'];
@@ -175,10 +256,12 @@ export function syncSpouses(members, source = -1) {
 
 /**
  * What actually gets sent for a member (public wizard and admin New
- * Household): names in Capitalized case, and the wedding type only while
- * Married, where only a Catholic wedding counts as the sacrament.
+ * Household): names in Capitalized case, nothing the member is too young
+ * for (see clearForAge), and the wedding type only while Married, where only
+ * a Catholic wedding counts as the sacrament.
  */
-export function toPayloadMember({ civilFromHead, weddingFromHead, ...m }) {
+export function toPayloadMember({ civilFromHead, weddingFromHead, ...rest }) {
+  const m = clearForAge(rest);
   const named = {
     ...m,
     firstName: toNameCase(m.firstName), middleName: toNameCase(m.middleName),

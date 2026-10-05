@@ -35,6 +35,14 @@ export const FAMILY_HEAD = 'Head of Family';
 export const HEADS = [HEAD, FAMILY_HEAD];
 export const MAX_FAMILIES = 10;
 
+// Registration only asks what a member is old enough for (by birthday):
+// First Communion and Confirmation from 7, Matrimony from 12, and a GKK or
+// parish role (Katungdanan) from 12.
+export const COMMUNION_MIN_AGE = 7;
+export const CONFIRMATION_MIN_AGE = 7;
+export const MATRIMONY_MIN_AGE = 12;
+export const ROLE_MIN_AGE = 12;
+
 // Sacraments and the member columns that hold each claim. `key` is what
 // sacrament_verifications.sacrament stores (0005 migration).
 export const SACRAMENTS = [

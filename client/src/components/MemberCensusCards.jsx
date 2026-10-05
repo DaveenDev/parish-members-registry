@@ -98,23 +98,75 @@ export default function MemberCensusCards({ memberViews, onChange, english = fal
   );
 }
 
-/** Each member's census answers for the review step: status, then the answers given. */
+/**
+ * Each member's census answers for the review step: their status, then a
+ * checklist with a tick under Aktibo, Panagsa or Wala for each activity.
+ */
 export function MemberCensusReview({ memberViews, english = false }) {
-  const label = (s) => (english ? s : MEMBERSHIP_STATUS_LABELS[s]);
+  const t = english
+    ? {
+      statusLabel: (s) => s, noStatus: 'no status yet', picked: 'selected', activity: 'Activity',
+      child: 'A child: nothing to answer.', none: 'Nothing to answer for this status.', noAnswers: 'No answers yet.',
+    }
+    : {
+      statusLabel: (s) => MEMBERSHIP_STATUS_LABELS[s], noStatus: 'wala pay kahimtang', picked: 'napili', activity: 'Kalihokan',
+      child: 'Bata pa: walay pangutana nga tubagon.', none: 'Walay pangutana para niini nga kahimtang.', noAnswers: 'Wala pay tubag.',
+    };
   return (
-    <ul className="list-none m-0 p-0 flex flex-col gap-2">
+    <ul className="list-none m-0 p-0 flex flex-col gap-3">
       {memberViews.map((mv) => {
         const { censusStatus, participation } = registrationAnswers(mv);
-        const answers = PARTICIPATION_ITEMS.filter(([k]) => participation[k]).map(([k, l]) => `${l}: ${participation[k]}`);
+        const answered = PARTICIPATION_ITEMS.some(([k]) => participation[k]);
+        const note = isYoungChild(mv.dob) ? t.child : !asksParticipation(censusStatus) ? t.none : !answered ? t.noAnswers : '';
         return (
-          <li key={mv.mi} className="text-[14px] text-parish-ink">
-            <span className="font-semibold">{mv.displayName}</span>
-            {' · '}
-            {censusStatus ? <span className="font-semibold text-parish-navy">{label(censusStatus)}</span> : <span className="text-parish-error">{english ? 'no status yet' : 'wala pay kahimtang'}</span>}
-            {answers.length > 0 && <div className="text-[12.5px] text-parish-text2">{answers.join(' · ')}</div>}
+          <li key={mv.mi} className="border border-parish-line2 rounded-xl bg-parish-surface px-3.5 py-3">
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-[14px]">
+              <span className="font-semibold text-parish-navy">{mv.displayName}</span>
+              {censusStatus
+                ? <span className="font-semibold text-[13px] text-parish-blue">{t.statusLabel(censusStatus)}</span>
+                : <span className="text-[13px] text-parish-error">{t.noStatus}</span>}
+            </div>
+            {note ? (
+              <div className="mt-1.5 text-[12.5px] text-parish-muted">{note}</div>
+            ) : (
+              <table className="w-full mt-2 border-collapse text-[13px]">
+                <thead>
+                  <tr className="text-parish-muted">
+                    <th scope="col" className="text-left font-semibold py-1 pr-2"><span className="sr-only">{t.activity}</span></th>
+                    {PARTICIPATION_LEVELS.map((level) => <th key={level} scope="col" className="w-[62px] font-semibold py-1 text-center">{level}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {PARTICIPATION_ITEMS.map(([key, label]) => (
+                    <tr key={key} className="border-t border-parish-line2">
+                      <th scope="row" className="text-left font-medium text-parish-ink py-1.5 pr-2">{label}</th>
+                      {PARTICIPATION_LEVELS.map((level) => (
+                        <td key={level} className="text-center py-1.5"><CheckMark on={participation[key] === level} label={t.picked} /></td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </li>
         );
       })}
     </ul>
+  );
+}
+
+/** A read-only checkbox: ticked, or an empty box. */
+function CheckMark({ on, label }) {
+  return (
+    <span
+      className={`inline-flex items-center justify-center w-[18px] h-[18px] rounded-[5px] border-[1.5px] align-middle ${on ? 'bg-parish-fill border-parish-blue text-white' : 'border-parish-borderSoft'}`}
+    >
+      {on && (
+        <>
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M20 6L9 17l-5-5" /></svg>
+          <span className="sr-only">{label}</span>
+        </>
+      )}
+    </span>
   );
 }

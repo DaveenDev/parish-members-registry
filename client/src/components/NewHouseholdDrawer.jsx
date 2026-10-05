@@ -8,11 +8,14 @@ import { registrationAnswers, censusCardPatch } from '../lib/census.js';
 import { useHouseholdNameTaken } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { MEN_ONLY_NOTE, isMale, menOnlyBlocked, menOnlyMessage } from '../lib/ministries.js';
-import { syncSpouses, weddingCouples, toPayloadMember, WEDDING_FIELDS, familiesOf, familyNoOf, nextFamilyNo, familyHeadName } from '../lib/household.js';
+import {
+  syncSpouses, weddingCouples, toPayloadMember, WEDDING_FIELDS, familiesOf, familyNoOf, nextFamilyNo, familyHeadName, familyHeadIndex,
+  familyTag, compactFamilies, repeatedMember, spouseSex, askedForAge,
+} from '../lib/household.js';
 import { ByFamily, FamilyHeading } from './FamilyGroups.jsx';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS, BLOOD_UNKNOWN_LABEL } from '../lib/bisaya.js';
 import {
-  blankMember, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES, HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate,
+  blankMember, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES, HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate, ageFromDob,
 } from '../constants.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -168,13 +171,19 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
       if (idx !== i) return m;
       const next = { ...m, [field]: value };
       const isHead = HEADS.includes(m.relationship);
-      if (!isHead && field === 'relationship') next.civilFromHead = value === 'Spouse';
+      if (!isHead && field === 'relationship') {
+        next.civilFromHead = value === 'Spouse';
+        // A Spouse is the other sex from the head of their family (still editable).
+        const hi = familyHeadIndex(ms, familyNoOf(m));
+        const sex = value === 'Spouse' && hi >= 0 && hi !== idx ? spouseSex(ms[hi].sex) : '';
+        if (sex) next.sex = sex;
+      }
       if (!isHead && field === 'civilStatus') next.civilFromHead = false;
       // No longer male: off any men-only ministry (Kaabag) ticked earlier.
       if (field === 'sex' && !isMale(value) && menOnly) next.ministries = (next.ministries || []).filter((n) => !menOnly.has(n));
       return next;
     }), WEDDING_FIELDS.includes(field) ? i : -1));
-    const cleared = field === 'relationship' ? [field, 'civilStatus'] : [field];
+    const cleared = field === 'relationship' ? [field, 'civilStatus', 'sex'] : [field];
     setMemberErr((me) => me.map((e, idx) => (idx === i && e ? { ...e, ...Object.fromEntries(cleared.map((f) => [f, ''])) } : e)));
     setBanner('');
     if (i === 0 && field === 'lastName' && !householdNameTouched) {
@@ -220,7 +229,8 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
       });
       if (!ok) return;
     }
-    setMembers((ms) => ms.filter((_, idx) => !drop.includes(idx)));
+    // The families after it move up a number (Family #3 becomes #2).
+    setMembers((ms) => compactFamilies(ms.filter((_, idx) => !drop.includes(idx))));
     setMemberErr((me) => me.filter((_, idx) => !drop.includes(idx)));
   }
 
@@ -239,12 +249,18 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
     }
     if (n === 2) {
       let ok = true;
+      let repeated = false;
       members.forEach((m, i) => {
         if (i === 0) return;
         me[i] = memberErrors(m, { head: HEADS.includes(m.relationship) });
+        // The Household Head (or anyone already listed) entered again as a member.
+        if (!me[i].firstName && repeatedMember(members, i) >= 0) { me[i].firstName = 'Already listed in this household'; repeated = true; }
         if (Object.keys(me[i]).length) ok = false;
       });
-      return { ok, err: e, memberErr: me, banner: ok ? '' : 'Please complete the required details of each member.' };
+      const banner = repeated
+        ? 'A member is already listed (e.g. the Household Head). Remove them, or correct the name, suffix or birthday if they are someone else.'
+        : 'Please complete the required details of each member.';
+      return { ok, err: e, memberErr: me, banner: ok ? '' : banner };
     }
     if (n === 4) {
       // Every member needs a status now, picked or suggested from their answers.
@@ -290,7 +306,12 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
     }
   }
 
-  const memberViews = members.map((m, i) => ({ ...m, mi: i, displayName: displayName(m, i), err: memberErr[i] || {} }));
+  const memberViews = members.map((m, i) => ({ ...m, mi: i, displayName: displayName(m, i), familyLabel: familyTag(m), err: memberErr[i] || {} }));
+  // Someone already listed (usually the Household Head) entered again.
+  memberViews.forEach((mv, i) => {
+    const j = repeatedMember(members, i);
+    mv.repeats = j >= 0 ? memberViews[j] : null;
+  });
   const stepProps = {
     household, err, onHouseholdField: updateHousehold, gkkOptions, nameTaken,
     onParticipation: setParticipation, onToggleHelpWay: toggleHelpWay,
@@ -394,9 +415,28 @@ function MemberHeading({ mv, children }) {
     <div className="flex items-center justify-between gap-3 mb-4">
       <div className="flex items-center gap-2.5 min-w-0">
         <div className="w-8 h-8 rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[14px] flex-none">{mv.mi + 1}</div>
-        <span className="font-serif text-[20px] font-semibold text-parish-navy truncate">{mv.displayName}</span>
+        {/* "Romnick Enaldo (Family #1)" */}
+        <span className="flex items-baseline gap-2 min-w-0 font-serif text-[20px] font-semibold text-parish-navy">
+          <span className="truncate">{mv.displayName}</span>
+          {mv.familyLabel && <span className="flex-none font-sans text-[12.5px] font-semibold text-parish-muted">({mv.familyLabel})</span>}
+        </span>
       </div>
       {children}
+    </div>
+  );
+}
+
+/** Shown on a member who repeats someone already listed, usually the Household Head. */
+function RepeatedWarning({ mv }) {
+  const other = mv.repeats;
+  if (!other) return null;
+  return (
+    <div role="alert" className="flex gap-2.5 items-start bg-parish-errorBg border border-parish-errorBorder text-parish-error rounded-xl px-3.5 py-2.5 mb-3.5 text-[13px]">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-none mt-0.5" aria-hidden><circle cx="12" cy="12" r="9" /><path d="M12 8v5M12 16.5v.01" /></svg>
+      <span>
+        <strong>{other.displayName}</strong> is already {HEADS.includes(other.relationship) ? `the ${other.relationship}` : `listed (${other.relationship || 'member'})`}{other.mi === 0 ? ', entered on step 1' : ''}.
+        {' '}Don’t add them again as a member. If this is someone else, enter their own birthday or suffix (Jr.).
+      </span>
     </div>
   );
 }
@@ -603,6 +643,7 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onAddFamily, onR
                     </button>
                   </MemberHeading>
                   {isFamilyHead && <p className="text-[12.5px] font-semibold text-parish-muted -mt-2 mb-3">Head of Family: the others in this family give their relationship to them.</p>}
+                  <RepeatedWarning mv={mv} />
                   <MemberNameFields mv={mv} onField={onMemberField} />
                   <div className="mt-4"><MemberFieldsGrid mv={mv} onField={onMemberField} head={isFamilyHead} /></div>
                 </Panel>
@@ -693,27 +734,35 @@ function StepSacraments({ memberViews, onMemberField }) {
   return (
     <div className="animate-fadeUp">
       <p className="text-[13.5px] text-parish-muted m-0 mb-4">Tick the sacraments each member has received. Dates and parishes are optional but help the records.</p>
-      <ByFamily members={memberViews} gap="gap-0" groupGap="gap-2" render={(mv, i) => (
-        <Panel key={i}>
-          <MemberHeading mv={mv} />
-          <div className="flex flex-col gap-2.5">
-            <SacramentBlock mv={mv} field="hasBaptism" dateField="baptismDate" churchField="baptismChurch" label="Baptism" onField={onMemberField} />
-            <SacramentBlock mv={mv} field="hasCommunion" dateField="communionDate" churchField="communionChurch" label="First Communion" onField={onMemberField} />
-            <SacramentBlock
-              mv={mv} field="hasConfirmation" dateField="confDate" churchField="confChurch" label="Confirmation" onField={onMemberField}
-              extra={(set) => (
-                <>
-                  <TextInput placeholder="Confirmation name" value={mv.confName} onChange={set('confName')} />
-                  <TextInput placeholder="Sponsor" value={mv.confSponsor} onChange={set('confSponsor')} />
-                </>
+      <ByFamily members={memberViews} gap="gap-0" groupGap="gap-2" render={(mv, i) => {
+        // Only the sacraments they're old enough for (see askedForAge).
+        const asked = askedForAge(mv.dob);
+        const tooYoung = !asked.communion || !asked.confirmation || !asked.matrimony;
+        return (
+          <Panel key={i}>
+            <MemberHeading mv={mv} />
+            <div className="flex flex-col gap-2.5">
+              <SacramentBlock mv={mv} field="hasBaptism" dateField="baptismDate" churchField="baptismChurch" label="Baptism" onField={onMemberField} />
+              {asked.communion && <SacramentBlock mv={mv} field="hasCommunion" dateField="communionDate" churchField="communionChurch" label="First Communion" onField={onMemberField} />}
+              {asked.confirmation && (
+                <SacramentBlock
+                  mv={mv} field="hasConfirmation" dateField="confDate" churchField="confChurch" label="Confirmation" onField={onMemberField}
+                  extra={(set) => (
+                    <>
+                      <TextInput placeholder="Confirmation name" value={mv.confName} onChange={set('confName')} />
+                      <TextInput placeholder="Sponsor" value={mv.confSponsor} onChange={set('confSponsor')} />
+                    </>
+                  )}
+                />
               )}
-            />
-            {mv.civilStatus === 'Married'
-              ? <WeddingBlock mv={mv} sharedWith={sharedWith(i)} onField={onMemberField} />
-              : <SacramentBlock mv={mv} field="hasMatrimony" dateField="matDate" churchField="matChurch" label="Matrimony" onField={onMemberField} />}
-          </div>
-        </Panel>
-      )} />
+              {asked.matrimony && (mv.civilStatus === 'Married'
+                ? <WeddingBlock mv={mv} sharedWith={sharedWith(i)} onField={onMemberField} />
+                : <SacramentBlock mv={mv} field="hasMatrimony" dateField="matDate" churchField="matChurch" label="Matrimony" onField={onMemberField} />)}
+              {tooYoung && <div className="text-[12.5px] text-parish-muted">Age {ageFromDob(mv.dob)}: the sacraments they’re too young for are hidden.</div>}
+            </div>
+          </Panel>
+        );
+      }} />
     </div>
   );
 }
@@ -755,6 +804,8 @@ function StepParticipation({
     ['organizations', 'Organizations', 'Tick each parish organization the member already belongs to.', orgOptions],
     ['ministries', 'Ministries', 'Assign the ministries each member serves in.', ministryOptions],
   ];
+  // Children aren't asked about a GKK or parish role (see askedForAge).
+  const roleViews = memberViews.filter((mv) => askedForAge(mv.dob).roles);
   return (
     <div className="animate-fadeUp">
       <Panel title="Census: each member's participation" hint="Their status now and how active each member is. While a census is open, this counts as their census answer.">
@@ -776,21 +827,23 @@ function StepParticipation({
         </Panel>
       ))}
 
-      <Panel title="Responsibility in GKK" hint="Leave blank if the member has no GKK role.">
-        <div className="flex flex-col gap-3">
-          {memberViews.map((mv) => (
-            <div key={mv.mi} className="grid gap-x-4 gap-y-1.5 items-center" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
-              <MemberLabel mv={mv} htmlFor={`nh-gkk-role-${mv.mi}`} />
-              <ComboInput id={`nh-gkk-role-${mv.mi}`} placeholder="Pick or type a role" options={GKK_ROLES} value={mv.gkkRole} onChange={(v) => onMemberField(mv.mi, 'gkkRole', v)} />
-            </div>
-          ))}
-        </div>
-      </Panel>
+      {roleViews.length > 0 && (
+        <Panel title="Responsibility in GKK" hint="Leave blank if the member has no GKK role.">
+          <div className="flex flex-col gap-3">
+            {roleViews.map((mv) => (
+              <div key={mv.mi} className="grid gap-x-4 gap-y-1.5 items-center" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
+                <MemberLabel mv={mv} htmlFor={`nh-gkk-role-${mv.mi}`} />
+                <ComboInput id={`nh-gkk-role-${mv.mi}`} placeholder="Pick or type a role" options={GKK_ROLES} value={mv.gkkRole} onChange={(v) => onMemberField(mv.mi, 'gkkRole', v)} />
+              </div>
+            ))}
+          </div>
+        </Panel>
+      )}
 
-      {parishRoleOptions.length > 0 && (
+      {parishRoleOptions.length > 0 && roleViews.length > 0 && (
         <Panel title="Responsibility in Parish" hint="Leave blank if the member has no parish role.">
           <div className="flex flex-col gap-3">
-            {memberViews.map((mv) => (
+            {roleViews.map((mv) => (
               <div key={mv.mi} className="grid gap-x-4 gap-y-1.5 items-center" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
                 <MemberLabel mv={mv} htmlFor={`nh-parish-role-${mv.mi}`} />
                 <OptionSelect id={`nh-parish-role-${mv.mi}`} placeholder="None" options={parishRoleOptions} value={mv.parishRole} onChange={(v) => onMemberField(mv.mi, 'parishRole', v)} />
@@ -831,10 +884,25 @@ function StepParticipation({
 
 function StepReview({ household, memberViews, status, volunteer, notifyOptin, consent, onGoStep }) {
   const addr = [household.street, household.barangay, household.city, household.province, household.zip].filter(Boolean).join(', ') || '—';
+  // Each family in the house under its name: "Family #2 · Family of Efren Dayao · 3 people".
+  const families = familiesOf(memberViews);
+  const householdName = families.length > 1 ? (
+    <>
+      {household.householdName || '—'}
+      <ul className="list-none m-0 mt-1 p-0 flex flex-col gap-0.5">
+        {families.map((g) => (
+          <li key={g.familyNo} className="text-[13px] text-parish-text2">
+            <span className="font-semibold text-parish-navy">Family #{g.familyNo}</span>
+            {' · '}Family of {familyHeadName(g.head) || (g.familyNo === 1 ? HEAD : FAMILY_HEAD)}
+            {' · '}{g.members.length} {g.members.length === 1 ? 'person' : 'people'}
+          </li>
+        ))}
+      </ul>
+    </>
+  ) : household.householdName || '—';
   const householdReview = [
     ['Household head', fullName(memberViews[0]) || '—'],
-    ['Household name', household.householdName || '—'],
-    ...(familiesOf(memberViews).length > 1 ? [['Families', String(familiesOf(memberViews).length)]] : []),
+    ['Household name', householdName],
     ['Address', addr],
     ['GKK', household.gkk || '—'],
     ['Family Grouping', household.familyGrouping || '—'],
@@ -848,13 +916,14 @@ function StepReview({ household, memberViews, status, volunteer, notifyOptin, co
     ['Status', status],
   ];
 
+  // What will be saved: nothing a member is too young for (a box ticked before the birthday changed).
   function sacList(m) {
     const j = (arr) => arr.filter(Boolean).join(' · ');
     const s = [];
-    if (m.hasBaptism) s.push(['Baptism', j([fmtDate(m.baptismDate), m.baptismChurch]) || 'Recorded']);
-    if (m.hasCommunion) s.push(['First Communion', j([fmtDate(m.communionDate), m.communionChurch]) || 'Recorded']);
-    if (m.hasConfirmation) s.push(['Confirmation', j([fmtDate(m.confDate), m.confChurch, m.confName && `Name: ${m.confName}`, m.confSponsor && `Sponsor: ${m.confSponsor}`]) || 'Recorded']);
     const p = toPayloadMember(m);
+    if (p.hasBaptism) s.push(['Baptism', j([fmtDate(p.baptismDate), p.baptismChurch]) || 'Recorded']);
+    if (p.hasCommunion) s.push(['First Communion', j([fmtDate(p.communionDate), p.communionChurch]) || 'Recorded']);
+    if (p.hasConfirmation) s.push(['Confirmation', j([fmtDate(p.confDate), p.confChurch, p.confName && `Name: ${p.confName}`, p.confSponsor && `Sponsor: ${p.confSponsor}`]) || 'Recorded']);
     if (p.hasMatrimony) s.push(['Matrimony', j([bis(WEDDING_TYPE_LABELS, p.matType), fmtDate(p.matDate), p.matChurch]) || 'Recorded']);
     else if (p.matType) s.push(['Married', bis(WEDDING_TYPE_LABELS, p.matType)]);
     if (!s.length) s.push(['—', 'No sacraments recorded']);
@@ -878,7 +947,7 @@ function StepReview({ household, memberViews, status, volunteer, notifyOptin, co
             <div className="text-[13px] text-parish-muted mb-2.5">
               {[bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), bis(CIVIL_STATUS_LABELS, m.civilStatus), m.dob && `born ${fmtDate(m.dob)}`,
                 m.tribe && `Tribe: ${m.tribe}`, m.religion && m.religion !== 'Roman Catholic' && `Religion: ${bis(RELIGION_LABELS, m.religion)}`,
-                m.bloodType && `Blood: ${m.bloodType}`, m.gkkRole && `GKK: ${m.gkkRole}`, m.parishRole && `Parish: ${m.parishRole}`].filter(Boolean).join('  ·  ') || '—'}
+                m.bloodType && `Blood: ${m.bloodType}`, askedForAge(m.dob).roles && m.gkkRole && `GKK: ${m.gkkRole}`, askedForAge(m.dob).roles && m.parishRole && `Parish: ${m.parishRole}`].filter(Boolean).join('  ·  ') || '—'}
             </div>
             {!!(m.organizations || []).length && (
               <div className="text-[13px] mb-1.5"><span className="text-parish-blue font-semibold">Organizations</span> <span className="text-parish-text2">{m.organizations.join(' · ')}</span></div>
@@ -925,7 +994,7 @@ function ReviewRow({ label, value }) {
   return (
     <div className="flex flex-col sm:flex-row gap-0.5 sm:gap-3.5 text-[14px] border-b border-parish-line2 pb-2">
       <span className="sm:flex-none sm:w-[130px] text-parish-muted font-semibold text-[13px]">{label}</span>
-      <span className="text-parish-ink break-words">{value}</span>
+      <div className="text-parish-ink break-words min-w-0">{value}</div>
     </div>
   );
 }

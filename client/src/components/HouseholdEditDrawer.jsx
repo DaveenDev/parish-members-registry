@@ -8,7 +8,7 @@ import MemberCensusCards, { MemberCensusReview } from './MemberCensusCards.jsx';
 import { MEMBERSHIP_STATUSES, STATUS_TONES, censusCardPatch, registrationAnswers } from '../lib/census.js';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import { HELP_WAYS, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, RELATIONSHIPS, CIVIL_STATUSES, ageFromDob, fmtDateTime } from '../constants.js';
-import { familiesOf, familyNoOf, nextFamilyNo } from '../lib/household.js';
+import { familiesOf, familyNoOf, nextFamilyNo, samePerson, spouseSex } from '../lib/household.js';
 import { FamilyHeading, familyTitle } from './FamilyGroups.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
@@ -452,7 +452,19 @@ export function AddMemberForm({ householdId, members = [], initialFamily = 1, on
   const [saving, setSaving] = useState(false);
   const relationships = isNewFamily ? [FAMILY_HEAD] : relationshipsForFamily(members, familyNo);
 
-  const set = (field) => (e) => { setM((x) => ({ ...x, [field]: e.target.value })); setErrors((x) => ({ ...x, [field]: '' })); };
+  // Someone already in the household (usually the Household Head) entered again.
+  const repeats = members.find((x) => samePerson(m, x));
+
+  const set = (field) => (e) => {
+    const { value } = e.target;
+    setM((x) => {
+      const next = { ...x, [field]: value };
+      // A Spouse is the other sex from the head of their family (still editable).
+      if (field === 'relationship' && value === 'Spouse') next.sex = spouseSex(familyHead?.sex) || x.sex;
+      return next;
+    });
+    setErrors((x) => ({ ...x, [field]: '' }));
+  };
   const tidy = (field, format = toNameCase) => (e) => setM((x) => ({ ...x, [field]: format(e.target.value) }));
 
   function chooseFamily(value) {
@@ -468,6 +480,7 @@ export function AddMemberForm({ householdId, members = [], initialFamily = 1, on
     const e = {};
     if (!m.lastName.trim()) e.lastName = 'Last name is required';
     if (!m.firstName.trim()) e.firstName = 'First name is required';
+    else if (repeats) e.firstName = 'Already in this household';
     if (!m.relationship) e.relationship = 'Choose a relationship';
     setErrors(e);
     if (Object.keys(e).length) return;
@@ -491,6 +504,12 @@ export function AddMemberForm({ householdId, members = [], initialFamily = 1, on
     <div className="mt-3 border-[1.5px] border-parish-focusLine rounded-xl p-4 bg-parish-fillSoft">
       <div className="font-semibold text-[14px] text-parish-navy mb-3">{isNewFamily ? 'Another family in this house: its Head of Family' : 'New member'}</div>
       {errors.form && <div className="mb-3 text-parish-error text-[13px]" role="alert">{errors.form}</div>}
+      {repeats && (
+        <div role="alert" className="mb-3 bg-parish-errorBg border border-parish-errorBorder text-parish-error rounded-lg px-3 py-2 text-[13px]">
+          <strong>{[repeats.first_name, repeats.last_name, repeats.suffix].filter(Boolean).join(' ')}</strong> is already in this household
+          {repeats.relationship ? ` (${repeats.relationship})` : ''}. Don’t add them again. If this is someone else, enter their own birthday or suffix (Jr.).
+        </div>
+      )}
       <div className="grid gap-3" style={GRID}>
         <Field label="Family">
           <Select value={family} onChange={(e) => chooseFamily(e.target.value)}>
