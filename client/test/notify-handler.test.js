@@ -63,7 +63,7 @@ describe('notify-staff helpers', () => {
 
   test('contact: the parish email, else the website', () => {
     assert.equal(contactFor('office@olg.ph', 'https://x.vercel.app', FN_URL), 'mailto:office@olg.ph');
-    assert.equal(contactFor('', 'https://olgqp-registry.vercel.app/admin', FN_URL), 'https://olgqp-registry.vercel.app');
+    assert.equal(contactFor('', 'https://guadalupe-muaan.vercel.app/admin', FN_URL), 'https://guadalupe-muaan.vercel.app');
     assert.equal(contactFor('nope', 'http://localhost:5173', FN_URL), 'https://abc.supabase.co');
   });
 });

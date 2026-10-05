@@ -22,7 +22,7 @@ describe('isRecoverySession', () => {
 
 describe('reset links and messages', () => {
   test('the link lands on the reset page of this site', () => {
-    assert.equal(resetRedirectUrl('https://olgqp-registry.vercel.app/'), `https://olgqp-registry.vercel.app${RESET_PATH}`);
+    assert.equal(resetRedirectUrl('https://guadalupe-muaan.vercel.app/'), `https://guadalupe-muaan.vercel.app${RESET_PATH}`);
   });
   test('turns Supabase errors into plain words', () => {
     assert.equal(resetErrorMessage({ message: 'For security purposes, you can only request this after 42 seconds.' }), 'Please wait 42 seconds before asking for another link.');

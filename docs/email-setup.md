@@ -62,8 +62,8 @@ Supabase also limits how many auth emails go out per hour
 
 Supabase dashboard → **Authentication → URL Configuration**:
 
-- **Site URL:** `https://olgqp-registry.vercel.app`
-- **Redirect URLs:** add `https://olgqp-registry.vercel.app/**`, and
+- **Site URL:** `https://guadalupe-muaan.vercel.app`
+- **Redirect URLs:** add `https://guadalupe-muaan.vercel.app/**`, and
   `http://localhost:5173/**` for local development.
 
 Without these, the link in the email opens the home page in place of the

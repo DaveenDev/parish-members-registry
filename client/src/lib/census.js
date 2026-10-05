@@ -514,7 +514,7 @@ export function formatAccessCode(code) {
 // ---- census link and QR code on printed sheets (0042 migration) ---------
 
 /** Where printed links point when Parish Config has no public website address. */
-export const DEFAULT_SITE_URL = 'https://olgqp-registry.vercel.app';
+export const DEFAULT_SITE_URL = 'https://guadalupe-muaan.vercel.app';
 
 /**
  * " Parish.org/ " → "https://parish.org": what Parish Config saves as the
