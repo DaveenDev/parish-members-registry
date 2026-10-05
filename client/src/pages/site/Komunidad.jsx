@@ -3,11 +3,12 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Avatar, BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
+import { Body, Gallery } from './Details.jsx';
 import { phoneHref } from '../../lib/requests.js';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, initialsOf, sortCensusGkks } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { useSiteTitle } from './SiteLayout.jsx';
-import { listState, useCensusProgress, useGkkDirectory } from './data.js';
+import { listState, useCensusProgress, useGkkDirectory, useGkkHistory } from './data.js';
 
 const SMALL = 'Ubos sa 5';
 
@@ -278,6 +279,7 @@ export function GkkDetail() {
   const { name } = useParams();
   const dir = listState(useGkkDirectory());
   const census = useCensusProgress().data;
+  const history = useGkkHistory(name).data;
   const found = dir.rows.find((g) => g.name === name);
   const { patron, area } = gkkParts(name);
   useSiteTitle(patron);
@@ -371,6 +373,13 @@ export function GkkDetail() {
       >
         Mao ni ang akong GKK, magparehistro
       </Link>
+      {history && (
+        <section aria-labelledby="gkk-history-title" className="mt-9 lg:mt-12 lg:col-span-2 lg:row-start-3 lg:max-w-[880px]">
+          <h2 id="gkk-history-title" className="font-serif font-semibold text-[26px] lg:text-[34px] m-0 mb-3 lg:mb-4 text-parish-navy">Kasaysayan</h2>
+          {history.history && <Body text={history.history} />}
+          <Gallery photos={history.photos} />
+        </section>
+      )}
     </main>
   );
 }

@@ -78,6 +78,12 @@ describe('sign', () => {
     const res = await call('token-web', sign({ folder: 'events' }), r2);
     assert.equal(res.body.publicUrl, `${BASE}/events/2026/10/abc.jpg`);
   });
+  test('GKK history photos go under gkks/YYYY/MM and can be deleted', async () => {
+    const r2 = fakeR2();
+    const res = await call('token-web', sign({ folder: 'gkks' }), r2);
+    assert.equal(res.body.publicUrl, `${BASE}/gkks/2026/10/abc.jpg`);
+    assert.equal((await call('token-web', { action: 'delete', url: `${BASE}/gkks/2026/10/abc.jpg` }, r2)).status, 200);
+  });
   test('webp and png keep their extension', () => {
     assert.equal(objectKey('articles', 'image/webp', 'x', NOW), 'articles/2026/10/x.webp');
     assert.equal(objectKey('articles', 'image/png', 'x', NOW), 'articles/2026/10/x.png');
@@ -164,7 +170,7 @@ function fakeDb(tables) {
   const query = (name) => {
     const filters = [];
     let patch = null;
-    const rows = () => tables[name].filter((r) => filters.every((f) => f(r)));
+    const rows = () => (tables[name] || []).filter((r) => filters.every((f) => f(r)));
     const q = {
       select: () => q,
       eq: (col, val) => { filters.push((r) => r[col] === val); return q; },

@@ -1,4 +1,4 @@
-# Photo storage (Cloudflare R2) for Blog Articles and event covers
+# Photo storage (Cloudflare R2) for Blog Articles, event covers and GKK history
 
 Blog Article photos (Admin → Parish Website → Blog Articles) are stored in a
 Cloudflare R2 bucket, not in the database. The admin never sees the R2 keys:
@@ -119,5 +119,12 @@ in the SQL editor (adds each article's gallery and the History / Kasaysayan tag)
   cancelled are deleted too.
 - Event covers work the same way, except that **Duplicate** copies the cover to
   the new event, so a cover is only deleted from R2 once no event uses it.
-- The function only deletes files under `articles/` and `events/` in this bucket.
+- GKK history photos (Parish Config → Parish GKK → History, after
+  [`0044_gkk_history_documents.sql`](../supabase/migrations/0044_gkk_history_documents.sql)
+  and redeploying the function) go under `gkks/YYYY/MM/<random>.jpg` and keep that
+  name. They're deleted the same way when taken off a saved history.
+- The function only deletes files under `articles/`, `events/` and `gkks/` in this bucket.
+- A GKK's land titles and other documents are **not** kept on R2 (anyone with a
+  photo's link can open it): they go in the private `gkk-documents` bucket of
+  Supabase Storage, which 0044 creates.
 - Free tier: 10 GB stored, no download (egress) fees.

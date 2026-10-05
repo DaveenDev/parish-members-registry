@@ -1,4 +1,5 @@
-// Photo uploads for the Parish Website (Blog Articles and event covers), stored on Cloudflare R2.
+// Photo uploads for the Parish Website (Blog Articles, event covers and GKK
+// history photos), stored on Cloudflare R2.
 //
 // The R2 keys must never reach the browser, so this Edge Function hands the
 // admin a short-lived signed PUT link instead; the browser then uploads the
@@ -15,7 +16,7 @@
 const isDisabled = (user, now) => !!user?.banned_until && new Date(user.banned_until) > now;
 
 export const MAX_BYTES = 10 * 1024 * 1024;
-export const FOLDERS = ['articles', 'events'];
+export const FOLDERS = ['articles', 'events', 'gkks'];
 const TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const EDIT_WEBSITE = ['full', 'website'];
 export const NOT_CONFIGURED = "Photo storage isn't set up yet. A staff admin can add the Cloudflare R2 settings under Parish Config (see docs/media-storage.md).";
@@ -118,14 +119,17 @@ export function namePlan(table, row, publicBase) {
   return { moves, patch };
 }
 
-/** True when any article or event still links to `url` (or when we can't tell). */
+/** True when any article, event or GKK history still links to `url` (or when we can't tell). */
 async function inUse(admin, url) {
   const checks = await Promise.all([
     admin.from('articles').select('id').eq('photo_url', url).limit(1),
     admin.from('articles').select('id').contains('photos', [{ url }]).limit(1),
     admin.from('events').select('id').eq('photo_url', url).limit(1),
+    admin.from('gkks').select('id').contains('history_photos', [{ url }]).limit(1),
   ]);
-  return checks.some((r) => r.error || r.data?.length);
+  // Before the 0044 migration there's no history_photos column, so no GKK uses it.
+  const noColumn = (e) => /history_photos/.test(e?.message || '');
+  return checks.some((r) => (r.error && !noColumn(r.error)) || r.data?.length);
 }
 
 /**

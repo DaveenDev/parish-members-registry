@@ -22,12 +22,13 @@ const byPurok = (a, b) => (a.purok || '').localeCompare(b.purok || '', undefined
  * What's left is the "not yet registered" list GKK leaders print for house
  * visits. GKK leaders see and change only their own GKK. `canEdit` adds,
  * edits and ticks names; `canManage` may also clear a GKK's whole list.
+ * `initialGkk` opens on that GKK's list instead of the all-GKK overview.
  */
-export default function LastYearList({ ownGkk, parish, canEdit, canManage, onChanged }) {
+export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit, canManage, onChanged }) {
   const confirm = useConfirm();
   const toast = useToast();
   const fileRef = useRef(null);
-  const [gkk, setGkk] = useState(ownGkk || '');
+  const [gkk, setGkk] = useState(ownGkk || initialGkk);
   const [gkkNames, setGkkNames] = useState(ownGkk ? [ownGkk] : []);
   const [overview, setOverview] = useState(null); // Map of GKK → counts, for the all-GKK view
   const [rows, setRows] = useState(null);

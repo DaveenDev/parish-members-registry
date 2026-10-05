@@ -15,6 +15,7 @@ import { certTypeLabel } from './lib/requests.js';
 import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
 import { MEN_ONLY_FALLBACK, menOnlyBlocked, menOnlyMessage } from './lib/ministries.js';
 import { resizePhotoBlob } from './lib/images.js';
+import { gkkDocumentPath, gkkDocumentType } from './lib/gkkDocuments.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -642,6 +643,8 @@ export const api = {
 
   async deleteGkk(name) {
     const { error } = await supabase.rpc('delete_gkk', { target_name: name });
+    // gkk_documents keeps a GKK that has documents (0044).
+    if (error?.code === '23503' && /gkk_documents/.test(error.message || '')) throw new Error('This GKK still has documents (land titles and others). Delete them in its Documents tab first.');
     if (error) throw mapError(error);
     return null;
   },
@@ -849,6 +852,7 @@ export const api = {
     const fields = Object.fromEntries(GKK_DETAIL_FIELDS.filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
     const { data, error } = await supabase.from('gkks').insert({ name: name.trim(), ...cleanPatch(fields) }).select().single();
     if (error?.code === '23505') throw new Error('A GKK with this name already exists');
+    if (gkk44Missing(error)) throw new Error(GKK_44_HINT);
     if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql and 0040_gkk_previous_households.sql migrations in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
@@ -856,9 +860,49 @@ export const api = {
   async saveGkkDetails(id, patch) {
     const fields = Object.fromEntries(GKK_DETAIL_FIELDS.filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
     const { data, error } = await supabase.from('gkks').update(cleanPatch(fields)).eq('id', id).select().single();
+    if (gkk44Missing(error)) throw new Error(GKK_44_HINT);
     if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql and 0040_gkk_previous_households.sql migrations in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
+  },
+
+  // A GKK's documents (0044): rows in gkk_documents, files in the private gkk-documents bucket.
+  async listGkkDocuments(gkkId) {
+    const { data, error } = await supabase.from('gkk_documents').select('*').eq('gkk_id', gkkId).order('created_at', { ascending: false });
+    if (gkk44Missing(error)) throw new Error(GKK_44_HINT);
+    if (error) throw mapError(error);
+    return data || [];
+  },
+  /** Upload `file` to the GKK's folder, then save its row; the file is removed again if the row can't be saved. */
+  async uploadGkkDocument(gkkId, file, { title, kind, note }) {
+    const contentType = gkkDocumentType(file);
+    const path = gkkDocumentPath(gkkId, contentType, crypto.randomUUID());
+    const { error: upError } = await supabase.storage.from(GKK_DOCS_BUCKET).upload(path, file, { contentType, upsert: false });
+    if (upError) {
+      if (/bucket not found/i.test(upError.message || '')) throw new Error(GKK_44_HINT);
+      throw new Error(/row-level security|unauthorized/i.test(upError.message || '') ? "Your account can't add documents to this GKK" : upError.message || 'Could not upload the file');
+    }
+    const { data, error } = await supabase.from('gkk_documents')
+      .insert({ gkk_id: gkkId, title, kind, note: note || null, file_path: path, file_name: file.name.slice(0, 255), content_type: contentType, size_bytes: file.size })
+      .select().single();
+    if (error) {
+      await supabase.storage.from(GKK_DOCS_BUCKET).remove([path]).catch(() => {});
+      if (gkk44Missing(error)) throw new Error(GKK_44_HINT);
+      throw mapError(error);
+    }
+    return data;
+  },
+  /** A link to the file that works for 5 minutes (`download` saves it under its own name instead of opening it). */
+  async gkkDocumentLink(doc, { download = false } = {}) {
+    const { data, error } = await supabase.storage.from(GKK_DOCS_BUCKET).createSignedUrl(doc.file_path, 300, download ? { download: doc.file_name } : undefined);
+    if (error) throw new Error(error.message || 'Could not open the file');
+    return data.signedUrl;
+  },
+  async deleteGkkDocument(doc) {
+    const { error } = await supabase.from('gkk_documents').delete().eq('id', doc.id);
+    if (error) throw mapError(error);
+    const { error: rmError } = await supabase.storage.from(GKK_DOCS_BUCKET).remove([doc.file_path]);
+    if (rmError) throw new Error(`The document was taken off the list, but its file could not be deleted: ${rmError.message}`);
   },
 
   /** Publish or unpublish one item of any website content table. */
@@ -913,6 +957,8 @@ export const api = {
   },
   /** [{ name, puroks, chapel_address, year_established, meeting_schedule, meeting_place, households|null, census_pct|null, coordinator|null }] */
   publicGkkDirectory: () => publicRpc('public_gkk_directory'),
+  /** A GKK's published history { history, photos }, or null (also before 0044). */
+  publicGkkHistory: (name) => publicRpc('public_gkk_history', { p_name: name }).catch(() => null),
   /** { open, label, ends_on, pct, gkks: [{ name, pct|null }] } */
   publicCensusProgress: () => publicRpc('public_census_progress'),
   publicOfficeDetails: () => publicRpc('public_office_details'),
@@ -1397,7 +1443,15 @@ const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'dire
 
 const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles'];
 
-const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households'];
+const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'history', 'history_photos', 'history_published'];
+
+const GKK_DOCS_BUCKET = 'gkk-documents';
+
+/** Before 0044 the GKK's history columns and documents table don't exist; say which file adds them. */
+function gkk44Missing(error) {
+  return ['42703', 'PGRST204', '42P01', 'PGRST205'].includes(error?.code) && /history|gkk_documents/.test(error?.message || '');
+}
+const GKK_44_HINT = 'Run the 0044_gkk_history_documents.sql migration in Supabase to save GKK history and documents';
 
 async function listWebsite(table, order, migration = '0011_website_content.sql') {
   const { data, error } = await order(supabase.from(table).select('*'));

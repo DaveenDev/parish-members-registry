@@ -10,6 +10,8 @@ export const useBulletins = () => usePublicData('bulletins', api.publicBulletins
 export const useEvents = () => usePublicData('events', () => api.publicEvents(todayIso()));
 export const useArticles = () => usePublicData('articles', api.publicArticles);
 export const useGkkDirectory = () => usePublicData('gkks', api.publicGkkDirectory);
+/** A GKK's published history { history, photos }, or null. */
+export const useGkkHistory = (name) => usePublicData(`gkk-history:${name}`, () => api.publicGkkHistory(name));
 export const useOffice = () => usePublicData('office', api.publicOfficeDetails);
 /** The open census, or { open: false } (also before 0013 is run). */
 export const useCensusProgress = () => usePublicData('census', () => api.publicCensusProgress().catch(() => ({ open: false })));

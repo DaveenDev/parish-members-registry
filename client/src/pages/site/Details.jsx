@@ -31,7 +31,7 @@ const READ_TEXT = 'text-[17px] lg:text-[19px] leading-[1.65] lg:leading-[1.7] te
 const DETAIL_TITLE = 'font-serif font-semibold text-[31px] lg:text-[48px] leading-[1.1] lg:leading-[1.06] m-0 mb-3.5 lg:mb-5 text-parish-navy';
 const SHARE = 'mt-2 lg:w-auto lg:inline-flex lg:px-6 lg:min-h-[52px] lg:text-[16px]';
 
-function Body({ text, className = READ_TEXT }) {
+export function Body({ text, className = READ_TEXT }) {
   return paragraphs(text).map((p, i) => <p key={i} className={`m-0 mb-3.5 lg:mb-4 whitespace-pre-line ${className}`}>{p}</p>);
 }
 
@@ -185,8 +185,8 @@ export function ArticleDetail() {
   );
 }
 
-/** An article's photo gallery: a grid of thumbnails; tapping one opens it full screen. */
-function Gallery({ photos }) {
+/** An article's (or a GKK history's) photo gallery: a grid of thumbnails; tapping one opens it full screen. */
+export function Gallery({ photos }) {
   const list = (photos || []).filter((p) => p?.url);
   const [open, setOpen] = useState(null);
   if (!list.length) return null;

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote } from '../../components/admin.jsx';
 import { useAuth } from '../../AuthContext.jsx';
@@ -45,7 +46,10 @@ export default function Census() {
   const [cycleId, setCycleId] = useState(null);
   const [parish, setParish] = useState(null);
   const [starting, setStarting] = useState(false);
-  const [tab, setTab] = useState('households');
+  // ?tab=lastYear&gkk=… (the link from Parish Config → Parish GKK) opens that GKK's list.
+  const [params] = useSearchParams();
+  const linkedGkk = params.get('gkk') || '';
+  const [tab, setTab] = useState(params.get('tab') === 'lastYear' ? 'lastYear' : 'households');
   const [refreshKey, setRefreshKey] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -173,7 +177,7 @@ export default function Census() {
             </Panel>
             {/* The list can be typed in before the census starts. */}
             <h2 className="font-serif text-[22px] font-semibold text-parish-navy mt-8 mb-3">Last year's household list</h2>
-            <LastYearList ownGkk={ownGkk} parish={parish} canEdit={canEdit} canManage={canManage} />
+            <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />
           </>
         )}
 
@@ -201,7 +205,7 @@ export default function Census() {
             {tab === 'households' && <HouseholdsTab cycle={cycle} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'results' && <ResultsTab cycle={cycle} ownGkk={ownGkk} refreshKey={refreshKey} />}
-            {tab === 'lastYear' && <LastYearList ownGkk={ownGkk} parish={parish} canEdit={canEdit} canManage={canManage} />}
+            {tab === 'lastYear' && <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />}
           </>
         )}
       </PageBody>
