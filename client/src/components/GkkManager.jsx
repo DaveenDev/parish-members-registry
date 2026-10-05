@@ -7,7 +7,7 @@ import { useConfirm } from './ConfirmDialog.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { AddButton, RowButton, SidePanel } from './panels.jsx';
 import GkkDocuments from './GkkDocuments.jsx';
-import RefCodes from './RefCodes.jsx';
+import { barangayCodeSuggestion, gkkParts } from '../lib/site.js';
 import { ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProblem, gkkForm, historyPatch, photosPatch, sameHistory, samePhotos, useGkkPhotos } from './GkkFields.jsx';
 
 // Desktop columns: name, chapel, puroks, year, last year's households, households, actions.
@@ -18,10 +18,11 @@ const missingAddress = (g) => !String(g.chapel_address || '').trim();
  * The parish's GKKs with their chapel details (shown and searched in the
  * website's GKK directory), each with its history (on its website page) and
  * its important documents. Add and Edit open a side panel. A GKK assigned
- * to a household, or with documents, can't be deleted. Below the GKKs is
- * each barangay's reference number code (0047). While the parish uses last
- * year's household list (0041, 0048), each GKK's "Names" button opens its
- * part of it on the Last year's list tab (`onOpenList`).
+ * to a household, or with documents, can't be deleted. Each GKK shows its
+ * barangay's reference number code (0047), kept in the GKK's panel. While
+ * the parish uses last year's household list (0041, 0048), each GKK's
+ * "Names" button opens its part of it on the Last year's list tab
+ * (`onOpenList`).
  */
 export function GkkManager({ onOpenList }) {
   const [rows, setRows] = useState([]);
@@ -34,6 +35,9 @@ export function GkkManager({ onOpenList }) {
   const noAddress = rows.filter(missingAddress).length;
   const [listCounts, setListCounts] = useState(new Map());
   const [listOn, setListOn] = useState(true);
+  // Each barangay's reference code by lower-case name; null before 0047.
+  const [codes, setCodes] = useState(null);
+  const codeOf = (name) => codes?.get(gkkParts(name).area.toLowerCase())?.code;
 
   useEffect(() => {
     api.lastYearCounts().then(setListCounts).catch(() => {});
@@ -52,6 +56,10 @@ export function GkkManager({ onOpenList }) {
       })
       .catch((e) => setLoadError(e.message || 'Could not load the GKKs'))
       .finally(() => setLoading(false));
+    // Listing also gives a code to each new barangay.
+    api.listBarangayRefCodes()
+      .then((r) => setCodes(new Map(r.map((c) => [c.barangay.toLowerCase(), c]))))
+      .catch(() => setCodes(null));
   }
   useEffect(() => { reload(); }, []);
 
@@ -110,7 +118,12 @@ export function GkkManager({ onOpenList }) {
           return (
             <div key={g.id} className={`flex items-center gap-2.5 lg:grid ${COLS} border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field`}>
               <div className="flex-1 min-w-0">
-                <div className="font-semibold text-[14.5px] text-parish-navy">{g.name}</div>
+                <div className="font-semibold text-[14.5px] text-parish-navy">
+                  {g.name}
+                  {codeOf(g.name) && (
+                    <span title={`Its families' reference numbers start with ${codeOf(g.name)}`} className="ml-2 align-[1px] inline-block px-1.5 py-px rounded-md bg-parish-sunk font-bold text-[11px] tracking-[.08em] text-parish-text2">{codeOf(g.name)}</span>
+                  )}
+                </div>
                 <div className="text-[12.5px] text-parish-text2 truncate lg:hidden">
                   {missingAddress(g) ? <span className="font-semibold text-[#c2410c]">Chapel address missing</span> : `Chapel: ${g.chapel_address}`}{info && ` · ${info}`}
                 </div>
@@ -152,12 +165,47 @@ export function GkkManager({ onOpenList }) {
         <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
       </div>
 
-      {editing && <GkkPanel initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
+      {editing && <GkkPanel initial={editing} codes={codes} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
     </Panel>
+    </>
+  );
+}
 
-    {/* Keyed on the GKK names, so a new barangay shows up (with its code) once its GKK is saved. */}
-    {!loading && <RefCodes key={rows.map((g) => g.name).join('|')} />}
-
+/**
+ * The reference number code of the barangay in the GKK's name (0047): the
+ * start of its families' numbers, shared by every GKK in that barangay.
+ * `current` is the barangay's saved code row, if it has one yet;
+ * `sameBarangay` is true when this GKK was already in it.
+ */
+function RefCodeField({ barangay, current, code, sameBarangay, error, onChange }) {
+  const hint = 'text-[13px] text-parish-muted';
+  if (!barangay) {
+    return <div className={hint}>Families' reference numbers start with a code for the GKK's barangay. Put the barangay after “ -” in the name (e.g. “Santo Rosario -Meohao”) to give it one.</div>;
+  }
+  const shown = code || barangayCodeSuggestion(barangay);
+  const year = new Date().getFullYear();
+  const others = (current?.gkks || 0) - (sameBarangay ? 1 : 0);
+  const changed = !!current && !!code && code !== current.code;
+  return (
+    <>
+      <Field label={`Reference number code · ${barangay}`} error={error}>
+        <TextInput
+          value={code}
+          maxLength={3}
+          placeholder={barangayCodeSuggestion(barangay)}
+          autoCapitalize="characters"
+          spellCheck={false}
+          className="max-w-[120px] font-semibold tracking-[.08em] uppercase"
+          onChange={(e) => onChange(e.target.value.toUpperCase().replace(/[^A-Z]/g, ''))}
+        />
+      </Field>
+      <div className={`-mt-2 ${hint}`}>
+        {current && !changed
+          ? <>Families in this GKK get numbers like <strong className="text-parish-text2">{current.next_ref}</strong> (the next one).</>
+          : <>Families in this GKK will get numbers like <strong className="text-parish-text2">{shown}-{year}-0001</strong>.</>}
+        {others > 0 && <> The code is shared with the other {others === 1 ? 'GKK' : `${others} GKKs`} in {barangay}.</>}
+        {changed && <> Only new numbers use the new code: families keep the numbers they have.</>}
+      </div>
     </>
   );
 }
@@ -186,13 +234,20 @@ function PanelTabs({ tabs, value, onChange }) {
  * picked; on Cancel the ones uploaded here are deleted again, and photos
  * taken off a saved history are deleted once it's saved.
  */
-function GkkPanel({ initial, onClose, onSaved, onOpenList }) {
+function GkkPanel({ initial, codes, onClose, onSaved, onOpenList }) {
   const toast = useToast();
   const [form, setForm] = useState(initial);
   const [tab, setTab] = useState(initial.tab || 'details');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [addressError, setAddressError] = useState('');
+  // The reference code belongs to the barangay in the name, so a typed code
+  // only applies while the name keeps that barangay.
+  const [codeDraft, setCodeDraft] = useState({ barangay: '', value: '' });
+  const [codeError, setCodeError] = useState('');
+  const barangay = gkkParts(form.name.trim()).area;
+  const current = barangay ? codes?.get(barangay.toLowerCase()) : null;
+  const code = codeDraft.barangay === barangay.toLowerCase() ? codeDraft.value : (current?.code || '');
   const pagePhotos = useGkkPhotos(setError);
   const historyPhotos = useGkkPhotos(setError);
   const isNew = !initial.id;
@@ -212,6 +267,14 @@ function GkkPanel({ initial, onClose, onSaved, onOpenList }) {
     if (problem) { if (!form.chapel_address.trim()) setAddressError(problem); fail(problem); return; }
     const previous = String(form.previous_households ?? '').trim();
     if (previous && Number(previous) > 100000) { fail("Enter last year's household count as a number up to 100,000."); return; }
+    const codeChanged = !!codes && !!barangay && !!code && code !== current?.code;
+    if (codeChanged) {
+      const taken = [...codes.values()].find((c) => c.code === code && c.barangay.toLowerCase() !== barangay.toLowerCase());
+      const problem = !/^[A-Z]{3}$/.test(code) ? 'A reference code is exactly 3 letters, A to Z.'
+        : code === 'OLG' ? 'OLG is kept for households with no barangay. Choose another code.'
+        : taken ? `${taken.barangay} already uses ${code}. Choose another code.` : '';
+      if (problem) { setCodeError(problem); fail(problem); return; }
+    }
     if (pagePhotos.uploading || historyPhotos.uploading) { setError('Wait for the photos to finish uploading.'); return; }
     const details = { ...chapelPatch(form), previous_households: previous ? Number(previous) : null };
     // Only when they changed, so the details still save before the 0044 and 0046 migrations.
@@ -228,6 +291,15 @@ function GkkPanel({ initial, onClose, onSaved, onOpenList }) {
       }
       pagePhotos.commit();
       historyPhotos.commit();
+      if (codeChanged) {
+        try {
+          // A new barangay only gets its row (and a default code) once listed.
+          if (!current) await api.listBarangayRefCodes();
+          await api.setBarangayRefCode(barangay, code);
+        } catch (e) {
+          toast.error(`${name} was saved, but not its reference code: ${e.message || 'try again'}`);
+        }
+      }
       toast.success(isNew ? `${name} added` : `${name} saved`);
       onSaved();
     } catch (e) {
@@ -256,6 +328,8 @@ function GkkPanel({ initial, onClose, onSaved, onOpenList }) {
           <Field label="GKK name" required>
             <TextInput autoFocus value={form.name} placeholder="e.g. GKK San Pedro Calungsod -Poblacion" onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); setError(''); }} />
           </Field>
+          {codes && <RefCodeField barangay={barangay} current={current} code={code} sameBarangay={!isNew && gkkParts(initial.original).area.toLowerCase() === barangay.toLowerCase()} error={codeError}
+            onChange={(value) => { setCodeDraft({ barangay: barangay.toLowerCase(), value }); setCodeError(''); setError(''); }} />}
           <ChapelFields form={form} setForm={setForm} setError={setError} addressError={addressError} setAddressError={setAddressError} />
           <Field label="Households last year">
             <TextInput inputMode="numeric" maxLength={6} value={form.previous_households} placeholder="e.g. 120" className="max-w-[160px]" onChange={(e) => { setForm((f) => ({ ...f, previous_households: e.target.value.replace(/\D/g, '') })); setError(''); }} />

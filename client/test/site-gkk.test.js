@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { filterGkks, gkkBarangays, gkkParts } from '../src/lib/site.js';
+import { barangayCodeSuggestion, filterGkks, gkkBarangays, gkkParts } from '../src/lib/site.js';
 
 const gkks = [
   { name: 'Sto. Niño -Ginatilan', puroks: 'Purok 1, Purok 2' },
@@ -12,6 +12,16 @@ const gkks = [
 test('the patron and the barangay come from the GKK name', () => {
   assert.deepEqual(gkkParts('Sto. Niño -Ginatilan'), { patron: 'Sto. Niño', area: 'Ginatilan' });
   assert.deepEqual(gkkParts('Kapilya'), { patron: 'Kapilya', area: '' });
+});
+
+test('a barangay\'s default reference code matches the database\'s', () => {
+  assert.equal(barangayCodeSuggestion('Meohao'), 'MEO');
+  assert.equal(barangayCodeSuggestion('Mua-an'), 'MUA');
+  assert.equal(barangayCodeSuggestion('Birada Center'), 'BRC');
+  assert.equal(barangayCodeSuggestion('Birada Martinez'), 'BRM');
+  assert.equal(barangayCodeSuggestion('Sto. Niño'), 'STN');
+  assert.equal(barangayCodeSuggestion('A'), 'AXX');
+  assert.equal(barangayCodeSuggestion(''), 'XXX');
 });
 
 test('the barangays come from the GKK names, once each, A–Z', () => {

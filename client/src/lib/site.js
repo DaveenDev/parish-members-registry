@@ -450,6 +450,23 @@ export function gkkParts(name) {
   return { patron: s.slice(0, i).trim(), area: s.slice(i + 2).trim() };
 }
 
+/**
+ * The reference number code a barangay gets by default (0047): Meohao → MEO;
+ * two or more words take the first letter, the next consonant and the last
+ * word's first letter, so Birada Center → BRC. Same as
+ * barangay_code_suggestion() in the database, which also changes the last
+ * letter when the code is taken.
+ */
+export function barangayCodeSuggestion(barangay) {
+  const clean = String(barangay || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().replace(/[^A-Z ]/g, '');
+  const words = clean.trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return 'XXX';
+  const [first] = words;
+  if (words.length === 1) return first.slice(0, 3).padEnd(3, 'X');
+  const consonant = first.slice(1).match(/[B-DF-HJ-NP-TV-Z]/)?.[0] || first[1] || 'X';
+  return first[0] + consonant + words[words.length - 1][0];
+}
+
 /** The barangays the GKKs are in (the part of each name after " -"), once each, A–Z. */
 export function gkkBarangays(names) {
   const areas = new Set((names || []).map((n) => gkkParts(n).area).filter(Boolean));

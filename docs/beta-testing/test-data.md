@@ -73,7 +73,8 @@ Reference numbers look like `MEO-2026-0001`:
 
 - `MEO` — the 3-letter code of the barangay the household's GKK is in (the
   part of the GKK name after " -"; Meohao is `MEO`, Birada Center `BRC`). Each
-  code can be changed under Parish Config → Parish GKK → Reference numbers.
+  code shows next to each GKK under Parish Config → Parish GKK and can be
+  changed on the GKK's Details tab (it's shared by every GKK in that barangay).
 - the year of registration
 - a number counted per barangay and year, at least 4 digits
 
