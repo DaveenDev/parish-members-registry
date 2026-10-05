@@ -233,41 +233,78 @@ export function countLastYearList(rows, matches = null) {
   return out;
 }
 
-const NAME_SUFFIXES = new Set(['jr', 'sr', 'ii', 'iii', 'iv', 'v']);
+// Jr./Sr. anywhere in a name; II, III, IV and V only as its last word, so a
+// middle initial "V." isn't read as a suffix.
+const SUFFIX_WORDS = { jr: 'jr', junior: 'jr', sr: 'sr', senior: 'sr' };
+const ROMAN_SUFFIXES = new Set(['ii', 'iii', 'iv', 'v']);
+const plainWords = (name) => String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  .replace(/[^a-z\s]/g, ' ').split(/\s+/).filter(Boolean);
 
 /** A name's words for matching: no accents, case, punctuation, initials or suffixes ("Ma. Dela Cruz, Jr." → ma, dela, cruz). */
 export function nameWords(name) {
-  return String(name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-    .replace(/[^a-z\s]/g, ' ').split(/\s+/).filter((w) => w.length > 1 && !NAME_SUFFIXES.has(w));
+  return plainWords(name).filter((w) => w.length > 1 && !SUFFIX_WORDS[w] && !ROMAN_SUFFIXES.has(w));
+}
+
+/** "Perfecto Panes Jr." → 'jr', "Juan Cruz III" → 'iii', "Juan V. Cruz" → null. */
+export function nameSuffix(name) {
+  const words = plainWords(name);
+  const named = words.find((w) => SUFFIX_WORDS[w]);
+  if (named) return SUFFIX_WORDS[named];
+  const last = words[words.length - 1];
+  return ROMAN_SUFFIXES.has(last) ? last : null;
 }
 
 /**
  * Which names on last year's list are already in the registry. `heads` is
  * one row per registered household ({ household_id, gkk, first_name,
- * last_name, ... }, its head of household). A name still "Not yet" matches
- * a household in the same GKK when every word of the head's last name and at
- * least one word of their first name are in it, so "Dela Cruz, Juan P." and
- * "Juan Dela Cruz Jr." both find Juan Pedro Dela Cruz. Each household
- * matches one name at most, in list order. Returns a Map of list id → head.
+ * middle_name, last_name, suffix, ... }, its head of household). Returns a
+ * Map of list id → head, with `linked: true` when it was chosen by hand.
+ *
+ * 1. A name linked to a household by hand ("Choose household", 0052) is
+ *    that household while it's in the registry.
+ * 2. Otherwise a name still "Not yet" is found by its head of household, in
+ *    the same GKK: every word of the head's last name and at least one word
+ *    of their first name must be in it, so "Dela Cruz, Juan P." finds Juan
+ *    Pedro Dela Cruz. When both carry a suffix it must agree, so "Perfecto
+ *    Panes Sr." never finds Perfecto Panes Jr. Households marked "Not this
+ *    household" for the name (0052) are skipped. The closest pairs are made
+ *    first (same suffix, then more first and middle name words in common),
+ *    and each household matches one name at most.
  */
 export function matchListToRegistry(listRows, heads) {
-  const free = new Map(); // GKK → heads not matched yet
-  for (const h of heads || []) {
-    const last = nameWords(h.last_name);
-    const first = nameWords(h.first_name);
-    if (!last.length || !first.length) continue;
-    if (!free.has(h.gkk)) free.set(h.gkk, []);
-    free.get(h.gkk).push({ h, last, first });
-  }
+  const byId = new Map((heads || []).map((h) => [h.household_id, h]));
   const out = new Map();
+  const taken = new Set();
   for (const r of listRows || []) {
-    if (r.status !== 'Not yet') continue;
+    const h = r.household_id != null ? byId.get(r.household_id) : null;
+    if (h && !taken.has(h.household_id)) { out.set(r.id, { ...h, linked: true }); taken.add(h.household_id); }
+  }
+
+  const people = (heads || []).filter((h) => !taken.has(h.household_id)).map((h, order) => ({
+    h, order, last: nameWords(h.last_name), first: nameWords(h.first_name), middle: nameWords(h.middle_name), suffix: nameSuffix(h.suffix),
+  })).filter((p) => p.last.length && p.first.length);
+
+  const pairs = [];
+  (listRows || []).forEach((r, index) => {
+    if (r.status !== 'Not yet' || r.household_id != null) return;
     const words = new Set(nameWords(r.head_name));
-    const pool = free.get(r.gkk) || [];
-    const i = pool.findIndex((p) => p.last.every((w) => words.has(w)) && p.first.some((w) => words.has(w)));
-    if (i < 0) continue;
-    out.set(r.id, pool[i].h);
-    pool.splice(i, 1);
+    const suffix = nameSuffix(r.head_name);
+    const refused = new Set(r.not_household_ids || []);
+    for (const p of people) {
+      if (p.h.gkk !== r.gkk || refused.has(p.h.household_id)) continue;
+      if (suffix && p.suffix && suffix !== p.suffix) continue;
+      if (!p.last.every((w) => words.has(w))) continue;
+      const firstHits = p.first.filter((w) => words.has(w)).length;
+      if (!firstHits) continue;
+      const score = (suffix && suffix === p.suffix ? 100 : 0) + firstHits * 10 + p.middle.filter((w) => words.has(w)).length;
+      pairs.push({ r, p, score, index });
+    }
+  });
+  pairs.sort((x, y) => y.score - x.score || x.index - y.index || x.p.order - y.p.order);
+  for (const { r, p } of pairs) {
+    if (out.has(r.id) || taken.has(p.h.household_id)) continue;
+    out.set(r.id, p.h);
+    taken.add(p.h.household_id);
   }
   return out;
 }

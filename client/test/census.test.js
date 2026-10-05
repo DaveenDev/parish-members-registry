@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
-  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, listStatus,
+  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
   DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, vsLastYearTable,
@@ -387,5 +387,36 @@ describe('vsLastYearTable', () => {
     const t = vsLastYearTable({ mode: 'list', ...res }, { label: '2026 Census' });
     assert.equal(t.title, "2026 Census: households vs last year's list");
     assert.deepEqual(t.rows, [['A', 'Count', 4, 2, 1, 1, 2, '50%'], ['All GKKs', '', 4, 2, 1, 1, 2, '50%']]);
+  });
+});
+
+describe('matching last year\'s names: suffixes and corrections (0052)', () => {
+  const h = (household_id, first_name, last_name, suffix = '', middle_name = '') => ({ household_id, gkk: 'A', first_name, middle_name, last_name, suffix });
+  const n = (id, head_name, extra = {}) => ({ id, gkk: 'A', head_name, status: 'Not yet', household_id: null, not_household_ids: [], ...extra });
+  const ids = (m) => [...m.entries()].map(([id, x]) => [id, x.household_id, !!x.linked]);
+
+  test('Jr. and Sr. must agree when both have one', () => {
+    assert.deepEqual(ids(matchListToRegistry([n(1, 'Perfecto Panes Sr.'), n(2, 'Perfecto Panes Jr.')], [h(9, 'Perfecto', 'Panes', 'Jr.')])), [[2, 9, false]]);
+    // Family name alone never matches.
+    assert.deepEqual(ids(matchListToRegistry([n(1, 'Perfecto Panes Jr.'), n(2, 'Reyian Panes')], [h(8, 'Reyian', 'Panes')])), [[2, 8, false]]);
+    assert.equal(nameSuffix('Juan V. Cruz'), null);
+    assert.equal(nameSuffix('Juan Cruz III'), 'iii');
+    assert.equal(nameSuffix('Junior'), 'jr');
+  });
+
+  test('the closest pair wins, whatever the list order', () => {
+    // "Juan Cruz" comes first but "Juan Pedro Cruz" shares the middle name with the head.
+    assert.deepEqual(ids(matchListToRegistry([n(1, 'Juan Cruz'), n(2, 'Juan Pedro Cruz')], [h(5, 'Juan', 'Cruz', '', 'Pedro')])), [[2, 5, false]]);
+  });
+
+  test('"Not this household" and a household chosen by hand', () => {
+    const heads = [h(1, 'Perfecto', 'Panes'), h(2, 'Maria', 'Panes')];
+    assert.deepEqual(ids(matchListToRegistry([n(1, 'Perfecto Panes', { not_household_ids: [1] })], heads)), []);
+    // Linked to the wife's household: that one, and nobody else gets it.
+    const m = matchListToRegistry([n(1, 'Perfecto Panes', { household_id: 2 }), n(2, 'Maria Panes')], heads);
+    assert.deepEqual(ids(m), [[1, 2, true]]);
+    assert.equal(listStatus(n(1, 'x', { household_id: 2 }), m), 'Registered');
+    // A link to a household no longer in the registry is ignored.
+    assert.deepEqual(ids(matchListToRegistry([n(1, 'Perfecto Panes', { household_id: 77 })], heads)), []);
   });
 });

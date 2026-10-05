@@ -37,6 +37,7 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
   const [status, setStatus] = useState('All');
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [choosing, setChoosing] = useState(null); // the name to link to a household by hand
   const [printRows, setPrintRows] = useState(null);
   const [busy, setBusy] = useState(false);
 
@@ -121,15 +122,20 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
     }
   }
 
-  async function setRowStatus(r, next) {
+  async function saveRow(r, patch) {
     try {
-      const saved = await api.saveLastYear(r.id, { status: next });
+      const saved = await api.saveLastYear(r.id, patch);
       setRows((rs) => rs.map((x) => (x.id === r.id ? saved : x)));
       onChanged?.();
+      return true;
     } catch (e) {
       toast.error(e.message || 'Could not save');
+      return false;
     }
   }
+  const setRowStatus = (r, next) => saveRow(r, { status: next });
+  /** The match is wrong: never match this name to that household again. */
+  const notThisHousehold = (r, h) => saveRow(r, { not_household_ids: [...new Set([...(r.not_household_ids || []), h.household_id])] });
 
   async function remove(r) {
     const ok = await confirm({ title: `Remove “${r.head_name}”?`, message: 'This takes the name off the list. To keep it but stop counting it, mark it Moved away, Deceased or Duplicate instead.', confirmLabel: 'Remove', tone: 'danger' });
@@ -267,15 +273,29 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
                         {[r.purok, r.note].filter(Boolean).join(' · ') || <span className="text-parish-faint">No purok</span>}
                         {r.checked_by_name && r.status !== 'Not yet' && <span className="text-parish-muted"> · {r.status.toLowerCase()} by {r.checked_by_name}</span>}
                       </div>
-                      {matches.has(r.id) && (
-                        <div className="text-[12.5px] font-semibold text-parish-ok mt-0.5">
-                          ✓ In the registry: {matches.get(r.id).household_name} · {matches.get(r.id).status === 'Verified' ? 'verified' : 'on the verification queue'}
-                        </div>
-                      )}
+                      {matches.has(r.id) && (() => {
+                        const m = matches.get(r.id);
+                        return (
+                          <div className="text-[12.5px] mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
+                            <span className="font-semibold text-parish-ok">
+                              ✓ {m.linked ? 'Linked to' : 'In the registry:'} {m.household_name}
+                              <span className="font-normal text-parish-text2"> · head {[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')} · {m.status === 'Verified' ? 'verified' : 'on the verification queue'}</span>
+                            </span>
+                            {canEdit && (m.linked
+                              ? <button type="button" onClick={() => saveRow(r, { household_id: null })} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue">Unlink</button>
+                              : <button type="button" onClick={() => notThisHousehold(r, m)} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-error">Not this household</button>)}
+                          </div>
+                        );
+                      })()}
                     </div>
                     {canEdit ? (
                       <div className="flex flex-wrap items-center gap-2">
-                        {r.status === 'Not yet' && !matches.has(r.id) && <RowButton tone="green" onClick={() => setRowStatus(r, 'Registered')}>✓ Registered</RowButton>}
+                        {r.status === 'Not yet' && !matches.has(r.id) && (
+                          <>
+                            <RowButton onClick={() => setChoosing(r)} title="The family registered under another head or name: pick its household">Choose household</RowButton>
+                            <RowButton tone="green" onClick={() => setRowStatus(r, 'Registered')}>✓ Registered</RowButton>
+                          </>
+                        )}
                         <FilterSelect aria-label={`Status of ${r.head_name}`} value={r.status} onChange={(e) => setRowStatus(r, e.target.value)} className="!py-1.5 !text-[12.5px]">
                           {LAST_YEAR_STATUSES.map((s) => <option key={s} value={s}>{s === 'Not yet' ? 'Not yet registered' : s}</option>)}
                         </FilterSelect>
@@ -301,6 +321,16 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
 
       {adding && <AddNamesPanel gkk={gkk} onClose={() => setAdding(false)} onAdd={addNames} />}
       {editing && <EditNamePanel row={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); changed(); }} />}
+      {choosing && (
+        <ChooseHouseholdPanel
+          row={choosing}
+          heads={heads.filter((h) => h.gkk === choosing.gkk)}
+          matches={matches}
+          names={rows || []}
+          onClose={() => setChoosing(null)}
+          onPick={async (h) => { if (await saveRow(choosing, { household_id: h.household_id })) { toast.success(`${choosing.head_name} linked to ${h.household_name}`); setChoosing(null); } }}
+        />
+      )}
       <NotYetPrintSheet rows={printRows} gkk={gkk} parish={parish} />
     </>
   );
@@ -353,6 +383,48 @@ function AddNamesPanel({ gkk, onClose, onAdd }) {
 }
 
 /** Fix a name's spelling, purok or note. */
+/**
+ * Link a name to its household by hand (0052), when the family registered
+ * under another head (the wife, a son) or another name. Lists the GKK's
+ * households in the registry; one already matched to another name moves to
+ * this one.
+ */
+function ChooseHouseholdPanel({ row, heads, matches, names, onClose, onPick }) {
+  const [query, setQuery] = useState('');
+  const [busy, setBusy] = useState(null);
+  const matchedTo = new Map([...matches.entries()].map(([id, h]) => [h.household_id, names.find((n) => n.id === id)?.head_name]));
+  const q = query.trim().toLowerCase();
+  const shown = heads
+    .filter((h) => !q || `${h.household_name} ${h.first_name} ${h.middle_name} ${h.last_name}`.toLowerCase().includes(q))
+    .sort((a, b) => a.household_name.localeCompare(b.household_name));
+  return (
+    <SidePanel title={`Choose household for ${row.head_name}`} subtitle={`Households in ${row.gkk} in the registry`} onClose={onClose}>
+      <SearchInput placeholder="Search household or head…" aria-label="Search households" value={query} onChange={(e) => setQuery(e.target.value)} />
+      {!heads.length && <div className="text-[13.5px] text-parish-muted">No households from {row.gkk} are in the registry yet.</div>}
+      <ul className="list-none m-0 p-0 flex flex-col gap-2">
+        {shown.map((h) => (
+          <li key={h.household_id}>
+            <button
+              type="button" disabled={busy != null}
+              onClick={async () => { setBusy(h.household_id); await onPick(h); setBusy(null); }}
+              className="w-full text-left appearance-none cursor-pointer border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field hover:border-[var(--p-blue-border)] disabled:opacity-60"
+            >
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="font-semibold text-[14.5px] text-parish-navy">{h.household_name}</span>
+                <Badge tone={h.status === 'Verified' ? 'green' : 'gold'}>{h.status === 'Verified' ? 'Verified' : 'On the queue'}</Badge>
+              </div>
+              <div className="text-[12.5px] text-parish-text2">
+                Head: {[h.first_name, h.middle_name, h.last_name, h.suffix].filter(Boolean).join(' ') || '—'}
+                {matchedTo.get(h.household_id) && matchedTo.get(h.household_id) !== row.head_name && <span className="text-[#c2410c]"> · now matched to {matchedTo.get(h.household_id)}</span>}
+              </div>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </SidePanel>
+  );
+}
+
 function EditNamePanel({ row, onClose, onSaved }) {
   const [form, setForm] = useState({ head_name: row.head_name, purok: row.purok || '', note: row.note || '' });
   const [saving, setSaving] = useState(false);

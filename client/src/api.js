@@ -1136,19 +1136,20 @@ export const api = {
   /**
    * Every household in the registry (on the verification queue or verified)
    * with its head of household's name, for matching last year's list:
-   * [{ household_id, household_name, gkk, status, first_name, last_name }].
+   * [{ household_id, household_name, gkk, status, first_name, middle_name, last_name, suffix }].
    * GKK leaders get their own GKK's (row level security).
    */
   async registryHeads() {
     const [households, heads] = await Promise.all([
       fetchAll(() => supabase.from('households').select('id, household_name, gkk, status').order('id')),
-      fetchAll(() => supabase.from('members').select('household_id, first_name, last_name').eq('relationship', 'Head of Household').order('id')),
+      fetchAll(() => supabase.from('members').select('household_id, first_name, middle_name, last_name, suffix').eq('relationship', 'Head of Household').order('id')),
     ]);
     const head = new Map();
     for (const m of heads) if (!head.has(m.household_id)) head.set(m.household_id, m);
     return households.map((h) => ({
       household_id: h.id, household_name: h.household_name, gkk: h.gkk, status: h.status,
-      first_name: head.get(h.id)?.first_name || '', last_name: head.get(h.id)?.last_name || '',
+      first_name: head.get(h.id)?.first_name || '', middle_name: head.get(h.id)?.middle_name || '',
+      last_name: head.get(h.id)?.last_name || '', suffix: head.get(h.id)?.suffix || '',
     }));
   },
   /**
@@ -1218,7 +1219,11 @@ export const api = {
   /** Change a name's details or status ({ head_name, purok, note, status }). */
   async saveLastYear(id, patch) {
     const fields = Object.fromEntries(['head_name', 'purok', 'note', 'status'].filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
+    // Corrections to how the name is found in the registry (0052): a household chosen by hand, or ones it isn't.
+    if ('household_id' in patch) fields.household_id = patch.household_id ?? null;
+    if ('not_household_ids' in patch) fields.not_household_ids = patch.not_household_ids || [];
     const { data, error } = await supabase.from('census_last_year_list').update(cleanPatch(fields)).eq('id', id).select().single();
+    if (['42703', 'PGRST204'].includes(error?.code) && /not_household_ids/.test(error.message || '')) throw new Error('Run the 0052_last_year_list_links.sql migration in Supabase to correct a match');
     if (error) throw lastYearMissing(error);
     return data;
   },
