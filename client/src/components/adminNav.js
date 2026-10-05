@@ -2,7 +2,8 @@ import { can } from '../lib/access.js';
 
 /**
  * The admin sidebar, in groups. `need` is the lib/access.js permission a
- * page requires; `badge` names a count from api.navCounts().
+ * page requires; `leaderOnly` shows it to GKK leaders only; `badge` names
+ * a count from api.navCounts().
  */
 export const NAV_GROUPS = [
   {
@@ -19,6 +20,7 @@ export const NAV_GROUPS = [
       { to: '/admin/members', label: 'Members', need: 'registry' },
       { to: '/admin/sacraments', label: 'Sacraments', need: 'registry', badge: 'sacraments', badgeLabel: 'claims to verify' },
       { to: '/admin/census', label: 'Census', need: 'census', badge: 'census', badgeLabel: 'online updates to review' },
+      { to: '/admin/my-gkk', label: 'My GKK', leaderOnly: true },
       { to: '/admin/blood', label: 'Blood Types', need: 'registry' },
     ],
   },
@@ -55,6 +57,7 @@ export const NAV_GROUPS = [
 
 export function navAllowed(item, user) {
   if (item.adminOnly && !user?.isAdmin) return false;
+  if (item.leaderOnly && user?.access !== 'gkk_leader') return false;
   return !item.need || can(user, item.need);
 }
 

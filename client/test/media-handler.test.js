@@ -90,6 +90,43 @@ describe('sign', () => {
   });
 });
 
+describe('GKK leaders (0045)', () => {
+  // Profiles plus a gkks table whose history_photos say who uses a photo.
+  const leaderAdmin = (gkks) => {
+    const base = fakeAdmin({ users: [{ id: 'lead' }, { id: 'lost' }], profiles: [{ id: 'lead', access: 'gkk_leader', access_gkk: 'San Jose' }, { id: 'lost', access: 'gkk_leader' }] });
+    return {
+      auth: base.auth,
+      from: (name) => (name === 'gkks'
+        ? { select: () => ({ contains: async (_col, [want]) => ({ data: gkks.filter((g) => g.history_photos.some((p) => p.url === want.url)), error: null }) }) }
+        : base.from()),
+    };
+  };
+  const run = (token, body, gkks = [], r2 = fakeR2()) => handleMediaRequest({ admin: leaderAdmin(gkks), token, body, r2, uuid: () => 'abc', now: NOW });
+  const mine = `${BASE}/gkks/2026/10/mine.jpg`;
+  const theirs = `${BASE}/gkks/2026/10/theirs.jpg`;
+  const gkks = [{ name: 'San Jose', history_photos: [{ url: mine }] }, { name: 'Sto. Niño', history_photos: [{ url: theirs }] }];
+
+  test('may upload history photos, nothing else', async () => {
+    assert.equal((await run('token-lead', sign({ folder: 'gkks' }))).status, 200);
+    assert.equal((await run('token-lead', sign())).status, 403);
+    assert.equal((await run('token-lead', sign({ folder: 'events' }))).status, 403);
+  });
+  test('a leader without a GKK is refused', async () => {
+    assert.equal((await run('token-lost', sign({ folder: 'gkks' }))).status, 403);
+  });
+  test("may delete their own or an unused GKK photo, not another GKK's or an article's", async () => {
+    assert.equal((await run('token-lead', { action: 'delete', url: mine }, gkks)).status, 200);
+    assert.equal((await run('token-lead', { action: 'delete', url: `${BASE}/gkks/2026/10/new.jpg` }, gkks)).status, 200);
+    const r2 = fakeR2();
+    assert.equal((await run('token-lead', { action: 'delete', url: theirs }, gkks, r2)).status, 403);
+    assert.equal((await run('token-lead', { action: 'delete', url: `${BASE}/articles/2026/10/a.jpg` }, gkks, r2)).status, 403);
+    assert.deepEqual(r2.calls, []);
+  });
+  test('may not rename photos', async () => {
+    assert.equal((await run('token-lead', { action: 'name', table: 'articles', id: 1 })).status, 403);
+  });
+});
+
 describe('delete', () => {
   test('deletes one of our article photos', async () => {
     const r2 = fakeR2();

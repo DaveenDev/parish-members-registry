@@ -8,8 +8,9 @@
 // Node.
 //
 // Only signed-in staff who may edit the website (access 'full' or 'website',
-// see 0014_roles_activity_trash.sql) can call it, and a disabled account is
-// refused even while its last access token is still valid.
+// see 0014_roles_activity_trash.sql) can call it, and GKK leaders for their
+// own GKK's history photos (0045); a disabled account is refused even while
+// its last access token is still valid.
 
 // Same rule as manage-staff: a disabled login is "banned" until far in the
 // future. Kept here so this function can be deployed on its own.
@@ -143,9 +144,12 @@ export async function handleMediaRequest({ admin, token, body, r2, uuid = () => 
   if (authError || !caller) return fail(401, 'Please sign in again');
   if (isDisabled(caller, now)) return fail(403, 'This account has been disabled');
 
-  const { data: me } = await admin.from('profiles').select('access').eq('id', caller.id).maybeSingle();
+  const { data: me } = await admin.from('profiles').select('access, access_gkk').eq('id', caller.id).maybeSingle();
   // No access column yet (before 0014) or no value means full access, like staff_access().
-  if (!EDIT_WEBSITE.includes(me?.access || 'full')) return fail(403, "Your account can't change the website");
+  const access = me?.access || 'full';
+  // A GKK leader may only add and remove their own GKK's history photos (0045).
+  const leaderGkk = access === 'gkk_leader' ? me?.access_gkk || null : null;
+  if (!EDIT_WEBSITE.includes(access) && !leaderGkk) return fail(403, "Your account can't change the website");
 
   if (!r2?.configured) return fail(503, NOT_CONFIGURED);
 
@@ -154,6 +158,7 @@ export async function handleMediaRequest({ admin, token, body, r2, uuid = () => 
     if (action === 'sign') {
       const folder = body.folder || 'articles';
       if (!FOLDERS.includes(folder)) return fail(400, 'Unknown photo folder');
+      if (leaderGkk && folder !== 'gkks') return fail(403, "Your account can only add photos to your GKK's history");
       if (!TYPES[body.contentType]) return fail(400, 'Only JPG, PNG or WebP photos can be uploaded');
       const size = Number(body.size);
       if (!Number.isFinite(size) || size <= 0) return fail(400, 'That file looks empty');
@@ -166,6 +171,12 @@ export async function handleMediaRequest({ admin, token, body, r2, uuid = () => 
     if (action === 'delete') {
       const key = keyFromUrl(body.url, r2.publicBase);
       if (!key) return fail(400, "That photo isn't one of the website's uploads");
+      if (leaderGkk) {
+        // Only GKK photos, and none that another GKK's history uses.
+        if (!key.startsWith('gkks/')) return fail(403, "Your account can only remove your GKK's history photos");
+        const { data: users, error } = await admin.from('gkks').select('name').contains('history_photos', [{ url: body.url }]);
+        if (error || (users || []).some((g) => g.name !== leaderGkk)) return fail(403, "Your account can only remove your GKK's history photos");
+      }
       await r2.remove(key);
       return ok({});
     }
@@ -174,6 +185,7 @@ export async function handleMediaRequest({ admin, token, body, r2, uuid = () => 
     // names (copy on R2, update the row, then delete the old files that no
     // row uses any more; a duplicated event can share its original's cover).
     if (action === 'name') {
+      if (leaderGkk) return fail(403, "Your account can't change the website");
       const spec = NAMED[body.table];
       const id = Number(body.id);
       if (!spec || !Number.isInteger(id) || id <= 0) return fail(400, 'Unknown article or event');

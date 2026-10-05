@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, Tabs, Panel } from '../../components/admin.jsx';
-import { GkkManager, OwnGkkDocuments } from '../../components/GkkManager.jsx';
+import { GkkManager } from '../../components/GkkManager.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 import { Field, TextInput, PrimaryButton, Badge } from '../../components/ui.jsx';
@@ -654,12 +654,9 @@ const CONFIG_TABS = [['config', 'Parish Config'], ['gkk', 'Parish GKK'], ['integ
 export default function ParishConfig() {
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
-  // GKKs for staff who may change settings, and a GKK leader's own GKK (its
-  // documents); integrations for staff admins only.
-  const ownGkk = user?.access === 'gkk_leader' ? user.accessGkk : null;
-  const tabs = CONFIG_TABS
-    .filter(([k]) => k === 'config' || (k === 'gkk' && (can(user, 'settings') || ownGkk)) || (k === 'integrations' && user?.isAdmin))
-    .map(([k, label]) => (k === 'gkk' && ownGkk ? [k, 'My GKK'] : [k, label]));
+  // GKKs for staff who may change settings (GKK leaders have My GKK);
+  // integrations for staff admins only.
+  const tabs = CONFIG_TABS.filter(([k]) => k === 'config' || (k === 'gkk' && can(user, 'settings')) || (k === 'integrations' && user?.isAdmin));
   const tab = tabs.some(([k]) => k === params.get('tab')) ? params.get('tab') : tabs[0][0];
   const setTab = (k) => setParams(k === CONFIG_TABS[0][0] ? {} : { tab: k }, { replace: true });
 
@@ -670,7 +667,7 @@ export default function ParishConfig() {
         <div className="max-w-[1180px]">
           {tabs.length > 1 && <Tabs tabs={tabs} value={tab} onChange={setTab} />}
           {tab === 'config' && <ProfileTab />}
-          {tab === 'gkk' && (ownGkk ? <OwnGkkDocuments name={ownGkk} /> : <GkkManager />)}
+          {tab === 'gkk' && <GkkManager />}
           {tab === 'integrations' && <IntegrationsTab />}
         </div>
       </PageBody>
