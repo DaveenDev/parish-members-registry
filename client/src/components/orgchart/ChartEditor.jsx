@@ -418,10 +418,24 @@ function PublishedSwitch({ published, canEdit, onToggle }) {
   if (!canEdit) {
     return <span className={`text-[12.5px] font-semibold px-2.5 py-1 rounded-full ${published ? 'bg-parish-okBg text-parish-okText' : 'bg-parish-sunk text-parish-text2'}`}>{published ? 'On the website' : 'Not published'}</span>;
   }
+  return <PublishToggle published={published} onToggle={onToggle} />;
+}
+
+/** On: "Published" (on the website). Off: "Publish it". Disabled while the change saves. */
+function PublishToggle({ published, onToggle }) {
+  const [busy, setBusy] = useState(false);
+  async function toggle() {
+    setBusy(true);
+    try { await onToggle(); } finally { setBusy(false); }
+  }
   return (
-    <label className="flex items-center gap-2 cursor-pointer select-none px-2 py-1.5 rounded-lg hover:bg-parish-sunk">
-      <input type="checkbox" checked={published} onChange={onToggle} className="w-[18px] h-[18px] accent-parish-blue cursor-pointer" />
-      <span className="text-[13.5px] font-semibold text-parish-text2">Published</span>
+    <label className={`flex items-center gap-2.5 cursor-pointer select-none px-2 py-1.5 rounded-lg hover:bg-parish-sunk ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
+      <span className="relative inline-flex">
+        <input type="checkbox" role="switch" checked={published} disabled={busy} onChange={toggle} className="peer sr-only" />
+        <span className="w-10 h-6 rounded-full bg-parish-sunk border border-parish-border transition peer-checked:bg-parish-fill peer-checked:border-transparent peer-focus-visible:ring-4 peer-focus-visible:ring-parish-blue/20" />
+        <span className="absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition peer-checked:translate-x-4" />
+      </span>
+      <span className={`text-[13.5px] font-semibold ${published ? 'text-parish-okText' : 'text-parish-text2'}`}>{published ? 'Published' : 'Publish it'}</span>
     </label>
   );
 }
