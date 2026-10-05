@@ -1,5 +1,5 @@
-import React, { Suspense, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import React, { useState } from 'react';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
@@ -7,15 +7,12 @@ import { Body, Gallery, Photo } from './Details.jsx';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { useSiteTitle } from './SiteLayout.jsx';
-import { listState, useCensusProgress, useGkkDirectory, useGkkPage, useOrgChart, useOrgCharts } from './data.js';
-
-// d3 is heavy: the chart loads only when one is shown.
-const OrgChartView = React.lazy(() => import('../../components/site/OrgChartView.jsx'));
+import { listState, useCensusProgress, useGkkDirectory, useGkkPage } from './data.js';
+import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
 
 const SMALL = 'Ubos sa 5';
 
-const VIEWS = [['artikulo', 'Mga Artikulo'], ['gkk', 'Mga GKK'], ['organisasyon', 'Organisasyon']];
-const VIEW_KEYS = VIEWS.map(([k]) => k);
+const VIEWS = [['artikulo', 'Mga Artikulo'], ['gkk', 'Mga GKK']];
 
 // The open census's card stands out from everything else on the page: warm
 // gold, a stronger gold edge, and the alert badges on top.
@@ -54,26 +51,31 @@ function CensusAlertBadges({ label, className = '' }) {
 }
 
 /**
- * Komunidad: the parish's stories, its GKKs and its organization structure,
- * under tabs. It opens on the articles (the GKK directory is reference);
- * ?view=gkk opens the GKKs, ?view=organisasyon the published org charts
- * (the tab shows once one is published). While a census is open, the GKK
- * tab has its full progress on top (on the light-blue band, with every
- * GKK); the articles tab a one-line strip.
+ * Komunidad: the parish's stories and its GKKs, under two tabs. It opens on
+ * the articles (the GKK directory is reference); ?view=gkk opens the GKKs.
+ * While a census is open, the GKK tab has its full progress on top (on the
+ * light-blue band, with every GKK); the articles tab a one-line strip.
+ * The org charts moved to Ang Simbahan; old ?view=organisasyon links go there.
  */
 export default function Komunidad() {
   const [params, setParams] = useSearchParams();
-  const view = VIEW_KEYS.includes(params.get('view')) ? params.get('view') : 'artikulo';
-  const setView = (v) => setParams(v === 'artikulo' ? {} : { view: v }, { replace: true });
+  if (params.get('view') === 'organisasyon') {
+    const chart = params.get('chart');
+    return <Navigate replace to={`/simbahan?tab=organisasyon${chart ? `&chart=${encodeURIComponent(chart)}` : ''}`} />;
+  }
+  return <KomunidadPage params={params} setParams={setParams} />;
+}
+
+function KomunidadPage({ params, setParams }) {
+  const view = params.get('view') === 'gkk' ? 'gkk' : 'artikulo';
+  const setView = (v) => setParams(v === 'gkk' ? { view: 'gkk' } : {}, { replace: true });
   const q = useCensusProgress();
-  const charts = useOrgCharts();
   // The full census progress only on the GKK tab; the articles tab has the strip.
   const open = view === 'gkk' && !!q.data?.open;
-  const views = VIEWS.filter(([k]) => k !== 'organisasyon' || view === k || charts.data?.length);
 
   const header = (
     <PageHeader eyebrow="Komunidad" title="Ang atong komunidad">
-      <Segmented label="Komunidad" options={views} value={view} onChange={setView} />
+      <Segmented label="Komunidad" options={VIEWS} value={view} onChange={setView} />
     </PageHeader>
   );
 
@@ -101,10 +103,6 @@ export default function Komunidad() {
           </Band>
           <ArticlesSection />
         </>
-      ) : view === 'organisasyon' ? (
-        <Band aria-label="Organisasyon sa parokya">
-          <div className={`${WRAP} ${BAND_PAD}`}>{header}<Organisasyon /></div>
-        </Band>
       ) : !q.loading && (
         // The GKKs: on the blue band with the title, or under the census band on the page's cream.
         open ? (
@@ -134,67 +132,6 @@ function CensusStrip({ c, onMore }) {
       </div>
       <BigButton to="/census" className="!w-full lg:!w-auto min-h-[46px] px-5 text-[15px]">I-update ang among rekord</BigButton>
     </div>
-  );
-}
-
-const chartLabel = (c) => (c.scope === 'gkk' ? 'Estruktura sa GKK' : c.title);
-
-/** The published org charts, one pill each (?chart=slug); the GKK Structure without names. */
-function Organisasyon() {
-  const [params, setParams] = useSearchParams();
-  const list = listState(useOrgCharts());
-  const current = list.rows.find((c) => c.slug === params.get('chart')) || list.rows[0];
-  const pick = (slug) => setParams({ view: 'organisasyon', chart: slug }, { replace: true });
-  return (
-    <DataState
-      state={list}
-      skeleton={<Skeleton h={480} />}
-      errorText="Wala ma-load ang estruktura sa organisasyon."
-      empty={list.empty}
-      emptyText="Wala pay gi-publish nga estruktura sa organisasyon. Pangutana sa opisina sa parokya."
-    >
-      {list.rows.length > 1 && <Pills scroll options={list.rows.map((c) => [c.slug, chartLabel(c)])} value={current?.slug} onChange={pick} className="mb-4" />}
-      {current && <OrgChartBlock key={current.slug} chart={current} />}
-    </DataState>
-  );
-}
-
-function OrgChartBlock({ chart }) {
-  const q = useOrgChart(chart.slug);
-  const gkk = chart.scope === 'gkk';
-  return (
-    <Card className="p-3.5 lg:p-5 lg:rounded-[20px]">
-      <h2 className="font-serif font-semibold text-[24px] lg:text-[30px] leading-tight m-0 mb-2 text-parish-navy">{chartLabel(chart)}</h2>
-      {gkk && (
-        <p className="m-0 mb-3 text-[14.5px] text-[#4d4636]">
-          Pareho kini nga estruktura sa matag GKK. Ang mga opisyal makita sa panid sa matag GKK.{' '}
-          <Link to="/komunidad?view=gkk" className="font-semibold text-parish-blueDeep hover:underline">Tan-awa ang mga GKK →</Link>
-        </p>
-      )}
-      {q.loading ? <Skeleton h={480} />
-        : q.error ? <ErrorNote onRetry={q.reload}>Wala ma-load ang estruktura.</ErrorNote>
-          : !q.data?.nodes?.length ? <EmptyNote>Wala pay sulod kini nga estruktura.</EmptyNote>
-            : (
-              <Suspense fallback={<Skeleton h={480} />}>
-                <OrgChartView nodes={q.data.nodes} showHolders={!gkk} fileName={chart.slug} />
-              </Suspense>
-            )}
-    </Card>
-  );
-}
-
-/** "Mga Opisyal" on a GKK's page: the GKK Structure with this GKK's officers, once it's published. */
-function GkkOfficers({ gkk }) {
-  const structure = (useOrgCharts().data || []).find((c) => c.scope === 'gkk');
-  const q = useOrgChart(structure?.slug, gkk);
-  if (!structure || !q.data?.nodes?.length) return null;
-  return (
-    <section aria-labelledby="gkk-officers-title" className="mt-9 lg:mt-12">
-      <h2 id="gkk-officers-title" className="font-serif font-semibold text-[26px] lg:text-[34px] m-0 mb-3 lg:mb-4 text-parish-navy">Mga Opisyal</h2>
-      <Suspense fallback={<Skeleton h={400} />}>
-        <OrgChartView nodes={q.data.nodes} height={420} fileName={`opisyal-${gkk}`} />
-      </Suspense>
-    </section>
   );
 }
 

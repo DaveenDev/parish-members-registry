@@ -43,7 +43,7 @@ export const BLOOD_REQUEST_STATUSES = ['Open', 'Contacting donors', 'Fulfilled',
 export const BLOOD_OPEN = ['Open', 'Contacting donors'];
 export const CONTACT_STATUSES = ['Contacted', 'No answer', 'Agreed', 'Declined', 'Donated'];
 
-// Requests to avail of a sacrament (0032 migration), from the website's Misa ug Sakramento page.
+// Requests to avail of a sacrament (0032 migration), from the website's Ang Simbahan page.
 export const SACRAMENT_REQUEST_TYPES = [
   { key: 'ocia', label: 'OCIA', sub: 'Joining the OCIA', tone: 'blue' },
   { key: 'anointing', label: 'Anointing of the Sick', sub: 'Pagdihog sa Masakiton', tone: 'red' },

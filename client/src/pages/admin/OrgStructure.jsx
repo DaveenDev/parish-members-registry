@@ -60,7 +60,7 @@ export default function OrgStructure() {
 
   return (
     <>
-      <PageHeader title="Organization Structure" subtitle="The parish's org charts, shown on the website under Komunidad → Organisasyon once published" />
+      <PageHeader title="Organization Structure" subtitle="The parish's org charts, shown on the website under Ang Simbahan → Organisasyon once published" />
       <PageBody>
         {!canEdit && <ViewOnlyNote>Your account can view these charts but not change them.</ViewOnlyNote>}
         {error && <Panel><ErrorState message={error} onRetry={load} /></Panel>}

@@ -40,7 +40,7 @@ export const BAND_PAD = 'pt-4 pb-7 lg:pt-9 lg:pb-12';
 
 /**
  * A full-width light-blue band that sets a page's first section apart from
- * what follows (Misa ug Sakramento, Pahibalo ug Kalihokan, Komunidad). Put a
+ * what follows (Ang Simbahan, Pahibalo ug Kalihokan, Komunidad). Put a
  * WRAP inside it so the content keeps the page width.
  */
 export function Band({ as: Tag = 'section', className = '', style, children, ...rest }) {

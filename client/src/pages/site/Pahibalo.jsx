@@ -251,7 +251,7 @@ function UpcomingEvents() {
     <section id="kalihokan" className={`mb-5 lg:mb-7 ${JUMP_TARGET}`} aria-labelledby="upcoming-events">
       <div className="flex items-baseline justify-between gap-3 mb-2.5 lg:mb-3">
         <h2 id="upcoming-events" className="m-0 font-serif text-[22px] lg:text-[26px] font-bold text-parish-navy">Umaabot nga Kalihokan</h2>
-        <Link to="/misa?view=kalendaryo" className="font-bold text-[14px] lg:text-[15px] text-parish-blueDeep whitespace-nowrap hover:underline">
+        <Link to="/simbahan?view=kalendaryo" className="font-bold text-[14px] lg:text-[15px] text-parish-blueDeep whitespace-nowrap hover:underline">
           <span className="lg:hidden">Kalendaryo →</span><span className="hidden lg:inline">Tan-awa ang kalendaryo →</span>
         </Link>
       </div>

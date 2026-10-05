@@ -64,7 +64,7 @@ export default function SacramentsTab({ onCountsChanged }) {
 
   return (
     <>
-      <TabIntro text="Requests to join the OCIA or for the Anointing of the Sick, sent from the website's Misa ug Sakramento page. Call or text the person, then set the date for the visit or the first session. Urgent anointing requests are listed first.">
+      <TabIntro text="Requests to join the OCIA or for the Anointing of the Sick, sent from the website's Ang Simbahan page. Call or text the person, then set the date for the visit or the first session. Urgent anointing requests are listed first.">
         <AddButton onClick={() => setEditing({ sacrament: 'anointing', person_name: '', location: '', preferred_date: '', urgent: false, baptism_status: '', requester_name: '', requester_mobile: '', relationship: '', message: '', source: 'Walk-in', status: 'New' })}>
           Add request
         </AddButton>

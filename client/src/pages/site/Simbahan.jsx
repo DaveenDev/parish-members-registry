@@ -1,58 +1,121 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import SacramentIcon from '../../components/SacramentIcon.jsx';
-import { BAND_PAD, Band, DataState, EmptyNote, Eyebrow, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, DataState, EmptyNote, Eyebrow, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { Organisasyon } from '../../components/site/OrgCharts.jsx';
+import VerseOfDay from '../../components/site/VerseOfDay.jsx';
 import { EventCard, MassRow, eventTone } from '../../components/site/cards.jsx';
 import {
   BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, agendaDays, calendarMonths, eventsOnDay, fmtTime12, guideShortTitle,
   massKindLabel, massLocations, massSections, massShortLabel, massesOnDay, monthCells, monthLabel, parseIso,
 } from '../../lib/site.js';
 import { EVENT_TYPES, massType, todayIso } from '../../lib/website.js';
-import { listState, useAnnouncements, useEvents, useMassSchedule, useSacramentGuides } from './data.js';
+import { listState, useAnnouncements, useEvents, useMassSchedule, useOrgCharts, useSacramentGuides } from './data.js';
+
+// The sections under Mass: the sacrament guides and the org charts, as tabs (?tab=).
+const TEACH_TABS = [['sakramento', 'Mga Sakramento ug Pormasyon'], ['organisasyon', 'Organisasyon']];
 
 /**
- * Misa ug Sakramento: the weekly Mass schedule (or the events agenda,
- * Kalendaryo) on a full-width blue band, then the sacrament guides on the
- * plain page, so the two read as separate sections.
+ * Ang Simbahan: the day's Bible verse with what the Catechism teaches about
+ * it, on the light-blue band; then the Mass schedule (or the events agenda,
+ * Kalendaryo); then the sacrament guides and the parish's organization
+ * charts, as two tabs on the band again. Old /misa links land here (with
+ * ?view=kalendaryo and ?view=sakramento still working).
  */
-export default function Misa() {
+export default function Simbahan() {
   const [params, setParams] = useSearchParams();
   const view = params.get('view') === 'kalendaryo' ? 'events' : 'sched';
-  const setView = (v) => setParams(v === 'events' ? { view: 'kalendaryo' } : {}, { replace: true });
+  const tab = params.get('tab') === 'organisasyon' ? 'organisasyon' : 'sakramento';
+  // Change some of the address's parameters, keep the rest.
+  const update = (patch) => {
+    const next = new URLSearchParams(params);
+    for (const [k, v] of Object.entries(patch)) { if (v == null) next.delete(k); else next.set(k, v); }
+    setParams(next, { replace: true });
+  };
+  // Arriving for the sacraments or the org charts: go straight to them.
+  const [jump] = useState(() => params.get('view') === 'sakramento' || params.has('tab'));
+  // The verse above changes the page's height when it comes in: jump after it.
+  const [verseIn, setVerseIn] = useState(false);
 
   return (
     <main className="animate-fadeUp">
-      {/* Iskedyul ug mga giya on the light-blue band; the sacraments follow on the plain page. */}
-      <Band aria-label="Iskedyul ug mga giya">
+      <Band aria-labelledby="simbahan-title">
         <div className={`${WRAP} ${BAND_PAD}`}>
-          <PageHeader eyebrow="Misa ug Sakramento" title="Iskedyul ug mga giya">
-            <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={setView} />
-          </PageHeader>
-          {view === 'sched' ? (
-            <>
-              <PageJumps />
-              <div id="misa" className="scroll-mt-24"><MassSchedule /></div>
-            </>
-          ) : <EventsAgenda />}
+          <div className="lg:flex lg:items-end lg:justify-between lg:gap-6 lg:mb-[22px]">
+            <div>
+              <Eyebrow>Pulong, Misa ug Sakramento</Eyebrow>
+              <h1 id="simbahan-title" className="font-serif font-semibold text-[32px] lg:text-[46px] leading-[1.08] mt-0.5 mb-3 lg:mb-0 text-parish-navy">Ang Simbahan</h1>
+            </div>
+            <PageJumps onTab={(t) => update({ tab: t === 'sakramento' ? null : t, view: null })} />
+          </div>
+          <VerseOfDay onLoad={() => setVerseIn(true)} />
         </div>
       </Band>
-      {view === 'sched' && <SacramentGuides jump={params.get('view') === 'sakramento'} />}
+
+      <section id="misa" aria-labelledby="misa-title" className="scroll-mt-16 lg:scroll-mt-[76px] py-7 lg:py-12">
+        <div className={WRAP}>
+          <div className="lg:flex lg:items-end lg:justify-between lg:gap-6 lg:mb-[22px]">
+            <div>
+              <Eyebrow>Misa</Eyebrow>
+              <h2 id="misa-title" className="m-0 mb-3 lg:mb-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">{view === 'sched' ? 'Iskedyul sa Misa' : 'Kalendaryo'}</h2>
+            </div>
+            <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={(v) => update({ view: v === 'events' ? 'kalendaryo' : null })} />
+          </div>
+          {view === 'sched' ? <MassSchedule /> : <EventsAgenda />}
+        </div>
+      </section>
+
+      <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={jump && verseIn} />
     </main>
   );
 }
 
-/** "On this page": jump to the Mass schedule or down to the sacraments (once there are guides). */
-function PageJumps() {
+const scrollTo = (id, behavior = 'smooth') => document.getElementById(id)?.scrollIntoView({ behavior, block: 'start' });
+
+/** "On this page": the Mass schedule, the sacraments and the org charts (those that have something to show). */
+function PageJumps({ onTab }) {
   const guides = listState(useSacramentGuides());
-  if (!guides.rows.length) return null;
-  const go = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  const btn = 'min-h-[40px] px-3.5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)]';
+  const charts = listState(useOrgCharts());
+  const btn = 'flex-none min-h-[40px] px-3.5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)]';
+  const open = (t) => { onTab(t); requestAnimationFrame(() => scrollTo('tudlo')); };
   return (
-    <nav aria-label="Niini nga panid" className="flex gap-2 flex-wrap mb-4 lg:mb-6">
-      <button type="button" className={btn} onClick={() => go('misa')}><Icon name="clock" size={16} />Iskedyul sa Misa</button>
-      <button type="button" className={btn} onClick={() => go('sakramento')}><Icon name="church" size={16} />Mga Sakramento ug Pormasyon ↓</button>
+    <nav aria-label="Niini nga panid" className="flex gap-2 overflow-x-auto -mx-3.5 px-3.5 pb-0.5 mb-3.5 lg:mb-0 lg:mx-0 lg:px-0 lg:pb-0 lg:flex-wrap">
+      <button type="button" className={btn} onClick={() => scrollTo('misa')}><Icon name="clock" size={16} /><span className="lg:hidden">Misa ↓</span><span className="hidden lg:inline">Iskedyul sa Misa ↓</span></button>
+      {guides.rows.length > 0 && <button type="button" className={btn} onClick={() => open('sakramento')}><Icon name="church" size={16} /><span className="lg:hidden">Sakramento ↓</span><span className="hidden lg:inline">Mga Sakramento ↓</span></button>}
+      {charts.rows.length > 0 && <button type="button" className={btn} onClick={() => open('organisasyon')}><Icon name="people" size={16} />Organisasyon ↓</button>}
     </nav>
+  );
+}
+
+/**
+ * The sacrament guides and the org charts, as tabs on the light-blue band.
+ * A tab with nothing published is left out, and the section with it when
+ * neither has anything. `jump` scrolls down to it once it's there.
+ */
+function TeachingTabs({ tab, onTab, chart, onChart, jump }) {
+  const guides = listState(useSacramentGuides());
+  const charts = listState(useOrgCharts());
+  const tabs = TEACH_TABS.filter(([k]) => (k === 'sakramento' ? guides.rows.length : charts.rows.length) > 0);
+  const current = tabs.find(([k]) => k === tab) || tabs[0];
+  const ready = !guides.loading && !charts.loading && tabs.length > 0;
+  // Straight there on arrival: a smooth scroll stops short when the chart draws under it.
+  useEffect(() => { if (jump && ready) scrollTo('tudlo', 'auto'); }, [jump, ready]);
+
+  if (!ready) return null;
+  return (
+    <Band id="tudlo" aria-labelledby="tudlo-section-title" className="scroll-mt-16 lg:scroll-mt-[76px] border-t">
+      <div className={`${WRAP} ${BAND_PAD}`}>
+        <div className="lg:flex lg:items-end lg:justify-between lg:gap-6 lg:mb-[22px]">
+          <div>
+            <Eyebrow>{current[0] === 'sakramento' ? 'Mga giya' : 'Ang parokya'}</Eyebrow>
+            <h2 id="tudlo-section-title" className="m-0 mb-3 lg:mb-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">{current[1]}</h2>
+          </div>
+          {tabs.length > 1 && <Segmented label="Sakramento ug Organisasyon" options={tabs} value={current[0]} onChange={onTab} />}
+        </div>
+        {current[0] === 'sakramento' ? <SacramentGuides rows={guides.rows} /> : <Organisasyon slug={chart} onPick={onChart} />}
+      </div>
+    </Band>
   );
 }
 
@@ -63,41 +126,28 @@ const guideRank = (g) => (GUIDE_FIRST.includes(g.key) ? GUIDE_FIRST.indexOf(g.ke
 const PICKER_COLS = { 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols-4', 5: 'lg:grid-cols-5' };
 
 /**
- * Mga Sakramento ug Pormasyon, on the plain page under the blue schedule band: a card
- * per sacrament to pick from, then that sacrament's guide. Hidden until
- * guides are published. `jump` (a ?view=sakramento link) scrolls down to it.
+ * Mga Sakramento ug Pormasyon: a card per published guide to pick from,
+ * then that sacrament's guide.
  */
-function SacramentGuides({ jump = false }) {
-  const q = listState(useSacramentGuides());
-  const guides = [...q.rows].sort((a, b) => guideRank(a) - guideRank(b) || a.id - b.id);
+function SacramentGuides({ rows }) {
+  const guides = [...rows].sort((a, b) => guideRank(a) - guideRank(b) || a.id - b.id);
   const [key, setKey] = useState('');
   const g = guides.find((x) => x.key === key) || guides[0];
-  const ref = useRef(null);
-  useEffect(() => { if (jump && guides.length) ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, [jump, guides.length]);
-
-  if (q.loading || q.error || !guides.length) return null;
   return (
-    <section
-      ref={ref} id="sakramento" aria-labelledby="sakramento-title"
-      className="scroll-mt-16 lg:scroll-mt-[76px] py-7 lg:py-12"
-    >
-      <div className={WRAP}>
-        <Eyebrow>Mga giya</Eyebrow>
-        <h2 id="sakramento-title" className="m-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Mga Sakramento ug Pormasyon</h2>
-        <p className="m-0 mt-1 mb-4 lg:mb-6 text-[15px] lg:text-[16.5px] leading-normal text-[#4d4636] lg:max-w-[760px]">
-          Unsa ang dad-on ug unsa ang mga lakang sa matag sakramento. Palihug duol sa opisina sa parokya una sa tanan aron makumpirma.
-        </p>
-        {guides.length > 1 && (
-          <div
-            role="group" aria-label="Pili og sakramento"
-            className={`flex gap-2.5 overflow-x-auto snap-x scroll-px-3.5 -mx-3.5 px-3.5 pb-1 mb-4 lg:grid lg:gap-3.5 lg:overflow-visible lg:mx-0 lg:px-0 lg:pb-0 lg:mb-6 ${PICKER_COLS[guides.length] || 'lg:grid-cols-6'}`}
-          >
-            {guides.map((x) => <SacramentChoice key={x.key} g={x} on={x.key === g?.key} onPick={() => setKey(x.key)} />)}
-          </div>
-        )}
-        {g && <GuideCard g={g} />}
-      </div>
-    </section>
+    <>
+      <p className="m-0 mb-4 lg:mb-6 text-[15px] lg:text-[16.5px] leading-normal text-[#4d4636] lg:max-w-[760px]">
+        Unsa ang dad-on ug unsa ang mga lakang sa matag sakramento. Palihug duol sa opisina sa parokya una sa tanan aron makumpirma.
+      </p>
+      {guides.length > 1 && (
+        <div
+          role="group" aria-label="Pili og sakramento"
+          className={`flex gap-2.5 overflow-x-auto snap-x scroll-px-3.5 -mx-3.5 px-3.5 pb-1 mb-4 lg:grid lg:gap-3.5 lg:overflow-visible lg:mx-0 lg:px-0 lg:pb-0 lg:mb-6 ${PICKER_COLS[guides.length] || 'lg:grid-cols-6'}`}
+        >
+          {guides.map((x) => <SacramentChoice key={x.key} g={x} on={x.key === g?.key} onPick={() => setKey(x.key)} />)}
+        </div>
+      )}
+      {g && <GuideCard g={g} />}
+    </>
   );
 }
 
@@ -382,7 +432,7 @@ function CalendarMass({ m }) {
   if (massType(m) === 'Special Mass') {
     return (
       <Link
-        to="/misa"
+        to="/simbahan"
         title={`${fmtTime12(m.start_time)} ${massShortLabel(m)} · ${m.location}`}
         className="mx-1.5 min-h-[24px] flex items-center gap-1 px-1.5 py-[3px] rounded-md font-bold text-[11.5px] leading-[1.2] overflow-hidden hover:brightness-95"
         style={{ background: 'var(--p-gold-tint)', color: 'var(--p-gold-deep)' }}

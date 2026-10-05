@@ -6,7 +6,7 @@ import CensusPortal from './pages/CensusPortal.jsx';
 import MaintenanceGate from './components/MaintenanceGate.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Home from './pages/site/Home.jsx';
-import Misa from './pages/site/Misa.jsx';
+import Simbahan from './pages/site/Simbahan.jsx';
 import Pahibalo from './pages/site/Pahibalo.jsx';
 import Komunidad, { GkkDetail } from './pages/site/Komunidad.jsx';
 import Serbisyo, { Kontak, Blood } from './pages/site/Serbisyo.jsx';
@@ -41,6 +41,11 @@ import { LoadingState } from './components/admin.jsx';
 // The org chart editor brings React Flow: loaded only when it's opened.
 const OrgStructure = React.lazy(() => import('./pages/admin/OrgStructure.jsx'));
 
+function ToSimbahan() {
+  const { search, hash } = useLocation();
+  return <Navigate to={`/simbahan${search}${hash}`} replace />;
+}
+
 function RequireAuth({ children }) {
   const { user, ready } = useAuth();
   const location = useLocation();
@@ -60,7 +65,9 @@ export default function App() {
         <Route element={<MaintenanceGate />}>
         <Route element={<SiteLayout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/misa" element={<Misa />} />
+          <Route path="/simbahan" element={<Simbahan />} />
+          {/* The page was Misa ug Sakramento: old links keep their ?view=. */}
+          <Route path="/misa" element={<ToSimbahan />} />
           <Route path="/misa/kalihokan/:id" element={<EventDetail />} />
           <Route path="/pahibalo" element={<Pahibalo />} />
           <Route path="/pahibalo/bulletin/:id" element={<BulletinDetail />} />

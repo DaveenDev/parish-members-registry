@@ -312,7 +312,7 @@ function Editor({ chart, canEdit, onChartUpdated, onDeleted, onDirtyChange }) {
 
   const context = useMemo(() => ({ canEdit, scope, preview, addChild: addPosition }), [canEdit, scope, preview, addPosition]);
   const savedPositions = saved.current.nodes.filter((n) => !isNewKey(n.id)).map((n) => ({ id: Number(n.id), title: n.data.title, gkkRole: n.data.gkkRole }));
-  const siteLink = `/komunidad?view=organisasyon&chart=${encodeURIComponent(chart.slug)}`;
+  const siteLink = `/simbahan?tab=organisasyon&chart=${encodeURIComponent(chart.slug)}`;
 
   if (state.loading) return <Panel><LoadingState label="Loading the chart…" /></Panel>;
   if (state.error) return <Panel><ErrorState message={state.error} onRetry={() => { setState({ loading: true, error: '' }); load().then(() => setState({ loading: false, error: '' })).catch((e) => setState({ loading: false, error: e.message })); }} /></Panel>;

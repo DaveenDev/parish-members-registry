@@ -578,3 +578,14 @@ export function officeStatus(hours, now = new Date()) {
 /** Philippine mobile number: 09XXXXXXXXX or +639XXXXXXXXX, spaces and dashes allowed. */
 export const validMobile = (v) => /^(09|\+639)\d{9}$/.test(String(v || '').replace(/[\s-]/g, ''));
 export const validEmail = (v) => /.+@.+\..+/.test(String(v || ''));
+
+/**
+ * The day's item out of `count` for the date `iso` (YYYY-MM-DD): the same
+ * one for everyone all day, the next one tomorrow, going round all of them.
+ */
+export function dailyIndex(iso, count) {
+  if (!count) return 0;
+  const [y, m, d] = iso.split('-').map(Number);
+  const days = Math.floor(Date.UTC(y, m - 1, d) / 86400000);
+  return ((days % count) + count) % count;
+}
