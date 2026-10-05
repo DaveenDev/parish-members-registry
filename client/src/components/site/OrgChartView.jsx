@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { OrgChart } from 'd3-org-chart';
 // d3-org-chart animates with selection.transition(), which d3-transition adds.
 import 'd3-transition';
@@ -42,9 +42,57 @@ const BTN = 'inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-xl borde
  * there for screen readers.
  */
 export default function OrgChartView({ nodes, showHolders = true, height = 520, fileName = 'organisasyon' }) {
+  const wrap = useRef(null);
   const box = useRef(null);
   const chart = useRef(null);
   const rows = useMemo(() => toD3Rows(nodes), [nodes]);
+  // Full screen: the browser's own where it can, else (iPhone) the chart
+  // covers the window. Both close with Esc or the button.
+  const [full, setFull] = useState(false);
+
+  function openFull() {
+    setFull(true);
+    const el = wrap.current;
+    const request = el?.requestFullscreen || el?.webkitRequestFullscreen;
+    if (request) Promise.resolve(request.call(el)).catch(() => {});
+  }
+
+  function closeFull() {
+    setFull(false);
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if ((document.fullscreenElement || document.webkitFullscreenElement) && exit) Promise.resolve(exit.call(document)).catch(() => {});
+  }
+
+  useEffect(() => {
+    if (!full) return undefined;
+    const onChange = () => { if (!(document.fullscreenElement || document.webkitFullscreenElement)) setFull(false); };
+    const onKey = (e) => { if (e.key === 'Escape') setFull(false); };
+    document.addEventListener('fullscreenchange', onChange);
+    document.addEventListener('webkitfullscreenchange', onChange);
+    document.addEventListener('keydown', onKey);
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.removeEventListener('fullscreenchange', onChange);
+      document.removeEventListener('webkitfullscreenchange', onChange);
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = overflow;
+    };
+  }, [full]);
+
+  // The chart box changes size going in and out of full screen: redraw to
+  // fit (not on first load, which draws the chart itself).
+  const wasFull = useRef(full);
+  useEffect(() => {
+    if (wasFull.current === full) return undefined;
+    wasFull.current = full;
+    const id = setTimeout(() => {
+      const c = chart.current;
+      const h = box.current?.clientHeight;
+      if (c && h) c.svgHeight(h).render().fit({ animate: false });
+    }, 50);
+    return () => clearTimeout(id);
+  }, [full]);
 
   useEffect(() => {
     if (!box.current || !rows.length) return undefined;
@@ -79,7 +127,10 @@ export default function OrgChartView({ nodes, showHolders = true, height = 520, 
     let timer;
     const onResize = () => {
       clearTimeout(timer);
-      timer = setTimeout(() => { if (box.current) c.render().fit({ animate: false }); }, 200);
+      timer = setTimeout(() => {
+        const h = box.current?.clientHeight;
+        if (h) c.svgHeight(h).render().fit({ animate: false });
+      }, 200);
     };
     window.addEventListener('resize', onResize);
     return () => {
@@ -91,17 +142,25 @@ export default function OrgChartView({ nodes, showHolders = true, height = 520, 
   }, [rows, showHolders, height]);
 
   return (
-    <div>
+    <div ref={wrap} className={full ? 'fixed inset-0 z-[100] flex flex-col bg-parish-bg p-3 sm:p-4' : ''}>
       <div className="flex flex-wrap gap-2 mb-2.5">
         <button type="button" className={BTN} onClick={() => chart.current?.fit()}>Ihaum sa screen</button>
         <button type="button" className={BTN} onClick={() => chart.current?.expandAll().fit()}>Ablihi tanan</button>
         <button type="button" className={BTN} onClick={() => chart.current?.collapseAll().fit()}>Tikopa</button>
         <button type="button" className={BTN} onClick={() => chart.current?.exportImg({ full: true, save: true, backgroundColor: '#fffdf8', imageName: fileName })}>I-download (PNG)</button>
+        <button type="button" className={`${BTN} ${full ? 'ml-auto' : ''}`} onClick={full ? closeFull : openFull}>
+          {full ? (
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
+          ) : (
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
+          )}
+          {full ? 'Isira ang tibuok screen' : 'Tibuok screen'}
+        </button>
       </div>
       <div
         ref={box} aria-hidden="true"
-        className="w-full rounded-2xl border border-parish-border bg-[#fbf7ef] overflow-hidden"
-        style={{ height: `min(${height}px, 70vh)` }}
+        className={`w-full rounded-2xl border border-parish-border bg-[#fbf7ef] overflow-hidden ${full ? 'flex-1 min-h-0' : ''}`}
+        style={full ? undefined : { height: `min(${height}px, 70vh)` }}
       />
       <p className="m-0 mt-2 text-[12.5px] text-parish-text2">I-drag aron molihok, i-pinch o i-scroll aron mo-zoom. I-tap ang button sa ubos sa usa ka katungdanan aron ablihan o tikopon.</p>
       <div className="sr-only"><PositionList rows={rows} parentId={null} showHolders={showHolders} /></div>
