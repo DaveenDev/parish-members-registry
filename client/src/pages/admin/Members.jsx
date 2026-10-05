@@ -11,7 +11,7 @@ import { MEMBERSHIP_STATUSES, STATUS_TONES } from '../../lib/census.js';
 import { PRACTICE_LEVELS, PRACTICE_LEVEL_HELP, PRACTICE_TONES, isRated, trendText, practiceSourceText } from '../../lib/practice.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
-import { can } from '../../lib/access.js';
+import { can, leaderGkk } from '../../lib/access.js';
 
 const BLOOD_OPTS = ['All', 'A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-', 'Unknown'];
 const SACRAMENT_OPTS = [['All', 'Any sacrament'], ['Baptism', 'Baptized'], ['Communion', 'First Communion'], ['Confirmation', 'Confirmed'], ['Matrimony', 'Married in Church']];
@@ -67,6 +67,9 @@ export default function Members() {
   const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
   const { q: search, sort: sortKey, dir: sortDir, page, size: pageSize } = url;
   const filters = Object.fromEntries(Object.keys(DEFAULT_FILTERS).map((k) => [k, url[k]]));
+  // GKK leaders don't see blood types, nor filter by them (even from a link).
+  const showBlood = can(user, 'bloodTypes');
+  if (!showBlood) filters.blood = 'All';
   const filterKey = JSON.stringify(filters);
   const debouncedSearch = useDebounced(search);
   const [gkkOptions, setGkkOptions] = useState([]);
@@ -164,7 +167,7 @@ export default function Members() {
 
   return (
     <>
-      <PageHeader title="Members" subtitle="Every registered parishioner, grouped by GKK">
+      <PageHeader title="Members" subtitle={leaderGkk(user) ? `Every registered member of ${leaderGkk(user)}` : 'Every registered parishioner, grouped by GKK'}>
         <SearchInput placeholder="Search name, household, contact…" aria-label="Search members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
       </PageHeader>
       <PageBody>
@@ -190,7 +193,7 @@ export default function Members() {
         </div>
         {moreOpen && (
           <div id="more-member-filters" className="flex flex-wrap gap-2.5 items-center mb-2.5 p-3 rounded-xl bg-parish-hover">
-            {Object.keys(DEFAULT_FILTERS).filter((k) => !MAIN_FILTERS.includes(k)).map(select)}
+            {Object.keys(DEFAULT_FILTERS).filter((k) => !MAIN_FILTERS.includes(k) && (showBlood || k !== 'blood')).map(select)}
           </div>
         )}
         {chips.length > 0 && (

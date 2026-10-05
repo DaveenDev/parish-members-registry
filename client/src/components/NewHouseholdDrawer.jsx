@@ -12,6 +12,8 @@ import {
 } from '../constants.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
+import { useAuth } from '../AuthContext.jsx';
+import { can } from '../lib/access.js';
 
 // The same five steps as the public registration wizard, in English.
 const STEPS = ['Household & Head', 'Members', 'Sacraments', 'Participation', 'Review'];
@@ -410,6 +412,9 @@ function MemberNameFields({ mv, onField }) {
 /** Personal details for one member. `head` hides Relationship (the head's is fixed). */
 function MemberFieldsGrid({ mv, onField, head = false }) {
   const set = (field) => (e) => onField(mv.mi, field, e.target.value);
+  // GKK leaders don't record blood types (0050).
+  const { user } = useAuth();
+  const showBlood = can(user, 'bloodTypes');
   return (
     <div className="grid gap-4" style={GRID}>
       {!head && (
@@ -443,12 +448,14 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
           {RELIGIONS.map((r) => <option key={r} value={r}>{bis(RELIGION_LABELS, r)}</option>)}
         </Select>
       </Field>
-      <Field label="Blood type">
-        <Select value={mv.bloodType} onChange={set('bloodType')}>
-          <option value="">{BLOOD_UNKNOWN_LABEL}</option>
-          {BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
-        </Select>
-      </Field>
+      {showBlood && (
+        <Field label="Blood type">
+          <Select value={mv.bloodType} onChange={set('bloodType')}>
+            <option value="">{BLOOD_UNKNOWN_LABEL}</option>
+            {BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
+          </Select>
+        </Field>
+      )}
     </div>
   );
 }

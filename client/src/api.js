@@ -357,8 +357,8 @@ export const api = {
    * GKK, so totals are exact however many members there are.
    */
   async memberCountsByGkk(params = {}) {
-    const { data: gkks, error } = await supabase.from('gkks').select('name');
-    if (error) throw mapError(error);
+    // The GKKs this account sees: a GKK leader's own only (0050).
+    const gkks = await listCounts('gkks');
     const count = async (gkk) => {
       let q = applyMemberFilters(supabase.from('members_with_household').select('id', { count: 'exact', head: true }), { ...params, gkk: 'All' });
       q = gkk === null ? q.is('household_gkk', null) : q.eq('household_gkk', gkk);

@@ -4,7 +4,7 @@ import { api } from '../../api.js';
 import { PageHeader, PageBody, ErrorState, LoadingState, Panel } from '../../components/admin.jsx';
 import { useAsyncData } from '../../hooks.js';
 import { useAuth } from '../../AuthContext.jsx';
-import { can } from '../../lib/access.js';
+import { can, leaderGkk } from '../../lib/access.js';
 import { todayItems } from '../../lib/today.js';
 import { todayIso } from '../../lib/website.js';
 
@@ -133,11 +133,13 @@ function TodayPanel({ counts }) {
 export default function Dashboard() {
   const { data: stats, loading, error, reload } = useAsyncData(() => api.dashboardStats(), []);
   const layout = useOutletContext();
+  // A GKK leader's totals are their GKK's (row rules, 0014).
+  const gkk = leaderGkk(useAuth().user);
 
   if (!stats) {
     return (
       <>
-        <PageHeader title="Dashboard" subtitle="Parish registry overview" />
+        <PageHeader title="Dashboard" subtitle={gkk ? `${gkk} overview` : 'Parish registry overview'} />
         <PageBody>
           {error && !loading ? <ErrorState message={error} onRetry={reload} /> : <LoadingState label="Loading dashboard…" />}
         </PageBody>
@@ -147,7 +149,7 @@ export default function Dashboard() {
 
   return (
     <>
-      <PageHeader title="Dashboard" subtitle="Parish registry overview" />
+      <PageHeader title="Dashboard" subtitle={gkk ? `${gkk} overview` : 'Parish registry overview'} />
       <PageBody>
         <div className="grid gap-3.5 mb-[22px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(150px,100%),1fr))', marginBottom: '22px' }}>
           {stats.statCards.map((c) => <StatCard key={c.label} {...c} />)}

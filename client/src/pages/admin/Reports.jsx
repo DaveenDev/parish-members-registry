@@ -8,7 +8,7 @@ import { ReportPrintSheet } from '../../components/PrintSheet.jsx';
 import ActivenessReport from '../../components/ActivenessReport.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
-import { can } from '../../lib/access.js';
+import { can, leaderGkk } from '../../lib/access.js';
 
 function Bar({ label, right, w, color }) {
   return (
@@ -111,7 +111,7 @@ export default function Reports() {
 
   return (
     <>
-      <PageHeader title="Reports" subtitle="Registry statistics, custom reports & analysis" />
+      <PageHeader title="Reports" subtitle={leaderGkk(user) ? `${leaderGkk(user)}: statistics, custom reports & analysis` : 'Registry statistics, custom reports & analysis'} />
       <PageBody>
         <div className="max-w-[920px]">
           <Tabs tabs={REPORT_TABS} value={tab} onChange={setTab} />
@@ -154,7 +154,7 @@ export default function Reports() {
                 </div>
               </Panel>
 
-              <Panel className="px-6 py-[22px]">
+              {can(user, 'bloodTypes') && <Panel className="px-6 py-[22px]">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Blood types</div>
                   <Link to="/admin/blood" className="px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg no-underline">Open Blood Types page →</Link>
@@ -163,7 +163,7 @@ export default function Reports() {
                 <div className="flex flex-wrap gap-2">
                   {stats.bloodCounts.map((b) => <span key={b.label} className="font-bold text-[12.5px] bg-parish-errorBg text-parish-error px-3.5 py-1.5 rounded-full">{b.label} · {b.n}</span>)}
                 </div>
-              </Panel>
+              </Panel>}
             </div>
           )}
 

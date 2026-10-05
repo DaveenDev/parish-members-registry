@@ -219,11 +219,14 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               <Field label="Contact"><TextInput value={member.contact || ''} onChange={(e) => set('contact', e.target.value)} /></Field>
               <Field label="Email"><TextInput value={member.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Occupation"><TextInput value={member.occupation || ''} onChange={(e) => set('occupation', e.target.value)} /></Field>
-              <Field label="Blood type">
-                <Select value={member.blood_type || ''} onChange={(e) => set('blood_type', e.target.value)}>
-                  <option value="">{BLOOD_UNKNOWN_LABEL}</option>{BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
-                </Select>
-              </Field>
+              {/* Not for GKK leaders; the database keeps the value as it was when they save (0050). */}
+              {can(user, 'bloodTypes') && (
+                <Field label="Blood type">
+                  <Select value={member.blood_type || ''} onChange={(e) => set('blood_type', e.target.value)}>
+                    <option value="">{BLOOD_UNKNOWN_LABEL}</option>{BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
+                  </Select>
+                </Field>
+              )}
               <Field label="Responsibility in GKK"><ComboInput placeholder="Pick or type a role" options={GKK_ROLES} value={member.gkk_role} onChange={(v) => set('gkk_role', v)} /></Field>
               <Field label="Responsibility in Parish"><OptionSelect placeholder="None" options={parishRoleList} value={member.parish_role} onChange={(v) => set('parish_role', v)} /></Field>
             </div>

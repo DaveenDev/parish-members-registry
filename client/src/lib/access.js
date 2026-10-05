@@ -5,7 +5,7 @@
 export const ACCESS_LEVELS = [
   { key: 'full', label: 'Full access', note: 'Everything in the admin panel.' },
   { key: 'read_only', label: 'Read only', note: 'Sees every record, changes nothing.' },
-  { key: 'gkk_leader', label: 'GKK leader', note: 'Sees and updates the households and members of one GKK, records their census and reviews their online updates, and gets or renews their census codes.' },
+  { key: 'gkk_leader', label: 'GKK leader', note: 'Sees and updates the households and members of one GKK (not their blood types), records their census and reviews their online updates, and gets or renews their census codes. Dashboard, reports and duplicates cover that GKK only.' },
   { key: 'website', label: 'Website & requests', note: 'Runs the Parish Website and the Requests queues; can look up members.' },
 ];
 
@@ -19,6 +19,8 @@ const RULES = {
   census: ['full', 'read_only', 'gkk_leader'], // GKK leaders: their GKK only (0024)
   reports: ['full', 'read_only', 'gkk_leader'],
   exports: ['full', 'read_only'],
+  // Members' blood types: the Blood Types page, the field, filter and report (not GKK leaders, 0050).
+  bloodTypes: ['full', 'read_only', 'website'],
   activity: ['full', 'read_only'],
   // change
   editRegistry: ['full', 'gkk_leader'],
@@ -36,6 +38,9 @@ const RULES = {
   settings: ['full'],
   trash: ['full'],
 };
+
+/** A GKK leader's GKK, whose records are all they see; null for everyone else. */
+export const leaderGkk = (user) => (user?.access === 'gkk_leader' && user.accessGkk) || null;
 
 /** True when `user` (from useAuth) may do `what` (a RULES key). Unknown users get full access, as before 0014. */
 export function can(user, what) {

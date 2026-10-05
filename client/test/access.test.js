@@ -25,6 +25,11 @@ describe('can', () => {
     assert.ok(!can({ access: 'website' }, 'editRegistry'));
   });
 
+  test('GKK leaders never see blood types; everyone else who sees the registry does', () => {
+    assert.ok(!can({ access: 'gkk_leader' }, 'bloodTypes'));
+    for (const access of ['full', 'read_only', 'website']) assert.ok(can({ access }, 'bloodTypes'), access);
+  });
+
   test('GKK leaders get and renew census codes; read-only and website staff do not', () => {
     assert.ok(can({ access: 'gkk_leader' }, 'censusCodes'));
     assert.ok(can({ access: 'full' }, 'censusCodes'));

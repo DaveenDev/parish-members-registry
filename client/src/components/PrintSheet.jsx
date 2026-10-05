@@ -6,6 +6,8 @@ import { formatAccessCode } from '../lib/census.js';
 import { CensusLinkBox } from './CensusPrintSheet.jsx';
 import { fmtDate, ageFromDob, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, HELP_WAYS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
+import { useAuth } from '../AuthContext.jsx';
+import { can } from '../lib/access.js';
 
 /** Trigger the browser print dialog for the currently rendered sheet. */
 export function printHouseholdSheet() {
@@ -154,6 +156,8 @@ export default function PrintSheet({ data, parish: given }) {
 
 function HouseholdRecord({ data, parish }) {
   const { household: h, members = [], code } = data;
+  // GKK leaders don't see blood types (0050).
+  const showBlood = can(useAuth().user, 'bloodTypes');
   const address = [h.street, h.barangay, h.city, h.province, h.zip].filter(Boolean).join(', ');
   return (
     <>
@@ -219,7 +223,7 @@ function HouseholdRecord({ data, parish }) {
               m.tribe && `Tribe: ${m.tribe}`,
               m.gkk_role && `GKK: ${m.gkk_role}`,
               m.parish_role && `Parish: ${m.parish_role}`,
-              m.blood_type && `Blood: ${m.blood_type}`,
+              showBlood && m.blood_type && `Blood: ${m.blood_type}`,
               m.contact,
             ].filter(Boolean).join('  ·  ')}
           </div>

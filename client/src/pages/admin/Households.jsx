@@ -14,7 +14,7 @@ import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { useDebounced, useUrlState } from '../../hooks.js';
 import { VerifiedLine } from '../../components/VerifiedLine.jsx';
 import { useAuth } from '../../AuthContext.jsx';
-import { can } from '../../lib/access.js';
+import { can, leaderGkk } from '../../lib/access.js';
 import { daysAgo, fmtDateTime } from '../../constants.js';
 
 const SORTS = [['registered', 'Registered'], ['name', 'Household'], ['gkk', 'GKK'], ['members', 'Members'], ['updated', 'Last updated']];
@@ -266,7 +266,7 @@ export default function Households() {
 
   return (
     <>
-      <PageHeader title="Households" subtitle="All registered families">
+      <PageHeader title="Households" subtitle={leaderGkk(user) ? `The registered families of ${leaderGkk(user)}` : 'All registered families'}>
         <FilterSelect value={gkk} onChange={(e) => setUrl({ gkk: e.target.value })} aria-label="Filter by GKK">
           <option value="All">All GKKs</option>
           {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}

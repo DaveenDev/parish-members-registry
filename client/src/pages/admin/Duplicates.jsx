@@ -9,7 +9,7 @@ import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { fmtDate, fmtDateTime } from '../../constants.js';
 import { useAuth } from '../../AuthContext.jsx';
-import { can } from '../../lib/access.js';
+import { can, leaderGkk } from '../../lib/access.js';
 import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 
 const fullName = (m) => [m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ');
@@ -50,7 +50,7 @@ export default function Duplicates() {
 
   return (
     <>
-      <PageHeader title="Possible duplicates" subtitle="Members who share a name and date of birth" />
+      <PageHeader title="Possible duplicates" subtitle={leaderGkk(user) ? `Members of ${leaderGkk(user)} who share a name and date of birth` : 'Members who share a name and date of birth'} />
       <PageBody>
         <div className="max-w-[920px]">
           <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">

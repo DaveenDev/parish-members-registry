@@ -21,7 +21,7 @@ export const NAV_GROUPS = [
       { to: '/admin/members', label: 'Members', need: 'registry' },
       { to: '/admin/sacraments', label: 'Sacraments', need: 'registry', badge: 'sacraments', badgeLabel: 'claims to verify' },
       { to: '/admin/census', label: 'Census', need: 'census', badge: 'census', badgeLabel: 'online updates to review' },
-      { to: '/admin/blood', label: 'Blood Types', need: 'registry' },
+      { to: '/admin/blood', label: 'Blood Types', need: 'bloodTypes' },
     ],
   },
   {
