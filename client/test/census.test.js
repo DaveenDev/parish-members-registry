@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
-  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus,
+  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
   DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, vsLastYearTable,
@@ -270,6 +270,19 @@ describe('matching last year\'s names to the registry', () => {
     assert.deepEqual(nameWords('Ma. Dela Cruz, Jr. (P.)'), ['ma', 'dela', 'cruz']);
     assert.equal(listStatus(n(2, 'A', 'x'), m), 'Not yet');
     assert.equal(listStatus(n(1, 'A', 'x'), m), 'Registered');
+  });
+
+  test('a name not yet registered in its GKK but whose head is registered in another GKK', () => {
+    const list = [n(1, 'SJB', 'Perfecto Panes Jr.'), n(2, 'SJB', 'Maryann Failano'), n(3, 'SJB', 'Angelito Panes'), n(4, 'SJB', 'Juan Cruz Sr.')];
+    const others = [
+      { gkk: 'SR', first_name: 'Perfecto', last_name: 'Panes', suffix: 'Jr.' },
+      { gkk: 'SR', first_name: 'Juan', last_name: 'Cruz', suffix: 'Jr.' }, // Jr. is not the Sr. on the list
+      { gkk: 'SJB', first_name: 'Maryann', last_name: 'Failano' }, // same GKK: that's a match, not a note
+    ];
+    const matches = new Map([[3, { household_id: 9 }]]); // Angelito is registered in his own GKK
+    const m = otherGkkMatches(list, others, matches);
+    assert.deepEqual([...m.keys()], [1]);
+    assert.equal(m.get(1)[0].gkk, 'SR');
   });
 });
 

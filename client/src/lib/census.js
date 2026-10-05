@@ -309,6 +309,30 @@ export function matchListToRegistry(listRows, heads) {
   return out;
 }
 
+/**
+ * Names still "Not yet" in their own GKK whose head of household is
+ * registered in another GKK, by the same name rules as matchListToRegistry():
+ * every word of the head's last name and one of their first name in the
+ * name, and a suffix that agrees. `others` is lastYearOtherGkkHeads() rows.
+ * Returns a Map of list id → [those heads], for a note asking the GKK to
+ * report a possible duplicate or wrong GKK to the parish office.
+ */
+export function otherGkkMatches(listRows, others, matches = null) {
+  const people = (others || []).map((h) => ({ h, last: nameWords(h.last_name), first: nameWords(h.first_name), suffix: nameSuffix(h.suffix) }))
+    .filter((p) => p.last.length && p.first.length);
+  const out = new Map();
+  for (const r of listRows || []) {
+    if (listStatus(r, matches) !== 'Not yet' || r.household_id != null) continue;
+    const words = new Set(nameWords(r.head_name));
+    const suffix = nameSuffix(r.head_name);
+    const found = people.filter((p) => p.h.gkk !== r.gkk
+      && !(suffix && p.suffix && suffix !== p.suffix)
+      && p.last.every((w) => words.has(w)) && p.first.some((w) => words.has(w))).map((p) => p.h);
+    if (found.length) out.set(r.id, found);
+  }
+  return out;
+}
+
 /** A list name's status, counting a name found in the registry (`matches`) as Registered. */
 export function listStatus(row, matches = null) {
   return row.status === 'Not yet' && matches?.has(row.id) ? 'Registered' : row.status;

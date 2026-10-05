@@ -1183,6 +1183,17 @@ export const api = {
   },
 
   // ---- last year's household list (0041 migration) -------------------
+  /**
+   * Heads of household in other GKKs who may be one of `gkk`'s names still
+   * "Not yet" (0053), for otherGkkMatches(). Household details only for staff
+   * who see the whole registry. Empty before 0053.
+   */
+  async lastYearOtherGkkHeads(gkk) {
+    const { data, error } = await supabase.rpc('last_year_other_gkk_heads', { p_gkk: gkk });
+    if (error) return [];
+    return data || [];
+  },
+
   /** Every name on one GKK's list (or every GKK's, for 'All'), by purok then name. */
   async listLastYear(gkk = 'All') {
     try {

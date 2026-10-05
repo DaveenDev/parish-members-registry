@@ -9,7 +9,7 @@ import { useConfirm } from './ConfirmDialog.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { parseCsv } from '../lib/csv.js';
 import {
-  LAST_YEAR_STATUSES, LAST_YEAR_STATUS_TONES, parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames, matchListToRegistry, listStatus,
+  LAST_YEAR_STATUSES, LAST_YEAR_STATUS_TONES, parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames, matchListToRegistry, listStatus, otherGkkMatches,
 } from '../lib/census.js';
 
 const textareaClass = 'w-full px-3.5 py-3 text-[15px] text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15 font-mono leading-relaxed';
@@ -44,6 +44,9 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
   // A name still "Not yet" counts as registered once its household is in the
   // registry (on the queue or verified), as on the Census page's results.
   const matches = useMemo(() => matchListToRegistry(rows || [], heads), [rows, heads]);
+  // Names not registered here whose head is registered in another GKK (0053).
+  const [otherHeads, setOtherHeads] = useState([]);
+  const elsewhere = useMemo(() => otherGkkMatches(rows || [], otherHeads, matches), [rows, otherHeads, matches]);
   const overview = useMemo(() => (allRows ? countLastYearList(allRows, matchListToRegistry(allRows, heads)) : null), [allRows, heads]);
   const shown = (rows || []).filter((r) => {
     const s = listStatus(r, matches);
@@ -57,6 +60,7 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
     if (gkk) {
       setRows(null);
       api.listLastYear(gkk).then(setRows).catch((e) => setError(e.message));
+      api.lastYearOtherGkkHeads(gkk).then(setOtherHeads);
     } else {
       setAllRows(null);
       api.listLastYear('All').then(setAllRows).catch((e) => setError(e.message));
@@ -264,10 +268,15 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
                 />
               )}
               {!!rows.length && !list.total && <div className="px-4 py-6 text-[13.5px] text-parish-muted">No names match.</div>}
+              {!!list.rows.length && (
+                <div aria-hidden className={`hidden md:grid ${ROW_GRID} gap-x-4 px-4 py-2.5 bg-parish-field border-b border-parish-line font-bold text-[11.5px] tracking-[.08em] uppercase text-parish-muted`}>
+                  <span>Head of household</span><span>Status</span>{canEdit && <span>Actions</span>}
+                </div>
+              )}
               <ul className="list-none m-0 p-0">
                 {list.rows.map((r) => (
-                  <li key={r.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3 border-t border-parish-line first:border-t-0">
-                    <div className="flex-1 min-w-[200px]">
+                  <li key={r.id} className={`grid gap-x-4 gap-y-2 md:items-center ${ROW_GRID} px-4 py-3 border-t border-parish-line first:border-t-0`}>
+                    <div className="min-w-0">
                       <div className="font-semibold text-[14.5px] text-parish-navy">{r.head_name}</div>
                       <div className="text-[12.5px] text-parish-text2">
                         {[r.purok, r.note].filter(Boolean).join(' · ') || <span className="text-parish-faint">No purok</span>}
@@ -287,25 +296,29 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
                           </div>
                         );
                       })()}
+                      {elsewhere.has(r.id) && <ElsewhereNote heads={elsewhere.get(r.id)} />}
                     </div>
-                    {canEdit ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        {/* The status first, as everyone sees it, so the buttons after it read as actions. */}
-                        <StatusBadge row={r} matches={matches} />
+                    {/* Status column: what the census counts. The actions have their own column. */}
+                    <div className="flex items-center gap-2">
+                      <span className="md:hidden font-bold text-[11px] tracking-[.08em] uppercase text-parish-muted">Status</span>
+                      <StatusBadge row={r} matches={matches} />
+                    </div>
+                    {canEdit && (
+                      <div className="flex flex-wrap items-center gap-2 md:justify-end">
                         {r.status === 'Not yet' && !matches.has(r.id) && (
                           <>
                             <RowButton onClick={() => setChoosing(r)} title="The family registered under another head or name: pick its household">Choose household</RowButton>
                             <RowButton onClick={() => setRowStatus(r, 'Registered')} title="Tick this name off by hand, e.g. the family registered on paper">Mark as registered</RowButton>
                           </>
                         )}
-                        <FilterSelect aria-label={`Status of ${r.head_name}`} value={r.status} onChange={(e) => setRowStatus(r, e.target.value)} className="!py-1.5 !text-[12.5px]">
-                          {LAST_YEAR_STATUSES.map((s) => <option key={s} value={s}>{s === 'Not yet' ? 'Not yet registered' : s}</option>)}
+                        {/* An action, not the status: always reads "Change status…". */}
+                        <FilterSelect aria-label={`Change the status of ${r.head_name}`} value="" onChange={(e) => e.target.value && setRowStatus(r, e.target.value)} className="!py-1.5 !text-[12.5px]">
+                          <option value="">Change status…</option>
+                          {LAST_YEAR_STATUSES.filter((s) => s !== r.status).map((s) => <option key={s} value={s}>{s === 'Not yet' ? 'Not yet registered' : s}</option>)}
                         </FilterSelect>
                         <RowButton onClick={() => setEditing(r)}>Edit</RowButton>
                         <RowButton tone="red" onClick={() => remove(r)}>Remove</RowButton>
                       </div>
-                    ) : (
-                      <StatusBadge row={r} matches={matches} />
                     )}
                   </li>
                 ))}
@@ -339,6 +352,29 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
 }
 
 /** Type or paste names, one household per line. */
+// Name | Status | Actions on wider screens; stacked on phones.
+const ROW_GRID = 'md:grid-cols-[minmax(0,1fr)_170px_auto]';
+
+/**
+ * A name still not registered in its own GKK whose head is registered in
+ * another GKK: a possible duplicate, a family that moved, or a household
+ * filed under the wrong GKK, for the parish office to sort out. Household
+ * details only reach staff who see the whole registry (0053).
+ */
+function ElsewhereNote({ heads }) {
+  return (
+    <div className="mt-1.5 inline-flex flex-col gap-0.5 px-2.5 py-1.5 rounded-lg border border-[#fdba74] bg-[#fff7ed] text-[12.5px] text-[#9a3412] leading-snug">
+      {heads.map((h, i) => (
+        <span key={i}>
+          <strong>⚠ Registered in another GKK:</strong> {[h.first_name, h.last_name, h.suffix].filter(Boolean).join(' ')} is head of a household in <strong>{h.gkk || 'no GKK'}</strong>
+          {h.household_name && <> ({h.household_name}, {h.status === 'Verified' ? 'verified' : 'on the verification queue'})</>}.
+        </span>
+      ))}
+      <span>Report it to the parish office: it may be a duplicate, a family that moved, or a household filed under the wrong GKK.</span>
+    </div>
+  );
+}
+
 /** A name's status as the census counts it: found in the registry counts as Registered. */
 function StatusBadge({ row, matches }) {
   const s = listStatus(row, matches);
