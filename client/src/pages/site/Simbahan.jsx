@@ -17,7 +17,7 @@ import { listState, useAnnouncements, useEvents, useMassSchedule, useOrgCharts, 
 const TEACH_TABS = [['sakramento', 'Mga Sakramento ug Pormasyon'], ['organisasyon', 'Organisasyon']];
 
 /**
- * Ang Simbahan: the day's Bible verse with what the Catechism teaches about
+ * Ang Simbahan: a random Bible verse with what the Catechism teaches about
  * it, on the light-blue band; then the Mass schedule (or the events agenda,
  * Kalendaryo); then the sacrament guides and the parish's organization
  * charts, as two tabs on the band again. Old /misa links land here (with

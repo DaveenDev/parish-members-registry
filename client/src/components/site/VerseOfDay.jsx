@@ -1,25 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import { Icon } from './Icons.jsx';
 import { Skeleton } from './kit.jsx';
-import { dailyIndex } from '../../lib/site.js';
-import { todayIso } from '../../lib/website.js';
 
 const NAV_BTN = 'min-h-[44px] px-3.5 inline-flex items-center gap-1.5 rounded-xl border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)] disabled:opacity-50';
 
 /**
  * Pulong sa Dios: one of 100 Bible verses on the heart of the Catholic
- * faith (lib/verses.js), a different one each day, with what the Catechism
- * teaches about it below. Visitors can page through the others. The verses
- * load on their own, after the page; `onLoad` says when they're in (or failed).
+ * faith (lib/verses.js), a random one each time the page opens, with what
+ * the Catechism teaches about it below. Visitors can page through the others.
+ * The verses load on their own, after the page; `onLoad` says when they're in
+ * (or failed).
  */
 export default function VerseOfDay({ onLoad }) {
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
-  const [picked, setPicked] = useState(null); // null: today's
+  const [i, setI] = useState(0);
   useEffect(() => {
     let live = true;
     import('../../lib/verses.js')
-      .then((m) => live && setData(m))
+      .then((m) => {
+        if (!live) return;
+        setI(Math.floor(Math.random() * m.VERSES.length));
+        setData(m);
+      })
       .catch(() => live && setFailed(true))
       .finally(() => live && onLoad?.());
     return () => { live = false; };
@@ -28,10 +31,8 @@ export default function VerseOfDay({ onLoad }) {
   if (failed) return null;
   if (!data) return <Skeleton h={340} className="rounded-[20px]" />;
   const { VERSES, PARTS } = data;
-  const today = dailyIndex(todayIso(), VERSES.length);
-  const i = picked ?? today;
   const v = VERSES[i];
-  const go = (step) => setPicked((i + step + VERSES.length) % VERSES.length);
+  const go = (step) => setI((i + step + VERSES.length) % VERSES.length);
 
   return (
     <article aria-labelledby="pulong-title" className="bg-parish-card border border-parish-border rounded-[20px] shadow-card overflow-hidden">
@@ -39,7 +40,7 @@ export default function VerseOfDay({ onLoad }) {
       <div className="px-4 pt-4 pb-5 lg:px-10 lg:pt-8 lg:pb-8">
         <div className="flex items-center gap-2 flex-wrap mb-3 lg:mb-5">
           <h2 id="pulong-title" className="m-0 font-bold text-[12px] lg:text-[12.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)]">
-            {i === today ? 'Pulong sa Dios karong adlawa' : 'Pulong sa Dios'}
+            Pulong sa Dios
           </h2>
           <span className="font-bold text-[11px] tracking-[.06em] uppercase rounded-md px-2 py-0.5 text-parish-blueDeep border border-[var(--p-blue-border)]" style={{ background: 'var(--p-blue-tint)' }}>
             {PARTS[v.part]}
@@ -73,7 +74,6 @@ export default function VerseOfDay({ onLoad }) {
           <button type="button" className={NAV_BTN} onClick={() => go(1)} aria-label="Sunod nga bersikulo">
             Sunod<Icon name="chev" size={16} />
           </button>
-          {i !== today && <button type="button" className={NAV_BTN} onClick={() => setPicked(null)}>Karong adlawa</button>}
           <span className="ml-auto text-[13px] text-parish-text2">{i + 1} sa {VERSES.length}</span>
         </div>
         <p className="m-0 mt-3 text-[12px] text-parish-text2">Bibliya: World English Bible (public domain). Ang pagpasabot gikan sa Katesismo sa Simbahang Katoliko.</p>
