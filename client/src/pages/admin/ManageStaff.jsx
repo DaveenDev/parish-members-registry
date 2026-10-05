@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
 import { useAuth } from '../../AuthContext.jsx';
 import { PageHeader, PageBody, EmptyState, ErrorState, LoadingState, Panel, Modal } from '../../components/admin.jsx';
-import { Field, TextInput, Checkbox, Select, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
+import { Field, TextInput, Select, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
 import { useAsyncData } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
@@ -29,14 +29,37 @@ function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
         ? <Field label="Email" required><TextInput type="email" value={form.email} onChange={set('email')} autoComplete="off" /></Field>
         : <div className="text-[13.5px] text-parish-text2"><span className="font-semibold">Email:</span> {form.email}</div>}
       <Field label="Role / title"><TextInput value={form.role} onChange={set('role')} placeholder="e.g. Parish Secretary" /></Field>
-      <fieldset className="border-none p-0 m-0 flex flex-col gap-2">
+      <fieldset className="border-none p-0 m-0 flex flex-col gap-2.5">
         <legend className="font-semibold text-[13px] text-parish-ink mb-1.5">Access</legend>
-        {ACCESS_LEVELS.map((a) => (
-          <label key={a.key} className={`flex items-start gap-2.5 text-[13.5px] text-parish-text2 ${form.isAdmin && a.key !== 'full' ? 'opacity-50' : 'cursor-pointer'}`}>
-            <input type="radio" name="access" value={a.key} checked={form.access === a.key} onChange={set('access')} disabled={form.isAdmin && a.key !== 'full'} className="mt-1 accent-parish-blue" />
-            <span><strong className="text-parish-navy">{a.label}</strong>: {a.note}</span>
-          </label>
-        ))}
+        {/* Toggle buttons, one on at a time; what the chosen one allows is spelled out below. */}
+        <div role="radiogroup" aria-label="Access" className="grid grid-cols-2 gap-2">
+          {ACCESS_LEVELS.map((a) => {
+            const on = form.access === a.key;
+            const locked = form.isAdmin && a.key !== 'full';
+            return (
+              <button
+                key={a.key}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                disabled={locked}
+                onClick={() => setForm((f) => ({ ...f, access: a.key }))}
+                className={`appearance-none flex items-center justify-center gap-1.5 min-h-[46px] px-3 py-2.5 rounded-xl border-[1.5px] text-[13.5px] font-semibold text-center leading-tight transition ${
+                  on
+                    ? 'bg-parish-fill border-transparent text-white shadow-btn'
+                    : 'bg-parish-field border-parish-borderSoft text-parish-text2 hover:border-[var(--p-blue-border)]'
+                } ${locked ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-parish-blue`}
+              >
+                {on && <span aria-hidden>✓</span>}
+                {a.label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="px-3.5 py-2.5 rounded-xl bg-parish-field border border-parish-line2 text-[13px] text-parish-text2 leading-relaxed">
+          {ACCESS_LEVELS.find((a) => a.key === form.access)?.note}
+          {form.isAdmin && <span className="block mt-1 text-parish-muted">Staff admins always have full access.</span>}
+        </div>
         {form.access === 'gkk_leader' && (
           <Field label="GKK" required>
             <Select value={form.accessGkk || ''} onChange={set('accessGkk')}>
@@ -46,9 +69,16 @@ function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
           </Field>
         )}
       </fieldset>
-      <label className="flex items-start gap-2.5 cursor-pointer text-[13.5px] text-parish-text2">
-        <Checkbox checked={form.isAdmin} onChange={set('isAdmin')} className="mt-0.5" />
-        <span><strong className="text-parish-navy">Staff admin</strong>: can add, reset and disable staff accounts, and set their access. Always full access.</span>
+      <label className="flex items-center gap-3 cursor-pointer select-none px-3.5 py-3 rounded-xl border border-parish-line2">
+        <span className="flex-1 min-w-0 text-[13px] text-parish-text2 leading-relaxed">
+          <strong className="block text-[13.5px] text-parish-navy">Staff admin</strong>
+          Can add, reset and disable staff accounts, and set their access. Always full access.
+        </span>
+        <span className="relative inline-flex flex-none">
+          <input type="checkbox" role="switch" aria-label="Staff admin" checked={form.isAdmin} onChange={set('isAdmin')} className="peer sr-only" />
+          <span className="w-12 h-7 rounded-full bg-parish-sunk border border-parish-border transition peer-checked:bg-parish-fill peer-checked:border-transparent peer-focus-visible:ring-4 peer-focus-visible:ring-parish-blue/20" />
+          <span className="absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
+        </span>
       </label>
       <div className="flex gap-2.5 justify-end mt-1">
         <GhostButton type="button" onClick={onCancel} className="px-5 py-2.5 text-[14px]">Cancel</GhostButton>
