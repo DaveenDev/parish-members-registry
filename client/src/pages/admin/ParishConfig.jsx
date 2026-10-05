@@ -1055,17 +1055,17 @@ function LastYearTab({ gkk }) {
         <div className="grid gap-3 mt-5 sm:grid-cols-2">
           <div className={`rounded-xl border px-4 py-3.5 ${on ? 'border-[var(--p-blue-border)] bg-[var(--p-blue-tint)]' : 'border-parish-line2 bg-parish-field opacity-75'}`}>
             <div className="font-semibold text-[14px] text-parish-navy mb-1">{on && '✓ '}On: last year's list</div>
-            <div className="text-[13px] text-parish-text2 leading-relaxed">Each GKK is measured against its names below (or the household count in Parish GKK when it has none). Tick families off as they register; the names left are printed for house visits.</div>
+            <div className="text-[13px] text-parish-text2 leading-relaxed">Each GKK is measured against its names below (or the household count in Parish GKK when it has none). The list comes first: a count that doesn't match a GKK's names is cleared. Tick families off as they register; the names left are printed for house visits.</div>
           </div>
           <div className={`rounded-xl border px-4 py-3.5 ${!on ? 'border-[var(--p-blue-border)] bg-[var(--p-blue-tint)]' : 'border-parish-line2 bg-parish-field opacity-75'}`}>
             <div className="font-semibold text-[14px] text-parish-navy mb-1">{!on && '✓ '}Off: the previous census</div>
-            <div className="text-[13px] text-parish-text2 leading-relaxed">Each GKK is measured against the households that took part in the previous census here. Those not registered yet are listed under Census → Results by GKK, to print or export.</div>
+            <div className="text-[13px] text-parish-text2 leading-relaxed">Each GKK is measured against the households that took part in the previous census here (until there is one, against the household count in Parish GKK). Those not registered yet are listed under Census → Results by GKK, to print or export.</div>
           </div>
         </div>
         {!on && noEarlier && (
           <div className="mt-4 px-4 py-3 rounded-xl border border-[#fdba74] bg-[#fff7ed] text-[13.5px] text-[#9a3412]">
             {latest ? <>The {latest.label} is the only census in the registry, so there's nothing earlier to compare it with.</> : <>No census has been held in the registry yet.</>}{' '}
-            Until there is, the census can't show who hasn't registered. Turn the list back on if last year's census was on paper.
+            Until there is, each GKK is measured against its households last year set in Parish GKK, which gives how many haven't registered but not their names. Turn the list back on if last year's census was on paper.
           </div>
         )}
       </Panel>

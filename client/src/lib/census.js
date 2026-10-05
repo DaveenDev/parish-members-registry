@@ -645,6 +645,22 @@ export function diffSubmission({ before, proposed }) {
 }
 
 /**
+ * Households not yet registered in the GKKs measured by their household
+ * count (Parish GKK) rather than names, so they can't be on the visit list:
+ * the sum of those GKKs' "not yet". 0 when comparing with a census.
+ */
+export function unnamedNotYet(res) {
+  if (!res || res.mode === 'census') return 0;
+  return (res.rows || []).filter((r) => r.lastYear != null && !r.fromList).reduce((n, r) => n + r.notYet, 0);
+}
+
+/** What a census is measured against, for titles and notes. */
+export function vsLastYearBaseline(res) {
+  if (res?.mode === 'census') return res.previous ? `the ${res.previous.label}` : 'no earlier census';
+  return res?.mode === 'count' ? "last year's household count" : "last year's list";
+}
+
+/**
  * The households-vs-last-year table (api.censusVsLastYear() result) as
  * { title, columns, rows } for a CSV or report, one row per GKK and the total.
  */
@@ -659,7 +675,7 @@ export function vsLastYearTable(res, cycle) {
     ? [r.label, r.lastYear ?? '', r.registered, r.confirmed, r.notYet ?? '', pct(r)]
     : [r.label, from(r), r.lastYear ?? '', r.registered, r.verified, r.pending, r.notYet ?? '', pct(r)]);
   return {
-    title: `${cycle?.label || 'Census'}: households vs ${census ? `the ${res.previous.label}` : "last year's list"}`,
+    title: `${cycle?.label || 'Census'}: households vs ${vsLastYearBaseline(res)}`,
     columns,
     rows: res.hasBaseline ? [...res.rows, res.total].map(cells) : [],
   };
