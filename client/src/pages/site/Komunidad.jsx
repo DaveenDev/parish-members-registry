@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { Avatar, BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
 import { Body, Gallery } from './Details.jsx';
-import { phoneHref } from '../../lib/requests.js';
-import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, initialsOf, sortCensusGkks } from '../../lib/site.js';
+import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { useSiteTitle } from './SiteLayout.jsx';
 import { listState, useCensusProgress, useGkkDirectory, useGkkHistory } from './data.js';
@@ -199,7 +198,6 @@ function GkkTable({ items }) {
             <th scope="col" className={th}>Natukod</th>
             <th scope="col" className={`${th} whitespace-nowrap`}>Pamilya</th>
             <th scope="col" className={th}>Iskedyul sa tigom</th>
-            <th scope="col" className={th}>Coordinator</th>
           </tr>
         </thead>
         <tbody>
@@ -215,20 +213,6 @@ function GkkTable({ items }) {
               <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{g.year_established || '—'}</td>
               <td className="px-4 py-3 text-[14.5px] text-[#3f3b2f] whitespace-nowrap"><strong>{g.households ?? SMALL}</strong></td>
               <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{g.meeting_schedule || '—'}</td>
-              <td className="px-4 py-3 text-[14px]">
-                {g.coordinator ? (
-                  <div className="flex items-center gap-2.5">
-                    <span className="font-semibold">{g.coordinator.name}</span>
-                    {g.coordinator.mobile && (
-                      <a href={`tel:${phoneHref(g.coordinator.mobile)}`} aria-label={`Tawagi si ${g.coordinator.name}`} className="w-8 h-8 rounded-lg border-[1.5px] border-[var(--p-blue-border)] text-parish-blue flex items-center justify-center flex-none">
-                        <Icon name="phone" size={16} />
-                      </a>
-                    )}
-                  </div>
-                ) : (
-                  <Link to="/kontak" className="font-semibold text-parish-blue underline">Pangutan-a ang opisina</Link>
-                )}
-              </td>
             </tr>
           ))}
         </tbody>
@@ -256,21 +240,6 @@ function GkkCard({ g }) {
         </div>
         <Icon name="chev" size={18} className="text-parish-muted mt-1 lg:hidden" />
       </Link>
-      <div className="border-t border-[#f0e8d6] px-3.5 py-2.5 lg:px-[18px] lg:min-h-[58px] lg:flex lg:items-center">
-        {g.coordinator ? (
-          <div className="flex items-center gap-2.5 w-full">
-            <Avatar initials={initialsOf(g.coordinator.name)} />
-            <div className="flex-1 min-w-0"><div className="font-semibold text-[14.5px]">{g.coordinator.name}</div><div className="text-[12.5px] text-parish-text2">Coordinator</div></div>
-            {g.coordinator.mobile && (
-              <a href={`tel:${phoneHref(g.coordinator.mobile)}`} aria-label="Tawagi ang coordinator" className="w-11 h-11 rounded-xl border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blue flex items-center justify-center">
-                <Icon name="phone" size={19} />
-              </a>
-            )}
-          </div>
-        ) : (
-          <div className="text-[14px] text-parish-text2">Coordinator: <Link to="/kontak" className="font-semibold text-parish-blue underline">Pangutan-a ang opisina sa parokya</Link></div>
-        )}
-      </div>
     </Card>
   );
 }
@@ -289,12 +258,10 @@ export function GkkDetail() {
   if (dir.error) return <main className={pad}><ErrorNote onRetry={dir.reload}>Wala ma-load ang GKK.</ErrorNote></main>;
   if (!found) return <main className={pad}><EmptyNote>Wala namo makit-i kini nga GKK.</EmptyNote><BigButton variant="secondary" to="/komunidad?view=gkk">Tan-awa ang tanang GKK</BigButton></main>;
   const g = found;
-  const c = g.coordinator;
 
-  // Desktop: details and the register button on the left, the coordinator on the right.
   return (
-    <main className={`${INNER} lg:max-w-[1240px] lg:grid lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] lg:gap-x-10 lg:items-start`}>
-      <div className="lg:col-start-1 lg:row-start-1">
+    <main className={`${INNER} lg:max-w-[880px]`}>
+      <div>
       {area && <div className="inline-flex items-center gap-[5px] font-bold text-[12px] lg:text-[12.5px] tracking-[.1em] uppercase text-[var(--p-eyebrow)]"><Icon name="pin" size={14} />{area}</div>}
       <h1 className="font-serif font-semibold text-[34px] lg:text-[54px] leading-[1.05] lg:leading-[1.02] mt-1 mb-1 lg:mt-1.5 lg:mb-1.5 text-parish-navy">{patron}</h1>
       {g.puroks && <div className="text-[15px] lg:text-[17px] text-[#4d4636] mb-4 lg:mb-6">{g.puroks}</div>}
@@ -341,40 +308,15 @@ export function GkkDetail() {
 
       </div>
 
-      <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
-      <h2 className="font-serif font-semibold text-[22px] lg:text-[26px] m-0 mb-2 lg:mt-2 lg:mb-2.5 text-parish-navy">Coordinator</h2>
-      {c ? (
-        <Card className="p-3.5 mb-5 shadow-none lg:p-5 lg:rounded-[20px] lg:shadow-card lg:mb-0">
-          <div className={`flex items-center gap-3 lg:gap-3.5 ${c.mobile ? 'mb-3 lg:mb-4' : ''}`}>
-            <span className="lg:hidden"><Avatar initials={initialsOf(c.name)} size={52} /></span>
-            <span className="hidden lg:block"><Avatar initials={initialsOf(c.name)} size={64} /></span>
-            <div><div className="font-bold text-[17px] lg:text-[19px]">{c.name}</div><div className="text-[13.5px] lg:text-[14px] text-parish-text2">GKK Coordinator</div></div>
-          </div>
-          {c.mobile && (
-            <div className="grid grid-cols-2 gap-2 lg:gap-2.5">
-              <ContactButton href={`tel:${phoneHref(c.mobile)}`} icon="phone">Tawag</ContactButton>
-              <ContactButton href={`sms:${phoneHref(c.mobile)}`} icon="sms">Text</ContactButton>
-            </div>
-          )}
-        </Card>
-      ) : (
-        <div className="bg-parish-card border border-dashed border-[#d9cdb4] rounded-2xl p-3.5 mb-5 flex gap-3 items-center lg:p-5 lg:rounded-[20px] lg:gap-3.5 lg:mb-0">
-          <div className="w-11 h-11 lg:w-[52px] lg:h-[52px] rounded-full bg-[#efe6d3] flex-none flex items-center justify-center text-parish-text2"><Icon name="people" /></div>
-          <div className="text-[14.5px] lg:text-[15.5px] leading-[1.45] text-[#4d4636]">
-            Wala pay coordinator nga mouyon nga ipakita. <Link to="/kontak" className="font-bold text-parish-blue underline">Pangutan-a ang opisina sa parokya</Link>
-          </div>
-        </div>
-      )}
-      </div>
       <Link
         to={`/register?gkk=${encodeURIComponent(g.name)}`}
-        className="w-full min-h-[56px] flex items-center justify-center text-center px-4 font-bold text-[16.5px] text-white bg-parish-blue rounded-[14px] hover:bg-parish-blueDeep lg:col-start-1 lg:row-start-2 lg:w-auto lg:justify-self-start lg:min-h-[58px] lg:px-8 lg:text-[17px]"
+        className="w-full min-h-[56px] flex items-center justify-center text-center px-4 font-bold text-[16.5px] text-white bg-parish-blue rounded-[14px] hover:bg-parish-blueDeep lg:w-auto lg:inline-flex lg:min-h-[58px] lg:px-8 lg:text-[17px]"
         style={{ boxShadow: '0 14px 30px -12px color-mix(in srgb, var(--p-blue) 65%, transparent)' }}
       >
         Mao ni ang akong GKK, magparehistro
       </Link>
       {history && (
-        <section aria-labelledby="gkk-history-title" className="mt-9 lg:mt-12 lg:col-span-2 lg:row-start-3 lg:max-w-[880px]">
+        <section aria-labelledby="gkk-history-title" className="mt-9 lg:mt-12">
           <h2 id="gkk-history-title" className="font-serif font-semibold text-[26px] lg:text-[34px] m-0 mb-3 lg:mb-4 text-parish-navy">Kasaysayan</h2>
           {history.history && <Body text={history.history} />}
           <Gallery photos={history.photos} />
@@ -392,14 +334,6 @@ function StatTile({ value, small = SMALL, label }) {
         : <div className="font-serif text-[36px] lg:text-[44px] font-bold text-parish-blue leading-none">{value}</div>}
       <div className="font-bold text-[11px] lg:text-[11.5px] tracking-[.12em] uppercase text-parish-text2 mt-1.5 lg:mt-2">{label}</div>
     </div>
-  );
-}
-
-function ContactButton({ href, icon, children }) {
-  return (
-    <a href={href} className="min-h-[46px] rounded-xl border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[15px] flex items-center justify-center gap-[7px]">
-      <Icon name={icon} size={18} />{children}
-    </a>
   );
 }
 
