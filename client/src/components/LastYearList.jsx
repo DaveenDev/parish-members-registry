@@ -375,7 +375,7 @@ const head = { ...cell, fontWeight: 700, fontSize: 10, textAlign: 'left', border
  * to visit. Plain black on white, revealed by the #print-sheet print rules
  * in index.css like the census forms.
  */
-function NotYetPrintSheet({ rows, gkk, parish }) {
+export function NotYetPrintSheet({ rows, gkk, parish, placeLabel = 'Purok' }) {
   if (!rows || !rows.length) return null;
   return createPortal(
     <div id="print-sheet" aria-hidden style={{ fontSize: 11, color: '#000', background: '#fff' }}>
@@ -399,7 +399,7 @@ function NotYetPrintSheet({ rows, gkk, parish }) {
           <tr>
             <th style={{ ...head, width: 28 }}>#</th>
             <th style={head}>Pangulo sa panimalay</th>
-            <th style={{ ...head, width: '18%' }}>Purok</th>
+            <th style={{ ...head, width: '18%' }}>{placeLabel}</th>
             <th style={{ ...head, width: '22%' }}>Nota</th>
             <th style={{ ...head, width: '26%' }}>Resulta sa bisita</th>
           </tr>

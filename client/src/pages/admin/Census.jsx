@@ -8,9 +8,9 @@ import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../compo
 import CensusHouseholdDrawer from '../../components/CensusHouseholdDrawer.jsx';
 import CensusPrintSheet from '../../components/CensusPrintSheet.jsx';
 import CensusSubmissionDrawer from '../../components/CensusSubmissionDrawer.jsx';
-import LastYearList from '../../components/LastYearList.jsx';
+import LastYearList, { NotYetPrintSheet } from '../../components/LastYearList.jsx';
 import { fmtDate } from '../../constants.js';
-import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, householdsVsLastYear } from '../../lib/census.js';
+import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, householdsVsLastYear, householdsVsPreviousCensus, previousCensus } from '../../lib/census.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { useClientList, useDebounced } from '../../hooks.js';
@@ -50,6 +50,9 @@ export default function Census() {
   const [params] = useSearchParams();
   const linkedGkk = params.get('gkk') || '';
   const [tab, setTab] = useState(params.get('tab') === 'lastYear' ? 'lastYear' : 'households');
+  // Parish Config → Last year's list can turn the list off (0048); then the
+  // census measures itself against the previous census instead.
+  const listOn = listEnabled(parish);
   const [refreshKey, setRefreshKey] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -176,8 +179,12 @@ export default function Census() {
               <EmptyState title="No census yet" subtitle="Start a census, print the pre-filled forms by GKK, and record the answers as they come back." />
             </Panel>
             {/* The list can be typed in before the census starts. */}
-            <h2 className="font-serif text-[22px] font-semibold text-parish-navy mt-8 mb-3">Last year's household list</h2>
-            <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />
+            {listOn && (
+              <>
+                <h2 className="font-serif text-[22px] font-semibold text-parish-navy mt-8 mb-3">Last year's household list</h2>
+                <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />
+              </>
+            )}
           </>
         )}
 
@@ -198,14 +205,14 @@ export default function Census() {
             </div>
 
             <Tabs
-              tabs={[['households', 'Households'], ['updates', `Online updates${pendingCount ? ` (${pendingCount})` : ''}`], ['results', 'Results by GKK'], ['lastYear', "Last year's list"]]}
-              value={tab}
+              tabs={[['households', 'Households'], ['updates', `Online updates${pendingCount ? ` (${pendingCount})` : ''}`], ['results', 'Results by GKK'], ...(listOn ? [['lastYear', "Last year's list"]] : [])]}
+              value={tab === 'lastYear' && !listOn ? 'households' : tab}
               onChange={setTab}
             />
-            {tab === 'households' && <HouseholdsTab cycle={cycle} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
+            {(tab === 'households' || (tab === 'lastYear' && !listOn)) && <HouseholdsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} />}
-            {tab === 'results' && <ResultsTab cycle={cycle} ownGkk={ownGkk} refreshKey={refreshKey} />}
-            {tab === 'lastYear' && <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />}
+            {tab === 'results' && <ResultsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} />}
+            {tab === 'lastYear' && listOn && <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />}
           </>
         )}
       </PageBody>
@@ -253,7 +260,7 @@ function StartCensusForm({ onCancel, onStarted }) {
   );
 }
 
-function HouseholdsTab({ cycle, parish, ownGkk, refreshKey, onChanged }) {
+function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged }) {
   const toast = useToast();
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
@@ -286,11 +293,11 @@ function HouseholdsTab({ cycle, parish, ownGkk, refreshKey, onChanged }) {
   function reloadTiles() {
     api.censusHouseholdProgressCounts(cycle.id).then(setCounts).catch(() => setCounts(null));
     api.censusSummary(cycle.id).then((r) => setSummary(summarizeCensus(r))).catch(() => setSummary(null));
-    loadVsLastYear(cycle.id, ownGkk).then(setVsLastYear).catch(() => setVsLastYear(null));
+    loadVsLastYear(cycle, cycles, ownGkk, listEnabled(parish)).then(setVsLastYear).catch(() => setVsLastYear(null));
   }
 
   useEffect(() => { reload(); }, [cycle.id, gkk, progress, debouncedSearch, page, pageSize, refreshKey]);
-  useEffect(() => { reloadTiles(); }, [cycle.id, refreshKey]);
+  useEffect(() => { reloadTiles(); }, [cycle.id, refreshKey, listEnabled(parish)]);
   useEffect(() => { setPage(1); }, [cycle.id, gkk, progress, debouncedSearch]);
   useEffect(() => { if (!ownGkk) api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, [ownGkk]);
 
@@ -321,9 +328,9 @@ function HouseholdsTab({ cycle, parish, ownGkk, refreshKey, onChanged }) {
         <Tile label="Households done" value={counts ? counts.Confirmed : '—'} note={counts ? `${counts['Partly confirmed']} partly · ${counts['Not started']} not started` : ''} accent="#c39b4e" />
         {vsLastYear?.hasBaseline && (
           <Tile
-            label="Registered vs last year"
+            label={vsLastYear.previous ? `Registered vs ${vsLastYear.previous.label}` : 'Registered vs last year'}
             value={`${vsLastYear.total.pct}%`}
-            note={`${vsLastYear.total.notYet} of last year's ${vsLastYear.total.lastYear} not yet registered`}
+            note={`${vsLastYear.total.notYet} of ${vsLastYear.previous ? 'its' : "last year's"} ${vsLastYear.total.lastYear} not yet registered`}
             accent="rgb(var(--c-ok-text))"
           />
         )}
@@ -490,28 +497,74 @@ function UpdatesTab({ cycle, refreshKey, onChanged }) {
   );
 }
 
+/** Whether the parish uses last year's household list (on unless turned off, 0048). */
+const listEnabled = (parish) => parish?.last_year_list_enabled !== false;
+
 /**
- * Households registered in this census per GKK against last year: the GKK's
- * list on the "Last year's list" tab when it has one, else the count typed
- * in Parish Config → Parish GKK.
+ * Households registered in this census per GKK against last year. With last
+ * year's list on: the GKK's names on the list when it has some, else the
+ * count typed in Parish Config → Parish GKK. With it off: the households
+ * that took part in the previous census (`previous` is that census, null
+ * when there is none, and `notYetHouseholds` the ones to visit).
  */
-async function loadVsLastYear(cycleId, ownGkk) {
-  const [details, counts, lists] = await Promise.all([api.listGkkDetails(), api.censusGkkHouseholdCounts(cycleId), api.lastYearCounts()]);
-  return householdsVsLastYear(details.rows, counts, ownGkk, lists);
+async function loadVsLastYear(cycle, cycles, ownGkk, listOn) {
+  if (listOn) {
+    const [details, counts, lists] = await Promise.all([api.listGkkDetails(), api.censusGkkHouseholdCounts(cycle.id), api.lastYearCounts()]);
+    return { ...householdsVsLastYear(details.rows, counts, ownGkk, lists), previous: null };
+  }
+  const previous = previousCensus(cycles, cycle);
+  if (!previous) return { rows: [], total: null, hasBaseline: false, previous: null, noPrevious: true, notYetHouseholds: [] };
+  const [before, now] = await Promise.all([api.censusHouseholdProgressRows(previous.id), api.censusHouseholdProgressRows(cycle.id)]);
+  return { ...householdsVsPreviousCensus(before, now, ownGkk), previous };
 }
 
-function ResultsTab({ cycle, ownGkk, refreshKey }) {
+/** With last year's list off: the households from the previous census not yet registered in this one, to visit. */
+function NotYetHouseholds({ list, previous, onExport, onPrint }) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? list : list.slice(0, 10);
+  if (!list.length) return <p className="mb-6 text-[13px] text-parish-ok font-semibold">Every household from the {previous.label} has registered.</p>;
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2.5 flex-wrap mb-3">
+        <h3 className="m-0 font-serif text-[19px] font-semibold text-parish-navy">Not yet registered ({list.length})</h3>
+        <span className="text-[13px] text-parish-muted">took part in the {previous.label}, nobody confirmed yet in this one</span>
+        <div className="ml-auto flex gap-2">
+          <GhostButton type="button" onClick={onPrint} className="px-3.5 py-2 text-[13px]">Print visit list</GhostButton>
+          <button onClick={onExport} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
+        </div>
+      </div>
+      <DataTable minWidth={620} columns={[{ label: 'Household' }, { label: 'Head of household' }, { label: 'GKK' }, { label: 'Ref no' }]}>
+        {shown.map((h) => (
+          <tr key={h.household_id} className="border-t border-parish-line">
+            <td className="px-4 py-2.5 text-[14px] text-parish-navy font-semibold">{h.household_name}</td>
+            <td className="px-4 py-2.5 text-[14px] text-parish-text3">{h.head_name || '—'}</td>
+            <td className="px-4 py-2.5 text-[14px] text-parish-text3">{h.gkk || 'No GKK'}</td>
+            <td className="px-4 py-2.5 text-[13px] text-parish-muted">{h.ref_no || '—'}</td>
+          </tr>
+        ))}
+      </DataTable>
+      {list.length > 10 && (
+        <button type="button" onClick={() => setOpen((o) => !o)} className="mt-2 appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-blue">
+          {open ? 'Show fewer' : `Show all ${list.length}`}
+        </button>
+      )}
+    </div>
+  );
+}
+
+function ResultsTab({ cycle, cycles, parish, ownGkk, refreshKey }) {
   const [summary, setSummary] = useState(null);
   const [vsLastYear, setVsLastYear] = useState(null);
   const [error, setError] = useState('');
+  const [printRows, setPrintRows] = useState(null);
 
   function load() {
     setError('');
     api.censusSummary(cycle.id).then((r) => setSummary(summarizeCensus(r))).catch((e) => setError(e.message));
     // Optional: before 0040 (or with no counts entered) the table just doesn't show.
-    loadVsLastYear(cycle.id, ownGkk).then(setVsLastYear).catch(() => setVsLastYear(null));
+    loadVsLastYear(cycle, cycles, ownGkk, listEnabled(parish)).then(setVsLastYear).catch(() => setVsLastYear(null));
   }
-  useEffect(() => { load(); }, [cycle.id, refreshKey]);
+  useEffect(() => { load(); }, [cycle.id, refreshKey, listEnabled(parish)]);
 
   async function exportCsv() {
     const columns = ['GKK', ...summary.columns, 'Total', 'Confirmed %'];
@@ -522,10 +575,23 @@ function ResultsTab({ cycle, ownGkk, refreshKey }) {
 
   async function exportVsLastYear() {
     const columns = ['GKK', 'Last year from', 'Last year', 'Registered', 'Fully confirmed', 'Not yet', 'Registered %'];
-    const from = (r) => (r.fromList ? 'List' : r.lastYear == null ? '' : 'Count');
+    const from = (r) => (r.lastYear == null ? '' : vsLastYear.previous ? vsLastYear.previous.label : r.fromList ? 'List' : 'Count');
     const row = (r) => ({ cells: [r.label, from(r), r.lastYear ?? '', r.registered, r.confirmed, r.notYet ?? '', r.pct == null ? '' : `${r.pct}%`] });
     const blob = await api.exportGenerated({ title: `${cycle.label} households vs last year`, columns, rows: [...vsLastYear.rows.map(row), row(vsLastYear.total)] });
     triggerDownload(blob, `${cycle.label.toLowerCase().replace(/\s+/g, '-')}-households-vs-last-year.csv`);
+  }
+
+  async function exportNotYet() {
+    const columns = ['GKK', 'Household', 'Head of household', 'Ref no'];
+    const rows = vsLastYear.notYetHouseholds.map((h) => ({ cells: [h.gkk || 'No GKK', h.household_name, h.head_name || '', h.ref_no || ''] }));
+    const blob = await api.exportGenerated({ title: `Took part in the ${vsLastYear.previous.label}, not yet in the ${cycle.label}`, columns, rows });
+    triggerDownload(blob, `${cycle.label.toLowerCase().replace(/\s+/g, '-')}-not-yet-registered.csv`);
+  }
+
+  function printNotYet() {
+    // The same visit sheet as last year's list, one GKK at a time is what leaders carry; all of them for the office.
+    setPrintRows(vsLastYear.notYetHouseholds.map((h) => ({ id: h.household_id, head_name: h.head_name || h.household_name, purok: h.gkk || 'No GKK', note: [h.household_name, h.ref_no].filter(Boolean).join(' · ') })));
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
   }
 
   if (error) return <ErrorState message={error} onRetry={load} />;
@@ -539,7 +605,9 @@ function ResultsTab({ cycle, ownGkk, refreshKey }) {
         <>
           <div className="flex items-center gap-3 mb-3">
             <p className="text-[13px] text-parish-muted m-0">
-              Households registered in the {cycle.label} (at least one member confirmed) against last year. A GKK marked “list” counts its names on the Last year's list tab, where “not yet” is the names not yet ticked off; the others use the count set in Parish Config → Parish GKK.
+              {vsLastYear.previous
+                ? <>Households registered in the {cycle.label} (at least one member confirmed) against the {vsLastYear.previous.label}. “Last year” is the households that took part in the {vsLastYear.previous.label}; “not yet” is those of them with nobody confirmed in this census yet.</>
+                : <>Households registered in the {cycle.label} (at least one member confirmed) against last year. A GKK marked “list” counts its names on the Last year's list tab, where “not yet” is the names not yet ticked off; the others use the count set in Parish Config → Parish GKK.</>}
             </p>
             <button onClick={exportVsLastYear} className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
           </div>
@@ -563,11 +631,20 @@ function ResultsTab({ cycle, ownGkk, refreshKey }) {
               ))}
             </DataTable>
             {vsLastYear.rows.some((r) => r.lastYear == null) && (
-              <p className="text-[12.5px] text-parish-muted mt-2 mb-0">The total leaves out GKKs with no count for last year.</p>
+              <p className="text-[12.5px] text-parish-muted mt-2 mb-0">
+                {vsLastYear.previous ? `The total leaves out GKKs with nobody in the ${vsLastYear.previous.label}.` : 'The total leaves out GKKs with no count for last year.'}
+              </p>
             )}
           </div>
+          {vsLastYear.previous && <NotYetHouseholds list={vsLastYear.notYetHouseholds} previous={vsLastYear.previous} onExport={exportNotYet} onPrint={printNotYet} />}
         </>
       )}
+      {vsLastYear?.noPrevious && (
+        <p className="mb-6 px-4 py-3 rounded-xl border border-parish-border bg-parish-field text-[13px] text-parish-text2">
+          Last year's list is turned off and there's no earlier census in the registry to compare with, so this census can't show who hasn't registered yet. Turn the list on in Parish Config → Last year's list, or compare from the next census on.
+        </p>
+      )}
+      <NotYetPrintSheet rows={printRows} gkk={ownGkk || 'All GKKs'} parish={parish} placeLabel="GKK" />
       <div className="flex items-center gap-3 mb-3">
         <p className="text-[13px] text-parish-muted m-0">
           Members per status in the {cycle.label}. “Not confirmed” are current members with no answer in this census{cycle.status === 'Open' ? ' yet' : ''}.

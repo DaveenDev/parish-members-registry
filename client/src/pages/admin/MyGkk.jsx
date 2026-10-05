@@ -26,7 +26,10 @@ export default function MyGkk() {
   const toast = useToast();
   const name = user?.access === 'gkk_leader' ? user.accessGkk : null;
   const [params, setParams] = useSearchParams();
-  const view = VIEWS.some(([k]) => k === params.get('view')) ? params.get('view') : 'details';
+  const [parish, setParish] = useState(null);
+  // Last year's list only while the parish uses it (0048).
+  const views = VIEWS.filter(([k]) => k !== 'names' || parish?.last_year_list_enabled !== false);
+  const view = views.some(([k]) => k === params.get('view')) ? params.get('view') : 'details';
   const setView = (k) => setParams((p) => {
     const next = new URLSearchParams(p);
     if (k === 'details') next.delete('view'); else next.set('view', k);
@@ -39,7 +42,6 @@ export default function MyGkk() {
   const [error, setError] = useState('');
   const [addressError, setAddressError] = useState('');
   const [saving, setSaving] = useState(false);
-  const [parish, setParish] = useState(null);
   const pagePhotos = useGkkPhotos(setError);
   const historyPhotos = useGkkPhotos(setError);
 
@@ -106,7 +108,7 @@ export default function MyGkk() {
   return (
     <div className="max-w-[900px]">
       <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3">{name}</div>
-      <Tabs tabs={VIEWS} value={view} onChange={(k) => { setView(k); setError(''); }} />
+      <Tabs tabs={views} value={view} onChange={(k) => { setView(k); setError(''); }} />
       {loadError ? <ErrorState message={loadError} onRetry={load} /> : !form ? <LoadingState label="Loading…" /> : (
         <>
           {view === 'details' && (

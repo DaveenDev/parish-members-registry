@@ -6,7 +6,7 @@ import {
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, householdsVsLastYear,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
-  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash,
+  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
 
@@ -343,5 +343,35 @@ describe('census link on printed sheets', () => {
     const link = censusLink(DEFAULT_SITE_URL, 'OLG-1', 'AB3K77XQ');
     assert.equal(codeFromHash(new URL(link).hash), 'AB3K77XQ');
     assert.equal(new URL(link).searchParams.get('ref'), 'OLG-1');
+  });
+});
+
+describe('householdsVsPreviousCensus (0048: no last year list)', () => {
+  const h = (household_id, gkk, progress, household_name = `H${household_id}`) => ({ household_id, gkk, progress, household_name });
+  const previous = [h(1, 'A', 'Confirmed'), h(2, 'A', 'Partly confirmed'), h(3, 'A', 'Not started'), h(4, 'B', 'Confirmed'), h(9, 'B', 'Confirmed')];
+  const current = [h(1, 'A', 'Confirmed'), h(2, 'A', 'Not started'), h(3, 'A', 'Partly confirmed'), h(4, 'A', 'Not started'), h(5, 'C', 'Confirmed')];
+
+  test('last year is who took part before; not yet is who of them has nobody confirmed now', () => {
+    const { rows, total, notYetHouseholds } = householdsVsPreviousCensus(previous, current);
+    const a = rows.find((r) => r.label === 'A');
+    // 1, 2 took part before; 4 moved from B to A since; 3 never took part.
+    assert.deepEqual([a.lastYear, a.notYet, a.registered, a.confirmed, a.pct], [3, 2, 2, 1, 33]);
+    // C had nobody in the previous census: no baseline, not in the total.
+    assert.deepEqual(rows.find((r) => r.label === 'C'), { label: 'C', fromList: false, registered: 1, confirmed: 1, lastYear: null, notYet: null, pct: null });
+    assert.deepEqual([total.lastYear, total.notYet, total.pct, total.registeredAll], [3, 2, 33, 3]);
+    assert.deepEqual(notYetHouseholds.map((r) => r.household_id), [2, 4]);
+  });
+
+  test('a household deleted since is left out; a GKK leader sees only their GKK', () => {
+    assert.ok(!householdsVsPreviousCensus(previous, current).rows.some((r) => r.label === 'B'));
+    const { rows } = householdsVsPreviousCensus(previous, current, 'C');
+    assert.deepEqual(rows.map((r) => r.label), ['C']);
+    assert.equal(householdsVsPreviousCensus(previous, current, 'C').hasBaseline, false);
+  });
+
+  test('the previous census is the one before, whatever order the list is in', () => {
+    const cycles = [{ id: 7 }, { id: 3 }, { id: 5 }];
+    assert.equal(previousCensus(cycles, { id: 7 }).id, 5);
+    assert.equal(previousCensus(cycles, { id: 3 }), null);
   });
 });

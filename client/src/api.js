@@ -698,6 +698,8 @@ export const api = {
     if ('office_hours' in patch) cleaned.office_hours = patch.office_hours || null;
     // The parish's default color theme (0014 migration).
     if ('theme' in patch) cleaned.theme = patch.theme || null;
+    // Whether the census uses last year's household list (0048 migration).
+    if ('last_year_list_enabled' in patch) cleaned.last_year_list_enabled = !!patch.last_year_list_enabled;
     // Where printed census links and QR codes point (0042 migration); blank uses the default.
     if ('site_url' in patch) cleaned.site_url = normalizeSiteUrl(patch.site_url) || null;
     for (const key of ['latitude', 'longitude']) {
@@ -710,6 +712,7 @@ export const api = {
     const { data, error } = await supabase.from('parish_settings').update(cleaned).eq('id', 1).select().single();
     if ('hero_image' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0020_parish_hero_image.sql migration in Supabase to save the parish photo');
     if ('site_url' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0042_public_site_url.sql migration in Supabase to save the website address');
+    if ('last_year_list_enabled' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error("Run the 0048_last_year_list_switch.sql migration in Supabase to turn last year's list off");
     if (error) throw mapError(error);
     return { settings: data };
   },
@@ -1111,6 +1114,11 @@ export const api = {
    * confirmed (partly or fully). Compared against each GKK's
    * previous_households baseline (0040).
    */
+  /** Every household's progress in one census: [{ household_id, household_name, head_name, ref_no, gkk, progress }]. */
+  async censusHouseholdProgressRows(cycleId) {
+    return fetchAll(() => supabase.rpc('census_household_progress', { p_cycle_id: cycleId })
+      .select('household_id, household_name, head_name, ref_no, gkk, progress').order('household_id'));
+  },
   async censusGkkHouseholdCounts(cycleId) {
     const data = await fetchAll(() => supabase.rpc('census_household_progress', { p_cycle_id: cycleId }).select('gkk, progress').order('household_id'));
     const out = new Map();

@@ -272,6 +272,71 @@ export function householdsVsLastYear(gkks, counts, onlyGkk = null, lists = null)
   return { rows, total, hasBaseline: withBase.length > 0 };
 }
 
+/** The census before `cycle` in `cycles` (newest first, as listCensusCycles() returns them), or null. */
+export function previousCensus(cycles, cycle) {
+  return (cycles || []).filter((c) => c.id < cycle.id).sort((a, b) => b.id - a.id)[0] || null;
+}
+
+/**
+ * Households registered in this census against the previous census in the
+ * registry, for a parish that doesn't use last year's list (0048). Both
+ * arguments are census_household_progress() rows ({ household_id,
+ * household_name, head_name, ref_no, gkk, progress }). Last year is the
+ * households that took part in the previous census (at least one member
+ * confirmed); "not yet" is those of them with nobody confirmed in this one;
+ * "registered" is every household with at least one member confirmed now.
+ * A household counts under its GKK today. A GKK with nobody in the previous
+ * census has no baseline (lastYear, notYet and pct null). Same shape as
+ * householdsVsLastYear(), plus `notYetHouseholds` (by GKK, then name) for
+ * the house visits.
+ */
+export function householdsVsPreviousCensus(previousRows, currentRows, onlyGkk = null) {
+  const share = (done, of) => (of > 0 ? Math.min(Math.round((done / of) * 100), 100) : 0);
+  const mine = (r) => !onlyGkk || r.gkk === onlyGkk;
+  const took = (r) => r.progress && r.progress !== 'Not started';
+  const now = new Map((currentRows || []).filter(mine).map((r) => [r.household_id, r]));
+  const before = (previousRows || []).filter(mine).filter(took).filter((r) => now.has(r.household_id));
+
+  const byGkk = new Map();
+  const at = (gkk) => {
+    if (!byGkk.has(gkk)) byGkk.set(gkk, { lastYear: 0, notYet: 0, registered: 0, confirmed: 0 });
+    return byGkk.get(gkk);
+  };
+  for (const r of now.values()) {
+    const c = at(r.gkk ?? null);
+    if (took(r)) c.registered += 1;
+    if (r.progress === 'Confirmed') c.confirmed += 1;
+  }
+  const notYetHouseholds = [];
+  for (const r of before) {
+    const today = now.get(r.household_id);
+    const c = at(today.gkk ?? null);
+    c.lastYear += 1;
+    if (!took(today)) { c.notYet += 1; notYetHouseholds.push(today); }
+  }
+
+  const rows = [...byGkk.entries()]
+    .sort(([a], [b]) => (a === null) - (b === null) || String(a).localeCompare(String(b)))
+    .map(([gkk, c]) => ({
+      label: gkk ?? 'No GKK', fromList: false, registered: c.registered, confirmed: c.confirmed,
+      ...(c.lastYear
+        ? { lastYear: c.lastYear, notYet: c.notYet, pct: share(c.lastYear - c.notYet, c.lastYear) }
+        : { lastYear: null, notYet: null, pct: null }),
+    }));
+  const withBase = rows.filter((r) => r.lastYear != null);
+  const sum = (k, rs) => rs.reduce((n, r) => n + r[k], 0);
+  const lastYear = withBase.length ? sum('lastYear', withBase) : null;
+  const notYet = withBase.length ? sum('notYet', withBase) : null;
+  const total = {
+    label: 'All GKKs', lastYear, notYet, fromList: false,
+    registered: sum('registered', withBase), confirmed: sum('confirmed', withBase),
+    pct: lastYear == null ? null : share(lastYear - notYet, lastYear),
+    registeredAll: sum('registered', rows),
+  };
+  notYetHouseholds.sort((a, b) => String(a.gkk ?? '').localeCompare(String(b.gkk ?? '')) || String(a.household_name).localeCompare(String(b.household_name)));
+  return { rows, total, hasBaseline: withBase.length > 0, notYetHouseholds };
+}
+
 // ---- family portal (0008 migration) -------------------------------------
 
 /** "ab3k-77xq " → "AB3K77XQ" (what census_normalize_code() compares). */
