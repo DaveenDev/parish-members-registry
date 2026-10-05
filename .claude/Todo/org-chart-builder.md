@@ -1,6 +1,16 @@
 # Org Chart Builder (React Flow admin + d3-org-chart website)
 
-> **Status:** idea saved for later. Not a priority. Decisions recorded 2026-10-05 (see "Decisions").
+> **Status:** implemented 2026-10-05 (migration `0057_org_chart.sql`). Decisions recorded 2026-10-05 (see "Decisions").
+>
+> **Where it differs from the plan below:**
+> - The admin page is **Parish life → Organization Structure** (`/admin/org-structure`, `client/src/pages/admin/OrgStructure.jsx`), not under Settings. One tab per chart: **Church Structure** (the default tab) and **GKK Structure** come with the migration and can't be deleted; **+ New chart** adds more. Each tab is the chart editor (`client/src/components/orgchart/`).
+> - `org_charts` has a `builtin` column for the two charts that can't be deleted.
+> - Writes go only through the functions (`create_org_chart`, `update_org_chart`, `delete_org_chart`, `save_org_chart`, `save_org_gkk_holder`); the tables are read-only to staff. `org_chart_preview` is the staff "Preview as GKK…".
+> - Tidy layout is a small tidy-tree in `client/src/lib/orgChartLayout.js` instead of dagre: dagre reorders siblings, and their left-to-right order is the order the website shows.
+> - `d3` isn't installed: d3-org-chart brings the d3 modules it uses; only `d3-transition` is added.
+> - Holder photos go to R2 under `org/` (redeploy `media-upload`).
+> - Step 7 (setting `members.parish_role` from the chart) is not done.
+> - Leaving the page inside the admin with unsaved changes isn't caught (the app uses `BrowserRouter`, which has no `useBlocker`); switching tabs and closing/reloading the browser tab are.
 
 ## Context
 The secretary should be able to build the parish's organization structure (PPC, councils, commissions, GKK clusters, GKK officers, …) freely and publish it on the website.

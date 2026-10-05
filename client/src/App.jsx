@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import RegistrationApp from './pages/RegistrationApp.jsx';
@@ -36,6 +36,10 @@ import AdminNotFound from './pages/admin/NotFound.jsx';
 import ActivityLog from './pages/admin/ActivityLog.jsx';
 import Trash from './pages/admin/Trash.jsx';
 import Notifications from './pages/admin/Notifications.jsx';
+import { LoadingState } from './components/admin.jsx';
+
+// The org chart editor brings React Flow: loaded only when it's opened.
+const OrgStructure = React.lazy(() => import('./pages/admin/OrgStructure.jsx'));
 
 function RequireAuth({ children }) {
   const { user, ready } = useAuth();
@@ -96,6 +100,7 @@ export default function App() {
           <Route path="blood" element={<BloodTypes />} />
           <Route path="ministries" element={<Ministries />} />
           <Route path="organizations" element={<Organizations />} />
+          <Route path="org-structure" element={<Suspense fallback={<LoadingState label="Loading the editor…" />}><OrgStructure /></Suspense>} />
           <Route path="census" element={<Census />} />
           {/* My GKK is a tab of GKK Config now; old links still land there. */}
           <Route path="my-gkk" element={<Navigate to="/admin/settings?tab=mygkk" replace />} />

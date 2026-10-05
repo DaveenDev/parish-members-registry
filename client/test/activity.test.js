@@ -33,3 +33,15 @@ test('formatValue and activityActor', () => {
   assert.equal(activityActor({ actor_name: null }), 'The family (online)');
   assert.equal(activityActor({ actor_name: 'Ana' }), 'Ana');
 });
+
+test('org chart changes read plainly', () => {
+  const org = (action, changes) => describeActivity({ table_name: 'org_charts', action, changes });
+  assert.deepEqual(org('insert', null), { title: 'Added the org chart', lines: [] });
+  assert.deepEqual(org('update', { positions: [5, 7] }), { title: 'Saved the org chart', lines: ['Positions: 5 → 7'] });
+  assert.deepEqual(org('update', { published: [false, true] }), { title: 'Published the org chart', lines: [] });
+  assert.deepEqual(org('update', { title: ['PPC', 'Parish Council'] }), { title: 'Renamed the org chart', lines: ['Title: PPC → Parish Council'] });
+  assert.deepEqual(org('update', { gkk: 'GKK San Isidro', position: 'Treasurer', holder: [null, 'Ana Reyes'] }), {
+    title: 'Set an officer of GKK San Isidro', lines: ['Treasurer: from the registry → Ana Reyes'],
+  });
+  assert.deepEqual(org('delete', { positions: 3 }), { title: 'Deleted the org chart', lines: ['With 3 position(s)'] });
+});

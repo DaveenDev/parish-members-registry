@@ -12,6 +12,10 @@ export const useArticles = () => usePublicData('articles', api.publicArticles);
 export const useGkkDirectory = () => usePublicData('gkks', api.publicGkkDirectory);
 /** A GKK page's photos and published history (0046), or null. */
 export const useGkkPage = (name) => usePublicData(`gkk-page:${name}`, () => api.publicGkkPage(name));
+/** The published org charts [{ title, slug, scope }] (0057), or none before it's run. */
+export const useOrgCharts = () => usePublicData('org-charts', () => api.publicOrgCharts().catch(() => []));
+/** One published org chart, `gkk` filling in the GKK Structure, or null. */
+export const useOrgChart = (slug, gkk = null) => usePublicData(`org-chart:${slug}:${gkk || ''}`, () => (slug ? api.publicOrgChart(slug, gkk) : null));
 export const useOffice = () => usePublicData('office', api.publicOfficeDetails);
 /** The open census, or { open: false } (also before 0013 is run). */
 export const useCensusProgress = () => usePublicData('census', () => api.publicCensusProgress().catch(() => ({ open: false })));

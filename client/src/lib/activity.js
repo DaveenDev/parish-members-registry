@@ -33,9 +33,24 @@ export function formatValue(v) {
 const sacramentLabel = (key) => SACRAMENTS.find((s) => s.key === key)?.label || key;
 const what = (e) => (e.table_name === 'households' ? 'household' : 'member');
 
+/** An Organization Structure chart (0057): created, saved, renamed, published, an officer set. */
+function describeOrgChart(e, c) {
+  if (e.action === 'insert') return { title: 'Added the org chart', lines: [] };
+  if (e.action === 'delete') return { title: 'Deleted the org chart', lines: c.positions ? [`With ${c.positions} position(s)`] : [] };
+  if (c.gkk) {
+    const [from, to] = c.holder || [];
+    return { title: `Set an officer of ${c.gkk}`, lines: [`${c.position}: ${from || 'from the registry'} → ${to || 'from the registry'}`] };
+  }
+  if (c.published) return { title: c.published[1] ? 'Published the org chart' : 'Took the org chart off the website', lines: [] };
+  if (c.title) return { title: 'Renamed the org chart', lines: [`Title: ${formatValue(c.title[0])} → ${formatValue(c.title[1])}`] };
+  const [from, to] = c.positions || [];
+  return { title: 'Saved the org chart', lines: c.positions ? [`Positions: ${from} → ${to}`] : [] };
+}
+
 /** { title, lines } for one entry. `lines` lists each changed field as "Label: old → new". */
 export function describeActivity(e) {
   const c = e.changes || {};
+  if (e.table_name === 'org_charts') return describeOrgChart(e, c);
   if (e.table_name === 'sacrament_verifications') {
     const sac = sacramentLabel(c.sacrament);
     if (e.action === 'delete') return { title: `Removed the ${sac} verification`, lines: [] };
