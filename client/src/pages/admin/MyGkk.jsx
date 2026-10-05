@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
-import { Panel, Tabs, ErrorState, LoadingState } from '../../components/admin.jsx';
+import { Panel, ErrorState, LoadingState } from '../../components/admin.jsx';
 import { FlagEmptyRequired, PrimaryButton } from '../../components/ui.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
@@ -106,9 +106,11 @@ export default function MyGkk() {
   const onSubmit = (what) => (e) => { e.preventDefault(); if (!saving) save(what); };
 
   return (
-    <div className="max-w-[900px]">
+    <div className="max-w-[1120px]">
       <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3">{name}</div>
-      <Tabs tabs={views} value={view} onChange={(k) => { setView(k); setError(''); }} />
+      <div className="grid gap-4 md:gap-6 md:grid-cols-[200px_minmax(0,1fr)] md:items-start">
+      <SideTabs tabs={views} value={view} onChange={(k) => { setView(k); setError(''); }} />
+      <div className="min-w-0">
       {loadError ? <ErrorState message={loadError} onRetry={load} /> : !form ? <LoadingState label="Loading…" /> : (
         <>
           {view === 'details' && (
@@ -140,6 +142,42 @@ export default function MyGkk() {
           )}
         </>
       )}
+      </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The My GKK sections as tabs down the left side; on phones they become a
+ * row of pills above the content, scrolling sideways if they don't fit.
+ */
+function SideTabs({ tabs, value, onChange }) {
+  return (
+    <div
+      role="tablist"
+      aria-orientation="vertical"
+      className="flex md:flex-col gap-1.5 overflow-x-auto md:overflow-visible -mx-1 px-1 pb-1 md:pb-0 md:sticky md:top-4"
+    >
+      {tabs.map(([k, label]) => {
+        const on = value === k;
+        return (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={on}
+            onClick={() => onChange(k)}
+            className={`appearance-none flex-none md:w-full text-left whitespace-nowrap cursor-pointer px-4 py-2.5 rounded-xl border-[1.5px] font-semibold text-[14.5px] transition md:border-l-4 ${
+              on
+                ? 'bg-[var(--p-blue-tint)] border-[var(--p-blue-border)] md:border-l-[var(--p-blue)] text-parish-blue'
+                : 'bg-transparent border-transparent text-parish-muted hover:bg-parish-field hover:text-parish-text2'
+            } focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue`}
+          >
+            {label}
+          </button>
+        );
+      })}
     </div>
   );
 }
