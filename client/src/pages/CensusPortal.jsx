@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GhostButton, Spinner } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
 import { HEAD, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
 import { bis, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
-import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParticipation, isYoungChild, YOUNG_CHILD_MAX_AGE, portalPayload, formatAccessCode } from '../lib/census.js';
+import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParticipation, isYoungChild, YOUNG_CHILD_MAX_AGE, portalPayload, formatAccessCode, codeFromHash } from '../lib/census.js';
 
 const BG = { background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' };
 const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(min(180px,100%),1fr))' };
@@ -57,10 +57,15 @@ function formFrom(data) {
  */
 export default function CensusPortal() {
   const [params] = useSearchParams();
+  const location = useLocation();
+  const navigate = useNavigate();
+  // The QR code on a printed sheet links here with "#code=…" after the ref.
+  const [linkCode] = useState(() => codeFromHash(location.hash));
+  const autoOpened = useRef(false);
   const [screen, setScreen] = useState('signin'); // signin | form | done
   const [status, setStatus] = useState(null);
   const [refNo, setRefNo] = useState(params.get('ref') || '');
-  const [code, setCode] = useState('');
+  const [code, setCode] = useState(formatAccessCode(linkCode));
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
   const [error, setError] = useState('');
@@ -71,6 +76,19 @@ export default function CensusPortal() {
     api.portalStatus().then(setStatus).catch(() => setStatus({ open: false }));
     api.publicParishLogo().then(setLogo).catch(() => {});
   }, []);
+
+  // Take the code out of the address bar straight away, so it isn't kept in
+  // the phone's history or passed on with a shared link or screenshot.
+  useEffect(() => {
+    if (location.hash) navigate({ search: location.search, hash: '' }, { replace: true });
+  }, []);
+
+  // Scanned the QR code: open the record without making the family type anything.
+  useEffect(() => {
+    if (!status?.open || !linkCode || !refNo.trim() || autoOpened.current) return;
+    autoOpened.current = true;
+    open();
+  }, [status]);
 
   const top = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 

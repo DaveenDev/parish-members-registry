@@ -458,7 +458,7 @@ export default function Households() {
           onSaved={() => { setCreating(false); setUrl({ status: 'All', page: 1 }); changed(); }}
         />
       )}
-      <PrintSheet data={printData} />
+      <PrintSheet data={printData} parish={layout?.parish} />
       {codesFor && <CensusCodesDialog household={codesFor} canReset={can(user, 'censusCodes')} onClose={() => setCodesFor(null)} />}
     </>
   );

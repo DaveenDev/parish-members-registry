@@ -6,6 +6,7 @@ import {
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, householdsVsLastYear,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
+  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
 
@@ -307,5 +308,40 @@ describe('last year\'s list', () => {
     const csv = parseCsv('Juan Dela Cruz,Purok 1\nMaria,Purok 2,new house');
     assert.equal(parseLastYearCsv(csv, { defaultGkk: 'Bethany', gkkNames: ['Bethany'] }).rows.length, 2);
     assert.equal(parseLastYearCsv(csv, { gkkNames: ['Bethany'] }).skipped.length, 2);
+  });
+});
+
+describe('census link on printed sheets', () => {
+  test('normalizeSiteUrl tidies what staff type and rejects non-addresses', () => {
+    assert.equal(normalizeSiteUrl(' Parish.org/ '), 'https://parish.org');
+    assert.equal(normalizeSiteUrl('http://www.olgqp.org//'), 'http://www.olgqp.org');
+    assert.equal(normalizeSiteUrl('https://example.org/registry/'), 'https://example.org/registry');
+    assert.equal(normalizeSiteUrl(''), '');
+    assert.equal(normalizeSiteUrl(null), '');
+    assert.throws(() => normalizeSiteUrl('not an address'));
+    assert.throws(() => normalizeSiteUrl('parish'));
+    assert.throws(() => normalizeSiteUrl('ftp://parish.org'));
+  });
+
+  test('publicSiteUrl falls back to the Vercel address', () => {
+    assert.equal(publicSiteUrl(null), DEFAULT_SITE_URL);
+    assert.equal(publicSiteUrl({ site_url: '' }), DEFAULT_SITE_URL);
+    assert.equal(publicSiteUrl({ site_url: 'bad address' }), DEFAULT_SITE_URL);
+    assert.equal(publicSiteUrl({ site_url: 'olgqp.org' }), 'https://olgqp.org');
+  });
+
+  test('censusLink puts the ref in the query and the code after #', () => {
+    assert.equal(censusLink('https://olgqp.org', 'OLG-2026-000123', 'ab3k-77xq'), 'https://olgqp.org/census?ref=OLG-2026-000123#code=AB3K77XQ');
+    assert.equal(censusLink('https://olgqp.org', 'OLG 1', ''), 'https://olgqp.org/census?ref=OLG%201');
+  });
+
+  test('codeFromHash reads the code back', () => {
+    assert.equal(codeFromHash('#code=AB3K77XQ'), 'AB3K77XQ');
+    assert.equal(codeFromHash('#code=ab3k-77xq'), 'AB3K77XQ');
+    assert.equal(codeFromHash(''), '');
+    assert.equal(codeFromHash('#other=1'), '');
+    const link = censusLink(DEFAULT_SITE_URL, 'OLG-1', 'AB3K77XQ');
+    assert.equal(codeFromHash(new URL(link).hash), 'AB3K77XQ');
+    assert.equal(new URL(link).searchParams.get('ref'), 'OLG-1');
   });
 });

@@ -12,6 +12,7 @@ import { useToast } from '../../ToastContext.jsx';
 import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '../../components/ChangePasswordForm.jsx';
 import { resizePhoto } from '../../lib/images.js';
 import { fmtDateTime } from '../../constants.js';
+import { DEFAULT_SITE_URL } from '../../lib/census.js';
 import { markPasswordResetWorking, saveEmailSettings, sendPasswordReset } from '../../emailApi.js';
 
 const MAX_LOGO_BYTES = 500 * 1024;
@@ -525,7 +526,8 @@ function ProfileTab() {
   async function save() {
     setSaving(true);
     try {
-      const res = await api.updateSettings({ name: settings.name });
+      // site_url only once the 0042 migration has added the column.
+      const res = await api.updateSettings({ name: settings.name, ...('site_url' in settings ? { site_url: settings.site_url } : {}) });
       applySaved(res.settings);
       toast.success('Parish profile saved');
     } catch (e) {
@@ -545,6 +547,17 @@ function ProfileTab() {
         <div className="font-serif text-[22px] font-semibold text-parish-navy mb-[18px]">Parish profile</div>
         <div className="flex flex-col gap-4">
           <Field label="Parish name"><TextInput value={settings.name || ''} onChange={(e) => set('name', e.target.value)} /></Field>
+          <Field label="Public website address">
+            <TextInput
+              type="url" inputMode="url" value={settings.site_url || ''} onChange={(e) => set('site_url', e.target.value)}
+              placeholder={DEFAULT_SITE_URL} disabled={!('site_url' in settings)} autoComplete="off" spellCheck={false}
+            />
+          </Field>
+          <div className="text-[13px] text-parish-muted -mt-2">
+            {'site_url' in settings
+              ? <>Where the QR code and census link on printed household sheets point. Leave blank to use {DEFAULT_SITE_URL.replace('https://', '')}. Change it if the parish moves to its own domain.</>
+              : <>Run the <strong>0042_public_site_url.sql</strong> migration in Supabase to set the address printed sheets point to.</>}
+          </div>
           <div className="text-[13.5px] text-parish-muted">
             The address, phone, email and office hours are in{' '}
             <Link to="/admin/website?tab=office" className="font-semibold text-parish-blue">Parish Website → Office &amp; Contact</Link>.

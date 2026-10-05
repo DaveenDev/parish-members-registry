@@ -285,6 +285,61 @@ export function formatAccessCode(code) {
   return c.length === 8 ? `${c.slice(0, 4)}-${c.slice(4)}` : c;
 }
 
+// ---- census link and QR code on printed sheets (0042 migration) ---------
+
+/** Where printed links point when Parish Config has no public website address. */
+export const DEFAULT_SITE_URL = 'https://olgqp-registry.vercel.app';
+
+/**
+ * " Parish.org/ " → "https://parish.org": what Parish Config saves as the
+ * public website address. Blank stays blank (use the default); anything that
+ * isn't a web address throws.
+ */
+export function normalizeSiteUrl(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return '';
+  let url;
+  try {
+    url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : `https://${s}`);
+  } catch {
+    throw new Error('Enter a web address like https://olgqp.org');
+  }
+  if (!/^https?:$/.test(url.protocol) || (!url.hostname.includes('.') && url.hostname !== 'localhost')) {
+    throw new Error('Enter a web address like https://olgqp.org');
+  }
+  return (url.origin + url.pathname).replace(/\/+$/, '');
+}
+
+/**
+ * The address printed on census sheets: the one saved in Parish Config, not
+ * the page staff print from, so a sheet printed from a preview link or a
+ * laptop still sends families to the real site.
+ */
+export function publicSiteUrl(settings) {
+  try {
+    return normalizeSiteUrl(settings?.site_url) || DEFAULT_SITE_URL;
+  } catch {
+    return DEFAULT_SITE_URL;
+  }
+}
+
+/**
+ * The link in a household's QR code. The code goes after "#", which browsers
+ * never send to the server (so it stays out of the host's logs), and the
+ * census page clears it from the address bar once it has read it.
+ */
+export function censusLink(site, refNo, code) {
+  const link = `${site}/census?ref=${encodeURIComponent(String(refNo || '').trim())}`;
+  const c = normalizeAccessCode(code);
+  return c ? `${link}#code=${c}` : link;
+}
+
+/** "#code=AB3K77XQ" → "AB3K77XQ"; '' when the link carried no code. */
+export function codeFromHash(hash) {
+  const value = new URLSearchParams(String(hash || '').replace(/^#/, '')).get('code');
+  return normalizeAccessCode(value);
+}
+
 // The fields a family can correct online (keys as stored in the database).
 export const PORTAL_HOUSEHOLD_FIELDS = [
   ['street', 'Street / Purok'], ['barangay', 'Barangay'], ['city', 'City / Municipality'], ['province', 'Province'],

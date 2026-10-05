@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { api } from '../api.js';
 import { verifiedText } from './VerifiedLine.jsx';
 import { formatAccessCode } from '../lib/census.js';
+import { CensusLinkBox } from './CensusPrintSheet.jsx';
 import { fmtDate, ageFromDob, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, HELP_WAYS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
 
@@ -121,13 +122,16 @@ function ParticipationSheet({ participation, helpWays }) {
 /**
  * Off-screen household record, revealed only by the @media print rules in
  * index.css (which target #print-sheet). Rendering nothing when there is no
- * data keeps it out of the accessibility tree.
+ * data keeps it out of the accessibility tree. Pass the parish settings the
+ * admin layout already has, so the logo and the census QR code's address are
+ * there when the print dialog opens; without them it loads its own.
  */
-export default function PrintSheet({ data }) {
-  const [parish, setParish] = useState(null);
+export default function PrintSheet({ data, parish: given }) {
+  const [loaded, setLoaded] = useState(null);
+  const parish = given || loaded;
 
   useEffect(() => {
-    if (data && !parish) api.getSettings().then((r) => setParish(r.settings)).catch(() => {});
+    if (data && !parish) api.getSettings().then((r) => setLoaded(r.settings)).catch(() => {});
   }, [data, parish]);
 
   if (!data) return null;
@@ -192,13 +196,7 @@ function HouseholdRecord({ data, parish }) {
         </tbody>
       </table>
 
-      {code && (
-        <div style={{ border: '1.5px solid #34589c', borderRadius: 6, padding: '6px 10px', margin: '0 0 20px', fontSize: 10.5, color: '#1a2b4a' }}>
-          <strong>Census online:</strong> adto sa <strong>{window.location.origin}/census</strong> ug ibutang ang
-          Ref <strong>{h.ref_no}</strong> ug Code <strong style={{ fontSize: 12, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>{formatAccessCode(code)}</strong>.
-          Ayaw ipakita kini nga code sa uban.
-        </div>
-      )}
+      {code && <CensusLinkBox refNo={h.ref_no} code={code} parish={parish} label="Census online:" color="#34589c" style={{ margin: '0 0 20px' }} />}
 
       <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, margin: '0 0 8px', color: '#1a2b4a' }}>
         Participation in the Parish / GKK

@@ -9,7 +9,7 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
-import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus, countLastYearList } from './lib/census.js';
+import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl } from './lib/census.js';
 import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName } from './lib/reports.js';
 import { certTypeLabel } from './lib/requests.js';
 import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
@@ -695,6 +695,8 @@ export const api = {
     if ('office_hours' in patch) cleaned.office_hours = patch.office_hours || null;
     // The parish's default color theme (0014 migration).
     if ('theme' in patch) cleaned.theme = patch.theme || null;
+    // Where printed census links and QR codes point (0042 migration); blank uses the default.
+    if ('site_url' in patch) cleaned.site_url = normalizeSiteUrl(patch.site_url) || null;
     for (const key of ['latitude', 'longitude']) {
       if (!(key in patch)) continue;
       const n = patch[key] === '' || patch[key] === null ? null : Number(patch[key]);
@@ -704,6 +706,7 @@ export const api = {
     if (!Object.keys(cleaned).length) return api.getSettings();
     const { data, error } = await supabase.from('parish_settings').update(cleaned).eq('id', 1).select().single();
     if ('hero_image' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0020_parish_hero_image.sql migration in Supabase to save the parish photo');
+    if ('site_url' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0042_public_site_url.sql migration in Supabase to save the website address');
     if (error) throw mapError(error);
     return { settings: data };
   },

@@ -2,7 +2,8 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { fmtDate, PARTICIPATION_ITEMS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
-import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, formatAccessCode } from '../lib/census.js';
+import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, formatAccessCode, publicSiteUrl, censusLink } from '../lib/census.js';
+import QrCode from './QrCode.jsx';
 
 // Short column headings for the participation grid on paper.
 const ITEM_SHORT = {
@@ -23,6 +24,31 @@ const blankLine = { borderBottom: '1px solid #999', display: 'inline-block', min
 
 function fullName(m) {
   return [m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ');
+}
+
+/**
+ * The "answer online" box on a printed sheet: a QR code that opens the
+ * family's record in one scan, and the address, ref and code to type in for
+ * anyone without a camera phone. Points at the public website address from
+ * Parish Config.
+ */
+export function CensusLinkBox({ refNo, code, parish, label = 'Mas sayon online:', color = '#000', style }) {
+  const site = publicSiteUrl(parish);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, border: `1.5px solid ${color}`, borderRadius: 6, padding: '6px 10px', fontSize: 10.5, color: '#000', breakInside: 'avoid', ...style }}>
+      <QrCode value={censusLink(site, refNo, code)} size="24mm" title="QR code sa census" />
+      <div>
+        <div style={{ marginBottom: 3 }}>
+          <strong>{label}</strong> i-scan ang QR code gamit ang camera sa cellphone aron maablihan dayon ang rekord sa inyong pamilya.
+        </div>
+        <div>
+          O adto sa <strong>{site.replace(/^https?:\/\//, '')}/census</strong> ug ibutang ang
+          Ref <strong>{refNo}</strong> ug Code <strong style={{ fontSize: 12, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>{formatAccessCode(code)}</strong>.
+        </div>
+        <div style={{ marginTop: 3 }}>Ayaw ipakita kini nga QR code o code sa uban.</div>
+      </div>
+    </div>
+  );
 }
 
 /**
@@ -63,13 +89,7 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
             <strong> W</strong> = Wala.
           </p>
 
-          {code && (
-            <div style={{ border: '1.5px solid #000', borderRadius: 6, padding: '6px 10px', margin: '0 0 10px', fontSize: 10.5, color: '#000' }}>
-              <strong>Mas sayon online:</strong> adto sa <strong>{window.location.origin}/census</strong> ug ibutang ang
-              Ref <strong>{h.ref_no}</strong> ug Code <strong style={{ fontSize: 12, letterSpacing: '.06em', whiteSpace: 'nowrap' }}>{formatAccessCode(code)}</strong>.
-              Ayaw ipakita kini nga code sa uban.
-            </div>
-          )}
+          {code && <CensusLinkBox refNo={h.ref_no} code={code} parish={parish} style={{ margin: '0 0 10px' }} />}
 
           <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 17, margin: '0 0 4px', color: '#000' }}>Pamilya: {h.household_name}</h2>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
