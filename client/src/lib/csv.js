@@ -29,3 +29,33 @@ export function downloadCsv(filename, rows, columns) {
   const csv = toCsv(rows, columns);
   triggerDownload(new Blob([csv], { type: 'text/csv;charset=utf-8' }), filename);
 }
+
+/**
+ * Parse CSV text into rows of strings (quoted fields, "" escapes, commas
+ * and newlines inside quotes, CRLF or LF). Blank lines stay (as rows of
+ * empty strings) so row numbers match the file, except a final newline. A
+ * leading byte-order mark (Excel's "CSV UTF-8") is ignored.
+ */
+export function parseCsv(text) {
+  const src = String(text || '').replace(/^\uFEFF/, '');
+  const rows = [];
+  let row = [];
+  let field = '';
+  let quoted = false;
+  for (let i = 0; i < src.length; i++) {
+    const ch = src[i];
+    if (quoted) {
+      if (ch === '"' && src[i + 1] === '"') { field += '"'; i++; }
+      else if (ch === '"') quoted = false;
+      else field += ch;
+    } else if (ch === '"') quoted = true;
+    else if (ch === ',') { row.push(field); field = ''; }
+    else if (ch === '\n' || ch === '\r') {
+      if (ch === '\r' && src[i + 1] === '\n') i++;
+      row.push(field); field = '';
+      rows.push(row); row = [];
+    } else field += ch;
+  }
+  if (field !== '' || row.length) { row.push(field); rows.push(row); }
+  return rows;
+}

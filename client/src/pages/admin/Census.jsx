@@ -7,8 +7,9 @@ import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../compo
 import CensusHouseholdDrawer from '../../components/CensusHouseholdDrawer.jsx';
 import CensusPrintSheet from '../../components/CensusPrintSheet.jsx';
 import CensusSubmissionDrawer from '../../components/CensusSubmissionDrawer.jsx';
+import LastYearList from '../../components/LastYearList.jsx';
 import { fmtDate } from '../../constants.js';
-import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission } from '../../lib/census.js';
+import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, householdsVsLastYear } from '../../lib/census.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { useClientList, useDebounced } from '../../hooks.js';
@@ -166,9 +167,14 @@ export default function Census() {
         )}
 
         {!cycle && !starting && (
-          <Panel>
-            <EmptyState title="No census yet" subtitle="Start a census, print the pre-filled forms by GKK, and record the answers as they come back." />
-          </Panel>
+          <>
+            <Panel>
+              <EmptyState title="No census yet" subtitle="Start a census, print the pre-filled forms by GKK, and record the answers as they come back." />
+            </Panel>
+            {/* The list can be typed in before the census starts. */}
+            <h2 className="font-serif text-[22px] font-semibold text-parish-navy mt-8 mb-3">Last year's household list</h2>
+            <LastYearList ownGkk={ownGkk} parish={parish} canEdit={canEdit} canManage={canManage} />
+          </>
         )}
 
         {cycle && (
@@ -188,13 +194,14 @@ export default function Census() {
             </div>
 
             <Tabs
-              tabs={[['households', 'Households'], ['updates', `Online updates${pendingCount ? ` (${pendingCount})` : ''}`], ['results', 'Results by GKK']]}
+              tabs={[['households', 'Households'], ['updates', `Online updates${pendingCount ? ` (${pendingCount})` : ''}`], ['results', 'Results by GKK'], ['lastYear', "Last year's list"]]}
               value={tab}
               onChange={setTab}
             />
             {tab === 'households' && <HouseholdsTab cycle={cycle} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} />}
-            {tab === 'results' && <ResultsTab cycle={cycle} refreshKey={refreshKey} />}
+            {tab === 'results' && <ResultsTab cycle={cycle} ownGkk={ownGkk} refreshKey={refreshKey} />}
+            {tab === 'lastYear' && <LastYearList ownGkk={ownGkk} parish={parish} canEdit={canEdit} canManage={canManage} />}
           </>
         )}
       </PageBody>
@@ -258,6 +265,7 @@ function HouseholdsTab({ cycle, parish, ownGkk, refreshKey, onChanged }) {
   const [gkkOptions, setGkkOptions] = useState([]);
   const [counts, setCounts] = useState(null);
   const [summary, setSummary] = useState(null);
+  const [vsLastYear, setVsLastYear] = useState(null);
   const [openId, setOpenId] = useState(null);
   const [printForms, setPrintForms] = useState(null);
   const [printing, setPrinting] = useState(false);
@@ -274,6 +282,7 @@ function HouseholdsTab({ cycle, parish, ownGkk, refreshKey, onChanged }) {
   function reloadTiles() {
     api.censusHouseholdProgressCounts(cycle.id).then(setCounts).catch(() => setCounts(null));
     api.censusSummary(cycle.id).then((r) => setSummary(summarizeCensus(r))).catch(() => setSummary(null));
+    loadVsLastYear(cycle.id, ownGkk).then(setVsLastYear).catch(() => setVsLastYear(null));
   }
 
   useEffect(() => { reload(); }, [cycle.id, gkk, progress, debouncedSearch, page, pageSize, refreshKey]);
@@ -306,6 +315,14 @@ function HouseholdsTab({ cycle, parish, ownGkk, refreshKey, onChanged }) {
         <Tile label="Active" value={t ? t.counts.Active : '—'} note={t ? `${t.counts.Inactive} inactive · ${t.counts['Left the Church']} left the Church` : ''} accent="rgb(var(--c-ok-text))" />
         <Tile label="Moved / deceased" value={t ? t.counts['Moved away'] + t.counts.Deceased : '—'} note={t ? `${t.counts['Moved away']} moved · ${t.counts.Deceased} deceased` : ''} accent="rgb(var(--c-chip))" />
         <Tile label="Households done" value={counts ? counts.Confirmed : '—'} note={counts ? `${counts['Partly confirmed']} partly · ${counts['Not started']} not started` : ''} accent="#c39b4e" />
+        {vsLastYear?.hasBaseline && (
+          <Tile
+            label="Registered vs last year"
+            value={`${vsLastYear.total.pct}%`}
+            note={`${vsLastYear.total.notYet} of last year's ${vsLastYear.total.lastYear} not yet registered`}
+            accent="rgb(var(--c-ok-text))"
+          />
+        )}
       </div>
 
       <div className="flex flex-wrap gap-2.5 items-center mb-4">
@@ -469,13 +486,26 @@ function UpdatesTab({ cycle, refreshKey, onChanged }) {
   );
 }
 
-function ResultsTab({ cycle, refreshKey }) {
+/**
+ * Households registered in this census per GKK against last year: the GKK's
+ * list on the "Last year's list" tab when it has one, else the count typed
+ * in Parish Config → Parish GKK.
+ */
+async function loadVsLastYear(cycleId, ownGkk) {
+  const [details, counts, lists] = await Promise.all([api.listGkkDetails(), api.censusGkkHouseholdCounts(cycleId), api.lastYearCounts()]);
+  return householdsVsLastYear(details.rows, counts, ownGkk, lists);
+}
+
+function ResultsTab({ cycle, ownGkk, refreshKey }) {
   const [summary, setSummary] = useState(null);
+  const [vsLastYear, setVsLastYear] = useState(null);
   const [error, setError] = useState('');
 
   function load() {
     setError('');
     api.censusSummary(cycle.id).then((r) => setSummary(summarizeCensus(r))).catch((e) => setError(e.message));
+    // Optional: before 0040 (or with no counts entered) the table just doesn't show.
+    loadVsLastYear(cycle.id, ownGkk).then(setVsLastYear).catch(() => setVsLastYear(null));
   }
   useEffect(() => { load(); }, [cycle.id, refreshKey]);
 
@@ -486,12 +516,54 @@ function ResultsTab({ cycle, refreshKey }) {
     triggerDownload(blob, `${cycle.label.toLowerCase().replace(/\s+/g, '-')}-results.csv`);
   }
 
+  async function exportVsLastYear() {
+    const columns = ['GKK', 'Last year from', 'Last year', 'Registered', 'Fully confirmed', 'Not yet', 'Registered %'];
+    const from = (r) => (r.fromList ? 'List' : r.lastYear == null ? '' : 'Count');
+    const row = (r) => ({ cells: [r.label, from(r), r.lastYear ?? '', r.registered, r.confirmed, r.notYet ?? '', r.pct == null ? '' : `${r.pct}%`] });
+    const blob = await api.exportGenerated({ title: `${cycle.label} households vs last year`, columns, rows: [...vsLastYear.rows.map(row), row(vsLastYear.total)] });
+    triggerDownload(blob, `${cycle.label.toLowerCase().replace(/\s+/g, '-')}-households-vs-last-year.csv`);
+  }
+
   if (error) return <ErrorState message={error} onRetry={load} />;
   if (!summary) return <LoadingState label="Loading results…" />;
 
   const cols = summary.columns;
+  const dash = <span className="text-parish-faint">—</span>;
   return (
     <>
+      {vsLastYear?.hasBaseline && (
+        <>
+          <div className="flex items-center gap-3 mb-3">
+            <p className="text-[13px] text-parish-muted m-0">
+              Households registered in the {cycle.label} (at least one member confirmed) against last year. A GKK marked “list” counts its names on the Last year's list tab, where “not yet” is the names not yet ticked off; the others use the count set in Parish Config → Parish GKK.
+            </p>
+            <button onClick={exportVsLastYear} className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
+          </div>
+          <div className="mb-6">
+            <DataTable
+              minWidth={720}
+              columns={[{ label: 'GKK' }, { label: 'Last year', align: 'right' }, { label: 'Registered', align: 'right' }, { label: 'Fully confirmed', align: 'right' }, { label: 'Not yet', align: 'right' }, { label: 'Registered %', align: 'right' }]}
+            >
+              {[...vsLastYear.rows, vsLastYear.total].map((r, i) => (
+                <tr key={r.label} className={`border-t border-parish-line ${i === vsLastYear.rows.length ? 'bg-parish-sunk font-semibold' : ''}`}>
+                  <td className="px-4 py-3 text-[14px] text-parish-navy whitespace-nowrap">
+                    {r.label}
+                    {r.fromList && <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-parish-muted">list</span>}
+                  </td>
+                  <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.lastYear ?? dash}</td>
+                  <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.registered}</td>
+                  <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.confirmed}</td>
+                  <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.notYet ?? dash}</td>
+                  <td className="px-4 py-3 text-[14px] text-right text-parish-navy">{r.pct == null ? dash : `${r.pct}%`}</td>
+                </tr>
+              ))}
+            </DataTable>
+            {vsLastYear.rows.some((r) => r.lastYear == null) && (
+              <p className="text-[12.5px] text-parish-muted mt-2 mb-0">The total leaves out GKKs with no count for last year.</p>
+            )}
+          </div>
+        </>
+      )}
       <div className="flex items-center gap-3 mb-3">
         <p className="text-[13px] text-parish-muted m-0">
           Members per status in the {cycle.label}. “Not confirmed” are current members with no answer in this census{cycle.status === 'Open' ? ' yet' : ''}.
