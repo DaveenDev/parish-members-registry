@@ -7,7 +7,7 @@ import MyGkk from './MyGkk.jsx';
 import LastYearList from '../../components/LastYearList.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
-import { Field, TextInput, PrimaryButton, Badge } from '../../components/ui.jsx';
+import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
 import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
 import { useTheme, THEMES } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
@@ -191,6 +191,176 @@ function HeroImageSection({ settings, onSaved }) {
   );
 }
 
+const svgProps = { viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeLinecap: 'round', strokeLinejoin: 'round', 'aria-hidden': true };
+
+const SERVICE_ICONS = {
+  database: (
+    <svg {...svgProps} width="22" height="22" strokeWidth="1.7">
+      <ellipse cx="12" cy="5.5" rx="7.5" ry="2.8" />
+      <path d="M4.5 5.5v13c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8v-13" />
+      <path d="M4.5 12c0 1.55 3.36 2.8 7.5 2.8s7.5-1.25 7.5-2.8" />
+    </svg>
+  ),
+  photo: (
+    <svg {...svgProps} width="22" height="22" strokeWidth="1.7">
+      <rect x="3" y="5" width="18" height="14" rx="2" /><circle cx="9" cy="10" r="1.8" /><path d="M21 16l-5-5-8 8" />
+    </svg>
+  ),
+  mail: (
+    <svg {...svgProps} width="22" height="22" strokeWidth="1.7">
+      <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3.5 6.5l8.5 6.5 8.5-6.5" />
+    </svg>
+  ),
+};
+
+const LockIcon = () => (
+  <svg {...svgProps} width="15" height="15" strokeWidth="2"><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></svg>
+);
+
+/** Green "working" or gold "needs attention" badge, with a dot. */
+function StatusBadge({ ok, children }) {
+  return (
+    <Badge tone={ok ? 'green' : 'gold'}>
+      <span className="w-1.5 h-1.5 rounded-full bg-current mr-1.5" aria-hidden />
+      {children}
+    </Badge>
+  );
+}
+
+/**
+ * One card on Platform Integrations: the service's icon, name, provider and
+ * status, a short note, its details, then a footer of actions.
+ */
+function IntegrationCard({ icon, title, provider, status, note, children, footer }) {
+  return (
+    <Panel className="overflow-hidden">
+      <div className="p-5 sm:p-6">
+        <div className="flex items-start gap-3.5">
+          <div className="shrink-0 w-11 h-11 rounded-xl grid place-items-center bg-[var(--p-blue-tint)] text-parish-blue">{SERVICE_ICONS[icon]}</div>
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap">
+              <h2 className="m-0 font-serif text-[22px] leading-tight font-semibold text-parish-navy">{title}</h2>
+              {status}
+            </div>
+            <div className="text-[12.5px] text-parish-muted mt-0.5">{provider}</div>
+          </div>
+        </div>
+        {note && <p className="text-[13.5px] text-parish-text2 leading-relaxed mt-4 mb-0">{note}</p>}
+        <div className="mt-4">{children}</div>
+      </div>
+      {footer && <div className="px-5 sm:px-6 py-3.5 border-t border-parish-line2 flex items-center gap-3 flex-wrap">{footer}</div>}
+    </Panel>
+  );
+}
+
+/** A small heading inside a card, with an optional action on the right. */
+function CardSection({ title, action, children }) {
+  return (
+    <div>
+      <div className="flex items-center gap-3 mb-2.5 min-h-[32px]">
+        <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{title}</span>
+        <span className="flex-1 h-px bg-parish-track" />
+        {action}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function CopyButton({ value, label }) {
+  const toast = useToast();
+  const [copied, setCopied] = useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      toast.error('Could not copy. Select it and copy it by hand.');
+    }
+  }
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title={copied ? 'Copied' : `Copy ${label}`}
+      aria-label={`Copy ${label}`}
+      className={`appearance-none border-none bg-transparent cursor-pointer shrink-0 w-8 h-8 -my-1 rounded-lg grid place-items-center transition hover:bg-parish-hover ${copied ? 'text-parish-ok' : 'text-parish-icon hover:text-parish-navy'}`}
+    >
+      {copied ? (
+        <svg {...svgProps} width="16" height="16" strokeWidth="2.2"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+      ) : (
+        <svg {...svgProps} width="16" height="16" strokeWidth="1.8"><rect x="8.5" y="8.5" width="11" height="11" rx="2" /><path d="M15.5 8.5V6.5a2 2 0 0 0-2-2h-7a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h2" /></svg>
+      )}
+    </button>
+  );
+}
+
+/** Saved values, read-only and in full: one row each, with a copy button where it helps. */
+function DetailList({ rows }) {
+  return (
+    <dl className="m-0 rounded-xl border border-parish-line bg-parish-field divide-y divide-parish-line">
+      {rows.map(({ label, value, mono, copy, empty = 'Not set' }) => (
+        <div key={label} className="flex flex-col sm:flex-row sm:items-center gap-x-3 gap-y-0.5 px-3.5 py-2.5 min-w-0">
+          <dt className="sm:w-[132px] shrink-0 text-[12.5px] font-semibold text-parish-muted">{label}</dt>
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <dd className={`m-0 flex-1 min-w-0 break-all ${value ? 'text-parish-ink' : 'text-parish-faint italic'} ${mono && value ? 'font-mono text-[13px]' : 'text-[13.5px]'}`}>
+              {value || empty}
+            </dd>
+            {copy && value && <CopyButton value={value} label={label} />}
+          </div>
+        </div>
+      ))}
+    </dl>
+  );
+}
+
+const linkButton = 'appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13.5px] text-parish-muted p-0 hover:text-parish-ink';
+
+/**
+ * The Supabase project this build of the site talks to, read from
+ * VITE_SUPABASE_URL (https://<project id>.supabase.co). Read-only: it only
+ * changes by setting the variable in Vercel and redeploying.
+ */
+function DatabaseCard() {
+  const url = import.meta.env.VITE_SUPABASE_URL || '';
+  let projectId = '';
+  try { projectId = /^([a-z0-9]+)\.supabase\.co$/i.exec(new URL(url).hostname)?.[1] || ''; } catch { /* not set or not a URL */ }
+
+  return (
+    <IntegrationCard
+      icon="database"
+      title="Database"
+      provider="Supabase"
+      status={<StatusBadge ok={!!url}>{url ? 'Connected' : 'Not set'}</StatusBadge>}
+      note="Where every record in the registry is kept. The Project ID is the one in the Supabase dashboard address."
+      footer={(
+        <>
+          <span className="text-[13px] text-parish-muted flex-1 min-w-[220px]">
+            Set by <code>VITE_SUPABASE_URL</code> in Vercel. To move to another project, change it there and redeploy.
+          </span>
+          {projectId && (
+            <a
+              href={`https://supabase.com/dashboard/project/${projectId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center gap-1.5 font-semibold text-[13.5px] text-parish-blue no-underline hover:underline"
+            >
+              Open in Supabase
+              <svg {...svgProps} width="14" height="14" strokeWidth="2"><path d="M14 4h6v6" /><path d="M20 4l-9 9" /><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5" /></svg>
+            </a>
+          )}
+        </>
+      )}
+    >
+      <DetailList rows={[
+        { label: 'Project ID', value: projectId, mono: true, copy: true },
+        { label: 'Project URL', value: url, copy: true },
+      ]} />
+    </IntegrationCard>
+  );
+}
+
 const BLANK_STORAGE = { accountId: '', accessKeyId: '', secretAccessKey: '', bucket: '', publicBaseUrl: '' };
 const storageForm = (s) => ({
   accountId: s?.account_id || '', accessKeyId: s?.access_key_id || '', secretAccessKey: '', bucket: s?.bucket || '', publicBaseUrl: s?.public_base_url || '',
@@ -258,59 +428,85 @@ function PhotoStorageCard() {
     }
   }
 
-  return (
-    <Panel className="p-6">
-      <div className="flex items-center gap-2.5 flex-wrap mb-1">
-        <div className="font-serif text-[22px] font-semibold text-parish-navy">Photo storage (Cloudflare R2)</div>
-        {saved && (
-          <Badge tone={complete ? 'green' : 'gold'}>{complete ? 'Set up' : 'Not set up'}</Badge>
+  let footer = null;
+  if (saved && mode === 'locked') {
+    footer = (
+      <>
+        <GhostButton onClick={() => setMode('warning')} className="px-4 py-2 text-[13.5px] inline-flex items-center gap-2">
+          <LockIcon />Edit settings…
+        </GhostButton>
+        <span className="text-[13px] text-parish-muted">Locked to prevent accidental changes.</span>
+        {saved.updated_at && <span className="ml-auto text-[12.5px] text-parish-faint">Saved {fmtDateTime(saved.updated_at, { time: false })}</span>}
+      </>
+    );
+  } else if (saved && editing) {
+    footer = (
+      <>
+        <PrimaryButton onClick={save} disabled={busy} className="px-[22px] py-2.5 text-[14px]">{busy ? 'Saving…' : 'Save storage settings'}</PrimaryButton>
+        <button type="button" onClick={lock} disabled={busy} className={linkButton}>Cancel</button>
+        {saved.updated_at && (
+          <button type="button" onClick={clear} disabled={busy} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-error p-0 ml-auto">
+            Remove saved settings
+          </button>
         )}
-      </div>
-      <div className="text-[13.5px] text-parish-muted mb-4">
-        Where Blog Article photos are stored. Only staff admins see this. The secret key is never shown again once saved;
-        leave it blank to keep the saved one. See <code>docs/media-storage.md</code> for creating the bucket and API token.
-      </div>
+      </>
+    );
+  }
+
+  return (
+    <IntegrationCard
+      icon="photo"
+      title="Photo storage"
+      provider="Cloudflare R2"
+      status={saved && <StatusBadge ok={complete}>{complete ? 'Set up' : 'Not set up'}</StatusBadge>}
+      note={<>Where Blog Article photos are stored. The secret key is never shown again once saved. Setting up the bucket and API token: <code>docs/media-storage.md</code>.</>}
+      footer={!error && footer}
+    >
       {error ? (
         <div className="text-[13.5px] text-parish-error">{error}</div>
-      ) : saved && (
+      ) : !saved ? (
+        <div className="text-[13.5px] text-parish-muted">Loading…</div>
+      ) : (
         <>
-          <fieldset disabled={!editing} className={`grid gap-4 sm:grid-cols-2 border-none p-0 m-0 min-w-0 ${editing ? '' : 'opacity-60 [&_input]:cursor-not-allowed'}`}>
-            <Field label="Account ID"><TextInput value={form.accountId} onChange={set('accountId')} autoComplete="off" spellCheck={false} /></Field>
-            <Field label="Bucket name"><TextInput value={form.bucket} onChange={set('bucket')} placeholder="parish-media" autoComplete="off" spellCheck={false} /></Field>
-            <Field label="Access Key ID"><TextInput value={form.accessKeyId} onChange={set('accessKeyId')} autoComplete="off" spellCheck={false} /></Field>
-            <Field label="Secret Access Key">
-              <TextInput
-                type="password"
-                value={form.secretAccessKey}
-                onChange={set('secretAccessKey')}
-                placeholder={saved.has_secret ? '•••••••• saved (leave blank to keep)' : ''}
-                autoComplete="new-password"
-                spellCheck={false}
-              />
-            </Field>
-            <div className="sm:col-span-2">
-              <Field label="Public URL"><TextInput value={form.publicBaseUrl} onChange={set('publicBaseUrl')} placeholder="https://media.yourparish.org" autoComplete="off" spellCheck={false} inputMode="url" /></Field>
-              {/\.r2\.dev(\/|$)/i.test(form.publicBaseUrl.trim()) && (
-                <div className="mt-2 px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13px] font-medium">
-                  Some internet providers block r2.dev addresses, so visitors on them see broken photos. Use the website's own
-                  address with /media on the end (e.g. https://olgqp-registry.vercel.app/media, see docs/media-storage.md) or a
-                  custom domain; existing article photos switch over when you save.
-                </div>
-              )}
+          {editing ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Account ID"><TextInput value={form.accountId} onChange={set('accountId')} autoComplete="off" spellCheck={false} /></Field>
+              <Field label="Bucket name"><TextInput value={form.bucket} onChange={set('bucket')} placeholder="parish-media" autoComplete="off" spellCheck={false} /></Field>
+              <Field label="Access Key ID"><TextInput value={form.accessKeyId} onChange={set('accessKeyId')} autoComplete="off" spellCheck={false} /></Field>
+              <Field label="Secret Access Key">
+                <TextInput
+                  type="password"
+                  value={form.secretAccessKey}
+                  onChange={set('secretAccessKey')}
+                  placeholder={saved.has_secret ? '•••••••• saved (leave blank to keep)' : ''}
+                  autoComplete="new-password"
+                  spellCheck={false}
+                />
+              </Field>
+              <div className="sm:col-span-2">
+                <Field label="Public URL"><TextInput value={form.publicBaseUrl} onChange={set('publicBaseUrl')} placeholder="https://media.yourparish.org" autoComplete="off" spellCheck={false} inputMode="url" /></Field>
+              </div>
             </div>
-          </fieldset>
+          ) : (
+            <DetailList rows={[
+              { label: 'Account ID', value: saved.account_id, mono: true },
+              { label: 'Bucket', value: saved.bucket },
+              { label: 'Access Key ID', value: saved.access_key_id, mono: true },
+              { label: 'Secret Access Key', value: saved.has_secret ? 'Saved (hidden)' : '' },
+              { label: 'Public URL', value: saved.public_base_url, copy: true },
+            ]} />
+          )}
 
-          {mode === 'locked' && (
-            <div className="flex items-center gap-3 mt-5 flex-wrap">
-              <button type="button" onClick={() => setMode('warning')} className="appearance-none cursor-pointer px-[18px] py-2.5 rounded-xl border-[1.5px] border-parish-errorBorder bg-parish-errorBg font-semibold text-[14px] text-parish-error">
-                Edit settings…
-              </button>
-              <span className="text-[13px] text-parish-muted">Locked to prevent accidental changes.</span>
+          {/\.r2\.dev(\/|$)/i.test(form.publicBaseUrl.trim()) && (
+            <div className="mt-3 px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13px] font-medium">
+              Some internet providers block r2.dev addresses, so visitors on them see broken photos. Use the website's own
+              address with /media on the end (e.g. https://olgqp-registry.vercel.app/media, see docs/media-storage.md) or a
+              custom domain; existing article photos switch over when you save.
             </div>
           )}
 
           {mode === 'warning' && (
-            <div role="alert" className="mt-5 p-4 rounded-xl border-[1.5px] border-parish-errorBorder bg-parish-errorBg">
+            <div role="alert" className="mt-4 p-4 rounded-xl border-[1.5px] border-parish-errorBorder bg-parish-errorBg">
               <div className="font-bold text-[14.5px] text-parish-error mb-1">Danger zone</div>
               <div className="text-[13.5px] text-parish-ink mb-3">
                 These settings connect the website to its photo storage. A wrong value stops all Blog Article photo uploads,
@@ -321,29 +517,13 @@ function PhotoStorageCard() {
                 <button type="button" onClick={() => setMode('editing')} className="appearance-none border-none cursor-pointer px-[18px] py-2.5 rounded-xl bg-parish-error font-semibold text-[14px] text-white">
                   I understand, unlock
                 </button>
-                <button type="button" onClick={() => setMode('locked')} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13.5px] text-parish-muted p-0">
-                  Cancel
-                </button>
+                <button type="button" onClick={() => setMode('locked')} className={linkButton}>Cancel</button>
               </div>
-            </div>
-          )}
-
-          {editing && (
-            <div className="flex items-center gap-4 mt-5 flex-wrap">
-              <PrimaryButton onClick={save} disabled={busy} className="px-[26px] py-3 text-[14.5px]">{busy ? 'Saving…' : 'Save storage settings'}</PrimaryButton>
-              <button type="button" onClick={lock} disabled={busy} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13.5px] text-parish-muted p-0">
-                Cancel
-              </button>
-              {saved.updated_at && (
-                <button type="button" onClick={clear} disabled={busy} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-error p-0 ml-auto">
-                  Remove saved settings
-                </button>
-              )}
             </div>
           )}
         </>
       )}
-    </Panel>
+    </IntegrationCard>
   );
 }
 
@@ -419,70 +599,69 @@ function EmailCard() {
   }
 
   return (
-    <Panel className="p-6">
-      <div className="flex items-center gap-2.5 flex-wrap mb-1">
-        <div className="font-serif text-[22px] font-semibold text-parish-navy">Email</div>
-        {settings && <Badge tone={working ? 'green' : 'gold'}>{working ? 'Password reset working' : 'Not set up'}</Badge>}
-      </div>
-      <div className="text-[13.5px] text-parish-muted mb-4">
-        The parish email staff use for sending. For now it lets staff reset a forgotten password by email; sending documents by email comes later.
-      </div>
-      {error ? <div className="text-[13.5px] text-parish-error">{error}</div> : settings && (
-        <>
+    <IntegrationCard
+      icon="mail"
+      title="Email"
+      provider="Parish Gmail, sent through Supabase Auth"
+      status={settings && <StatusBadge ok={working}>{working ? 'Password reset working' : 'Not set up'}</StatusBadge>}
+      note="The parish email staff use for sending. For now it lets staff reset a forgotten password by email; sending documents by email comes later."
+    >
+      {error ? <div className="text-[13.5px] text-parish-error">{error}</div> : !settings ? (
+        <div className="text-[13.5px] text-parish-muted">Loading…</div>
+      ) : (
+        <div className="flex flex-col gap-6">
           {!migrated && (
-            <div className="mb-4 px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13px] font-medium" role="status">
+            <div className="px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13px] font-medium" role="status">
               Run the <strong>0036_email_integration.sql</strong> migration in Supabase to save these settings.
             </div>
           )}
-          <fieldset disabled={!editing} className={`grid gap-4 sm:grid-cols-2 border-none p-0 m-0 min-w-0 ${editing ? '' : 'opacity-60 [&_input]:cursor-not-allowed'}`}>
-            <Field label="Parish email (Gmail)"><TextInput type="email" value={form.outgoingEmail} onChange={set('outgoingEmail')} placeholder="parish.office@gmail.com" autoComplete="off" spellCheck={false} /></Field>
-            <Field label="Sender name"><TextInput value={form.outgoingName} onChange={set('outgoingName')} placeholder={settings.name || 'Our Lady of Guadalupe Quasi-Parish'} autoComplete="off" /></Field>
-          </fieldset>
-          <div className="flex items-center gap-4 mt-4 flex-wrap">
+
+          <CardSection
+            title="Sender"
+            action={!editing && (
+              <GhostButton onClick={() => setEditing(true)} disabled={!migrated} className="px-3.5 py-1.5 text-[13px] disabled:opacity-50 disabled:cursor-not-allowed">
+                Edit…
+              </GhostButton>
+            )}
+          >
             {editing ? (
               <>
-                <PrimaryButton onClick={save} disabled={busy} className="px-[22px] py-2.5 text-[14px]">{busy ? 'Saving…' : 'Save email'}</PrimaryButton>
-                <button type="button" onClick={() => { setForm(emailForm(settings)); setEditing(false); }} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13.5px] text-parish-muted p-0">Cancel</button>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Parish email (Gmail)"><TextInput type="email" value={form.outgoingEmail} onChange={set('outgoingEmail')} placeholder="parish.office@gmail.com" autoComplete="off" spellCheck={false} /></Field>
+                  <Field label="Sender name"><TextInput value={form.outgoingName} onChange={set('outgoingName')} placeholder={settings.name || 'Our Lady of Guadalupe Quasi-Parish'} autoComplete="off" /></Field>
+                </div>
+                <div className="flex items-center gap-4 mt-4 flex-wrap">
+                  <PrimaryButton onClick={save} disabled={busy} className="px-[22px] py-2.5 text-[14px]">{busy ? 'Saving…' : 'Save email'}</PrimaryButton>
+                  <button type="button" onClick={() => { setForm(emailForm(settings)); setEditing(false); }} className={linkButton}>Cancel</button>
+                </div>
               </>
             ) : (
-              <button type="button" onClick={() => setEditing(true)} disabled={!migrated} className="appearance-none cursor-pointer px-4 py-2 rounded-xl border-[1.5px] border-parish-borderSoft bg-parish-card font-semibold text-[13.5px] text-parish-text2 disabled:opacity-50">
-                Edit email…
-              </button>
+              <DetailList rows={[
+                { label: 'Parish email', value: settings.outgoing_email, copy: true },
+                { label: 'Sender name', value: settings.outgoing_name, empty: settings.name ? `Not set (uses “${settings.name}”)` : 'Not set' },
+              ]} />
             )}
-          </div>
+          </CardSection>
 
-          <div className="mt-6 pt-5 border-t border-parish-line">
-            <div className="font-semibold text-[15px] text-parish-navy mb-1">Password reset by email</div>
-            <div className="text-[13px] text-parish-muted mb-3">
-              "Forgot password?" on the staff sign-in page emails a reset link. Set this up once (details in <code>docs/email-setup.md</code>):
-            </div>
-            <ol className="m-0 pl-5 flex flex-col gap-2 text-[13.5px] text-parish-ink leading-relaxed">
-              <li>On the parish Gmail, turn on <strong>2-Step Verification</strong>, then create an <strong>App Password</strong> (Google Account → Security → App passwords).</li>
-              <li>
-                In Supabase: <strong>Authentication → Emails → SMTP Settings</strong>, turn on custom SMTP: host <code>smtp.gmail.com</code>, port <code>465</code>,
-                username = the Gmail address, password = the App Password, sender email and name = the ones above.
-              </li>
-              <li>
-                In Supabase: <strong>Authentication → URL Configuration</strong>: Site URL <code>https://olgqp-registry.vercel.app</code>; under Redirect URLs add
-                {' '}<code>https://olgqp-registry.vercel.app/**</code>{site !== 'https://olgqp-registry.vercel.app' && <> and <code>{site}/**</code></>}.
-              </li>
-              <li>Send yourself a test below.</li>
-            </ol>
-            <div className="mt-4 p-3.5 rounded-xl bg-parish-field border border-parish-line">
+          <CardSection title="Password reset by email">
+            <p className="text-[13px] text-parish-muted mt-0 mb-3">
+              "Forgot password?" on the staff sign-in page emails a reset link. Send yourself a test to check it works.
+            </p>
+            <div className="p-3.5 rounded-xl bg-parish-field border border-parish-line">
               {test === 'asking' ? (
                 <div>
                   <div className="text-[13.5px] text-parish-ink mb-2.5">A reset email was sent to <strong>{user.email}</strong>. Did it arrive (check spam too)?</div>
                   <div className="flex gap-2.5 flex-wrap">
                     <PrimaryButton onClick={() => confirm(true)} disabled={busy} className="px-4 py-2 text-[13.5px]">Yes, it arrived</PrimaryButton>
-                    <button type="button" onClick={() => confirm(false)} className="appearance-none cursor-pointer px-4 py-2 rounded-xl border-[1.5px] border-parish-borderSoft bg-parish-card font-semibold text-[13.5px] text-parish-text2">No</button>
+                    <GhostButton onClick={() => confirm(false)} className="px-4 py-2 text-[13.5px]">No</GhostButton>
                   </div>
                   <div className="text-[12px] text-parish-muted mt-2">You don't have to use the link; your password stays the same unless you do.</div>
                 </div>
               ) : (
                 <div className="flex items-center gap-3 flex-wrap">
-                  <button type="button" onClick={sendTest} disabled={test === 'sending'} className="appearance-none border-none cursor-pointer px-4 py-2 rounded-xl bg-parish-fill text-white font-semibold text-[13.5px] disabled:opacity-60">
+                  <PrimaryButton onClick={sendTest} disabled={test === 'sending'} className="px-4 py-2 text-[13.5px]">
                     {test === 'sending' ? 'Sending…' : working ? 'Send another test' : 'Send test reset email'}
-                  </button>
+                  </PrimaryButton>
                   <span className="text-[13px] text-parish-muted">
                     {working ? `Confirmed working on ${fmtDateTime(settings.password_reset_verified_at, { time: false })}.` : `To ${user.email}.`}
                   </span>
@@ -495,50 +674,47 @@ function EmailCard() {
                 </div>
               )}
             </div>
-          </div>
-        </>
+
+            <details className="group mt-3" open={!working || test === 'failed'}>
+              <summary className="cursor-pointer list-none inline-flex items-center gap-1.5 font-semibold text-[13.5px] text-parish-blue py-1">
+                <svg {...svgProps} width="14" height="14" strokeWidth="2.2" className="transition-transform group-open:rotate-90"><path d="M9 6l6 6-6 6" /></svg>
+                One-time setup steps
+              </summary>
+              <ol className="mt-2 mb-0 pl-5 flex flex-col gap-2 text-[13.5px] text-parish-ink leading-relaxed">
+                <li>On the parish Gmail, turn on <strong>2-Step Verification</strong>, then create an <strong>App Password</strong> (Google Account → Security → App passwords).</li>
+                <li>
+                  In Supabase: <strong>Authentication → Emails → SMTP Settings</strong>, turn on custom SMTP: host <code>smtp.gmail.com</code>, port <code>465</code>,
+                  username = the Gmail address, password = the App Password, sender email and name = the ones above.
+                </li>
+                <li>
+                  In Supabase: <strong>Authentication → URL Configuration</strong>: Site URL <code>https://olgqp-registry.vercel.app</code>; under Redirect URLs add
+                  {' '}<code>https://olgqp-registry.vercel.app/**</code>{site !== 'https://olgqp-registry.vercel.app' && <> and <code>{site}/**</code></>}.
+                </li>
+                <li>Send yourself a test above. More detail in <code>docs/email-setup.md</code>.</li>
+              </ol>
+            </details>
+          </CardSection>
+        </div>
       )}
-    </Panel>
-  );
-}
-
-/**
- * The Supabase project this build of the site talks to, read from
- * VITE_SUPABASE_URL (https://<project id>.supabase.co). Read-only: it only
- * changes by setting the variable in Vercel and redeploying.
- */
-function DatabaseCard() {
-  const url = import.meta.env.VITE_SUPABASE_URL || '';
-  let projectId = '';
-  try { projectId = new URL(url).hostname.split('.')[0]; } catch { /* not set or not a URL */ }
-
-  return (
-    <Panel className="p-6">
-      <div className="flex items-center gap-2.5 flex-wrap mb-1">
-        <div className="font-serif text-[22px] font-semibold text-parish-navy">Database (Supabase)</div>
-        <Badge tone={projectId ? 'green' : 'gold'}>{projectId ? 'Connected' : 'Not set'}</Badge>
-      </div>
-      <div className="text-[13.5px] text-parish-muted mb-4">
-        The Supabase project the website reads and saves to. It matches the ID in the Supabase dashboard address
-        (supabase.com/dashboard/project/&lt;ID&gt;). To move to another project, change <code>VITE_SUPABASE_URL</code> and{' '}
-        <code>VITE_SUPABASE_ANON_KEY</code> in Vercel and redeploy.
-      </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="Project ID"><TextInput value={projectId || 'Not set'} readOnly spellCheck={false} className="font-mono" /></Field>
-        <Field label="Project URL"><TextInput value={url || 'Not set'} readOnly spellCheck={false} /></Field>
-      </div>
-    </Panel>
+    </IntegrationCard>
   );
 }
 
 /** Platform Integrations (staff admins only): the outside services the site uses. */
 function IntegrationsTab() {
   return (
-    <div className="grid gap-[18px] lg:grid-cols-2 lg:items-start">
-      <DatabaseCard />
-      <PhotoStorageCard />
-      <EmailCard />
-    </div>
+    <>
+      <p className="text-[13.5px] text-parish-muted mt-0 mb-4">
+        The outside services the website depends on. Only staff admins see this tab.
+      </p>
+      <div className="grid gap-[18px] lg:grid-cols-2 lg:items-start">
+        <div className="flex flex-col gap-[18px] min-w-0">
+          <DatabaseCard />
+          <PhotoStorageCard />
+        </div>
+        <EmailCard />
+      </div>
+    </>
   );
 }
 
