@@ -15,6 +15,7 @@ import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, Gh
 import CreditFooter from '../components/CreditFooter.jsx';
 import ParticipationSurvey, { ParticipationReview } from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
+import { formatAccessCode } from '../lib/census.js';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 
 const STEPS = ['Pamilya ug Ulo', 'Mga Miyembro', 'Mga Sakramento', 'Pag-apil', 'Pagsusi'];
@@ -106,6 +107,7 @@ export default function RegistrationApp() {
   const [memberErr, setMemberErr] = useState([]);
   const [banner, setBanner] = useState('');
   const [refNo, setRefNo] = useState('');
+  const [accessCode, setAccessCode] = useState('');
   const [toast, setToast] = useState(null);
   const [errorFocusTick, setErrorFocusTick] = useState(0);
 
@@ -318,6 +320,7 @@ export default function RegistrationApp() {
     try {
       const res = await api.submitRegistration({ household, members: members.map(toPayloadMember), volunteer, notifyOptin, consent });
       setRefNo(res.refNo);
+      setAccessCode(res.accessCode || '');
       clearDraft();
       setScreen('done');
       top();
@@ -362,7 +365,7 @@ export default function RegistrationApp() {
           submitting={submitting} onOpenConfirm={openConfirm}
         />
       )}
-      {screen === 'done' && <Confirmation refNo={refNo} householdName={household.householdName} onRestart={restart} />}
+      {screen === 'done' && <Confirmation refNo={refNo} accessCode={accessCode} householdName={household.householdName} onRestart={restart} />}
 
       {confirmOpen && (
         <ConfirmModal
@@ -452,10 +455,37 @@ function LandingStat({ value, label }) {
   );
 }
 
-function Confirmation({ refNo, householdName, onRestart }) {
+/** True on phones and tablets (a touch screen with no mouse), following the device. */
+function useIsTouch() {
+  const query = '(hover: none) and (pointer: coarse)';
+  const [on, setOn] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia?.(query);
+    if (!m) return undefined;
+    const change = () => setOn(m.matches);
+    m.addEventListener?.('change', change);
+    return () => m.removeEventListener?.('change', change);
+  }, []);
+  return on;
+}
+
+function Confirmation({ refNo, accessCode, householdName, onRestart }) {
+  const isTouch = useIsTouch();
+  const [copied, setCopied] = useState(false);
+  const code = accessCode ? formatAccessCode(accessCode) : '';
+  async function copy() {
+    const text = [`Our Lady of Guadalupe Quasi-Parish, Mua-an`, `Reference Number: ${refNo}`, code && `Code: ${code}`].filter(Boolean).join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      // No clipboard (an old browser or an insecure page): the screenshot hint still applies.
+    }
+  }
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
-      <ConfirmationPrintSheet refNo={refNo} householdName={householdName} />
+      <ConfirmationPrintSheet refNo={refNo} accessCode={code} householdName={householdName} />
       <div className="max-w-[520px] animate-fadeUp">
         <div className="w-[82px] h-[82px] rounded-full bg-[#eaf4ee] flex items-center justify-center mx-auto mb-[22px] text-[#3a8a5e]">
           <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
@@ -468,7 +498,34 @@ function Confirmation({ refNo, householdName, onRestart }) {
           <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[var(--p-gold-deep)] mb-2">Inyong Reference Number</div>
           {/* Sized to the screen so "OLG-2026-XXXXXX" stays on one line on small phones. */}
           <div className="font-serif font-semibold text-[clamp(20px,6.8vw,36px)] tracking-[.06em] text-parish-blue whitespace-nowrap">{refNo}</div>
-          <div className="text-[13px] text-parish-muted mt-2">Palihug tipigi kini isip inyong rekord.</div>
+          {code && (
+            <>
+              <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[var(--p-gold-deep)] mt-4 mb-2">Inyong Code</div>
+              <div className="font-mono font-semibold text-[clamp(20px,6.8vw,32px)] tracking-[.12em] text-parish-blue whitespace-nowrap">{code}</div>
+              <div className="text-[13px] text-parish-muted mt-2">
+                Gamita ang reference number ug kini nga code aron ma-update ang rekord sa inyong pamilya sa census.
+              </div>
+            </>
+          )}
+          <div className="text-[13.5px] text-parish-text2 mt-3 font-semibold">
+            {isTouch
+              ? `Palihug tipigi ${code ? 'kini sila' : 'kini'}: i-screenshot kini nga screen, o i-copy ug i-paste sa inyong notes.`
+              : `Palihug tipigi ${code ? 'kini sila' : 'kini'} isip inyong rekord: i-print, isulat, o i-screenshot.`}
+          </div>
+          {isTouch && (
+            <button
+              type="button"
+              onClick={copy}
+              className="mt-3.5 inline-flex items-center gap-2 px-5 py-3 rounded-xl border-[1.5px] border-[#cdd7e8] bg-white font-semibold text-[15px] text-parish-blue"
+            >
+              {copied ? (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+              ) : (
+                <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V6a2 2 0 0 1 2-2h9" /></svg>
+              )}
+              <span aria-live="polite">{copied ? 'Na-copy na!' : code ? 'I-copy ang reference number ug code' : 'I-copy ang reference number'}</span>
+            </button>
+          )}
         </Card>
         <div className="flex gap-3 justify-center flex-wrap">
           <GhostButton onClick={() => window.print()} className="px-6 py-3.5 text-[15px] !border-[#cdd7e8] !text-parish-blue bg-white">I-print ang kumpirmasyon</GhostButton>
