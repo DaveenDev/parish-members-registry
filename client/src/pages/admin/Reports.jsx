@@ -10,6 +10,7 @@ import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
 import { multiFamilyNote } from '../../lib/stats.js';
+import { FamilyHeading } from '../../components/FamilyGroups.jsx';
 
 function Bar({ label, right, w, color }) {
   return (
@@ -30,6 +31,27 @@ function SplitBar({ label, right, vw, pw }) {
         <div className="h-full" style={{ width: vw, background: 'rgb(var(--c-ok-text))' }} />
         <div className="h-full" style={{ width: pw, background: 'var(--p-gold)' }} />
       </div>
+    </div>
+  );
+}
+
+/** A household's members family by family, under its row in a generated report. */
+function ReportFamilies({ families }) {
+  return (
+    <div className="grid gap-3 pl-3 border-l-2 border-parish-line2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))' }}>
+      {families.map((f, k) => (
+        <section key={k}>
+          <FamilyHeading title={f.title} className="mb-1.5" />
+          <div className="flex flex-col gap-0.5">
+            {f.members.map((m, j) => (
+              <div key={j} className="flex items-baseline gap-2 text-[13px]">
+                <span className="text-parish-text3 font-semibold">{m.name}</span>
+                <span className="text-parish-muted">{[m.relationship, m.age !== '—' && `${m.age} yrs`, m.note].filter(Boolean).join(' · ')}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }
@@ -74,7 +96,8 @@ export default function Reports() {
   const [gkkOptions, setGkkOptions] = useState([]);
   const [report, setReport] = useState(null);
   const [generating, setGenerating] = useState(false);
-  const reportList = useClientList(report?.rows || [], (row) => row.cells.join(' '));
+  // A row's families (if any) are searched too, so a member's name finds their household.
+  const reportList = useClientList(report?.rows || [], (row) => [...row.cells, ...(row.families || []).flatMap((f) => [f.title, ...f.members.map((m) => m.name)])].join(' '));
 
   useEffect(() => {
     Promise.all([api.listMinistries(), api.listOrganizations()])
@@ -305,9 +328,18 @@ export default function Reports() {
                           <thead><tr className="bg-parish-sunk">{report.columns.map((c) => <th key={c} className="text-left px-3.5 py-2.5 font-bold text-[11.5px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">{c}</th>)}</tr></thead>
                           <tbody>
                             {reportList.rows.map((row, i) => (
-                              <tr key={i} className="border-t border-parish-line">
-                                {row.cells.map((cell, j) => <td key={j} className="px-3.5 py-2.5 text-[13.5px] text-parish-text3 whitespace-nowrap">{cell}</td>)}
-                              </tr>
+                              <React.Fragment key={i}>
+                                <tr className={`border-t border-parish-line ${row.families ? 'font-semibold' : ''}`}>
+                                  {row.cells.map((cell, j) => <td key={j} className="px-3.5 py-2.5 text-[13.5px] text-parish-text3 whitespace-nowrap">{cell}</td>)}
+                                </tr>
+                                {row.families && (
+                                  <tr>
+                                    <td colSpan={report.columns.length} className="px-3.5 pb-3.5 pt-0.5">
+                                      <ReportFamilies families={row.families} />
+                                    </td>
+                                  </tr>
+                                )}
+                              </React.Fragment>
                             ))}
                           </tbody>
                         </table>

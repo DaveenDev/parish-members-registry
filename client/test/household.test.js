@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { syncSpouses, groupByHousehold, groupByGkk, toPayloadMember, familiesOf, familyNoOf, familyHeadIndex, nextFamilyNo, familyHeadName, weddingCouples } from '../src/lib/household.js';
+import { syncSpouses, groupByHousehold, groupByGkk, toPayloadMember, familiesOf, familyNoOf, familyHeadIndex, nextFamilyNo, familyHeadName, familyTitle, weddingCouples } from '../src/lib/household.js';
 import { blankMember } from '../src/constants.js';
 
 const head = (over = {}) => ({ ...blankMember(), relationship: 'Head of Household', ...over });
@@ -147,6 +147,13 @@ describe('families within a household', () => {
     assert.equal(familyHeadName(rows[3]), 'Pedro Dela Cruz');
     assert.equal(familyHeadName({ firstName: 'Ana', lastName: 'Cruz', suffix: '' }), 'Ana Cruz');
     assert.equal(familyHeadName(null), '');
+  });
+
+  test('familyTitle names a family by its head', () => {
+    const [first, second] = familiesOf(rows);
+    assert.equal(familyTitle(second), 'Family of Pedro Dela Cruz');
+    assert.equal(familyTitle({ ...first, head: null }), 'Household Head’s family');
+    assert.equal(familyTitle({ familyNo: 3, head: null }), 'Family 3');
   });
 
   test('a spouse in the second family follows their own head, not the Household Head', () => {

@@ -377,7 +377,7 @@ export default function Households() {
                         </button>
                       </td>
                       <td className="px-4 py-3.5 text-[13.5px] text-parish-text3 whitespace-nowrap">{h.gkk || '—'}<div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div></td>
-                      <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.member_count} member(s){h.family_count > 1 && <span className="block text-[12px] text-parish-muted">{h.family_count} families</span>}</td>
+                      <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.family_count > 1 && <span className="block mb-1"><Badge tone="gold">{h.family_count} families</Badge></span>}{h.member_count} member(s)</td>
                       <td className="px-4 py-3.5 text-[13px] text-parish-text2 whitespace-nowrap" title={fmtDateTime(h.created_at)}>
                         {daysAgo(h.created_at)}
                         {sort === 'updated' && h.updated_at && <div className="text-[12px] text-parish-muted">updated {daysAgo(h.updated_at)}</div>}
@@ -421,7 +421,10 @@ export default function Households() {
                   <Checkbox checked={selected.has(h.id)} onChange={() => toggleSelect(h.id)} aria-label={`Select ${h.household_name}`} className="mt-1.5" />
                   <button onClick={() => toggleExpand(h.id)} aria-expanded={!!expanded[h.id]} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-left min-w-0 flex-1">
                     <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
-                    <span className="block text-[12.5px] text-parish-text2 mt-0.5">{[h.head_name && `Head: ${h.head_name}`, `${h.member_count} member(s)`, h.family_count > 1 && `${h.family_count} families`].filter(Boolean).join(' · ')}</span>
+                    <span className="block text-[12.5px] text-parish-text2 mt-0.5">
+                      {h.family_count > 1 && <><Badge tone="gold">{h.family_count} families</Badge>{' '}</>}
+                      {[h.head_name && `Head: ${h.head_name}`, `${h.member_count} member(s)`].filter(Boolean).join(' · ')}
+                    </span>
                     <MatchedMembers household={h} search={debouncedSearch} />
                     <span className="block text-[12px] text-parish-muted mt-0.5">{[h.gkk, `registered ${daysAgo(h.created_at)}`].filter(Boolean).join(' · ')}</span>
                   </button>

@@ -12,10 +12,11 @@ import {
  * kind of participation. Used by the public wizard (Bisaya) and the admin
  * New Household panel (`english` questions; the answer choices stay Bisaya).
  * `memberViews` carry { mi, displayName, relationship, dob, censusStatus,
- * statusPicked, participation, err }; `onChange(mi, patch)` takes
- * censusCardPatch()-style patches.
+ * statusPicked, participation, err, note }; `onChange(mi, patch)` takes
+ * censusCardPatch()-style patches. `statuses` are the ones to offer
+ * (registration: no Moved away or Deceased; Edit Household: all of them).
  */
-export default function MemberCensusCards({ memberViews, onChange, english = false }) {
+export default function MemberCensusCards({ memberViews, onChange, english = false, statuses = REGISTRATION_STATUSES }) {
   const t = english
     ? {
       status: 'Status now', choose: 'Choose…', suggested: 'Suggested from the answers.',
@@ -43,7 +44,8 @@ export default function MemberCensusCards({ memberViews, onChange, english = fal
               {mv.displayName} <span className="font-medium text-[12.5px] text-parish-muted">· {t.relation(mv.relationship)}</span>
             </div>
 
-            {child ? (
+            {mv.note && <div className="-mt-1.5 mb-3 text-[12.5px] text-parish-muted">{mv.note}</div>}
+            {child && !statuses.includes('Moved away') ? (
               <div className="px-3.5 py-3 rounded-xl bg-parish-surface border border-parish-line2 text-[13.5px] text-parish-text2">{t.child(YOUNG_CHILD_MAX_AGE)}</div>
             ) : (
               <>
@@ -51,13 +53,15 @@ export default function MemberCensusCards({ memberViews, onChange, english = fal
                   <Field label={t.status} required error={mv.err?.censusStatus}>
                     <Select data-census-status value={censusStatus} onChange={(e) => onChange(mv.mi, { censusStatus: e.target.value })}>
                       <option value="">{t.choose}</option>
-                      {REGISTRATION_STATUSES.map((s) => <option key={s} value={s}>{t.statusLabel(s)}</option>)}
+                      {[...new Set([...statuses, ...(censusStatus ? [censusStatus] : [])])].map((s) => <option key={s} value={s}>{t.statusLabel(s)}</option>)}
                     </Select>
                   </Field>
                   {suggestion && <div className="text-[12.5px] text-parish-muted mt-1">{t.suggested}</div>}
                 </div>
 
-                {noSurvey ? (
+                {child ? (
+                  <div className="mt-3 px-3.5 py-3 rounded-xl bg-parish-surface border border-parish-line2 text-[13.5px] text-parish-text2">{t.child(YOUNG_CHILD_MAX_AGE)}</div>
+                ) : noSurvey ? (
                   // Hidden rather than greyed out, so phones don't scroll past questions nobody answers.
                   <div className="mt-3 px-3.5 py-3 rounded-xl bg-parish-surface border border-parish-line2 text-[13.5px] text-parish-text2">{t.none(t.statusLabel(mv.censusStatus))}</div>
                 ) : (

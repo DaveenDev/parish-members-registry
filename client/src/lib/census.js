@@ -45,7 +45,8 @@ export const REGISTRATION_STATUSES = ['Active', 'Inactive', 'Left the Church'];
 
 /**
  * A member's census answers as registration sends them (0055), like the
- * census portal: a young child is Active with nothing to answer; otherwise
+ * census portal: a young child is Active (unless staff picked another status,
+ * e.g. Moved away) with nothing to answer; otherwise
  * the status picked, or the one suggested from the answers. Picking a status
  * with no questions (Inactive, Left the Church) clears the answers on the
  * card; a suggested Inactive keeps them, since they're what it came from.
@@ -53,7 +54,7 @@ export const REGISTRATION_STATUSES = ['Active', 'Inactive', 'Left the Church'];
  * nothing to go on yet.
  */
 export function registrationAnswers(m) {
-  if (isYoungChild(m.dob)) return { censusStatus: 'Active', participation: {} };
+  if (isYoungChild(m.dob)) return { censusStatus: (m.statusPicked && m.censusStatus) || 'Active', participation: {} };
   const participation = cleanParticipation(m.participation);
   const censusStatus = m.statusPicked ? m.censusStatus || '' : suggestStatus(participation) || '';
   return { censusStatus, participation: censusStatus === 'Left the Church' ? {} : participation };

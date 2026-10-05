@@ -3,7 +3,8 @@
 // the admin pages and the public registration wizard already call, so this
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
-import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, HEADS, parseAgeRange } from './constants.js';
+import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, parseAgeRange } from './constants.js';
+import { familiesOf, familyHeadName, familyTitle } from './lib/household.js';
 import { memberFullName, inDateRange, plainLetters } from './lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
@@ -1276,6 +1277,24 @@ export const api = {
    * A household with each member's answer in this census (`census`) and in
    * the census before it (`previous`), for the census entry panel.
    */
+  /**
+   * Save members' statuses and own participation answers from Edit Household
+   * (0056): [{ memberId, status, participation }]. While a census is open, an
+   * answer in it that came from the registration follows the edit.
+   */
+  async saveMemberAnswers(householdId, answers) {
+    const { data, error } = await supabase.rpc('save_member_answers', { p_household_id: householdId, p_answers: answers });
+    if (isMissingFunction(error)) throw new Error("Run the 0056_member_answers_edit.sql migration in Supabase to save members' status and participation");
+    if (error) throw mapError(error);
+    return data;
+  },
+  /** The open census and, for each of `memberIds`, their answer in it: { cycle, byMember: Map id → { status, source } }. */
+  async openCensusAnswers(memberIds) {
+    const { data: cycle } = await supabase.from('census_cycles').select('id, label').eq('status', 'Open').maybeSingle();
+    if (!cycle || !memberIds.length) return { cycle: cycle || null, byMember: new Map() };
+    const { data } = await supabase.from('census_member_responses').select('member_id, status, source').eq('cycle_id', cycle.id).in('member_id', memberIds);
+    return { cycle, byMember: new Map((data || []).map((r) => [r.member_id, r])) };
+  },
   async getHouseholdCensus(cycleId, householdId) {
     const { household, members } = await api.getHousehold(householdId);
     const { data, error } = await supabase
@@ -1538,18 +1557,37 @@ export const api = {
           ['GKK', 'Households', 'Families', 'Households with 2+ families', 'Members'],
           rows.map((r) => [r.label, r.households, r.families, r.multi, r.members]));
       }
-      // Households with more than one family, and each family's head.
+      // Households with more than one family, each followed by its members
+      // family by family. The CSV gives every member a line of their own.
       const multi = houses.filter((h) => h.family_count > 1);
-      const heads = multi.length ? await fetchAll(() => supabase.from('members')
-        .select('household_id, family_no, first_name, last_name, suffix, relationship')
-        .in('household_id', multi.map((h) => h.id)).in('relationship', HEADS).order('family_no').order('id')) : [];
-      return table('Households with more than one family', `${multi.length} household(s)`,
-        ['Household', 'GKK', 'Ref no', 'Families', 'Family heads', 'Members'],
-        multi.map((h) => [
+      const members = multi.length ? await fetchAll(() => supabase.from('members_with_household')
+        .select('id, household_id, family_no, first_name, last_name, suffix, relationship, age, membership_status, is_current')
+        .in('household_id', multi.map((h) => h.id)).order('id')) : [];
+      const columns = ['Household', 'GKK', 'Ref no', 'Families', 'Family heads', 'Members'];
+      const detail = ['Family', 'Member', 'Relationship', 'Age'];
+      const rows = multi.map((h) => {
+        const families = familiesOf(members.filter((m) => m.household_id === h.id)).map((g) => ({
+          title: familyTitle(g),
+          head: familyHeadName(g.head),
+          members: g.members.map((m) => ({
+            name: familyHeadName(m),
+            relationship: bis(RELATIONSHIP_LABELS, m.relationship) || '—',
+            age: m.age ?? '—',
+            note: m.is_current === false ? m.membership_status : '',
+          })),
+        }));
+        const cells = [
           h.household_name, h.gkk || '—', h.ref_no || '—', h.family_count,
-          heads.filter((m) => m.household_id === h.id).map((m) => [m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')).join('; ') || '—',
+          families.map((f) => f.head).filter(Boolean).join('; ') || '—',
           h.member_count,
-        ]));
+        ];
+        const csvLines = [
+          [...cells, ...detail.map(() => '')],
+          ...families.flatMap((f) => f.members.map((m) => [...columns.map(() => ''), f.title, m.note ? `${m.name} (${m.note})` : m.name, m.relationship, m.age])),
+        ];
+        return { cells, families, csvLines };
+      });
+      return { ...table('Households with more than one family', `${multi.length} household(s), members grouped by family`, columns, []), rows, empty: !rows.length, csvColumns: [...columns, ...detail] };
     }
 
     if (source === 'Households') {
@@ -1608,8 +1646,9 @@ export const api = {
 
   async exportGenerated({ title, columns, rows }) {
     if (!columns || !rows) throw new Error('Nothing to export');
+    // A row may bring several CSV lines (`csvLines`), e.g. a household and its members.
     const csv = toCsv(
-      rows.map((r) => Object.fromEntries(r.cells.map((c, i) => [columns[i], c]))),
+      rows.flatMap((r) => r.csvLines || [r.cells]).map((cells) => Object.fromEntries(cells.map((c, i) => [columns[i], c]))),
       columns.map((label) => ({ label, value: label }))
     );
     return new Blob([csv], { type: 'text/csv;charset=utf-8' });

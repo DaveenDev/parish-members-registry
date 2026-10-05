@@ -290,9 +290,30 @@ export function ReportPrintSheet({ report, parish }) {
         </thead>
         <tbody>
           {report.rows.map((row, i) => (
-            <tr key={i} style={{ breakInside: 'avoid' }}>
-              {row.cells.map((c, j) => <td key={j} style={cell}>{c}</td>)}
-            </tr>
+            <React.Fragment key={i}>
+              <tr style={{ breakInside: 'avoid', breakAfter: row.families ? 'avoid' : 'auto' }}>
+                {row.cells.map((c, j) => <td key={j} style={{ ...cell, ...(row.families && { fontWeight: 700, borderBottom: 'none' }) }}>{c}</td>)}
+              </tr>
+              {/* A household's members, family by family. */}
+              {row.families && (
+                <tr style={{ breakInside: 'avoid' }}>
+                  <td colSpan={report.columns.length} style={{ ...cell, paddingLeft: 20 }}>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 28px' }}>
+                      {row.families.map((f, k) => (
+                        <div key={k} style={{ minWidth: 200 }}>
+                          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#8a6d1f', marginBottom: 2 }}>{f.title}</div>
+                          {f.members.map((m, j) => (
+                            <div key={j} style={{ fontSize: 10.5 }}>
+                              {m.name}<span style={{ color: '#6b6552' }}> — {[m.relationship, m.age !== '—' && `${m.age} yrs`, m.note].filter(Boolean).join(' · ')}</span>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+                  </td>
+                </tr>
+              )}
+            </React.Fragment>
           ))}
         </tbody>
       </table>

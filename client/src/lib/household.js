@@ -81,6 +81,13 @@ export function familyHeadName(head) {
   return [head.first_name ?? head.firstName, head.last_name ?? head.lastName, head.suffix].filter(Boolean).join(' ');
 }
 
+/** A family is called by its head: "Family of Pedro Dela Cruz". */
+export function familyTitle(group) {
+  const name = familyHeadName(group?.head);
+  if (name) return `Family of ${name}`;
+  return group?.familyNo === 1 ? 'Household Head’s family' : `Family ${group?.familyNo ?? ''}`.trim();
+}
+
 // ---- weddings and spouses --------------------------------------------------
 
 export const WEDDING_FIELDS = ['matType', 'hasMatrimony', 'matDate', 'matChurch'];

@@ -1,20 +1,17 @@
 import React from 'react';
-import { familiesOf, familyHeadName } from '../lib/household.js';
+import { familiesOf, familyTitle } from '../lib/household.js';
 
 /**
  * Families within a household (0054 migration), for the admin screens. A
  * family is called by its head: "Family of Pedro Dela Cruz".
  */
-export function familyTitle(group) {
-  const name = familyHeadName(group?.head);
-  if (name) return `Family of ${name}`;
-  return group?.familyNo === 1 ? 'Household Head’s family' : `Family ${group?.familyNo ?? ''}`.trim();
-}
+export { familyTitle };
 
-export function FamilyHeading({ group, className = 'mb-2.5', children }) {
+/** `title` overrides the one made from `group`. */
+export function FamilyHeading({ group, title, className = 'mb-2.5', children }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
-      <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{familyTitle(group)}</span>
+      <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{title ?? familyTitle(group)}</span>
       <span className="flex-1 h-px bg-parish-track" />
       {children}
     </div>

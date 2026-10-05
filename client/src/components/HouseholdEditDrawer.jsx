@@ -1,9 +1,11 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { api } from '../api.js';
-import { Field, TextInput, Select, PrimaryButton, GhostButton, HouseholdNameTakenNote, FamilyGroupingSelect } from './ui.jsx';
+import { Field, TextInput, Select, PrimaryButton, GhostButton, HouseholdNameTakenNote, FamilyGroupingSelect, Badge } from './ui.jsx';
 import { useHouseholdNameTaken } from '../hooks.js';
 import { VerifiedLine } from './VerifiedLine.jsx';
 import ParticipationSurvey from './ParticipationSurvey.jsx';
+import MemberCensusCards, { MemberCensusReview } from './MemberCensusCards.jsx';
+import { MEMBERSHIP_STATUSES, STATUS_TONES, censusCardPatch, registrationAnswers } from '../lib/census.js';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import { HELP_WAYS, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, RELATIONSHIPS, CIVIL_STATUSES, ageFromDob, fmtDateTime } from '../constants.js';
 import { familiesOf, familyNoOf, nextFamilyNo } from '../lib/household.js';
@@ -46,9 +48,15 @@ function formFrom(h) {
 
 const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' };
 
+/** A member's status card values (0055, 0056) from their record. */
+const answerFrom = (m) => ({ censusStatus: m.membership_status || '', statusPicked: !!m.membership_status, participation: m.registration_participation || {} });
+/** What a card would save, for spotting changes: the status and answers as sent. */
+const answerKey = (m, a) => JSON.stringify(registrationAnswers({ dob: m.dob, ...a }));
+
 /**
- * Edit a household from a panel on the right: its details (saved with "Save
- * changes") and its members (added, edited and removed right away).
+ * Edit a household from a panel on the right: its details and each member's
+ * status and participation (saved with "Save changes", 0056), and its
+ * members (added, edited and removed right away).
  */
 export default function HouseholdEditDrawer({ household, gkkOptions = [], onClose, onSaved, onMembersChanged }) {
   const toast = useToast();
@@ -64,8 +72,13 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
   const [membersError, setMembersError] = useState('');
   const [openMemberId, setOpenMemberId] = useState(null);
   const [adding, setAdding] = useState(false);
+  const [answers, setAnswers] = useState(new Map()); // member id → { censusStatus, statusPicked, participation }
+  const initialAnswers = useRef(new Map());
+  const [census, setCensus] = useState({ cycle: null, byMember: new Map() });
   const nameTaken = useHouseholdNameTaken(form.household_name, household.household_name);
-  const dirty = JSON.stringify(form) !== JSON.stringify(initial.current);
+  const formDirty = JSON.stringify(form) !== JSON.stringify(initial.current);
+  const changedAnswers = (members || []).filter((m) => answers.has(m.id) && answerKey(m, answers.get(m.id)) !== answerKey(m, initialAnswers.current.get(m.id) || answerFrom(m)));
+  const dirty = formDirty || changedAnswers.length > 0;
 
   const set = (field) => (e) => setForm((f) => ({ ...f, [field]: e.target.value }));
   const setParticipation = (key, level) => setForm((f) => ({ ...f, participation: { ...f.participation, [key]: level } }));
@@ -78,7 +91,18 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
   function loadMembers() {
     setMembersError('');
     api.getHousehold(household.id)
-      .then((res) => setMembers(res.members))
+      .then((res) => {
+        setMembers(res.members);
+        // Fresh values for every member, keeping any card edited but not saved yet.
+        const fresh = new Map(res.members.map((m) => [m.id, answerFrom(m)]));
+        setAnswers((prev) => new Map(res.members.map((m) => {
+          const mine = prev.get(m.id);
+          const edited = mine && answerKey(m, mine) !== answerKey(m, initialAnswers.current.get(m.id) || answerFrom(m));
+          return [m.id, edited ? mine : fresh.get(m.id)];
+        })));
+        initialAnswers.current = fresh;
+        return api.openCensusAnswers(res.members.map((m) => m.id)).then(setCensus).catch(() => {});
+      })
       .catch((e) => setMembersError(e.message || 'Could not load members'));
   }
   useEffect(() => { loadMembers(); }, [household.id]);
@@ -88,7 +112,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
     if (dirty) {
       const ok = await confirm({
         title: 'Discard your changes?',
-        message: 'The household details you edited have not been saved.',
+        message: "The household details or members' status you edited have not been saved.",
         confirmLabel: 'Discard changes',
         tone: 'danger',
       });
@@ -119,10 +143,19 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
     }
     setSaving(true);
     try {
-      await api.updateHousehold(household.id, form);
+      if (formDirty) {
+        await api.updateHousehold(household.id, form);
+        initial.current = form;
+      }
+      if (changedAnswers.length) {
+        await api.saveMemberAnswers(household.id, changedAnswers.map((m) => {
+          const a = registrationAnswers({ dob: m.dob, ...answers.get(m.id) });
+          return { memberId: m.id, status: a.censusStatus || null, participation: a.participation };
+        }));
+        loadMembers();
+      }
       toast.success('Household updated');
       setHistoryKey((k) => k + 1);
-      initial.current = form;
       onSaved();
     } catch (e) {
       setError(e.message || 'Could not save changes');
@@ -172,6 +205,21 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
   const families = members ? familiesOf(members) : [];
   const severalFamilies = families.length > 1;
   const canEdit = can(user, 'editRegistry');
+  const statusOf = (m) => registrationAnswers({ dob: m.dob, ...(answers.get(m.id) || answerFrom(m)) }).censusStatus;
+  const noStatus = (members || []).filter((m) => !statusOf(m)).length;
+  // Where the open census stands for a member, under their card.
+  const censusNote = (m) => {
+    const r = census.byMember.get(m.id);
+    if (!census.cycle) return '';
+    if (!r) return `Not confirmed in the ${census.cycle.label} yet.`;
+    if (r.source === 'Registration') return `Counts as their answer in the ${census.cycle.label} (given at registration); saving updates it too.`;
+    return `In the ${census.cycle.label}: ${r.status} (${r.source}). That answer is changed on the Census page.`;
+  };
+  const cardViews = (members || []).map((m) => ({
+    mi: m.id, dob: m.dob, relationship: m.relationship, err: {}, note: censusNote(m),
+    displayName: [m.first_name, m.last_name, m.suffix].filter(Boolean).join(' '),
+    ...(answers.get(m.id) || answerFrom(m)),
+  }));
 
   return (
     <div className="fixed inset-0 z-[45] flex justify-end">
@@ -232,7 +280,29 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
           </div>
 
           <div className="mt-6 pt-5 border-t border-parish-line2">
-            <ParticipationSurvey participation={form.participation} helpWays={form.help_ways} onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay} compact english />
+            {/* Participation is each member's now (0055); the household keeps "how can you help". */}
+            <ParticipationSurvey participation={form.participation} helpWays={form.help_ways} onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay} compact english withParticipation={false} />
+          </div>
+
+          <div className="mt-7">
+            <SectionLabel className="mb-1">Each member's status and participation</SectionLabel>
+            <p className="text-[12.5px] text-parish-muted mt-1 mb-3">
+              Whether each member is active, and how active, saved with “Save changes”. It's their own answer for the Practicing Catholic score until their first census.
+            </p>
+            {noStatus > 0 && (
+              <div className="mb-3 px-3.5 py-2.5 rounded-xl border border-[#fdba74] bg-[#fff7ed] text-[13px] text-[#9a3412]">
+                {noStatus === 1 ? '1 member has' : `${noStatus} members have`} no status yet. Mark each one active or not.
+              </div>
+            )}
+            {!members && !membersError && <LoadingState label="Loading members…" compact />}
+            {members && (canEdit
+              ? <MemberCensusCards memberViews={cardViews} english statuses={MEMBERSHIP_STATUSES} onChange={(id, patch) => setAnswers((prev) => {
+                const next = new Map(prev);
+                const cur = prev.get(id) || answerFrom(members.find((m) => m.id === id));
+                next.set(id, { ...cur, ...censusCardPatch(cur, patch) });
+                return next;
+              })} />
+              : <MemberCensusReview memberViews={cardViews} english />)}
           </div>
 
           <div className="mt-7">
@@ -256,7 +326,12 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
                             {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="text-[14px] font-semibold text-parish-navy truncate">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="text-[14px] font-semibold text-parish-navy truncate">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</span>
+                              {statusOf(m)
+                                ? <Badge tone={STATUS_TONES[statusOf(m)] || 'gray'}>{statusOf(m)}</Badge>
+                                : <span className="text-[11.5px] font-semibold text-[#c2410c] whitespace-nowrap">No status</span>}
+                            </div>
                             <div className="text-[12px] text-parish-muted truncate">
                               {[bis(RELATIONSHIP_LABELS, m.relationship), ageFromDob(m.dob) !== null && `${ageFromDob(m.dob)} yrs`, bis(CIVIL_STATUS_LABELS, m.civil_status)].filter(Boolean).join(' · ') || '—'}
                             </div>
