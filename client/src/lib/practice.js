@@ -101,6 +101,7 @@ export function trendText(trend) {
 /** Where a member's score comes from, in a sentence. */
 export function practiceSourceText(m) {
   if (m.practice_source === 'census') return `From their own answers in the ${m.practice_source_label || 'latest census'}`;
+  if (m.practice_source === 'registration') return 'From their own answers when the family registered';
   if (m.practice_source === 'household') return "From the household's registration survey (an estimate until their first census)";
   return 'No participation answers yet';
 }

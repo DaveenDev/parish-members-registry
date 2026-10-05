@@ -3,6 +3,8 @@ import { api } from '../api.js';
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect, FlagEmptyRequired } from './ui.jsx';
 import { gkkBarangays } from '../lib/site.js';
 import ParticipationSurvey, { ParticipationReview } from './ParticipationSurvey.jsx';
+import MemberCensusCards, { MemberCensusReview } from './MemberCensusCards.jsx';
+import { registrationAnswers, censusCardPatch } from '../lib/census.js';
 import { useHouseholdNameTaken } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { MEN_ONLY_NOTE, isMale, menOnlyBlocked, menOnlyMessage } from '../lib/ministries.js';
@@ -155,6 +157,11 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
       return { ...h, helpWays: HELP_WAYS.map(([k]) => k).filter((k) => on.has(k)) };
     });
   }
+  /** A member's census card (0055): status and Aktibo / Panagsa / Wala answers. */
+  function updateMemberCensus(i, patch) {
+    setMembers((ms) => ms.map((m, idx) => (idx === i ? { ...m, ...censusCardPatch(m, patch) } : m)));
+    setMemberErr((me) => me.map((x, idx) => (idx === i && x?.censusStatus ? { ...x, censusStatus: '' } : x)));
+  }
   function updateMember(i, field, value) {
     // A Spouse follows the head's Married / Live-in status, and the two share one wedding.
     setMembers((ms) => syncSpouses(ms.map((m, idx) => {
@@ -239,6 +246,12 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
       });
       return { ok, err: e, memberErr: me, banner: ok ? '' : 'Please complete the required details of each member.' };
     }
+    if (n === 4) {
+      // Every member needs a status now, picked or suggested from their answers.
+      members.forEach((m, i) => { if (!registrationAnswers(m).censusStatus) me[i] = { censusStatus: 'Choose the status' }; });
+      const ok = !me.some(Boolean);
+      return { ok, err: e, memberErr: me, banner: ok ? '' : "Choose each member's status, or answer their participation questions." };
+    }
     return { ok: true, err: e, memberErr: me, banner: '' };
   }
 
@@ -256,7 +269,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
 
   async function save() {
     // Steps can be revisited from the review, so check them all again.
-    for (const n of [1, 2]) {
+    for (const n of [1, 2, 4]) {
       const v = validate(n);
       if (!v.ok) { setStep(n); showErrors(v); return; }
     }
@@ -265,7 +278,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
     try {
       await api.createHousehold({
         household: { ...household, householdName: household.householdName.trim() },
-        status, members: members.map(toPayloadMember), volunteer, notifyOptin, consent,
+        status, members: members.map((m) => toPayloadMember({ ...m, ...registrationAnswers(m) })), volunteer, notifyOptin, consent,
       });
       toast.success(`${household.householdName.trim()} registered`);
       onSaved();
@@ -281,7 +294,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
   const stepProps = {
     household, err, onHouseholdField: updateHousehold, gkkOptions, nameTaken,
     onParticipation: setParticipation, onToggleHelpWay: toggleHelpWay,
-    memberViews, onMemberField: updateMember, onAddMember: addMember, onAddFamily: addFamily, onRemoveMember: removeMember, onToggleGroup: toggleGroup,
+    memberViews, onMemberField: updateMember, onMemberCensus: updateMemberCensus, onAddMember: addMember, onAddFamily: addFamily, onRemoveMember: removeMember, onToggleGroup: toggleGroup,
     ministryOptions, menOnly, orgOptions, parishRoleOptions,
     status, setStatus, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent,
     onGoStep: goStep,
@@ -545,8 +558,9 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, nameTaken
         </div>
       </Panel>
 
-      <Panel title="Participation in the Parish / GKK">
-        <ParticipationSurvey participation={household.participation} helpWays={household.helpWays} onParticipation={onParticipation} onToggleHelpWay={onToggleHelpWay} compact english />
+      {/* The participation questions are asked of each member in step 4 (0055). */}
+      <Panel title="Helping the Parish / GKK">
+        <ParticipationSurvey participation={household.participation} helpWays={household.helpWays} onParticipation={onParticipation} onToggleHelpWay={onToggleHelpWay} compact english withParticipation={false} />
       </Panel>
     </div>
   );
@@ -734,7 +748,7 @@ function GroupChecks({ options, selected, onToggle, blocked }) {
 }
 
 function StepParticipation({
-  memberViews, onMemberField, onToggleGroup, ministryOptions, menOnly, orgOptions, parishRoleOptions,
+  memberViews, onMemberField, onMemberCensus, onToggleGroup, ministryOptions, menOnly, orgOptions, parishRoleOptions,
   status, setStatus, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent,
 }) {
   const groups = [
@@ -743,6 +757,9 @@ function StepParticipation({
   ];
   return (
     <div className="animate-fadeUp">
+      <Panel title="Census: each member's participation" hint="Their status now and how active each member is. While a census is open, this counts as their census answer.">
+        <MemberCensusCards memberViews={memberViews} onChange={onMemberCensus} english />
+      </Panel>
       {groups.filter(([, , , options]) => options.length).map(([key, title, hint, options]) => (
         <Panel key={key} title={title} hint={hint}>
           <div className="flex flex-col gap-4">
@@ -848,7 +865,7 @@ function StepReview({ household, memberViews, status, volunteer, notifyOptin, co
     <div className="animate-fadeUp">
       <ReviewCard title="Household" onEdit={() => onGoStep(1)}>
         {householdReview.map(([label, value]) => <ReviewRow key={label} label={label} value={value} />)}
-        <ParticipationReview participation={household.participation} helpWays={household.helpWays} english />
+        <ParticipationReview participation={household.participation} helpWays={household.helpWays} english withParticipation={false} />
       </ReviewCard>
 
       <ReviewCard title={`Members (${memberViews.length})`} onEdit={() => onGoStep(2)}>
@@ -882,6 +899,10 @@ function StepReview({ household, memberViews, status, volunteer, notifyOptin, co
       </ReviewCard>
 
       <ReviewCard title="Participation" onEdit={() => onGoStep(4)}>
+        <div className="mt-2 mb-3">
+          <div className="text-parish-muted font-semibold text-[13px] mb-2">Census: status and participation</div>
+          <MemberCensusReview memberViews={memberViews} english />
+        </div>
         {otherReview.map(([label, value]) => <ReviewRow key={label} label={label} value={value} />)}
       </ReviewCard>
     </div>

@@ -120,7 +120,7 @@ export default function ActivenessReport({ parish }) {
       { label: 'Participation (of 60)', value: (m) => m.practice_participation ?? '' },
       { label: 'Sacraments (of 25)', value: (m) => m.practice_sacraments ?? '' },
       { label: 'Involvement (of 15)', value: (m) => m.practice_involvement ?? '' },
-      { label: 'Based on', value: (m) => (m.practice_source === 'census' ? m.practice_source_label || 'Census' : m.practice_source === 'household' ? 'Household survey (estimate)' : '') },
+      { label: 'Based on', value: (m) => (m.practice_source === 'census' ? m.practice_source_label || 'Census' : m.practice_source === 'registration' ? 'Own answers at registration' : m.practice_source === 'household' ? 'Household survey (estimate)' : '') },
       { label: 'Change since census before', value: (m) => (m.practice_trend == null ? '' : Math.round(m.practice_trend)) },
       { label: 'Census status', value: (m) => m.membership_status || '' },
       { label: 'Contact', value: (m) => m.contact || '' },

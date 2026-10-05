@@ -6,7 +6,7 @@ import {
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
-  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, vsLastYearTable,
+  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, vsLastYearTable, registrationAnswers, censusCardPatch,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
 
@@ -432,5 +432,26 @@ describe('matching last year\'s names: suffixes and corrections (0052)', () => {
     assert.equal(listStatus(n(1, 'x', { household_id: 2 }), m), 'Registered');
     // A link to a household no longer in the registry is ignored.
     assert.deepEqual(ids(matchListToRegistry([n(1, 'Perfecto Panes', { household_id: 77 })], heads)), []);
+  });
+});
+
+describe('census answers at registration (0055)', () => {
+  const adult = { dob: '1980-05-01' };
+  test('the status picked, or the one suggested from the answers', () => {
+    assert.deepEqual(registrationAnswers({ ...adult, participation: { mass: 'Aktibo', bogus: 'x' } }), { censusStatus: 'Active', participation: { mass: 'Aktibo' } });
+    assert.deepEqual(registrationAnswers({ ...adult, participation: { mass: 'Wala', meetings: 'Wala' } }).censusStatus, 'Inactive');
+    assert.equal(registrationAnswers({ ...adult, participation: {} }).censusStatus, '');
+    assert.equal(registrationAnswers({ ...adult, statusPicked: true, censusStatus: 'Inactive', participation: { mass: 'Aktibo' } }).censusStatus, 'Inactive');
+    assert.deepEqual(registrationAnswers({ ...adult, statusPicked: true, censusStatus: 'Left the Church', participation: { mass: 'Aktibo' } }).participation, {});
+  });
+  test('a young child is Active with nothing to answer', () => {
+    const dob = new Date(Date.now() - 3 * 365.25 * 86400000).toISOString().slice(0, 10);
+    assert.deepEqual(registrationAnswers({ dob, participation: { mass: 'Wala' } }), { censusStatus: 'Active', participation: {} });
+  });
+  test('picking a status with no questions clears the answers; clearing it goes back to the suggestion', () => {
+    assert.deepEqual(censusCardPatch({}, { censusStatus: 'Inactive' }), { censusStatus: 'Inactive', statusPicked: true, participation: {} });
+    assert.deepEqual(censusCardPatch({}, { censusStatus: 'Active' }), { censusStatus: 'Active', statusPicked: true });
+    assert.deepEqual(censusCardPatch({}, { censusStatus: '' }), { censusStatus: '', statusPicked: false });
+    assert.deepEqual(censusCardPatch({}, { participation: { mass: 'Aktibo' } }), { participation: { mass: 'Aktibo' } });
   });
 });

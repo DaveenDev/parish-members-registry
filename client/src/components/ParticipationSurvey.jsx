@@ -4,10 +4,12 @@ import { Checkbox } from './ui.jsx';
 
 /**
  * Household participation survey, shared by the public wizard (Step 1) and
- * the admin household edit modal. `participation` is { [itemKey]: level },
- * `helpWays` is an array of HELP_WAYS keys.
+ * the admin household panels. `participation` is { [itemKey]: level },
+ * `helpWays` is an array of HELP_WAYS keys. Registration asks each member
+ * the participation questions instead (0055, MemberCensusCards), so it shows
+ * only the household's "how can you help" (`withParticipation={false}`).
  */
-export default function ParticipationSurvey({ participation = {}, helpWays = [], onParticipation, onToggleHelpWay, compact = false, english = false }) {
+export default function ParticipationSurvey({ participation = {}, helpWays = [], onParticipation, onToggleHelpWay, compact = false, english = false, withParticipation = true }) {
   const legendSize = compact ? 'text-[14px]' : 'text-[15.5px]';
   // Admin shows the questions in English; the answer choices stay Bisaya everywhere.
   const t = english
@@ -15,6 +17,7 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
     : { active: 'Aktibo ba kamo nagapartisipar sa inyong Parokya o GKK sa mga musunod?', help: 'Sa unsang paagi kamo makatabang sa pagpalambo pa gayud sa simbahan / GKK?', all: 'I-tsek ang tanan nga angay.' };
   return (
     <div className="flex flex-col gap-6">
+      {withParticipation && (
       <fieldset className="border-none p-0 m-0 min-w-0">
         <legend className={`font-semibold text-parish-navy mb-3 ${legendSize}`}>{t.active}</legend>
         <div className="flex flex-col divide-y divide-parish-line2 border border-parish-edge rounded-xl bg-parish-field">
@@ -48,6 +51,7 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
           ))}
         </div>
       </fieldset>
+      )}
 
       <fieldset className="border-none p-0 m-0 min-w-0">
         <legend className={`font-semibold text-parish-navy mb-1 ${legendSize}`}>{t.help}</legend>
@@ -72,12 +76,13 @@ export default function ParticipationSurvey({ participation = {}, helpWays = [],
  * Read-only copy of the survey answers for the wizard's review step: every
  * choice shown as a disabled checkbox, ticked where it was picked.
  */
-export function ParticipationReview({ participation = {}, helpWays = [], english = false }) {
+export function ParticipationReview({ participation = {}, helpWays = [], english = false, withParticipation = true }) {
   const box = 'w-[17px] h-[17px] accent-parish-blue flex-none disabled:cursor-default disabled:opacity-100';
   // Browsers grey out disabled boxes, so the picked answers are also set in bold.
   const picked = 'text-parish-ink font-semibold';
   return (
     <div className="flex flex-col gap-4">
+      {withParticipation && (
       <div>
         <div className="text-parish-muted font-semibold text-[13px] sm:text-[15px] mb-2">{english ? 'Participation' : 'Partisipasyon'}</div>
         <div className="flex flex-col divide-y divide-parish-line2 border border-parish-edge rounded-xl bg-parish-field">
@@ -96,6 +101,7 @@ export function ParticipationReview({ participation = {}, helpWays = [], english
           ))}
         </div>
       </div>
+      )}
       <div>
         <div className="text-parish-muted font-semibold text-[13px] sm:text-[15px] mb-2">{english ? 'Ways to help' : 'Paagi sa pagtabang'}</div>
         <div className="grid gap-x-4 gap-y-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>

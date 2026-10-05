@@ -73,7 +73,8 @@ export function analyzeActiveness(members, answersFor = () => ({})) {
     children: members.filter((m) => m.practice_level === 'Bata pa').length,
     otherReligion: members.filter((m) => m.practice_level === 'Dili Katoliko').length,
     estimated: ratedMembers.filter((m) => m.practice_source === 'household').length,
-    ownAnswers: ratedMembers.filter((m) => m.practice_source === 'census').length,
+    // Their own answers: in a census, or when the family registered (0055).
+    ownAnswers: ratedMembers.filter((m) => m.practice_source === 'census' || m.practice_source === 'registration').length,
   };
 
   // By GKK, weakest average first so the places needing attention lead.

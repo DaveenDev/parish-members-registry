@@ -15,7 +15,8 @@ import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, Gh
 import CreditFooter from '../components/CreditFooter.jsx';
 import ParticipationSurvey, { ParticipationReview } from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
-import { formatAccessCode } from '../lib/census.js';
+import { formatAccessCode, registrationAnswers, censusCardPatch } from '../lib/census.js';
+import MemberCensusCards, { MemberCensusReview } from '../components/MemberCensusCards.jsx';
 import { gkkBarangays } from '../lib/site.js';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 
@@ -251,6 +252,11 @@ export default function RegistrationApp() {
       return { ...h, helpWays: HELP_WAYS.map(([k]) => k).filter((k) => set.has(k)) };
     });
   }
+  /** A member's census card (0055): status and Aktibo / Panagsa / Wala answers. */
+  function updateMemberCensus(i, patch) {
+    setMembers((ms) => ms.map((m, idx) => (idx === i ? { ...m, ...censusCardPatch(m, patch) } : m)));
+    setMemberErr((me) => me.map((x, idx) => (idx === i && x?.censusStatus ? { ...x, censusStatus: undefined } : x)));
+  }
   function updateMember(i, field, value) {
     setMembers((ms) => syncSpouses(ms.map((m, idx) => {
       if (idx !== i) return m;
@@ -384,6 +390,9 @@ export default function RegistrationApp() {
       return { ok, err: e, memberErr: me, banner: ok ? '' : 'Palihug kompletoha ang gikinahanglan nga detalye sa mga miyembro.' };
     }
     if (currentStep === 4) {
+      // Every member needs a status now, picked or suggested from their answers.
+      members.forEach((m, i) => { if (!registrationAnswers(m).censusStatus) me[i] = { censusStatus: 'Pilia ang kahimtang karon' }; });
+      if (me.some(Boolean)) return { ok: false, err: e, memberErr: me, banner: 'Pilia ang kahimtang karon sa matag miyembro, o tubaga ang mga pangutana.' };
       if (!consent) return { ok: false, err: e, memberErr: me, banner: 'Kinahanglan ang inyong pagtugot sa data privacy aron makapadayon.' };
       return { ok: true, err: e, memberErr: me, banner: '' };
     }
@@ -420,7 +429,7 @@ export default function RegistrationApp() {
     setSubmitting(true); setConfirmOpen(false);
     try {
       if (mode === 'join') {
-        const res = await api.submitFamilyRegistration({ refNo: join.refNo.trim(), code: join.code.trim(), members: members.map(toPayloadMember), consent });
+        const res = await api.submitFamilyRegistration({ refNo: join.refNo.trim(), code: join.code.trim(), members: members.map((m) => toPayloadMember({ ...m, ...registrationAnswers(m) })), consent });
         if (!res?.ok) {
           // The code changed or was locked since it was checked: ask for it again.
           setJoin((j) => ({ ...j, house: null }));
@@ -433,7 +442,7 @@ export default function RegistrationApp() {
         setAccessCode('');
         setJoined({ householdName: res.householdName });
       } else {
-        const res = await api.submitRegistration({ household, members: members.map(toPayloadMember), volunteer, notifyOptin, consent });
+        const res = await api.submitRegistration({ household, members: members.map((m) => toPayloadMember({ ...m, ...registrationAnswers(m) })), volunteer, notifyOptin, consent });
         setRefNo(res.refNo);
         setAccessCode(res.accessCode || '');
         setJoined(null);
@@ -474,7 +483,7 @@ export default function RegistrationApp() {
           household={household} err={err} onHouseholdField={updateHousehold} gkkOptions={gkkOptions}
           nameStatus={nameStatus} nameSuggestion={nameSuggestion}
           onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay}
-          memberViews={memberViews} onMemberField={updateMember}
+          memberViews={memberViews} onMemberField={updateMember} onMemberCensus={updateMemberCensus}
           orgOptions={orgOptions} onToggleOrganization={toggleOrganization}
           parishRoleOptions={parishRoleOptions}
           onAddMember={addMember} onRemoveMember={removeMember} onAddFamily={addFamily}
@@ -948,12 +957,14 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
       </Card>
 
       <Card className="p-[clamp(20px,4vw,32px)]">
-        <SectionTitle>Partisipasyon sa Parokya / GKK</SectionTitle>
+        <SectionTitle>Pagtabang sa Parokya / GKK</SectionTitle>
+        {/* The participation questions are asked of each member in Pag-apil (0055). */}
         <ParticipationSurvey
           participation={household.participation}
           helpWays={household.helpWays}
           onParticipation={onParticipation}
           onToggleHelpWay={onToggleHelpWay}
+          withParticipation={false}
         />
       </Card>
     </div>
@@ -1250,13 +1261,18 @@ function WeddingBlock({ mv, sharedWith, onField }) {
   );
 }
 
-function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrganization, parishRoleOptions, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent, consentMissing = false, mode }) {
+function StepEngagement({ memberViews, onMemberField, onMemberCensus, orgOptions, onToggleOrganization, parishRoleOptions, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent, consentMissing = false, mode }) {
   // Volunteering and the email list are asked of the house, when it registers.
   const houseQuestions = mode !== 'join';
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Pag-apil sa Simbahan</h2>
       <p className="text-parish-text2 text-[15.5px] mb-[22px]">Ang pag-assign sa mga ministeryo himoon sa kawani sa parokya human sa inyong pagbisita.</p>
+      <Card className="p-[clamp(20px,4vw,32px)] mb-5">
+        <SectionTitle>Census: pag-apil sa matag miyembro</SectionTitle>
+        <p className="text-[13.5px] text-parish-muted -mt-2 mb-4">Para sa matag miyembro, pilia ang kahimtang karon ug i-tsek kung unsa ka aktibo sa matag kalihokan. Kini na ang ilang tubag sa census.</p>
+        <MemberCensusCards memberViews={memberViews} onChange={onMemberCensus} />
+      </Card>
       {orgOptions.length > 0 && (
         <Card className="p-[clamp(20px,4vw,32px)] mb-5">
           <SectionTitle>Mga Organisasyon</SectionTitle>
@@ -1401,7 +1417,7 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
 
       <ReviewCard title="Pamilya" onEdit={() => onGoStep(1)}>
         {householdReview.map(([label, value]) => <ReviewRow key={label} label={label} value={value} />)}
-        {!joining && <ParticipationReview participation={household.participation} helpWays={household.helpWays} />}
+        {!joining && <ParticipationReview participation={household.participation} helpWays={household.helpWays} withParticipation={false} />}
       </ReviewCard>
 
       <ReviewCard title={`Mga Miyembro (${memberViews.length})`} onEdit={() => onGoStep(2)}>
@@ -1427,6 +1443,10 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
       </ReviewCard>
 
       <ReviewCard title="Pag-apil" onEdit={() => onGoStep(4)}>
+        <div className="mt-2 mb-3">
+          <div className="text-parish-muted font-semibold text-[13px] sm:text-[15px] mb-2">Census: kahimtang ug pag-apil</div>
+          <MemberCensusReview memberViews={memberViews} />
+        </div>
         {engReview.map(([label, value]) => <ReviewRow key={label} label={label} value={value} />)}
       </ReviewCard>
 

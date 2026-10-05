@@ -40,6 +40,35 @@ export function isYoungChild(dob, today = new Date()) {
 
 export const CENSUS_SOURCES = ['Paper', 'Staff visit'];
 
+/** A member's status when the family registers (0055): not Moved away or Deceased. */
+export const REGISTRATION_STATUSES = ['Active', 'Inactive', 'Left the Church'];
+
+/**
+ * A member's census answers as registration sends them (0055), like the
+ * census portal: a young child is Active with nothing to answer; otherwise
+ * the status picked, or the one suggested from the answers. Picking a status
+ * with no questions (Inactive, Left the Church) clears the answers on the
+ * card; a suggested Inactive keeps them, since they're what it came from.
+ * Returns { censusStatus, participation }; censusStatus is '' when there's
+ * nothing to go on yet.
+ */
+export function registrationAnswers(m) {
+  if (isYoungChild(m.dob)) return { censusStatus: 'Active', participation: {} };
+  const participation = cleanParticipation(m.participation);
+  const censusStatus = m.statusPicked ? m.censusStatus || '' : suggestStatus(participation) || '';
+  return { censusStatus, participation: censusStatus === 'Left the Church' ? {} : participation };
+}
+
+/** What changing a member's census card does to the member (status suggested from answers until one is picked). */
+export function censusCardPatch(m, patch) {
+  if ('censusStatus' in patch) {
+    return asksParticipation(patch.censusStatus)
+      ? { censusStatus: patch.censusStatus, statusPicked: !!patch.censusStatus }
+      : { censusStatus: patch.censusStatus, statusPicked: true, participation: {} };
+  }
+  return patch;
+}
+
 export const STATUS_TONES = {
   Active: 'green',
   Inactive: 'gold',
