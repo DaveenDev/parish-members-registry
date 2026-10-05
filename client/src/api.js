@@ -853,6 +853,7 @@ export const api = {
     const { data, error } = await supabase.from('gkks').insert({ name: name.trim(), ...cleanPatch(fields) }).select().single();
     if (error?.code === '23505') throw new Error('A GKK with this name already exists');
     if (gkk44Missing(error)) throw new Error(GKK_44_HINT);
+    if (gkk46Missing(error)) throw new Error(GKK_46_HINT);
     if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql and 0040_gkk_previous_households.sql migrations in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
@@ -861,6 +862,7 @@ export const api = {
     const fields = Object.fromEntries(GKK_DETAIL_FIELDS.filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
     const { data, error } = await supabase.from('gkks').update(cleanPatch(fields)).eq('id', id).select().single();
     if (gkk44Missing(error)) throw new Error(GKK_44_HINT);
+    if (gkk46Missing(error)) throw new Error(GKK_46_HINT);
     if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql and 0040_gkk_previous_households.sql migrations in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
@@ -957,8 +959,16 @@ export const api = {
   },
   /** [{ name, puroks, chapel_address, year_established, meeting_schedule, meeting_place, households|null, census_pct|null, coordinator|null }] */
   publicGkkDirectory: () => publicRpc('public_gkk_directory'),
-  /** A GKK's published history { history, photos }, or null (also before 0044). */
-  publicGkkHistory: (name) => publicRpc('public_gkk_history', { p_name: name }).catch(() => null),
+  /** A GKK page's { photo_url, photos, history, history_photos } (history only once published), or null. */
+  async publicGkkPage(name) {
+    try {
+      return await publicRpc('public_gkk_page', { p_name: name });
+    } catch {
+      // Before 0046: just the history (0044), or nothing.
+      const h = await publicRpc('public_gkk_history', { p_name: name }).catch(() => null);
+      return h && { photo_url: null, photos: [], history: h.history, history_photos: h.photos };
+    }
+  },
   /** { open, label, ends_on, pct, gkks: [{ name, pct|null }] } */
   publicCensusProgress: () => publicRpc('public_census_progress'),
   publicOfficeDetails: () => publicRpc('public_office_details'),
@@ -1443,7 +1453,7 @@ const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'dire
 
 const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles'];
 
-const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'history', 'history_photos', 'history_published'];
+const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'history', 'history_photos', 'history_published', 'photo_url', 'photos'];
 
 const GKK_DOCS_BUCKET = 'gkk-documents';
 
@@ -1452,6 +1462,9 @@ function gkk44Missing(error) {
   return ['42703', 'PGRST204', '42P01', 'PGRST205'].includes(error?.code) && /history|gkk_documents/.test(error?.message || '');
 }
 const GKK_44_HINT = 'Run the 0044_gkk_history_documents.sql migration in Supabase to save GKK history and documents';
+/** Before 0046 the GKK page's photo columns don't exist. */
+const gkk46Missing = (error) => ['42703', 'PGRST204'].includes(error?.code) && /photo_url|photos/.test(error?.message || '');
+const GKK_46_HINT = "Run the 0046_gkk_photos.sql migration in Supabase to save the GKK page's photos";
 
 async function listWebsite(table, order, migration = '0011_website_content.sql') {
   const { data, error } = await order(supabase.from(table).select('*'));

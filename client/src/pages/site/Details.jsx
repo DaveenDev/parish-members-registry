@@ -43,7 +43,7 @@ const PHOTO_BOX = 'rounded-[14px] lg:rounded-[18px] mb-4 lg:mb-6 bg-[#efe6d3] h-
  * image is shown centred over a blurred copy that fills the sides, like the
  * event cards, so a poster's text is never cut off.
  */
-function Photo({ src, h = 200, hLg = h, alt = '', whole = false }) {
+export function Photo({ src, h = 200, hLg = h, alt = '', whole = false }) {
   if (!src) return null;
   const size = { '--h': `${h}px`, '--h-lg': `${hLg}px` };
   if (!whole) return <img src={src} alt={alt} loading="lazy" className={`w-full object-cover ${PHOTO_BOX}`} style={size} />;
@@ -185,15 +185,18 @@ export function ArticleDetail() {
   );
 }
 
-/** An article's (or a GKK history's) photo gallery: a grid of thumbnails; tapping one opens it full screen. */
-export function Gallery({ photos }) {
+/**
+ * An article's (or a GKK page's) photo gallery: a grid of thumbnails;
+ * tapping one opens it full screen. `id` must differ when a page has two.
+ */
+export function Gallery({ photos, title = 'Mga litrato', id = 'gallery-title', cols = 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' }) {
   const list = (photos || []).filter((p) => p?.url);
   const [open, setOpen] = useState(null);
   if (!list.length) return null;
   return (
-    <section aria-labelledby="gallery-title" className="mt-2 mb-6 lg:mb-8">
-      <h2 id="gallery-title" className="m-0 mb-3 font-serif text-[24px] lg:text-[28px] font-bold text-parish-navy">Mga litrato</h2>
-      <ul className="list-none m-0 p-0 grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 lg:gap-3.5">
+    <section aria-labelledby={id} className="mt-2 mb-6 lg:mb-8">
+      <h2 id={id} className="m-0 mb-3 font-serif text-[24px] lg:text-[28px] font-bold text-parish-navy">{title}</h2>
+      <ul className={`list-none m-0 p-0 grid gap-2.5 lg:gap-3.5 ${cols}`}>
         {list.map((p, i) => (
           <li key={p.url}>
             <button type="button" onClick={() => setOpen(i)} className="block w-full text-left appearance-none border-none bg-transparent p-0 cursor-zoom-in">

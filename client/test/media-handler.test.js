@@ -97,14 +97,24 @@ describe('GKK leaders (0045)', () => {
     return {
       auth: base.auth,
       from: (name) => (name === 'gkks'
-        ? { select: () => ({ contains: async (_col, [want]) => ({ data: gkks.filter((g) => g.history_photos.some((p) => p.url === want.url)), error: null }) }) }
+        ? {
+          select: () => ({
+            contains: async (col, [want]) => ({ data: gkks.filter((g) => (g[col] || []).some((p) => p.url === want.url)), error: null }),
+            eq: async (col, val) => ({ data: gkks.filter((g) => g[col] === val), error: null }),
+          }),
+        }
         : base.from()),
     };
   };
   const run = (token, body, gkks = [], r2 = fakeR2()) => handleMediaRequest({ admin: leaderAdmin(gkks), token, body, r2, uuid: () => 'abc', now: NOW });
   const mine = `${BASE}/gkks/2026/10/mine.jpg`;
   const theirs = `${BASE}/gkks/2026/10/theirs.jpg`;
-  const gkks = [{ name: 'San Jose', history_photos: [{ url: mine }] }, { name: 'Sto. Niño', history_photos: [{ url: theirs }] }];
+  const theirMain = `${BASE}/gkks/2026/10/their-main.jpg`;
+  const theirGallery = `${BASE}/gkks/2026/10/their-gallery.jpg`;
+  const gkks = [
+    { name: 'San Jose', history_photos: [{ url: mine }] },
+    { name: 'Sto. Niño', history_photos: [{ url: theirs }], photo_url: theirMain, photos: [{ url: theirGallery }] },
+  ];
 
   test('may upload history photos, nothing else', async () => {
     assert.equal((await run('token-lead', sign({ folder: 'gkks' }))).status, 200);
@@ -119,6 +129,8 @@ describe('GKK leaders (0045)', () => {
     assert.equal((await run('token-lead', { action: 'delete', url: `${BASE}/gkks/2026/10/new.jpg` }, gkks)).status, 200);
     const r2 = fakeR2();
     assert.equal((await run('token-lead', { action: 'delete', url: theirs }, gkks, r2)).status, 403);
+    assert.equal((await run('token-lead', { action: 'delete', url: theirMain }, gkks, r2)).status, 403);
+    assert.equal((await run('token-lead', { action: 'delete', url: theirGallery }, gkks, r2)).status, 403);
     assert.equal((await run('token-lead', { action: 'delete', url: `${BASE}/articles/2026/10/a.jpg` }, gkks, r2)).status, 403);
     assert.deepEqual(r2.calls, []);
   });

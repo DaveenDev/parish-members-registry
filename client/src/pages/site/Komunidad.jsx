@@ -3,11 +3,11 @@ import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
-import { Body, Gallery } from './Details.jsx';
+import { Body, Gallery, Photo } from './Details.jsx';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { useSiteTitle } from './SiteLayout.jsx';
-import { listState, useCensusProgress, useGkkDirectory, useGkkHistory } from './data.js';
+import { listState, useCensusProgress, useGkkDirectory, useGkkPage } from './data.js';
 
 const SMALL = 'Ubos sa 5';
 
@@ -248,7 +248,7 @@ export function GkkDetail() {
   const { name } = useParams();
   const dir = listState(useGkkDirectory());
   const census = useCensusProgress().data;
-  const history = useGkkHistory(name).data;
+  const page = useGkkPage(name).data;
   const found = dir.rows.find((g) => g.name === name);
   const { patron, area } = gkkParts(name);
   useSiteTitle(patron);
@@ -262,6 +262,7 @@ export function GkkDetail() {
   return (
     <main className={`${INNER} lg:max-w-[880px]`}>
       <div>
+      {page?.photo_url && <Photo src={page.photo_url} h={210} hLg={440} alt={`Kapilya sa ${patron}`} />}
       {area && <div className="inline-flex items-center gap-[5px] font-bold text-[12px] lg:text-[12.5px] tracking-[.1em] uppercase text-[var(--p-eyebrow)]"><Icon name="pin" size={14} />{area}</div>}
       <h1 className="font-serif font-semibold text-[34px] lg:text-[54px] leading-[1.05] lg:leading-[1.02] mt-1 mb-1 lg:mt-1.5 lg:mb-1.5 text-parish-navy">{patron}</h1>
       {g.puroks && <div className="text-[15px] lg:text-[17px] text-[#4d4636] mb-4 lg:mb-6">{g.puroks}</div>}
@@ -315,11 +316,16 @@ export function GkkDetail() {
       >
         Mao ni ang akong GKK, magparehistro
       </Link>
-      {history && (
+      {page?.photos?.length > 0 && (
+        <div className="mt-9 lg:mt-12">
+          <Gallery photos={page.photos} id="gkk-photos-title" cols="grid-cols-2 sm:grid-cols-3" />
+        </div>
+      )}
+      {(page?.history || page?.history_photos?.length > 0) && (
         <section aria-labelledby="gkk-history-title" className="mt-9 lg:mt-12">
           <h2 id="gkk-history-title" className="font-serif font-semibold text-[26px] lg:text-[34px] m-0 mb-3 lg:mb-4 text-parish-navy">Kasaysayan</h2>
-          {history.history && <Body text={history.history} />}
-          <Gallery photos={history.photos} />
+          {page.history && <Body text={page.history} />}
+          <Gallery photos={page.history_photos} title="Mga litrato sa kasaysayan" id="gkk-history-photos-title" />
         </section>
       )}
     </main>

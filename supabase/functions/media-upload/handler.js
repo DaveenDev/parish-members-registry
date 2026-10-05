@@ -126,11 +126,27 @@ async function inUse(admin, url) {
     admin.from('articles').select('id').eq('photo_url', url).limit(1),
     admin.from('articles').select('id').contains('photos', [{ url }]).limit(1),
     admin.from('events').select('id').eq('photo_url', url).limit(1),
-    admin.from('gkks').select('id').contains('history_photos', [{ url }]).limit(1),
   ]);
-  // Before the 0044 migration there's no history_photos column, so no GKK uses it.
-  const noColumn = (e) => /history_photos/.test(e?.message || '');
-  return checks.some((r) => (r.error && !noColumn(r.error)) || r.data?.length);
+  if (checks.some((r) => r.error || r.data?.length)) return true;
+  const gkks = await gkksUsing(admin, url);
+  return gkks.error || gkks.names.length > 0;
+}
+
+/**
+ * The GKKs whose history, main photo or gallery use `url`: { names, error }.
+ * A column a migration hasn't added yet (0044, 0046) uses nothing.
+ */
+async function gkksUsing(admin, url) {
+  const checks = await Promise.all([
+    admin.from('gkks').select('name').contains('history_photos', [{ url }]),
+    admin.from('gkks').select('name').contains('photos', [{ url }]),
+    admin.from('gkks').select('name').eq('photo_url', url),
+  ]);
+  const noColumn = (e) => ['42703', 'PGRST204'].includes(e?.code) || /history_photos|photo_url|photos/.test(e?.message || '');
+  return {
+    error: checks.some((r) => r.error && !noColumn(r.error)),
+    names: [...new Set(checks.flatMap((r) => (r.error ? [] : (r.data || []).map((g) => g.name))))],
+  };
 }
 
 /**
@@ -147,7 +163,7 @@ export async function handleMediaRequest({ admin, token, body, r2, uuid = () => 
   const { data: me } = await admin.from('profiles').select('access, access_gkk').eq('id', caller.id).maybeSingle();
   // No access column yet (before 0014) or no value means full access, like staff_access().
   const access = me?.access || 'full';
-  // A GKK leader may only add and remove their own GKK's history photos (0045).
+  // A GKK leader may only add and remove their own GKK's photos (0045, 0046).
   const leaderGkk = access === 'gkk_leader' ? me?.access_gkk || null : null;
   if (!EDIT_WEBSITE.includes(access) && !leaderGkk) return fail(403, "Your account can't change the website");
 
@@ -158,7 +174,7 @@ export async function handleMediaRequest({ admin, token, body, r2, uuid = () => 
     if (action === 'sign') {
       const folder = body.folder || 'articles';
       if (!FOLDERS.includes(folder)) return fail(400, 'Unknown photo folder');
-      if (leaderGkk && folder !== 'gkks') return fail(403, "Your account can only add photos to your GKK's history");
+      if (leaderGkk && folder !== 'gkks') return fail(403, "Your account can only add photos to your GKK's page");
       if (!TYPES[body.contentType]) return fail(400, 'Only JPG, PNG or WebP photos can be uploaded');
       const size = Number(body.size);
       if (!Number.isFinite(size) || size <= 0) return fail(400, 'That file looks empty');
@@ -172,10 +188,11 @@ export async function handleMediaRequest({ admin, token, body, r2, uuid = () => 
       const key = keyFromUrl(body.url, r2.publicBase);
       if (!key) return fail(400, "That photo isn't one of the website's uploads");
       if (leaderGkk) {
-        // Only GKK photos, and none that another GKK's history uses.
-        if (!key.startsWith('gkks/')) return fail(403, "Your account can only remove your GKK's history photos");
-        const { data: users, error } = await admin.from('gkks').select('name').contains('history_photos', [{ url: body.url }]);
-        if (error || (users || []).some((g) => g.name !== leaderGkk)) return fail(403, "Your account can only remove your GKK's history photos");
+        // Only GKK photos, and none that another GKK uses.
+        const refused = fail(403, "Your account can only remove your own GKK's photos");
+        if (!key.startsWith('gkks/')) return refused;
+        const users = await gkksUsing(admin, body.url);
+        if (users.error || users.names.some((n) => n !== leaderGkk)) return refused;
       }
       await r2.remove(key);
       return ok({});

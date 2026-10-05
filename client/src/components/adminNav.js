@@ -2,8 +2,7 @@ import { can } from '../lib/access.js';
 
 /**
  * The admin sidebar, in groups. `need` is the lib/access.js permission a
- * page requires; `leaderOnly` shows it to GKK leaders only, `notForLeaders`
- * hides it from them; `leaderLabel` is its name for GKK leaders; `badge`
+ * page requires; `notForLeaders` hides it from GKK leaders; `leaderLabel` is its name for GKK leaders; `badge`
  * names a count from api.navCounts(). A `collapsible` group stays open for
  * GKK leaders, who have only a few pages.
  */
@@ -45,7 +44,6 @@ export const NAV_GROUPS = [
     label: 'Settings',
     collapsible: true,
     items: [
-      { to: '/admin/my-gkk', label: 'My GKK', leaderOnly: true },
       { to: '/admin/settings', end: true, label: 'Parish Config', leaderLabel: 'GKK Config' },
       { to: '/admin/settings/notifications', label: 'Notifications' },
       { to: '/admin/settings/organizations', label: 'Ministries & organizations', need: 'manageLists' },
@@ -59,7 +57,6 @@ export const NAV_GROUPS = [
 
 export function navAllowed(item, user) {
   if (item.adminOnly && !user?.isAdmin) return false;
-  if (item.leaderOnly && user?.access !== 'gkk_leader') return false;
   if (item.notForLeaders && user?.access === 'gkk_leader') return false;
   return !item.need || can(user, item.need);
 }

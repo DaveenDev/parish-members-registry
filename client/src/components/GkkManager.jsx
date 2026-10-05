@@ -8,7 +8,7 @@ import { useToast } from '../ToastContext.jsx';
 import { AddButton, RowButton, SidePanel } from './panels.jsx';
 import GkkDocuments from './GkkDocuments.jsx';
 import LastYearList from './LastYearList.jsx';
-import { ChapelFields, HistoryFields, chapelPatch, chapelProblem, gkkForm, historyPatch, sameHistory, useHistoryPhotos } from './GkkFields.jsx';
+import { ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProblem, gkkForm, historyPatch, photosPatch, sameHistory, samePhotos, useGkkPhotos } from './GkkFields.jsx';
 
 // Desktop columns: name, chapel, puroks, year, last year's households, households, actions.
 const COLS = 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_64px_96px_96px_auto] lg:gap-4';
@@ -204,12 +204,14 @@ function GkkPanel({ initial, onClose, onSaved, onOpenList }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [addressError, setAddressError] = useState('');
-  const photos = useHistoryPhotos(setForm, setError);
+  const pagePhotos = useGkkPhotos(setError);
+  const historyPhotos = useGkkPhotos(setError);
   const isNew = !initial.id;
 
   function close() {
     // Nothing was saved: take back what this panel uploaded.
-    photos.rollback();
+    pagePhotos.rollback();
+    historyPhotos.rollback();
     onClose();
   }
 
@@ -221,9 +223,10 @@ function GkkPanel({ initial, onClose, onSaved, onOpenList }) {
     if (problem) { if (!form.chapel_address.trim()) setAddressError(problem); fail(problem); return; }
     const previous = String(form.previous_households ?? '').trim();
     if (previous && Number(previous) > 100000) { fail("Enter last year's household count as a number up to 100,000."); return; }
-    if (photos.uploading) { setError('Wait for the photos to finish uploading.'); return; }
+    if (pagePhotos.uploading || historyPhotos.uploading) { setError('Wait for the photos to finish uploading.'); return; }
     const details = { ...chapelPatch(form), previous_households: previous ? Number(previous) : null };
-    // Only when it changed, so the details still save before the 0044 migration.
+    // Only when they changed, so the details still save before the 0044 and 0046 migrations.
+    if (!samePhotos(form, initial)) Object.assign(details, photosPatch(form));
     if (!sameHistory(form, initial)) Object.assign(details, historyPatch(form));
     setSaving(true);
     try {
@@ -234,7 +237,8 @@ function GkkPanel({ initial, onClose, onSaved, onOpenList }) {
         if (name !== initial.original) await api.renameGkk(initial.original, name);
         await api.saveGkkDetails(initial.id, details);
       }
-      photos.commit();
+      pagePhotos.commit();
+      historyPhotos.commit();
       toast.success(isNew ? `${name} added` : `${name} saved`);
       onSaved();
     } catch (e) {
@@ -274,10 +278,11 @@ function GkkPanel({ initial, onClose, onSaved, onOpenList }) {
           {!isNew && initial.name !== form.name.trim() && form.name.trim() && (
             <div className="text-[13px] text-parish-muted">Renaming also moves every household in this GKK to the new name.</div>
           )}
+          <PagePhotoFields form={form} setForm={setForm} photos={pagePhotos} />
         </FlagEmptyRequired.Provider>
       )}
 
-      {tab === 'history' && <HistoryFields form={form} setForm={setForm} setError={setError} photos={photos} canPublish />}
+      {tab === 'history' && <HistoryFields form={form} setForm={setForm} setError={setError} photos={historyPhotos} canPublish />}
 
       {tab === 'documents' && !isNew && <GkkDocuments gkk={{ id: initial.id, name: initial.original }} />}
     </SidePanel>

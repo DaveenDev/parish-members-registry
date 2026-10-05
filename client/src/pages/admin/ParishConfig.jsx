@@ -3,6 +3,7 @@ import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, Tabs, Panel } from '../../components/admin.jsx';
 import { GkkManager } from '../../components/GkkManager.jsx';
+import MyGkk from './MyGkk.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 import { Field, TextInput, PrimaryButton, Badge } from '../../components/ui.jsx';
@@ -574,23 +575,43 @@ function ProfileTab() {
       </Panel>
       )}
 
-      <PrivacyCard />
       </div>
 
       <div className="flex flex-col gap-[18px] min-w-0">
-      <Panel className="p-6">
-        <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>
-        <div className="text-[13.5px] text-parish-muted mb-4">Choose a color theme for the registration portal and admin panel. Saved on this device.</div>
-        <ThemePickerGrid />
-        <ParishThemeRow canEdit={canEdit} onSaved={applySaved} />
-        <div className="mt-5 flex items-center gap-3 flex-wrap">
-          <span className="font-semibold text-[13.5px] text-parish-text2">Admin panel</span>
-          <ModeSwitch />
-          <span className="text-[12.5px] text-parish-muted">Auto follows this device's light or dark setting.</span>
-        </div>
-      </Panel>
+      <PrivacyCard />
+      </div>
+    </div>
+  );
+}
 
-      <ChangePasswordCard />
+/**
+ * Personal Settings: this account's password and this device's look. The
+ * parish default theme row is here too, since it saves the theme picked
+ * above (staff with full access only). Accounts without the Parish Config
+ * tab see the data privacy note here.
+ */
+function PersonalTab({ withPrivacy }) {
+  const layout = useOutletContext();
+  const { user } = useAuth();
+  const canEdit = can(user, 'settings');
+  return (
+    <div className="grid gap-[18px] lg:grid-cols-2 lg:items-start">
+      <div className="flex flex-col gap-[18px] min-w-0">
+        <Panel className="p-6">
+          <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>
+          <div className="text-[13.5px] text-parish-muted mb-4">Choose a color theme for the registration portal and admin panel. Saved on this device.</div>
+          <ThemePickerGrid />
+          <ParishThemeRow canEdit={canEdit} onSaved={(saved) => layout?.setParish?.(saved)} />
+          <div className="mt-5 flex items-center gap-3 flex-wrap">
+            <span className="font-semibold text-[13.5px] text-parish-text2">Admin panel</span>
+            <ModeSwitch />
+            <span className="text-[12.5px] text-parish-muted">Auto follows this device's light or dark setting.</span>
+          </div>
+        </Panel>
+      </div>
+      <div className="flex flex-col gap-[18px] min-w-0">
+        <ChangePasswordCard />
+        {withPrivacy && <PrivacyCard />}
       </div>
     </div>
   );
@@ -649,26 +670,31 @@ function ParishThemeRow({ canEdit, onSaved }) {
   );
 }
 
-const CONFIG_TABS = [['config', 'Parish Config'], ['gkk', 'Parish GKK'], ['integrations', 'Platform Integrations']];
+const CONFIG_TABS = [['mygkk', 'My GKK'], ['config', 'Parish Config'], ['gkk', 'Parish GKK'], ['personal', 'Personal Settings'], ['integrations', 'Platform Integrations']];
 
 export default function ParishConfig() {
   const [params, setParams] = useSearchParams();
   const { user } = useAuth();
-  // GKKs for staff who may change settings (GKK leaders have My GKK);
-  // integrations for staff admins only.
-  const tabs = CONFIG_TABS.filter(([k]) => k === 'config' || (k === 'gkk' && can(user, 'settings')) || (k === 'integrations' && user?.isAdmin));
+  // My GKK for GKK leaders; the parish profile and GKKs for staff who may
+  // change settings; Personal Settings for everyone; integrations for staff
+  // admins only.
+  const leader = user?.access === 'gkk_leader';
+  const show = { mygkk: leader, config: can(user, 'settings'), gkk: can(user, 'settings'), personal: true, integrations: !!user?.isAdmin };
+  const tabs = CONFIG_TABS.filter(([k]) => show[k]);
   // GKK leaders see this page as "GKK Config" (as in the sidebar).
-  const title = user?.access === 'gkk_leader' ? 'GKK Config' : 'Parish Config';
+  const title = leader ? 'GKK Config' : 'Parish Config';
   const tab = tabs.some(([k]) => k === params.get('tab')) ? params.get('tab') : tabs[0][0];
-  const setTab = (k) => setParams(k === CONFIG_TABS[0][0] ? {} : { tab: k }, { replace: true });
+  const setTab = (k) => setParams(k === tabs[0][0] ? {} : { tab: k }, { replace: true });
 
   return (
     <>
-      <PageHeader title={title} subtitle={user?.access === 'gkk_leader' ? 'Appearance, password and data privacy' : 'Profile, privacy, GKK settings & integrations'} />
+      <PageHeader title={title} subtitle={leader ? 'Your GKK and your personal settings' : 'Profile, privacy, GKK settings & integrations'} />
       <PageBody>
         <div className="max-w-[1180px]">
           {tabs.length > 1 && <Tabs tabs={tabs} value={tab} onChange={setTab} />}
+          {tab === 'mygkk' && <MyGkk />}
           {tab === 'config' && <ProfileTab />}
+          {tab === 'personal' && <PersonalTab withPrivacy={!show.config} />}
           {tab === 'gkk' && <GkkManager />}
           {tab === 'integrations' && <IntegrationsTab />}
         </div>
