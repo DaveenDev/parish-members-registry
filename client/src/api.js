@@ -71,7 +71,7 @@ export const api = {
       payload: { household, members, volunteer, notifyOptin, consent },
     });
     if (error) throw mapError(error);
-    return data; // { refNo, householdId }
+    return data; // { refNo, householdId, accessCode } (accessCode from 0040)
   },
 
   // ---- census family portal (0008 migration) --------------------------

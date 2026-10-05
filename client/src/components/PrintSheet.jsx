@@ -31,7 +31,7 @@ function sacramentLines(m) {
  * cannot call the settings API for the parish name/address — it uses the same
  * literal text the on-screen confirmation shows.
  */
-export function ConfirmationPrintSheet({ refNo, householdName }) {
+export function ConfirmationPrintSheet({ refNo, accessCode, householdName }) {
   if (!refNo) return null;
 
   return createPortal(
@@ -58,7 +58,20 @@ export function ConfirmationPrintSheet({ refNo, householdName }) {
         <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 34, fontWeight: 600, letterSpacing: '.06em', color: '#34589c' }}>
           {refNo}
         </div>
-        <div style={{ fontSize: 11, color: '#8a836f', marginTop: 8 }}>Palihug tipigi kini isip inyong rekord.</div>
+        {accessCode && (
+          <>
+            <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#a98a3f', marginTop: 16, marginBottom: 6 }}>
+              Code
+            </div>
+            <div style={{ fontFamily: 'monospace', fontSize: 28, fontWeight: 600, letterSpacing: '.12em', color: '#34589c' }}>
+              {accessCode}
+            </div>
+            <div style={{ fontSize: 11, color: '#8a836f', marginTop: 8 }}>
+              Gamita ang reference number ug kini nga code aron ma-update ang rekord sa inyong pamilya sa census.
+            </div>
+          </>
+        )}
+        <div style={{ fontSize: 11, color: '#8a836f', marginTop: 8 }}>Palihug tipigi {accessCode ? 'kini sila' : 'kini'} isip inyong rekord.</div>
       </div>
 
       <div style={{ marginTop: 32, fontSize: 10, color: '#8a836f' }}>Gi-print {new Date().toLocaleDateString()}</div>
