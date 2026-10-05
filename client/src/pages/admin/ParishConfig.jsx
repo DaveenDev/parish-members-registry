@@ -502,10 +502,40 @@ function EmailCard() {
   );
 }
 
+/**
+ * The Supabase project this build of the site talks to, read from
+ * VITE_SUPABASE_URL (https://<project id>.supabase.co). Read-only: it only
+ * changes by setting the variable in Vercel and redeploying.
+ */
+function DatabaseCard() {
+  const url = import.meta.env.VITE_SUPABASE_URL || '';
+  let projectId = '';
+  try { projectId = new URL(url).hostname.split('.')[0]; } catch { /* not set or not a URL */ }
+
+  return (
+    <Panel className="p-6">
+      <div className="flex items-center gap-2.5 flex-wrap mb-1">
+        <div className="font-serif text-[22px] font-semibold text-parish-navy">Database (Supabase)</div>
+        <Badge tone={projectId ? 'green' : 'gold'}>{projectId ? 'Connected' : 'Not set'}</Badge>
+      </div>
+      <div className="text-[13.5px] text-parish-muted mb-4">
+        The Supabase project the website reads and saves to. It matches the ID in the Supabase dashboard address
+        (supabase.com/dashboard/project/&lt;ID&gt;). To move to another project, change <code>VITE_SUPABASE_URL</code> and{' '}
+        <code>VITE_SUPABASE_ANON_KEY</code> in Vercel and redeploy.
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Project ID"><TextInput value={projectId || 'Not set'} readOnly spellCheck={false} className="font-mono" /></Field>
+        <Field label="Project URL"><TextInput value={url || 'Not set'} readOnly spellCheck={false} /></Field>
+      </div>
+    </Panel>
+  );
+}
+
 /** Platform Integrations (staff admins only): the outside services the site uses. */
 function IntegrationsTab() {
   return (
     <div className="grid gap-[18px] lg:grid-cols-2 lg:items-start">
+      <DatabaseCard />
       <PhotoStorageCard />
       <EmailCard />
     </div>
