@@ -364,9 +364,13 @@ function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
         <div className="mt-4 px-3.5 py-3 rounded-xl bg-white border border-[#eee3ce] text-[13.5px] text-parish-text2">
           <strong className="text-parish-navy">Aktibo</strong> — bata pa ({YOUNG_CHILD_MAX_AGE} anyos o ubos), busa dili na kinahanglan tubagon ang mga pangutana.
         </div>
+      ) : noSurvey ? (
+        // Hidden rather than greyed out, so phones don't scroll past questions nobody answers.
+        <div className="mt-4 px-3.5 py-3 rounded-xl bg-white border border-[#eee3ce] text-[13.5px] text-parish-text2">
+          Dili na kinahanglan tubagon ang mga pangutana kay <strong className="text-parish-navy">{MEMBERSHIP_STATUS_LABELS[m.status]}</strong> ang napili.
+        </div>
       ) : (
-      <>
-      <div aria-disabled={noSurvey} className={`mt-4 flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-white ${noSurvey ? 'opacity-50' : ''}`}>
+      <div className="mt-4 flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-white">
         {PARTICIPATION_ITEMS.map(([key, label]) => (
           <div key={key} role="radiogroup" aria-label={`${name}: ${label}`} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
             <span className="font-medium text-[14px] text-parish-ink">{label}</span>
@@ -379,9 +383,8 @@ function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
                     type="button"
                     role="radio"
                     aria-checked={on}
-                    disabled={noSurvey}
                     onClick={() => onChange({ participation: { ...m.participation, [key]: on ? undefined : level } })}
-                    className={`appearance-none px-3 py-2 rounded-full border-[1.5px] text-[13px] font-semibold ${noSurvey ? 'cursor-not-allowed' : 'cursor-pointer'} ${
+                    className={`appearance-none px-3 py-2 rounded-full border-[1.5px] text-[13px] font-semibold cursor-pointer ${
                       on ? 'bg-parish-blue border-parish-blue text-white' : 'bg-white border-parish-borderSoft text-parish-text2'
                     }`}
                   >
@@ -393,12 +396,6 @@ function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
           </div>
         ))}
       </div>
-      {noSurvey && (
-        <div className="text-[12.5px] text-parish-muted mt-1.5">
-          Dili na kinahanglan tubagon ang mga pangutana kay "{MEMBERSHIP_STATUS_LABELS[m.status]}" ang napili.
-        </div>
-      )}
-      </>
       )}
 
       {!isNew && (
