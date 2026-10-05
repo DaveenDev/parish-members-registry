@@ -5,7 +5,9 @@ import { useHouseholdNameTaken } from '../hooks.js';
 import { VerifiedLine } from './VerifiedLine.jsx';
 import ParticipationSurvey from './ParticipationSurvey.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
-import { HELP_WAYS, HEAD, RELATIONSHIPS, CIVIL_STATUSES, ageFromDob, fmtDateTime } from '../constants.js';
+import { HELP_WAYS, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, RELATIONSHIPS, CIVIL_STATUSES, ageFromDob, fmtDateTime } from '../constants.js';
+import { familiesOf, familyNoOf, nextFamilyNo } from '../lib/household.js';
+import { FamilyHeading, familyTitle } from './FamilyGroups.jsx';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { useToast } from '../ToastContext.jsx';
@@ -141,11 +143,11 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
       toast.error('A household needs at least one member. Delete the household instead.');
       return;
     }
-    const isHead = m.relationship === HEAD;
+    const isHead = HEADS.includes(m.relationship);
     const ok = await confirm({
       title: `Remove ${name}?`,
       message: isHead
-        ? `${name} is the Household Head. After removing them, edit another member and set their relationship to "${HEAD}". Their record moves to the Trash, where it can be restored for 30 days.`
+        ? `${name} is the ${m.relationship}. After removing them, edit another member of ${m.relationship === HEAD ? 'the household' : 'their family'} and set their relationship to "${m.relationship}". Their record moves to the Trash, where it can be restored for 30 days.`
         : 'The member record moves to the Trash, where it can be restored for 30 days.',
       confirmLabel: 'Remove member',
       tone: 'danger',
@@ -167,7 +169,9 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
     }
   }
 
-  const head = members?.find((m) => m.relationship === HEAD);
+  const families = members ? familiesOf(members) : [];
+  const severalFamilies = families.length > 1;
+  const canEdit = can(user, 'editRegistry');
 
   return (
     <div className="fixed inset-0 z-[45] flex justify-end">
@@ -233,45 +237,51 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
 
           <div className="mt-7">
             <div className="flex items-center gap-3 mb-1">
-              <SectionLabel className="flex-1 mb-0">Members{members ? ` (${members.length})` : ''}</SectionLabel>
+              <SectionLabel className="flex-1 mb-0">
+                Members{members ? ` (${members.length})` : ''}{severalFamilies ? ` · ${families.length} families` : ''}
+              </SectionLabel>
             </div>
             <p className="text-[12.5px] text-parish-muted mt-1 mb-3">Adding, editing and removing members saves right away.</p>
             {membersError && <div className="mb-3 text-parish-error text-[13.5px]">{membersError}</div>}
             {!members && !membersError && <LoadingState label="Loading members…" compact />}
             {members && (
-              <div className="flex flex-col gap-2">
-                {members.map((m) => (
-                  <div key={m.id} className="flex items-center gap-3 px-3.5 py-2.5 bg-parish-field border border-parish-line2 rounded-xl">
-                    <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12px] flex-none" aria-hidden>
-                      {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
+              <div className="flex flex-col gap-4">
+                {families.map((g) => (
+                  <section key={g.familyNo}>
+                    {severalFamilies && <FamilyHeading group={g} />}
+                    <div className="flex flex-col gap-2">
+                      {g.members.map((m) => (
+                        <div key={m.id} className="flex items-center gap-3 px-3.5 py-2.5 bg-parish-field border border-parish-line2 rounded-xl">
+                          <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12px] flex-none" aria-hidden>
+                            {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <div className="text-[14px] font-semibold text-parish-navy truncate">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
+                            <div className="text-[12px] text-parish-muted truncate">
+                              {[bis(RELATIONSHIP_LABELS, m.relationship), ageFromDob(m.dob) !== null && `${ageFromDob(m.dob)} yrs`, bis(CIVIL_STATUS_LABELS, m.civil_status)].filter(Boolean).join(' · ') || '—'}
+                            </div>
+                          </div>
+                          <button onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">Edit</button>
+                          {can(user, 'deleteRecords') && <button onClick={() => removeMember(m)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-error bg-parish-errorBg rounded-lg">Remove</button>}
+                        </div>
+                      ))}
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-[14px] font-semibold text-parish-navy truncate">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
-                      <div className="text-[12px] text-parish-muted truncate">
-                        {[bis(RELATIONSHIP_LABELS, m.relationship), ageFromDob(m.dob) !== null && `${ageFromDob(m.dob)} yrs`, bis(CIVIL_STATUS_LABELS, m.civil_status)].filter(Boolean).join(' · ') || '—'}
-                      </div>
-                    </div>
-                    <button onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">Edit</button>
-                    {can(user, 'deleteRecords') && <button onClick={() => removeMember(m)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-error bg-parish-errorBg rounded-lg">Remove</button>}
-                  </div>
+                  </section>
                 ))}
               </div>
             )}
 
-            {members && !adding && can(user, 'editRegistry') && (
-              <button
-                onClick={() => setAdding(true)}
-                className="mt-3 w-full appearance-none cursor-pointer py-3 font-bold text-[14px] text-parish-blue bg-parish-surface border-[1.5px] border-dashed border-parish-focusLine rounded-xl flex items-center justify-center gap-2 hover:bg-parish-fillSoft hover:border-parish-blue transition"
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
-                Add member
-              </button>
+            {members && !adding && canEdit && (
+              <div className="mt-3 grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(170px,1fr))' }}>
+                <DashedButton onClick={() => setAdding({ family: 1 })}>Add member</DashedButton>
+                {families.length < MAX_FAMILIES && <DashedButton onClick={() => setAdding({ family: 'new' })}>Add another family</DashedButton>}
+              </div>
             )}
             {members && adding && (
               <AddMemberForm
                 householdId={household.id}
-                defaultLastName={head?.last_name || ''}
-                hasHead={!!head}
+                members={members}
+                initialFamily={adding.family}
                 onCancel={() => setAdding(false)}
                 onAdded={(added) => {
                   setAdding(false);
@@ -321,15 +331,63 @@ function SectionLabel({ children, className = 'mb-3' }) {
   );
 }
 
-/** Quick add with the essentials; the full record is editable afterwards via "Edit". */
-export function AddMemberForm({ householdId, defaultLastName, hasHead, onCancel, onAdded }) {
-  const [m, setM] = useState({ lastName: toNameCase(defaultLastName), firstName: '', middleName: '', suffix: '', relationship: '', sex: '', dob: '', civilStatus: '' });
+function DashedButton({ onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className="w-full appearance-none cursor-pointer py-3 font-bold text-[14px] text-parish-blue bg-parish-surface border-[1.5px] border-dashed border-parish-focusLine rounded-xl flex items-center justify-center gap-2 hover:bg-parish-fillSoft hover:border-parish-blue transition"
+    >
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
+      {children}
+    </button>
+  );
+}
+
+const MEMBER_RELATIONSHIPS = RELATIONSHIPS.filter((r) => !HEADS.includes(r));
+
+/**
+ * The relationships a member of family `familyNo` can have: the family's
+ * head only while it has none (the Household Head for family 1, a Head of
+ * Family for the others), then the rest.
+ */
+export function relationshipsForFamily(members, familyNo) {
+  const headRel = familyNo === 1 ? HEAD : FAMILY_HEAD;
+  const hasHead = (members || []).some((m) => familyNoOf(m) === familyNo && m.relationship === headRel);
+  return hasHead ? MEMBER_RELATIONSHIPS : [headRel, ...MEMBER_RELATIONSHIPS];
+}
+
+/**
+ * Quick add with the essentials; the full record is editable afterwards via
+ * "Edit". `members` are the household's (for its families); `initialFamily`
+ * is a family number, or 'new' for another family in the house, whose first
+ * member is its Head of Family.
+ */
+export function AddMemberForm({ householdId, members = [], initialFamily = 1, onCancel, onAdded }) {
+  const families = familiesOf(members);
+  const newFamilyNo = nextFamilyNo(members);
+  const [family, setFamily] = useState(initialFamily === 'new' ? 'new' : String(initialFamily));
+  const isNewFamily = family === 'new';
+  const familyNo = isNewFamily ? newFamilyNo : Number(family);
+  const familyHead = families.find((g) => g.familyNo === familyNo)?.head;
+  const [m, setM] = useState({
+    lastName: toNameCase(isNewFamily ? '' : (familyHead || members[0])?.last_name), firstName: '', middleName: '', suffix: '',
+    relationship: isNewFamily ? FAMILY_HEAD : '', sex: '', dob: '', civilStatus: '',
+  });
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
-  const relationships = hasHead ? RELATIONSHIPS.filter((r) => r !== HEAD) : RELATIONSHIPS;
+  const relationships = isNewFamily ? [FAMILY_HEAD] : relationshipsForFamily(members, familyNo);
 
   const set = (field) => (e) => { setM((x) => ({ ...x, [field]: e.target.value })); setErrors((x) => ({ ...x, [field]: '' })); };
   const tidy = (field, format = toNameCase) => (e) => setM((x) => ({ ...x, [field]: format(e.target.value) }));
+
+  function chooseFamily(value) {
+    setFamily(value);
+    // A new family starts with its head; a relationship picked for another family may not apply.
+    setM((x) => ({
+      ...x,
+      relationship: value === 'new' ? FAMILY_HEAD : (x.relationship === FAMILY_HEAD || x.relationship === HEAD ? '' : x.relationship),
+    }));
+  }
 
   async function add() {
     const e = {};
@@ -342,6 +400,7 @@ export function AddMemberForm({ householdId, defaultLastName, hasHead, onCancel,
     try {
       const { member } = await api.addHouseholdMember(householdId, {
         ...m,
+        familyNo,
         lastName: toNameCase(m.lastName), firstName: toNameCase(m.firstName),
         middleName: toNameCase(m.middleName), suffix: toSuffixCase(m.suffix),
       });
@@ -355,16 +414,23 @@ export function AddMemberForm({ householdId, defaultLastName, hasHead, onCancel,
 
   return (
     <div className="mt-3 border-[1.5px] border-parish-focusLine rounded-xl p-4 bg-parish-fillSoft">
-      <div className="font-semibold text-[14px] text-parish-navy mb-3">New member</div>
+      <div className="font-semibold text-[14px] text-parish-navy mb-3">{isNewFamily ? 'Another family in this house: its Head of Family' : 'New member'}</div>
       {errors.form && <div className="mb-3 text-parish-error text-[13px]" role="alert">{errors.form}</div>}
       <div className="grid gap-3" style={GRID}>
+        <Field label="Family">
+          <Select value={family} onChange={(e) => chooseFamily(e.target.value)}>
+            {families.map((g) => <option key={g.familyNo} value={String(g.familyNo)}>{familyTitle(g)}</option>)}
+            {newFamilyNo <= MAX_FAMILIES && <option value="new">A new family in this house</option>}
+          </Select>
+        </Field>
         <Field label="Last name" required error={errors.lastName}><TextInput value={m.lastName} onChange={set('lastName')} onBlur={tidy('lastName')} /></Field>
         <Field label="First name" required error={errors.firstName}><TextInput value={m.firstName} onChange={set('firstName')} onBlur={tidy('firstName')} autoFocus /></Field>
         <Field label="Middle name"><TextInput value={m.middleName} onChange={set('middleName')} onBlur={tidy('middleName')} /></Field>
         <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={m.suffix} onChange={set('suffix')} onBlur={tidy('suffix', toSuffixCase)} /></Field>
-        <Field label="Relationship" required error={errors.relationship}>
-          <Select value={m.relationship} onChange={set('relationship')}>
-            <option value="">Select…</option>{relationships.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
+        <Field label={isNewFamily ? 'Relationship' : 'Relationship to their family head'} required error={errors.relationship}>
+          <Select value={m.relationship} onChange={set('relationship')} disabled={isNewFamily}>
+            {!isNewFamily && <option value="">Select…</option>}
+            {relationships.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
           </Select>
         </Field>
         <Field label="Sex">
@@ -379,10 +445,14 @@ export function AddMemberForm({ householdId, defaultLastName, hasHead, onCancel,
           </Select>
         </Field>
       </div>
-      <p className="text-[12px] text-parish-muted mt-3 mb-0">Sacraments, contact details and groups can be filled in afterwards with “Edit”.</p>
+      <p className="text-[12px] text-parish-muted mt-3 mb-0">
+        {isNewFamily
+          ? 'Add the rest of this family afterwards with “Add member”, choosing this family.'
+          : 'Sacraments, contact details and groups can be filled in afterwards with “Edit”.'}
+      </p>
       <div className="flex gap-2.5 justify-end mt-3">
         <GhostButton onClick={onCancel} className="px-4 py-2 text-[13.5px]">Cancel</GhostButton>
-        <PrimaryButton onClick={add} disabled={saving} className="px-5 py-2 text-[13.5px]">{saving ? 'Adding…' : 'Add member'}</PrimaryButton>
+        <PrimaryButton onClick={add} disabled={saving} className="px-5 py-2 text-[13.5px]">{saving ? 'Adding…' : isNewFamily ? 'Add family' : 'Add member'}</PrimaryButton>
       </div>
     </div>
   );

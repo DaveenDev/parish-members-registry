@@ -31,15 +31,36 @@ function withWidths(items) {
   return items.map((b) => ({ ...b, w: pct(b.n, max) }));
 }
 
+/**
+ * Family figures (family_stats(), 0054): { families, multi, byGkk: Map of GKK
+ * → { households, families, multi } }, or null before that migration.
+ */
+export function shapeFamilies(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  return {
+    families: num(raw.families),
+    multi: num(raw.multi_family_households),
+    byGkk: new Map((raw.by_gkk || []).map((g) => [g.label, { households: num(g.households), families: num(g.families), multi: num(g.multi) }])),
+  };
+}
+
+/** "3 houses with 2+ families", or that every house has one family. */
+export function multiFamilyNote(multi) {
+  if (!multi) return 'one family in each household';
+  return `${multi} ${multi === 1 ? 'house' : 'houses'} with 2+ families`;
+}
+
 export function shapeDashboard(raw = {}) {
   const households = num(raw.households);
   const verified = num(raw.verified);
   const pending = num(raw.pending);
   const sac = raw.sacraments || {};
+  const fam = shapeFamilies(raw.family_stats);
 
   return {
     statCards: [
       { label: 'Households', value: households, note: `${verified} verified · ${pending} pending`, accent: '#34589c', to: '/admin/households?status=All' },
+      ...(fam ? [{ label: 'Families', value: fam.families, note: multiFamilyNote(fam.multi), accent: '#8a5fb0', to: '/admin/reports?tab=gen&source=Families' }] : []),
       { label: 'Members', value: num(raw.members), note: 'across all households', accent: '#c39b4e', to: '/admin/members' },
       {
         label: 'Active Catholics',
@@ -78,10 +99,14 @@ export function shapeReport(raw = {}) {
   const sac = raw.sacraments || {};
   const blood = raw.blood || {};
 
+  const fam = shapeFamilies(raw.family_stats);
   const regByGkk = (raw.by_gkk || []).map((g) => {
     const v = num(g.verified);
     const p = num(g.pending);
-    return { label: g.label, verified: v, pending: p, vw: pct(v, v + p), pw: pct(p, v + p) };
+    const row = { label: g.label, verified: v, pending: p, vw: pct(v, v + p), pw: pct(p, v + p) };
+    if (!fam) return row;
+    const f = fam.byGkk.get(g.label);
+    return { ...row, families: f ? f.families : 0, multi: f ? f.multi : 0 };
   });
 
   const sacCompletion = [['Baptism', sac.baptism], ['First Communion', sac.communion], ['Confirmation', sac.confirmation], ['Matrimony', sac.matrimony]]
@@ -96,6 +121,9 @@ export function shapeReport(raw = {}) {
     totalVerified: num(raw.verified),
     totalPending: num(raw.pending),
     totalMembers: members,
+    // null before the 0054 migration; the page then leaves families out.
+    totalFamilies: fam ? fam.families : null,
+    multiFamilyHouseholds: fam ? fam.multi : null,
     regByGkk,
     sacCompletion,
     participation,

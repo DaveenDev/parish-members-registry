@@ -16,6 +16,7 @@ import { VerifiedLine } from '../../components/VerifiedLine.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
 import { daysAgo, fmtDateTime } from '../../constants.js';
+import { ByFamily } from '../../components/FamilyGroups.jsx';
 
 const SORTS = [['registered', 'Registered'], ['name', 'Household'], ['gkk', 'GKK'], ['members', 'Members'], ['updated', 'Last updated']];
 // The status tabs; the page opens on the verification queue, or on Verified
@@ -376,7 +377,7 @@ export default function Households() {
                         </button>
                       </td>
                       <td className="px-4 py-3.5 text-[13.5px] text-parish-text3 whitespace-nowrap">{h.gkk || '—'}<div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div></td>
-                      <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.member_count} member(s)</td>
+                      <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.member_count} member(s){h.family_count > 1 && <span className="block text-[12px] text-parish-muted">{h.family_count} families</span>}</td>
                       <td className="px-4 py-3.5 text-[13px] text-parish-text2 whitespace-nowrap" title={fmtDateTime(h.created_at)}>
                         {daysAgo(h.created_at)}
                         {sort === 'updated' && h.updated_at && <div className="text-[12px] text-parish-muted">updated {daysAgo(h.updated_at)}</div>}
@@ -420,7 +421,7 @@ export default function Households() {
                   <Checkbox checked={selected.has(h.id)} onChange={() => toggleSelect(h.id)} aria-label={`Select ${h.household_name}`} className="mt-1.5" />
                   <button onClick={() => toggleExpand(h.id)} aria-expanded={!!expanded[h.id]} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-left min-w-0 flex-1">
                     <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
-                    <span className="block text-[12.5px] text-parish-text2 mt-0.5">{[h.head_name && `Head: ${h.head_name}`, `${h.member_count} member(s)`].filter(Boolean).join(' · ')}</span>
+                    <span className="block text-[12.5px] text-parish-text2 mt-0.5">{[h.head_name && `Head: ${h.head_name}`, `${h.member_count} member(s)`, h.family_count > 1 && `${h.family_count} families`].filter(Boolean).join(' · ')}</span>
                     <MatchedMembers household={h} search={debouncedSearch} />
                     <span className="block text-[12px] text-parish-muted mt-0.5">{[h.gkk, `registered ${daysAgo(h.created_at)}`].filter(Boolean).join(' · ')}</span>
                   </button>
@@ -504,8 +505,7 @@ function MemberList({ members, onOpen }) {
   if (!members) return <LoadingState label="Loading members…" compact />;
   if (!members.length) return <div className="text-[13px] text-parish-muted">No members yet.</div>;
   return (
-    <div className="flex flex-col gap-2">
-      {members.map((m) => (
+    <ByFamily members={members} groupGap="gap-4" render={(m) => (
         <button key={m.id} onClick={() => onOpen(m.id)} className="flex items-center gap-3 px-3.5 py-2.5 bg-parish-card border border-parish-line2 rounded-xl text-left hover:border-parish-focusLine focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue flex-wrap">
           <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12px] flex-none" aria-hidden>
             {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
@@ -516,8 +516,7 @@ function MemberList({ members, onOpen }) {
           </div>
           <MemberBadges member={m} />
         </button>
-      ))}
-    </div>
+    )} />
   );
 }
 

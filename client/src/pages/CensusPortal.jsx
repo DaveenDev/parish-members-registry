@@ -3,7 +3,8 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { api } from '../api.js';
 import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GhostButton, Spinner, FlagEmptyRequired } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
-import { HEAD, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
+import { HEADS, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
+import { familiesOf, familyHeadName } from '../lib/household.js';
 import { bis, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParticipation, isYoungChild, YOUNG_CHILD_MAX_AGE, portalPayload, formatAccessCode, codeFromHash } from '../lib/census.js';
@@ -11,10 +12,16 @@ import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParti
 const BG = { background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' };
 const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(min(180px,100%),1fr))' };
 const SACRAMENTS_SHORT = [['has_baptism', 'Bunyag'], ['has_communion', 'Komunyon'], ['has_confirmation', 'Kumpirma'], ['has_matrimony', 'Kasal']];
-const NEW_RELATIONSHIPS = RELATIONSHIPS.filter((r) => r !== HEAD);
+// Nobody becomes, or stops being, a family head online (0054): staff do that.
+const NEW_RELATIONSHIPS = RELATIONSHIPS.filter((r) => !HEADS.includes(r));
 
-function blankNewMember(lastName = '') {
-  return { first_name: '', middle_name: '', last_name: lastName, suffix: '', relationship: '', sex: '', dob: '', civil_status: '', contact: '', status: '', participation: {}, notes: '', statusPicked: false };
+function blankNewMember(lastName = '', familyNo = 1) {
+  return { family_no: familyNo, first_name: '', middle_name: '', last_name: lastName, suffix: '', relationship: '', sex: '', dob: '', civil_status: '', contact: '', status: '', participation: {}, notes: '', statusPicked: false };
+}
+
+/** "Pamilya ni Pedro Dela Cruz": what a family in the house is called. */
+function familyLabel(group) {
+  return `Pamilya ni ${familyHeadName(group?.head) || (group?.familyNo === 1 ? 'Ulo sa Panimalay' : `#${group?.familyNo}`)}`;
 }
 
 /** A new-member card the family has started filling in (an untouched one is ignored). */
@@ -42,6 +49,7 @@ function formFrom(data) {
     newMembers: (data.newMembers || []).map((m) => childDefaults({
       ...blankNewMember(),
       ...text(m.fields || {}, ['first_name', 'middle_name', 'last_name', 'suffix', 'relationship', 'sex', 'dob', 'civil_status', 'contact']),
+      family_no: Number(m.fields?.family_no) || 1,
       status: m.status || '',
       participation: m.participation || {},
       notes: asText(m.notes),
@@ -219,7 +227,10 @@ export default function CensusPortal() {
     rows[i] = 'dob' in patch || patch.status === '' ? childDefaults(next) : next;
     return { ...f, [list]: rows };
   });
-  const head = form.members.find((m) => m.relationship === HEAD);
+  // Families in the house (0054), from the members on record.
+  const families = familiesOf(form.members);
+  const severalFamilies = families.length > 1;
+  const headOf = (familyNo) => families.find((g) => g.familyNo === familyNo)?.head;
 
   return (
     <FlagEmptyRequired.Provider value>
@@ -260,9 +271,17 @@ export default function CensusPortal() {
         </Section>
 
         <Section title={`Mga miyembro (${form.members.length})`}>
-          <div className="flex flex-col gap-4">
-            {form.members.map((m, i) => (
-              <MemberCard key={m.id} member={m} showStatusError={showStatusErrors} onChange={(patch) => updateList('members', i, patch)} />
+          <div className="flex flex-col gap-6">
+            {families.map((g) => (
+              <section key={g.familyNo}>
+                {severalFamilies && <div className="font-bold text-[12px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase mb-2.5">{familyLabel(g)}</div>}
+                <div className="flex flex-col gap-4">
+                  {g.members.map((m, k) => {
+                    const i = g.indexes[k];
+                    return <MemberCard key={m.id} member={m} showStatusError={showStatusErrors} onChange={(patch) => updateList('members', i, patch)} />;
+                  })}
+                </div>
+              </section>
             ))}
           </div>
         </Section>
@@ -275,6 +294,7 @@ export default function CensusPortal() {
                 key={i}
                 member={m}
                 isNew
+                families={severalFamilies ? families : null}
                 showStatusError={showStatusErrors && isFilledNew(m)}
                 onChange={(patch) => updateList('newMembers', i, patch)}
                 onRemove={() => setForm((f) => ({ ...f, newMembers: f.newMembers.filter((_, j) => j !== i) }))}
@@ -284,7 +304,7 @@ export default function CensusPortal() {
           {form.newMembers.length < 10 && (
             <button
               type="button"
-              onClick={() => setForm((f) => ({ ...f, newMembers: [...f.newMembers, blankNewMember(head?.last_name || '')] }))}
+              onClick={() => setForm((f) => ({ ...f, newMembers: [...f.newMembers, blankNewMember(headOf(1)?.last_name || '')] }))}
               className="mt-3 w-full appearance-none cursor-pointer py-3.5 font-bold text-[15px] text-parish-blue bg-white border-[1.5px] border-dashed border-[#b9c6de] rounded-xl hover:bg-[#f4f7fc]"
             >
               + Idugang ang bag-ong miyembro
@@ -334,7 +354,7 @@ function Section({ title, children }) {
   );
 }
 
-function MemberCard({ member: m, isNew = false, showStatusError = false, onChange, onRemove }) {
+function MemberCard({ member: m, isNew = false, families = null, showStatusError = false, onChange, onRemove }) {
   // Names, birthdays and the like rarely change: existing members keep them
   // folded away and open them only to correct a mistake.
   const [editing, setEditing] = useState(isNew);
@@ -342,7 +362,9 @@ function MemberCard({ member: m, isNew = false, showStatusError = false, onChang
   const tidy = (k, format = toNameCase) => (e) => onChange({ [k]: format(e.target.value) });
   const suggestion = suggestStatus(m.participation);
   const name = [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Bag-ong miyembro';
-  const relationships = isNew ? NEW_RELATIONSHIPS : RELATIONSHIPS;
+  // A family head stays one; anyone else can't be made one here.
+  const isHead = !isNew && HEADS.includes(m.relationship);
+  const relationships = isHead ? [m.relationship] : NEW_RELATIONSHIPS;
   // Young children count as Aktibo, and someone inactive, moved, deceased or
   // gone has no participation to answer.
   const child = isYoungChild(m.dob);
@@ -430,9 +452,19 @@ function MemberCard({ member: m, isNew = false, showStatusError = false, onChang
           <Field label="Tunga nga apelyido"><TextInput value={m.middle_name} onChange={set('middle_name')} onBlur={tidy('middle_name')} /></Field>
           <Field label="Apelyido" required={isNew}><TextInput value={m.last_name} onChange={set('last_name')} onBlur={tidy('last_name')} /></Field>
           <Field label="Suffix"><TextInput value={m.suffix} placeholder="Jr., Sr., III" onChange={set('suffix')} onBlur={tidy('suffix', toSuffixCase)} /></Field>
-          <Field label="Relasyon" required={isNew}>
-            <Select value={m.relationship} onChange={set('relationship')}>
-              <option value="">Pili…</option>{relationships.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
+          {isNew && families && (
+            <Field label="Pamilya">
+              <Select value={String(m.family_no || 1)} onChange={(e) => onChange({ family_no: Number(e.target.value) })}>
+                {families.map((g) => <option key={g.familyNo} value={String(g.familyNo)}>{familyLabel(g)}</option>)}
+              </Select>
+            </Field>
+          )}
+          <Field label={families || (!isNew && (m.family_no || 1) > 1) ? 'Relasyon sa ulo sa iyang pamilya' : 'Relasyon'} required={isNew}>
+            <Select value={m.relationship} onChange={set('relationship')} disabled={isHead}>
+              {!isHead && <option value="">Pili…</option>}
+              {/* Keep an unusual value on record selectable. */}
+              {!isHead && m.relationship && !relationships.includes(m.relationship) && <option value={m.relationship}>{bis(RELATIONSHIP_LABELS, m.relationship)}</option>}
+              {relationships.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
             </Select>
           </Field>
           <Field label="Sekso">

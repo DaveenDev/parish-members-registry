@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName } from '../src/lib/reports.js';
+import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows } from '../src/lib/reports.js';
 
 describe('sacramentProgressRows', () => {
   test('counts claims and verifications per GKK, with No GKK last', () => {
@@ -51,4 +51,20 @@ test('registrationsByMonth groups by month, oldest first', () => {
     { month: '2026-03', households: 2, members: 7, verified: 1 },
   ]);
   assert.equal(monthName('2026-03'), 'March 2026');
+});
+
+describe('familiesByGkkRows', () => {
+  test('counts households, families and houses with 2+ families per GKK, with No GKK last', () => {
+    const rows = familiesByGkkRows([
+      { gkk: 'GKK B', family_count: 2, member_count: 7 },
+      { gkk: 'GKK B', family_count: 1, member_count: 3 },
+      { gkk: null, family_count: null, member_count: 2 },
+      { gkk: 'GKK A', family_count: 3, member_count: 9 },
+    ]);
+    assert.deepEqual(rows.map((r) => [r.label, r.households, r.families, r.multi, r.members]), [
+      ['GKK A', 1, 3, 1, 9],
+      ['GKK B', 2, 3, 1, 10],
+      ['No GKK', 1, 1, 0, 2],
+    ]);
+  });
 });

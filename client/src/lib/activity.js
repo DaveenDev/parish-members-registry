@@ -9,7 +9,7 @@ const FIELD_LABELS = {
   first_name: 'First name', middle_name: 'Middle name', last_name: 'Last name', suffix: 'Suffix', relationship: 'Relationship',
   sex: 'Sex', dob: 'Date of birth', place_of_birth: 'Place of birth', civil_status: 'Civil status', occupation: 'Occupation',
   religion: 'Religion', blood_type: 'Blood type', tribe: 'Tribe', gkk_role: 'GKK role', parish_role: 'Parish role',
-  ministries: 'Ministries', organizations: 'Organizations', membership_status: 'Membership status', household_id: 'Household',
+  ministries: 'Ministries', organizations: 'Organizations', membership_status: 'Membership status', household_id: 'Household', family_no: 'Family',
   has_baptism: 'Baptized', baptism_date: 'Baptism date', baptism_church: 'Baptism church',
   has_communion: 'First Communion', communion_date: 'First Communion date', communion_church: 'First Communion church',
   has_confirmation: 'Confirmed', conf_date: 'Confirmation date', conf_church: 'Confirmation church', conf_name: 'Confirmation name', conf_sponsor: 'Confirmation sponsor',

@@ -3,12 +3,12 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useDebounced } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
-import { syncSpouses, weddingPartners, toPayloadMember, WEDDING_FIELDS } from '../lib/household.js';
+import { syncSpouses, weddingCouples, toPayloadMember, WEDDING_FIELDS, familiesOf, familyNoOf, nextFamilyNo, familyHeadName } from '../lib/household.js';
 import {
-  bis, serverErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS,
+  bis, serverErrorInBisaya, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS,
 } from '../lib/bisaya.js';
 import {
-  blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
+  blankMember, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
   HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate,
 } from '../constants.js';
 import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect, FlagEmptyRequired } from '../components/ui.jsx';
@@ -20,7 +20,10 @@ import { gkkBarangays } from '../lib/site.js';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 
 const STEPS = ['Pamilya ug Ulo', 'Mga Miyembro', 'Mga Sakramento', 'Pag-apil', 'Pagsusi'];
-const MEMBER_RELATIONSHIPS = RELATIONSHIPS.filter((r) => r !== HEAD);
+const MEMBER_RELATIONSHIPS = RELATIONSHIPS.filter((r) => !HEADS.includes(r));
+// A family joining a registered house (0054) is sent as one family; the
+// server gives it its number, so in the form it's just "not family 1".
+const JOIN_FAMILY_NO = 2;
 
 function CrossLogo({ size = 82, className = '' }) {
   return (
@@ -30,6 +33,12 @@ function CrossLogo({ size = 82, className = '' }) {
       <path d="M40 46v18M31 55h18" />
     </svg>
   );
+}
+
+/** Why a house's reference number and code weren't accepted, in Bisaya. */
+function joinErrorInBisaya(code) {
+  if (code === 'locked') return portalErrorInBisaya('locked');
+  return 'Sayop ang reference number o ang code sa balay. Pangayoa kini sa ulo sa panimalay o sa opisina sa parokya.';
 }
 
 function top() {
@@ -47,6 +56,21 @@ const EMPTY_HOUSEHOLD = {
 
 function blankHead() {
   return { ...blankMember(), relationship: HEAD };
+}
+
+const EMPTY_JOIN = { refNo: '', code: '', house: null };
+
+/**
+ * The members for the other mode: a new house's first family becomes the
+ * family joining a house (its head the Head of Family), or back. Other
+ * families of a new house are left out of a joining family.
+ */
+function membersForMode(members, mode) {
+  if (mode === 'join') {
+    return members.filter((m) => familyNoOf(m) === 1)
+      .map((m) => ({ ...m, familyNo: JOIN_FAMILY_NO, relationship: m.relationship === HEAD ? FAMILY_HEAD : m.relationship }));
+  }
+  return members.map((m, i) => ({ ...m, familyNo: 1, relationship: i === 0 ? HEAD : m.relationship }));
 }
 
 function fullName(m) {
@@ -73,7 +97,7 @@ function loadDraft() {
     if (!raw) return null;
     const draft = JSON.parse(raw);
     if (!draft || typeof draft !== 'object' || !Array.isArray(draft.members) || !draft.members.length) return null;
-    if (draft.members[0].relationship !== HEAD) return null;
+    if (!HEADS.includes(draft.members[0].relationship)) return null;
     return draft;
   } catch {
     return null;
@@ -95,7 +119,16 @@ export default function RegistrationApp() {
     ? { ...EMPTY_HOUSEHOLD, ...draft.household, ...(params.get('gkk') ? { gkk: params.get('gkk') } : {}) }
     : { ...EMPTY_HOUSEHOLD, gkk: params.get('gkk') || '' });
   const [householdNameTouched, setHouseholdNameTouched] = useState(!!draft?.householdNameTouched);
-  const [members, setMembers] = useState(draft?.members || [blankHead()]);
+  // 'new': a new house; 'join': a family living in a house that is already
+  // registered (its reference number and access code, 0054).
+  const [mode, setModeState] = useState(draft?.mode === 'join' || (!draft && params.get('join')) ? 'join' : 'new');
+  const [join, setJoin] = useState(draft?.join ? { ...EMPTY_JOIN, ...draft.join } : { ...EMPTY_JOIN, refNo: params.get('ref') || '' });
+  const [joinStatus, setJoinStatus] = useState({ checking: false, error: '' });
+  const [members, setMembers] = useState(() => {
+    if (draft?.members) return draft.members;
+    return mode === 'join' ? membersForMode([blankHead()], 'join') : [blankHead()];
+  });
+  const [joined, setJoined] = useState(null); // { householdName } after a family joins a house
   const [gkkOptions, setGkkOptions] = useState([]);
   const [orgOptions, setOrgOptions] = useState([]);
   const [parishRoleOptions, setParishRoleOptions] = useState([]);
@@ -129,9 +162,12 @@ export default function RegistrationApp() {
   useEffect(() => {
     if (screen !== 'wizard') return;
     try {
-      localStorage.setItem(DRAFT_KEY, JSON.stringify({ step, household, householdNameTouched, members, volunteer, notifyOptin, consent }));
+      // The access code isn't kept (the phone may be shared); it's asked for again after a reload.
+      localStorage.setItem(DRAFT_KEY, JSON.stringify({
+        step, mode, join: { refNo: join.refNo }, household, householdNameTouched, members, volunteer, notifyOptin, consent,
+      }));
     } catch {}
-  }, [screen, step, household, householdNameTouched, members, volunteer, notifyOptin, consent]);
+  }, [screen, step, mode, join.refNo, household, householdNameTouched, members, volunteer, notifyOptin, consent]);
 
   useEffect(() => {
     api.listPublicGkks().then(setGkkOptions).catch(() => {});
@@ -219,15 +255,16 @@ export default function RegistrationApp() {
     setMembers((ms) => syncSpouses(ms.map((m, idx) => {
       if (idx !== i) return m;
       const next = { ...m, [field]: value };
-      if (i > 0 && field === 'relationship') next.civilFromHead = value === 'Spouse';
-      if (i > 0 && field === 'civilStatus') next.civilFromHead = false;
+      const isHead = HEADS.includes(m.relationship);
+      if (!isHead && field === 'relationship') next.civilFromHead = value === 'Spouse';
+      if (!isHead && field === 'civilStatus') next.civilFromHead = false;
       return next;
     }), WEDDING_FIELDS.includes(field) ? i : -1));
     // Picking "Spouse" may fill civil status in, so clear that error too.
     const cleared = field === 'relationship' ? [field, 'civilStatus'] : [field];
     setMemberErr((me) => me.map((e, idx) => (idx === i && e ? { ...e, ...Object.fromEntries(cleared.map((f) => [f, ''])) } : e)));
     setBanner('');
-    if (i === 0 && field === 'lastName' && !householdNameTouched) {
+    if (mode === 'new' && i === 0 && field === 'lastName' && !householdNameTouched) {
       const last = toNameCase(value);
       setHousehold((h) => ({ ...h, householdName: last ? `${last} Family` : '' }));
       setErr((e) => ({ ...e, householdName: '' }));
@@ -243,16 +280,70 @@ export default function RegistrationApp() {
       })
     );
   }
-  function addMember() {
-    // Most members share the head's surname, so start with it (still editable).
-    setMembers((ms) => [...ms, { ...blankMember(), lastName: toNameCase(ms[0]?.lastName) }]);
+  /** Add a member to family `familyNo` (the first family, or the joining one, by default). */
+  function addMember(familyNo = mode === 'join' ? JOIN_FAMILY_NO : 1) {
+    // Most members share their family head's surname, so start with it (still editable).
+    setMembers((ms) => {
+      const head = familiesOf(ms).find((g) => g.familyNo === familyNo)?.head || ms[0];
+      return [...ms, { ...blankMember(), familyNo, lastName: toNameCase(head?.lastName) }];
+    });
     showToast('Nadugang ang miyembro', 'ok');
   }
+  /** Another family living in the same house, starting with its Head of Family. */
+  function addFamily() {
+    setMembers((ms) => {
+      const familyNo = nextFamilyNo(ms);
+      if (familyNo > MAX_FAMILIES) return ms;
+      return [...ms, { ...blankMember(), familyNo, relationship: FAMILY_HEAD }];
+    });
+    showToast('Nadugang ang laing pamilya', 'ok');
+  }
   function removeMember(i) {
-    if (i === 0) return; // the Household Head is required
-    setMembers((ms) => ms.filter((_, idx) => idx !== i));
-    setMemberErr((me) => me.filter((_, idx) => idx !== i));
-    showToast('Natangtang ang miyembro', 'ok');
+    const m = members[i];
+    if (i === 0 || !m) return; // the first family's head is required
+    // Removing a Head of Family removes their family with them.
+    const familyNo = familyNoOf(m);
+    const drop = m.relationship === FAMILY_HEAD ? members.flatMap((x, idx) => (familyNoOf(x) === familyNo ? [idx] : [])) : [i];
+    if (drop.length > 1 && !window.confirm(`Tangtangon ang pamilya ni ${familyHeadName(m) || 'kini nga ulo'} (${drop.length} ka tawo)?`)) return;
+    setMembers((ms) => ms.filter((_, idx) => !drop.includes(idx)));
+    setMemberErr((me) => me.filter((_, idx) => !drop.includes(idx)));
+    showToast(drop.length > 1 ? 'Natangtang ang pamilya' : 'Natangtang ang miyembro', 'ok');
+  }
+
+  /** Switch between registering a new house and joining a registered one. */
+  function setMode(next) {
+    if (next === mode) return;
+    if (next === 'join' && members.some((m) => familyNoOf(m) !== 1)
+      && !window.confirm('Ang ubang pamilya nga inyong gidugang dili maapil. Padayon?')) return;
+    setModeState(next);
+    setMembers((ms) => membersForMode(ms, next));
+    setMemberErr([]); setErr({}); setBanner('');
+  }
+  function updateJoin(field, value) {
+    if (join[field] === value) return; // e.g. the code tidied on blur, already tidy
+    setJoin((j) => ({ ...j, [field]: value, house: null }));
+    setJoinStatus({ checking: false, error: '' });
+    setErr((e) => ({ ...e, join: '' }));
+  }
+  /** Check the house's reference number and code; on success, show which house it is. */
+  async function checkJoin() {
+    if (!join.refNo.trim() || !join.code.trim()) {
+      setJoinStatus({ checking: false, error: 'Isulat ang reference number ug ang code sa balay.' });
+      return;
+    }
+    setJoinStatus({ checking: true, error: '' });
+    try {
+      const res = await api.familyJoinCheck(join.refNo.trim(), join.code.trim());
+      if (res?.ok) {
+        setJoin((j) => ({ ...j, house: { householdName: res.householdName, refNo: res.refNo, gkk: res.gkk, families: res.families } }));
+        setJoinStatus({ checking: false, error: '' });
+        setErr((e) => ({ ...e, join: '' }));
+      } else {
+        setJoinStatus({ checking: false, error: joinErrorInBisaya(res?.error) });
+      }
+    } catch (e) {
+      setJoinStatus({ checking: false, error: /failed to fetch|network/i.test(e.message || '') ? portalErrorInBisaya(e.message) : 'Dili masusi karon. Palihug sulayi pag-usab.' });
+    }
   }
 
   function memberErrors(m, { head = false } = {}) {
@@ -267,6 +358,12 @@ export default function RegistrationApp() {
   function validate(currentStep) {
     const e = {};
     const me = [];
+    if (currentStep === 1 && mode === 'join') {
+      if (!join.house) e.join = 'Isulat ug susiha una ang reference number ug code sa balay.';
+      me[0] = memberErrors(members[0], { head: true });
+      const ok = Object.keys(e).length === 0 && Object.keys(me[0]).length === 0;
+      return { ok, err: e, memberErr: me, banner: ok ? '' : 'Palihug kompletoha ang mga gimarkahan nga detalye sa balay ug sa ulo sa pamilya.' };
+    }
     if (currentStep === 1) {
       const req = { householdName: 'Kinahanglan ang ngalan sa pamilya', street: 'Kinahanglan ang dalan', barangay: 'Kinahanglan ang barangay', city: 'Kinahanglan ang siyudad / lungsod', province: 'Kinahanglan ang probinsya', zip: 'Kinahanglan ang ZIP code', familyGrouping: 'Kinahanglan ang Family Grouping' };
       // Only ask for the GKK when the list loaded, so nobody is stuck if it didn't.
@@ -281,7 +378,7 @@ export default function RegistrationApp() {
       let ok = true;
       members.forEach((m, i) => {
         if (i === 0) return;
-        me[i] = memberErrors(m);
+        me[i] = memberErrors(m, { head: HEADS.includes(m.relationship) });
         if (Object.keys(me[i]).length) ok = false;
       });
       return { ok, err: e, memberErr: me, banner: ok ? '' : 'Palihug kompletoha ang gikinahanglan nga detalye sa mga miyembro.' };
@@ -295,7 +392,7 @@ export default function RegistrationApp() {
 
   async function next() {
     let v = validate(step);
-    if (v.ok && step === 1 && (await confirmNameStatus()) === 'taken') {
+    if (v.ok && step === 1 && mode === 'new' && (await confirmNameStatus()) === 'taken') {
       const banner = 'Narehistro na kana nga ngalan sa pamilya. Pindota ang “Usba” aron mopili og lain.';
       v = { ok: false, err: { householdName: `Narehistro na ang “${trimmedName}”` }, memberErr: [], banner };
     }
@@ -315,15 +412,32 @@ export default function RegistrationApp() {
 
   function openConfirm() {
     if (!consent) { showToast('Palihug ihatag ang pagtugot sa data privacy aron makapadala', 'error'); setStep(4); top(); return; }
+    if (mode === 'join' && !join.house) { showToast('Susiha una ang reference number ug code sa balay', 'error'); setStep(1); top(); return; }
     setConfirmOpen(true);
   }
 
   async function submit() {
     setSubmitting(true); setConfirmOpen(false);
     try {
-      const res = await api.submitRegistration({ household, members: members.map(toPayloadMember), volunteer, notifyOptin, consent });
-      setRefNo(res.refNo);
-      setAccessCode(res.accessCode || '');
+      if (mode === 'join') {
+        const res = await api.submitFamilyRegistration({ refNo: join.refNo.trim(), code: join.code.trim(), members: members.map(toPayloadMember), consent });
+        if (!res?.ok) {
+          // The code changed or was locked since it was checked: ask for it again.
+          setJoin((j) => ({ ...j, house: null }));
+          setJoinStatus({ checking: false, error: joinErrorInBisaya(res?.error) });
+          showToast(joinErrorInBisaya(res?.error), 'error');
+          setStep(1); top();
+          return;
+        }
+        setRefNo(res.refNo);
+        setAccessCode('');
+        setJoined({ householdName: res.householdName });
+      } else {
+        const res = await api.submitRegistration({ household, members: members.map(toPayloadMember), volunteer, notifyOptin, consent });
+        setRefNo(res.refNo);
+        setAccessCode(res.accessCode || '');
+        setJoined(null);
+      }
       clearDraft();
       setScreen('done');
       top();
@@ -337,6 +451,7 @@ export default function RegistrationApp() {
   function restart() {
     clearDraft();
     setScreen('wizard'); setStep(1);
+    setModeState('new'); setJoin(EMPTY_JOIN); setJoinStatus({ checking: false, error: '' }); setJoined(null);
     setHousehold(EMPTY_HOUSEHOLD); setHouseholdNameTouched(false);
     setMembers([blankHead()]); setVolunteer(''); setNotifyOptin(false); setConsent(false);
     setErr({}); setMemberErr([]); setBanner(''); setRefNo('');
@@ -345,7 +460,8 @@ export default function RegistrationApp() {
 
   const memberViews = members.map((m, i) => ({
     ...m, mi: i,
-    displayName: [m.firstName, m.lastName, m.suffix].filter(Boolean).join(' ') || (i === 0 ? 'Ulo sa Pamilya' : `Miyembro ${i + 1}`),
+    displayName: [m.firstName, m.lastName, m.suffix].filter(Boolean).join(' ')
+      || (HEADS.includes(m.relationship) ? bis(RELATIONSHIP_LABELS, m.relationship) : `Miyembro ${i + 1}`),
     err: memberErr[i] || {},
   }));
 
@@ -361,7 +477,8 @@ export default function RegistrationApp() {
           memberViews={memberViews} onMemberField={updateMember}
           orgOptions={orgOptions} onToggleOrganization={toggleOrganization}
           parishRoleOptions={parishRoleOptions}
-          onAddMember={addMember} onRemoveMember={removeMember}
+          onAddMember={addMember} onRemoveMember={removeMember} onAddFamily={addFamily}
+          mode={mode} onMode={setMode} join={join} joinStatus={joinStatus} onJoinField={updateJoin} onCheckJoin={checkJoin}
           volunteer={volunteer} setVolunteer={(v) => { setVolunteer(v); setBanner(''); }}
           notifyOptin={notifyOptin} setNotifyOptin={setNotifyOptin}
           consent={consent} setConsent={setConsent} consentMissing={!consent && !!banner}
@@ -369,7 +486,7 @@ export default function RegistrationApp() {
           submitting={submitting} onOpenConfirm={openConfirm}
         />
       )}
-      {screen === 'done' && <Confirmation refNo={refNo} accessCode={accessCode} householdName={household.householdName} onRestart={restart} />}
+      {screen === 'done' && <Confirmation refNo={refNo} accessCode={accessCode} householdName={joined ? joined.householdName : household.householdName} joined={!!joined} onRestart={restart} />}
 
       {confirmOpen && (
         <ConfirmModal
@@ -474,7 +591,7 @@ function useIsTouch() {
   return on;
 }
 
-function Confirmation({ refNo, accessCode, householdName, onRestart }) {
+function Confirmation({ refNo, accessCode, householdName, joined = false, onRestart }) {
   const isTouch = useIsTouch();
   const [copied, setCopied] = useState(false);
   const code = accessCode ? formatAccessCode(accessCode) : '';
@@ -497,10 +614,12 @@ function Confirmation({ refNo, accessCode, householdName, onRestart }) {
         </div>
         <h1 className="font-serif font-semibold text-[clamp(32px,7vw,46px)] leading-tight m-0 mb-2.5 text-parish-navy">Maayong pag-abot sa pamilya!</h1>
         <p className="text-[16.5px] leading-relaxed text-parish-text2 mb-[26px]">
-          Narehistro na ang inyong pamilya sa <strong>Our Lady of Guadalupe Quasi-Parish, Mua-an</strong>. Susihon ug pamatud-an sa among kawani sa parokya ang inyong mga detalye sa dili madugay.
+          {joined
+            ? <>Nadugang na ang inyong pamilya sa balay sa <strong>{householdName}</strong> sa <strong>Our Lady of Guadalupe Quasi-Parish, Mua-an</strong>. Susihon ug pamatud-an sa among kawani sa parokya ang inyong mga detalye sa dili madugay.</>
+            : <>Narehistro na ang inyong pamilya sa <strong>Our Lady of Guadalupe Quasi-Parish, Mua-an</strong>. Susihon ug pamatud-an sa among kawani sa parokya ang inyong mga detalye sa dili madugay.</>}
         </p>
         <Card className="p-[clamp(18px,5vw,26px)] mb-[26px]">
-          <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[var(--p-gold-deep)] mb-2">Inyong Reference Number</div>
+          <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[var(--p-gold-deep)] mb-2">{joined ? 'Reference Number sa Balay' : 'Inyong Reference Number'}</div>
           {/* Sized to the screen so "MEO-2026-0001" stays on one line on small phones. */}
           <div className="font-serif font-semibold text-[clamp(20px,6.8vw,36px)] tracking-[.06em] text-parish-blue whitespace-nowrap">{refNo}</div>
           {code && (
@@ -681,9 +800,85 @@ function HouseholdNameField({ value, error, status, suggestion, onChange }) {
   );
 }
 
-function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, onParticipation, onToggleHelpWay, nameStatus, nameSuggestion }) {
+/** New house, or a family joining a house that's already registered. */
+function ModeChooser({ mode, onMode }) {
+  const options = [
+    ['new', 'Bag-ong panimalay', 'Unang rehistro sa among balay.'],
+    ['join', 'Moipon sa narehistro nang balay', 'Laing pamilya nga nagpuyo sa balay nga narehistro na.'],
+  ];
+  return (
+    <div role="radiogroup" aria-label="Unsa ang inyong irehistro?" className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(220px,1fr))' }}>
+      {options.map(([value, title, note]) => {
+        const checked = mode === value;
+        return (
+          <label
+            key={value}
+            className="cursor-pointer select-none rounded-2xl border-[1.5px] px-4 py-3.5 transition focus-within:ring-2 focus-within:ring-parish-blue/30"
+            style={{ borderColor: checked ? 'var(--p-blue)' : '#e0d6c1', background: checked ? 'var(--p-blue-tint)' : '#fff' }}
+          >
+            <input type="radio" name="registration-mode" value={value} checked={checked} onChange={() => onMode(value)} className="sr-only" />
+            <span className="block font-semibold text-[15.5px] text-parish-navy">{checked ? '● ' : '○ '}{title}</span>
+            <span className="block text-[13px] text-parish-muted mt-0.5">{note}</span>
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+/** The house a family is joining: its reference number and access code, checked. */
+function JoinHouseCard({ join, joinStatus, error, onJoinField, onCheckJoin }) {
+  const house = join.house;
+  return (
+    <Card className="p-[clamp(20px,4vw,32px)] mb-5">
+      <SectionTitle>Ang Balay nga Inyong Apilan</SectionTitle>
+      <p className="text-[13.5px] text-parish-muted -mt-2 mb-4">
+        Isulat ang reference number ug code sa balay. Makita kini sa kumpirmasyon o census form sa ulo sa panimalay, o pangayoa sa opisina sa parokya.
+      </p>
+      <div className="grid gap-4" style={GRID}>
+        <Field label="Reference number sa balay" required error={error}>
+          <TextInput placeholder="MEO-2026-0001" value={join.refNo} onChange={(e) => onJoinField('refNo', e.target.value.toUpperCase())} aria-invalid={error ? true : undefined} autoCapitalize="characters" />
+        </Field>
+        <Field label="Code sa balay" required>
+          <TextInput placeholder="XXXX-XXXX" value={join.code} onChange={(e) => onJoinField('code', e.target.value.toUpperCase())} onBlur={() => onJoinField('code', formatAccessCode(join.code))} onKeyDown={(e) => { if (e.key === 'Enter') onCheckJoin(); }} autoCapitalize="characters" autoComplete="off" />
+        </Field>
+      </div>
+      <div className="mt-3.5 flex flex-wrap items-center gap-3">
+        <GhostButton type="button" onClick={onCheckJoin} disabled={joinStatus.checking} className="px-5 py-2.5 text-[14px] !border-[#cdd7e8] !text-parish-blue bg-white">
+          {joinStatus.checking ? 'Gisusi…' : 'Susiha'}
+        </GhostButton>
+        {joinStatus.error && <span role="alert" className="text-[13.5px] text-parish-error font-semibold">{joinStatus.error}</span>}
+      </div>
+      {house && (
+        <div className="mt-4 rounded-xl border border-parish-okBorder bg-parish-okBg px-4 py-3 text-[14.5px] text-parish-ok">
+          ✓ <strong>{house.householdName}</strong> · {house.refNo}{house.gkk ? ` · ${house.gkk}` : ''}
+          <div className="text-[13px] mt-0.5">Ang inyong pamilya madugang niini nga balay isip laing pamilya.</div>
+        </div>
+      )}
+    </Card>
+  );
+}
+
+function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, onParticipation, onToggleHelpWay, nameStatus, nameSuggestion, mode, onMode, join, joinStatus, onJoinField, onCheckJoin }) {
   const f = (field) => ({ value: household[field], onChange: (e) => onHouseholdField(field, e.target.value) });
   const head = memberViews[0];
+  if (mode === 'join') {
+    return (
+      <div className="animate-fadeUp">
+        <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Pamilya ug Ulo sa Pamilya</h2>
+        <p className="text-parish-text2 text-[15.5px] mb-[22px]">Ang inyong pamilya nagpuyo sa balay nga narehistro na. Ang puy-anan ug GKK sa balay ang gamiton.</p>
+        <ModeChooser mode={mode} onMode={onMode} />
+        <JoinHouseCard join={join} joinStatus={joinStatus} error={err.join} onJoinField={onJoinField} onCheckJoin={onCheckJoin} />
+        <Card className="p-[clamp(20px,4vw,32px)]">
+          <SectionTitle>Ulo sa Pamilya</SectionTitle>
+          <MemberNameFields mv={head} onField={onMemberField} />
+          <div className="mt-[18px]">
+            <MemberFieldsGrid mv={head} onField={onMemberField} head />
+          </div>
+        </Card>
+      </div>
+    );
+  }
   // Keep a GKK saved in an older draft selectable even if it's no longer in the list.
   const gkks = household.gkk && !gkkOptions.includes(household.gkk) ? [household.gkk, ...gkkOptions] : gkkOptions;
   // Barangays come from the GKK names; likewise keep an older draft's barangay selectable.
@@ -692,10 +887,11 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Pamilya ug Ulo sa Pamilya</h2>
-      <p className="text-parish-text2 text-[15.5px] mb-[26px]">Sugdan nato sa ulo sa inyong pamilya, sa inyong puy-anan, ug kung unsaon pagkontak sa parokya kaninyo.</p>
+      <p className="text-parish-text2 text-[15.5px] mb-[22px]">Sugdan nato sa ulo sa inyong pamilya, sa inyong puy-anan, ug kung unsaon pagkontak sa parokya kaninyo.</p>
+      <ModeChooser mode={mode} onMode={onMode} />
 
       <Card className="p-[clamp(20px,4vw,32px)] mb-5">
-        <SectionTitle>Ulo sa Pamilya</SectionTitle>
+        <SectionTitle>Ulo sa Panimalay</SectionTitle>
         <MemberNameFields mv={head} onField={onMemberField} />
         <div className="mt-[18px]">
           <HouseholdNameField
@@ -834,9 +1030,73 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
   );
 }
 
-function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }) {
+/** "Pamilya ni Pedro Dela Cruz", the heading over one family's members. */
+function FamilyHeading({ group, className = 'mb-3' }) {
+  const name = familyHeadName(group.head) || bis(RELATIONSHIP_LABELS, group.familyNo === 1 ? HEAD : FAMILY_HEAD);
+  return (
+    <div className={`flex items-center gap-2.5 ${className}`}>
+      <span className="font-bold text-[12px] text-[var(--p-gold-deep)] tracking-[.12em] uppercase">Pamilya ni {name}</span>
+      <span className="flex-1 h-px bg-[#e7dcc4]" />
+    </div>
+  );
+}
+
+/**
+ * Member views family by family, each under its heading, when the house has
+ * more than one family; just the members otherwise. `render(mv, i)` draws one.
+ */
+function ByFamily({ memberViews, render, gap = 'gap-5' }) {
+  const groups = familiesOf(memberViews);
+  if (groups.length < 2) return <div className={`flex flex-col ${gap}`}>{memberViews.map(render)}</div>;
+  return (
+    <div className="flex flex-col gap-7">
+      {groups.map((g) => (
+        <section key={g.familyNo}>
+          <FamilyHeading group={g} />
+          <div className={`flex flex-col ${gap}`}>{g.members.map((mv) => render(mv, mv.mi))}</div>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+function MemberCard({ mv, onMemberField, onRemoveMember, removeLabel = 'Tangtangon', head = false }) {
+  return (
+    <Card className="p-[clamp(18px,4vw,28px)]">
+      <div className="flex items-center justify-between gap-3 mb-[18px]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-[34px] h-[34px] flex-none rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[15px]">{mv.mi + 1}</div>
+          <span className="min-w-0">
+            <span className="block font-serif text-[22px] font-semibold text-parish-navy truncate">{mv.displayName}</span>
+            {head && <span className="block text-[12.5px] font-semibold text-parish-muted">{bis(RELATIONSHIP_LABELS, mv.relationship)}</span>}
+          </span>
+        </div>
+        <button onClick={() => onRemoveMember(mv.mi)} className="flex-none border border-[#e7d5cf] bg-white text-parish-error cursor-pointer font-semibold text-[13.5px] px-3.5 py-2.5 rounded-lg">{removeLabel}</button>
+      </div>
+      <MemberNameFields mv={mv} onField={onMemberField} />
+      <div className="mt-4">
+        <MemberFieldsGrid mv={mv} onField={onMemberField} head={head} />
+      </div>
+    </Card>
+  );
+}
+
+function AddButton({ onClick, children, small = false }) {
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full appearance-none cursor-pointer font-bold text-parish-blue bg-white border-[1.5px] border-dashed border-[#b9c6de] flex items-center justify-center gap-2.5 hover:bg-[#f4f7fc] hover:border-parish-blue transition ${small ? 'py-3 text-[14.5px] rounded-xl' : 'py-4 text-[15.5px] rounded-2xl'}`}
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12h14" /></svg>
+      {children}
+    </button>
+  );
+}
+
+function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember, onAddFamily, mode }) {
   const head = memberViews[0];
-  const others = memberViews.slice(1);
+  const groups = familiesOf(memberViews);
+  const several = groups.length > 1;
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Mga Miyembro sa Pamilya</h2>
@@ -844,32 +1104,42 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }
       <div className="flex items-center gap-2.5 bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-xl px-4 py-3 mb-[22px] text-[#2b466f] text-[14px]">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="flex-none"><path d="M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 20v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11" /></svg>
         <span>
-          {others.length
-            ? <><strong>{memberViews.length}</strong> ka tawo na sa pamilya karon, apil ang ulo. Pindota ang <strong>“Idugang og Laing Miyembro”</strong> para sa matag tawo una mopadayon.</>
+          {memberViews.length > 1
+            ? <><strong>{memberViews.length}</strong> ka tawo na {several ? <>sa <strong>{groups.length}</strong> ka pamilya</> : 'sa pamilya'} karon, apil ang ulo. Pindota ang <strong>“Idugang og Laing Miyembro”</strong> para sa matag tawo una mopadayon.</>
             : <>Ang ulo pa lang sa pamilya ang nalista. Pindota ang <strong>“Idugang og Laing Miyembro”</strong> para sa matag tawo nga nagpuyo uban kaniya, o padayon kung nag-inusara ra siya.</>}
         </span>
       </div>
-      <div className="flex flex-col gap-5">
-        {others.map((mv) => (
-          <Card key={mv.mi} className="p-[clamp(18px,4vw,28px)]">
-            <div className="flex items-center justify-between gap-3 mb-[18px]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[15px]">{mv.mi + 1}</div>
-                <span className="font-serif text-[22px] font-semibold text-parish-navy">{mv.displayName}</span>
+      <div className="flex flex-col gap-7">
+        {groups.map((g) => {
+          // The first family's head (or a joining family's) was entered on step 1.
+          const shown = g.members.filter((mv) => mv.mi !== 0);
+          const headView = g.headIndex > 0 ? memberViews[g.headIndex] : null;
+          return (
+            <section key={g.familyNo}>
+              {several && <FamilyHeading group={g} />}
+              <div className="flex flex-col gap-5">
+                {shown.map((mv) => (
+                  <MemberCard
+                    key={mv.mi} mv={mv} onMemberField={onMemberField} onRemoveMember={onRemoveMember}
+                    head={mv === headView} removeLabel={mv === headView ? 'Tangtangon ang pamilya' : 'Tangtangon'}
+                  />
+                ))}
+                <AddButton onClick={() => onAddMember(g.familyNo)} small={several}>
+                  {several ? `Idugang og miyembro sa pamilya ni ${familyHeadName(g.head) || 'kini'}` : 'Idugang og Laing Miyembro'}
+                </AddButton>
               </div>
-              <button onClick={() => onRemoveMember(mv.mi)} className="border border-[#e7d5cf] bg-white text-parish-error cursor-pointer font-semibold text-[13.5px] px-3.5 py-2.5 rounded-lg">Tangtangon</button>
-            </div>
-            <MemberNameFields mv={mv} onField={onMemberField} />
-            <div className="mt-4">
-              <MemberFieldsGrid mv={mv} onField={onMemberField} />
-            </div>
-          </Card>
-        ))}
+            </section>
+          );
+        })}
       </div>
-      <button onClick={onAddMember} className="mt-5 w-full appearance-none cursor-pointer py-4 font-bold text-[15.5px] text-parish-blue bg-white border-[1.5px] border-dashed border-[#b9c6de] rounded-2xl flex items-center justify-center gap-2.5 hover:bg-[#f4f7fc] hover:border-parish-blue transition">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12h14" /></svg>
-        Idugang og Laing Miyembro
-      </button>
+      {mode === 'new' && groups.length < MAX_FAMILIES && (
+        <div className="mt-7 pt-5 border-t border-[#e7dcc4]">
+          <p className="text-[14px] text-parish-text2 mb-3">
+            Aduna bay <strong>laing pamilya</strong> nga nagpuyo sa samang balay (pananglitan, minyo nga anak uban sa iyang asawa ug mga anak)? Idugang sila isip laing pamilya uban sa ilang kaugalingong ulo.
+          </p>
+          <AddButton onClick={onAddFamily}>Idugang og laing pamilya niining balaya</AddButton>
+        </div>
+      )}
     </div>
   );
 }
@@ -896,15 +1166,16 @@ function SacramentBlock({ mv, field, dateField, churchField, label, extra, onFie
 }
 
 function StepSacraments({ memberViews, onMemberField }) {
-  // The head and a married Spouse share one wedding; each card names the other.
-  const partners = weddingPartners(memberViews);
-  const sharedWith = (i) => (i === 0 ? partners.map((idx) => memberViews[idx].displayName).join(' ug ') : partners.includes(i) ? memberViews[0].displayName : '');
+  // A family head and a married Spouse share one wedding; each card names the other.
+  const couples = weddingCouples(memberViews);
+  const sharedWith = (i) => (couples.get(i) || []).map((idx) => memberViews[idx].displayName).join(' ug ');
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Mga Sakramento</h2>
       <p className="text-parish-text2 text-[15.5px] mb-[26px]">I-tsek ang mga sakramento nga nadawat na sa matag miyembro. Dili kinahanglan ang mga detalye, apan makatabang kini sa among rekord.</p>
-      <div className="flex flex-col gap-5">
-        {memberViews.map((mv, i) => (
+      <ByFamily
+        memberViews={memberViews}
+        render={(mv, i) => (
           <Card key={i} className="p-[clamp(18px,4vw,28px)]">
             <div className="flex items-center gap-2.5 mb-4 pb-3.5 border-b border-[#f0e8d6]">
               <div className="w-8 h-8 rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[14px]">{i + 1}</div>
@@ -927,8 +1198,8 @@ function StepSacraments({ memberViews, onMemberField }) {
                 : <SacramentBlock mv={mv} field="hasMatrimony" dateField="matDate" churchField="matChurch" label="Kasal (Matrimony)" onField={onMemberField} />}
             </div>
           </Card>
-        ))}
-      </div>
+        )}
+      />
     </div>
   );
 }
@@ -979,7 +1250,9 @@ function WeddingBlock({ mv, sharedWith, onField }) {
   );
 }
 
-function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrganization, parishRoleOptions, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent, consentMissing = false }) {
+function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrganization, parishRoleOptions, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent, consentMissing = false, mode }) {
+  // Volunteering and the email list are asked of the house, when it registers.
+  const houseQuestions = mode !== 'join';
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Pag-apil sa Simbahan</h2>
@@ -1049,18 +1322,22 @@ function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrgani
         </Card>
       )}
       <Card className="p-[clamp(20px,4vw,32px)]">
-        <div className="mb-[22px]">
-          <Field label="Aduna bay sa pamilya nga andam mo-boluntaryo?">
-            <Select value={volunteer} onChange={(e) => setVolunteer(e.target.value)} className="max-w-[300px]">
-              <option value="">Pili…</option>
-              {Object.entries(VOLUNTEER_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-            </Select>
-          </Field>
-        </div>
-        <label className="flex items-start gap-3 cursor-pointer p-4 border border-[#eee3ce] rounded-xl bg-[#fdfbf6] mb-3.5">
-          <Checkbox checked={notifyOptin} onChange={(e) => setNotifyOptin(e.target.checked)} className="mt-0.5" />
-          <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">Ilakip kami sa email list sa parokya para sa iskedyul sa Misa, mga pista, ug mga pahibalo.</span>
-        </label>
+        {houseQuestions && (
+          <>
+            <div className="mb-[22px]">
+              <Field label="Aduna bay sa pamilya nga andam mo-boluntaryo?">
+                <Select value={volunteer} onChange={(e) => setVolunteer(e.target.value)} className="max-w-[300px]">
+                  <option value="">Pili…</option>
+                  {Object.entries(VOLUNTEER_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+                </Select>
+              </Field>
+            </div>
+            <label className="flex items-start gap-3 cursor-pointer p-4 border border-[#eee3ce] rounded-xl bg-[#fdfbf6] mb-3.5">
+              <Checkbox checked={notifyOptin} onChange={(e) => setNotifyOptin(e.target.checked)} className="mt-0.5" />
+              <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">Ilakip kami sa email list sa parokya para sa iskedyul sa Misa, mga pista, ug mga pahibalo.</span>
+            </label>
+          </>
+        )}
         {/* Red when it's what stops "Padayon"; aria-invalid lets the wizard scroll to it. */}
         <label
           className={`flex items-start gap-3 cursor-pointer p-4 rounded-xl border-[1.5px] transition ${consentMissing ? 'ring-4 ring-parish-error/20' : ''}`}
@@ -1076,20 +1353,31 @@ function StepEngagement({ memberViews, onMemberField, orgOptions, onToggleOrgani
   );
 }
 
-function StepReview({ household, memberViews, volunteer, notifyOptin, consent, onGoStep }) {
+function StepReview({ household, memberViews, volunteer, notifyOptin, consent, onGoStep, mode, join }) {
+  const joining = mode === 'join';
   const addr = [household.street, household.barangay, household.city, household.province, household.zip].filter(Boolean).join(', ') || '—';
-  const householdReview = [
-    ['Ulo sa pamilya', fullName(memberViews[0]) || '—'],
-    ['Ngalan sa pamilya', household.householdName || '—'],
-    ['Puy-anan', addr],
-    ['Nasakop sa unsa nga GKK', household.gkk || '—'],
-    ['Family Grouping', household.familyGrouping || '—'],
-    ['Kontak', household.contact || '—'],
-    ['Email', household.email || '—'],
-  ];
+  const householdReview = joining
+    ? [
+      ['Balay', join.house ? `${join.house.householdName} · ${join.house.refNo}` : 'Wala pa masusi'],
+      ['GKK', join.house?.gkk || '—'],
+      ['Ulo sa pamilya', fullName(memberViews[0]) || '—'],
+    ]
+    : [
+      ['Ulo sa panimalay', fullName(memberViews[0]) || '—'],
+      ['Ngalan sa pamilya', household.householdName || '—'],
+      ['Puy-anan', addr],
+      ['Nasakop sa unsa nga GKK', household.gkk || '—'],
+      ['Family Grouping', household.familyGrouping || '—'],
+      ['Kontak', household.contact || '—'],
+      ['Email', household.email || '—'],
+    ];
+  const families = familiesOf(memberViews).length;
+  if (!joining && families > 1) householdReview.splice(1, 0, ['Mga pamilya sa balay', String(families)]);
   const engReview = [
-    ['Boluntaryo', bis(VOLUNTEER_LABELS, volunteer) || '—'],
-    ['Email list', notifyOptin ? 'Miapil' : 'Wala miapil'],
+    ...(joining ? [] : [
+      ['Boluntaryo', bis(VOLUNTEER_LABELS, volunteer) || '—'],
+      ['Email list', notifyOptin ? 'Miapil' : 'Wala miapil'],
+    ]),
     ['Data privacy', consent ? 'Gitugotan' : 'Wala pa gitugoti'],
   ];
 
@@ -1113,12 +1401,12 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
 
       <ReviewCard title="Pamilya" onEdit={() => onGoStep(1)}>
         {householdReview.map(([label, value]) => <ReviewRow key={label} label={label} value={value} />)}
-        <ParticipationReview participation={household.participation} helpWays={household.helpWays} />
+        {!joining && <ParticipationReview participation={household.participation} helpWays={household.helpWays} />}
       </ReviewCard>
 
       <ReviewCard title={`Mga Miyembro (${memberViews.length})`} onEdit={() => onGoStep(2)}>
-        <div className="flex flex-col gap-4 mt-3">
-          {memberViews.map((m, i) => (
+        <div className="mt-3">
+          <ByFamily memberViews={memberViews} gap="gap-4" render={(m, i) => (
             <div key={i} className="border border-[#f0e8d6] rounded-2xl px-[18px] py-4 bg-[#fdfbf6]">
               <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{fullName(m) || m.displayName}</div>
               <div className="text-[13.5px] text-parish-muted mb-3">{[bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), bis(CIVIL_STATUS_LABELS, m.civilStatus), m.dob && `natawo ${fmtDate(m.dob)}`, m.tribe && `Tribu: ${m.tribe}`, m.bloodType && `Dugo: ${m.bloodType}`, m.gkkRole && `GKK: ${m.gkkRole}`, m.parishRole && `Parish: ${m.parishRole}`].filter(Boolean).join('  ·  ') || '—'}</div>
@@ -1134,7 +1422,7 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
                 ))}
               </div>
             </div>
-          ))}
+          )} />
         </div>
       </ReviewCard>
 

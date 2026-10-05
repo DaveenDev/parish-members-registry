@@ -6,6 +6,8 @@ import { formatAccessCode } from '../lib/census.js';
 import { CensusLinkBox } from './CensusPrintSheet.jsx';
 import { fmtDate, ageFromDob, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, HELP_WAYS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
+import { familiesOf } from '../lib/household.js';
+import { familyTitle } from './FamilyGroups.jsx';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
 
@@ -211,8 +213,15 @@ function HouseholdRecord({ data, parish }) {
         Members ({members.length})
       </h3>
 
-      {members.map((m, i) => (
-        <figure key={m.id} style={{ margin: '0 0 14px', border: '1px solid #ddd', borderRadius: 6, padding: '10px 12px' }}>
+      {familiesOf(members).flatMap((g, gi, groups) => g.members.map((m, k) => ({ m, g, first: k === 0 && groups.length > 1 })))
+        .map(({ m, g, first }, i) => (
+        <React.Fragment key={m.id}>
+        {first && (
+          <div style={{ fontWeight: 700, fontSize: 11, letterSpacing: '.08em', textTransform: 'uppercase', color: '#7a6a3e', margin: '10px 0 6px' }}>
+            {familyTitle(g)}
+          </div>
+        )}
+        <figure style={{ margin: '0 0 14px', border: '1px solid #ddd', borderRadius: 6, padding: '10px 12px' }}>
           <div style={{ fontWeight: 700, fontSize: 13, color: '#1a2b4a' }}>
             {i + 1}. {[m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ')}
           </div>
@@ -244,6 +253,7 @@ function HouseholdRecord({ data, parish }) {
             </tbody>
           </table>
         </figure>
+        </React.Fragment>
       ))}
 
       <footer style={{ marginTop: 24, paddingTop: 10, borderTop: '1px solid #ddd', fontSize: 10, color: '#8a836f' }}>

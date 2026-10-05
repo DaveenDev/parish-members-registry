@@ -166,6 +166,7 @@ describe('portalPayload', () => {
     assert.equal(payload.members[0].notes, null);
     assert.equal(payload.newMembers.length, 1);
     assert.equal(payload.newMembers[0].first_name, 'Baby');
+    assert.equal(payload.newMembers[0].family_no, 1, 'a new member joins the first family unless another is chosen');
     assert.equal(payload.message, null);
     assert.equal(payload.consent, true);
   });

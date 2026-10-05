@@ -6,7 +6,8 @@
 // see is translated, via these maps.
 
 export const RELATIONSHIP_LABELS = {
-  'Head of Household': 'Ulo sa Pamilya',
+  'Head of Household': 'Ulo sa Panimalay',
+  'Head of Family': 'Ulo sa Pamilya',
   Spouse: 'Asawa',
   Son: 'Anak nga Lalaki',
   Daughter: 'Anak nga Babaye',
@@ -66,8 +67,11 @@ const SERVER_ERRORS = [
   [/already registered/i, 'Narehistro na kini nga ngalan sa pamilya. Palihug pilia og laing ngalan.'],
   [/select a GKK/i, 'Palihug pilia ang inyong GKK gikan sa listahan.'],
   [/consent/i, 'Kinahanglan ang inyong pagtugot sa data privacy.'],
-  [/at most 30/i, 'Hangtod 30 ka miyembro lamang ang usa ka pamilya.'],
-  [/Household Head/i, 'Kinahanglan adunay usa ka Ulo sa Pamilya.'],
+  [/at most 30/i, 'Hangtod 30 ka miyembro lamang ang usa ka panimalay.'],
+  [/at most 10 families/i, 'Hangtod 10 ka pamilya lamang ang usa ka panimalay.'],
+  [/already has its Household Head/i, 'Aduna nay Ulo sa Panimalay kining balaya. Ang ulo sa inyong pamilya kay "Ulo sa Pamilya".'],
+  [/Head of Family/i, 'Kinahanglan adunay usa ka Ulo sa Pamilya ang matag pamilya.'],
+  [/Household Head/i, 'Kinahanglan adunay usa ka Ulo sa Panimalay.'],
   [/failed to fetch|network/i, 'Walay koneksyon sa internet. Palihug sulayi pag-usab.'],
 ];
 
@@ -88,7 +92,7 @@ const PORTAL_SERVER_ERRORS = [
   [/not in your household/i, 'Adunay miyembro nga dili sakop sa inyong pamilya. Palihug i-reload ang panid.'],
   [/first and last name/i, 'Ibutang ang pangalan ug apelyido sa matag bag-ong miyembro.'],
   [/relationship is required/i, 'Pilia ang relasyon sa matag bag-ong miyembro.'],
-  [/Household Head/i, 'Ang bag-ong miyembro dili mahimong Ulo sa Pamilya.'],
+  [/Household Head|family head/i, 'Ang bag-ong miyembro dili mahimong Ulo sa Panimalay o Ulo sa Pamilya.'],
   [/at most/i, 'Sobra na ang gidaghanon sa miyembro.'],
   [/failed to fetch|network/i, 'Walay koneksyon sa internet. Palihug sulayi pag-usab.'],
 ];

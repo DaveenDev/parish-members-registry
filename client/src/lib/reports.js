@@ -75,3 +75,23 @@ export function monthName(key) {
   const [y, m] = key.split('-').map(Number);
   return new Date(y, m - 1, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
 }
+
+/**
+ * Per GKK: households, families (0054; a household counts at least one),
+ * households with more than one family, and members. `households` are
+ * households_with_count rows; No GKK last.
+ */
+export function familiesByGkkRows(households) {
+  const byGkk = new Map();
+  for (const h of households) {
+    const key = h.gkk || 'No GKK';
+    if (!byGkk.has(key)) byGkk.set(key, { label: key, households: 0, families: 0, multi: 0, members: 0 });
+    const g = byGkk.get(key);
+    const families = Math.max(1, Number(h.family_count) || 1);
+    g.households += 1;
+    g.families += families;
+    if (families > 1) g.multi += 1;
+    g.members += Number(h.member_count) || 0;
+  }
+  return [...byGkk.values()].sort((a, b) => (a.label === 'No GKK') - (b.label === 'No GKK') || a.label.localeCompare(b.label));
+}

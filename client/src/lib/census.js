@@ -573,7 +573,8 @@ export function portalPayload({ household, members, newMembers, message, consent
     members: (members || []).map((m) => ({ id: m.id, ...pickFields(m, PORTAL_MEMBER_FIELDS), ...answer(m) })),
     newMembers: (newMembers || [])
       .filter((m) => PORTAL_MEMBER_FIELDS.some(([k]) => blankToNull(m[k])))
-      .map((m) => ({ ...pickFields(m, PORTAL_MEMBER_FIELDS), ...answer(m) })),
+      // Which of the house's families the new member joins (0054); the server checks it.
+      .map((m) => ({ ...pickFields(m, PORTAL_MEMBER_FIELDS), family_no: Number(m.family_no) || 1, ...answer(m) })),
     message: blankToNull(message),
     consent: !!consent,
   };

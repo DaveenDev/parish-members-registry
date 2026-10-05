@@ -6,10 +6,11 @@ import ParticipationSurvey, { ParticipationReview } from './ParticipationSurvey.
 import { useHouseholdNameTaken } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { MEN_ONLY_NOTE, isMale, menOnlyBlocked, menOnlyMessage } from '../lib/ministries.js';
-import { syncSpouses, weddingPartners, toPayloadMember, WEDDING_FIELDS } from '../lib/household.js';
+import { syncSpouses, weddingCouples, toPayloadMember, WEDDING_FIELDS, familiesOf, familyNoOf, nextFamilyNo, familyHeadName } from '../lib/household.js';
+import { ByFamily, FamilyHeading } from './FamilyGroups.jsx';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS, BLOOD_UNKNOWN_LABEL } from '../lib/bisaya.js';
 import {
-  blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES, HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate,
+  blankMember, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES, HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate,
 } from '../constants.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -18,7 +19,7 @@ import { can } from '../lib/access.js';
 
 // The same five steps as the public registration wizard, in English.
 const STEPS = ['Household & Head', 'Members', 'Sacraments', 'Participation', 'Review'];
-const MEMBER_RELATIONSHIPS = RELATIONSHIPS.filter((r) => r !== HEAD);
+const MEMBER_RELATIONSHIPS = RELATIONSHIPS.filter((r) => !HEADS.includes(r));
 const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' };
 const EMPTY_HOUSEHOLD = {
   householdName: '', street: '', barangay: '', ...DEFAULT_ADDRESS,
@@ -39,7 +40,7 @@ function fullName(m) {
   return [m.firstName, m.middleName, m.lastName, m.suffix].filter(Boolean).join(' ');
 }
 function displayName(m, i) {
-  return [m.firstName, m.lastName, m.suffix].filter(Boolean).join(' ') || (i === 0 ? 'Household Head' : `Member ${i + 1}`);
+  return [m.firstName, m.lastName, m.suffix].filter(Boolean).join(' ') || (HEADS.includes(m.relationship) ? m.relationship : `Member ${i + 1}`);
 }
 
 function memberErrors(m, { head = false } = {}) {
@@ -159,8 +160,9 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
     setMembers((ms) => syncSpouses(ms.map((m, idx) => {
       if (idx !== i) return m;
       const next = { ...m, [field]: value };
-      if (i > 0 && field === 'relationship') next.civilFromHead = value === 'Spouse';
-      if (i > 0 && field === 'civilStatus') next.civilFromHead = false;
+      const isHead = HEADS.includes(m.relationship);
+      if (!isHead && field === 'relationship') next.civilFromHead = value === 'Spouse';
+      if (!isHead && field === 'civilStatus') next.civilFromHead = false;
       // No longer male: off any men-only ministry (Kaabag) ticked earlier.
       if (field === 'sex' && !isMale(value) && menOnly) next.ministries = (next.ministries || []).filter((n) => !menOnly.has(n));
       return next;
@@ -182,14 +184,37 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
       return { ...m, [listKey]: [...on] };
     }));
   }
-  function addMember() {
-    // Most members share the head's surname, so start with it (still editable).
-    setMembers((ms) => [...ms, { ...blankMember(), lastName: toNameCase(ms[0]?.lastName) }]);
+  /** Add a member to family `familyNo`, starting with their family head's surname (still editable). */
+  function addMember(familyNo = 1) {
+    setMembers((ms) => {
+      const head = familiesOf(ms).find((g) => g.familyNo === familyNo)?.head || ms[0];
+      return [...ms, { ...blankMember(), familyNo, lastName: toNameCase(head?.lastName) }];
+    });
   }
-  function removeMember(i) {
-    if (i === 0) return; // the Household Head is required
-    setMembers((ms) => ms.filter((_, idx) => idx !== i));
-    setMemberErr((me) => me.filter((_, idx) => idx !== i));
+  /** Another family living in the same house, starting with its Head of Family. */
+  function addFamily() {
+    setMembers((ms) => {
+      const familyNo = nextFamilyNo(ms);
+      return familyNo > MAX_FAMILIES ? ms : [...ms, { ...blankMember(), familyNo, relationship: FAMILY_HEAD }];
+    });
+  }
+  async function removeMember(i) {
+    const m = members[i];
+    if (i === 0 || !m) return; // the Household Head is required
+    // Removing a Head of Family removes their family with them.
+    const familyNo = familyNoOf(m);
+    const drop = m.relationship === FAMILY_HEAD ? members.flatMap((x, idx) => (familyNoOf(x) === familyNo ? [idx] : [])) : [i];
+    if (drop.length > 1) {
+      const ok = await confirm({
+        title: `Remove the family of ${familyHeadName(m) || 'this Head of Family'}?`,
+        message: `All ${drop.length} people in this family are removed from the form.`,
+        confirmLabel: 'Remove family',
+        tone: 'danger',
+      });
+      if (!ok) return;
+    }
+    setMembers((ms) => ms.filter((_, idx) => !drop.includes(idx)));
+    setMemberErr((me) => me.filter((_, idx) => !drop.includes(idx)));
   }
 
   function validate(n) {
@@ -209,7 +234,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
       let ok = true;
       members.forEach((m, i) => {
         if (i === 0) return;
-        me[i] = memberErrors(m);
+        me[i] = memberErrors(m, { head: HEADS.includes(m.relationship) });
         if (Object.keys(me[i]).length) ok = false;
       });
       return { ok, err: e, memberErr: me, banner: ok ? '' : 'Please complete the required details of each member.' };
@@ -256,7 +281,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
   const stepProps = {
     household, err, onHouseholdField: updateHousehold, gkkOptions, nameTaken,
     onParticipation: setParticipation, onToggleHelpWay: toggleHelpWay,
-    memberViews, onMemberField: updateMember, onAddMember: addMember, onRemoveMember: removeMember, onToggleGroup: toggleGroup,
+    memberViews, onMemberField: updateMember, onAddMember: addMember, onAddFamily: addFamily, onRemoveMember: removeMember, onToggleGroup: toggleGroup,
     ministryOptions, menOnly, orgOptions, parishRoleOptions,
     status, setStatus, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent,
     onGoStep: goStep,
@@ -527,31 +552,60 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, nameTaken
   );
 }
 
-function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember }) {
+function DashedButton({ onClick, children, className = 'py-3.5 text-[14.5px] rounded-2xl' }) {
+  return (
+    <button onClick={onClick} className={`w-full appearance-none cursor-pointer font-bold text-parish-blue bg-parish-surface border-[1.5px] border-dashed border-parish-focusLine flex items-center justify-center gap-2.5 hover:bg-parish-fillSoft hover:border-parish-blue transition ${className}`}>
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12h14" /></svg>{children}
+    </button>
+  );
+}
+
+function StepMembers({ memberViews, onMemberField, onAddMember, onAddFamily, onRemoveMember }) {
   const head = memberViews[0];
-  const others = memberViews.slice(1);
+  const groups = familiesOf(memberViews);
+  const several = groups.length > 1;
   return (
     <div className="animate-fadeUp">
       <div className="flex items-center gap-2.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl px-4 py-3 mb-4 text-parish-info text-[13.5px]">
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" className="flex-none"><path d="M17 20v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 20v-2a4 4 0 0 0-3-3.87M16 3.13A4 4 0 0 1 16 11" /></svg>
         <span>
-          {others.length
-            ? <><strong>{memberViews.length}</strong> people in the household so far, including the head. Add everyone else who lives with <strong>{head.displayName}</strong>.</>
+          {memberViews.length > 1
+            ? <><strong>{memberViews.length}</strong> people in the household so far{several ? <>, in <strong>{groups.length}</strong> families</> : ''}, including the head. Add everyone else who lives with <strong>{head.displayName}</strong>.</>
             : <>Only the head is listed. Add everyone who lives with <strong>{head.displayName}</strong> (spouse, each child, other relatives), or press Next if they live alone.</>}
         </span>
       </div>
-      {others.map((mv) => (
-        <Panel key={mv.mi}>
-          <MemberHeading mv={mv}>
-            <button onClick={() => onRemoveMember(mv.mi)} className="border border-parish-errorBorder bg-parish-surface text-parish-error cursor-pointer font-semibold text-[12.5px] px-3 py-1.5 rounded-lg flex-none">Remove</button>
-          </MemberHeading>
-          <MemberNameFields mv={mv} onField={onMemberField} />
-          <div className="mt-4"><MemberFieldsGrid mv={mv} onField={onMemberField} /></div>
-        </Panel>
-      ))}
-      <button onClick={onAddMember} className="w-full appearance-none cursor-pointer py-3.5 font-bold text-[14.5px] text-parish-blue bg-parish-surface border-[1.5px] border-dashed border-parish-focusLine rounded-2xl flex items-center justify-center gap-2.5 hover:bg-parish-fillSoft hover:border-parish-blue transition">
-        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M12 5v14M5 12h14" /></svg>Add Another Member
-      </button>
+      {groups.map((g) => {
+        const shown = g.members.filter((mv) => mv.mi !== 0); // the Household Head is on step 1
+        return (
+          <section key={g.familyNo} className={several ? 'mb-5' : ''}>
+            {several && <FamilyHeading group={g} className="mb-3" />}
+            {shown.map((mv) => {
+              const isFamilyHead = mv.mi === g.headIndex;
+              return (
+                <Panel key={mv.mi}>
+                  <MemberHeading mv={mv}>
+                    <button onClick={() => onRemoveMember(mv.mi)} className="border border-parish-errorBorder bg-parish-surface text-parish-error cursor-pointer font-semibold text-[12.5px] px-3 py-1.5 rounded-lg flex-none">
+                      {isFamilyHead ? 'Remove family' : 'Remove'}
+                    </button>
+                  </MemberHeading>
+                  {isFamilyHead && <p className="text-[12.5px] font-semibold text-parish-muted -mt-2 mb-3">Head of Family: the others in this family give their relationship to them.</p>}
+                  <MemberNameFields mv={mv} onField={onMemberField} />
+                  <div className="mt-4"><MemberFieldsGrid mv={mv} onField={onMemberField} head={isFamilyHead} /></div>
+                </Panel>
+              );
+            })}
+            <DashedButton onClick={() => onAddMember(g.familyNo)} className={several ? 'py-3 text-[13.5px] rounded-xl' : undefined}>
+              {several ? `Add a member to the family of ${familyHeadName(g.head) || 'this head'}` : 'Add Another Member'}
+            </DashedButton>
+          </section>
+        );
+      })}
+      {groups.length < MAX_FAMILIES && (
+        <div className="mt-5 pt-4 border-t border-parish-line2">
+          <p className="text-[13px] text-parish-muted m-0 mb-2.5">Another family living in the same house (a married child with their own spouse and children, or another family sharing the house)? Add it with its own Head of Family.</p>
+          <DashedButton onClick={onAddFamily}>Add Another Family in This House</DashedButton>
+        </div>
+      )}
     </div>
   );
 }
@@ -619,13 +673,13 @@ function WeddingBlock({ mv, sharedWith, onField }) {
 }
 
 function StepSacraments({ memberViews, onMemberField }) {
-  // The head and a married Spouse share one wedding; each card names the other.
-  const partners = weddingPartners(memberViews);
-  const sharedWith = (i) => (i === 0 ? partners.map((idx) => memberViews[idx].displayName).join(' and ') : partners.includes(i) ? memberViews[0].displayName : '');
+  // A family head and a married Spouse share one wedding; each card names the other.
+  const couples = weddingCouples(memberViews);
+  const sharedWith = (i) => (couples.get(i) || []).map((idx) => memberViews[idx].displayName).join(' and ');
   return (
     <div className="animate-fadeUp">
       <p className="text-[13.5px] text-parish-muted m-0 mb-4">Tick the sacraments each member has received. Dates and parishes are optional but help the records.</p>
-      {memberViews.map((mv, i) => (
+      <ByFamily members={memberViews} gap="gap-0" groupGap="gap-2" render={(mv, i) => (
         <Panel key={i}>
           <MemberHeading mv={mv} />
           <div className="flex flex-col gap-2.5">
@@ -645,7 +699,7 @@ function StepSacraments({ memberViews, onMemberField }) {
               : <SacramentBlock mv={mv} field="hasMatrimony" dateField="matDate" churchField="matChurch" label="Matrimony" onField={onMemberField} />}
           </div>
         </Panel>
-      ))}
+      )} />
     </div>
   );
 }
@@ -763,6 +817,7 @@ function StepReview({ household, memberViews, status, volunteer, notifyOptin, co
   const householdReview = [
     ['Household head', fullName(memberViews[0]) || '—'],
     ['Household name', household.householdName || '—'],
+    ...(familiesOf(memberViews).length > 1 ? [['Families', String(familiesOf(memberViews).length)]] : []),
     ['Address', addr],
     ['GKK', household.gkk || '—'],
     ['Family Grouping', household.familyGrouping || '—'],
@@ -797,7 +852,7 @@ function StepReview({ household, memberViews, status, volunteer, notifyOptin, co
       </ReviewCard>
 
       <ReviewCard title={`Members (${memberViews.length})`} onEdit={() => onGoStep(2)}>
-        {memberViews.map((m) => (
+        <ByFamily members={memberViews} gap="gap-2.5" groupGap="gap-4" render={(m) => (
           <div key={m.mi} className="border border-parish-line2 rounded-xl px-4 py-3.5 bg-parish-surface">
             <div className="flex items-start justify-between gap-3">
               <div className="font-serif text-[18px] font-semibold text-parish-navy mb-1">{fullName(m) || m.displayName}</div>
@@ -823,7 +878,7 @@ function StepReview({ household, memberViews, status, volunteer, notifyOptin, co
               ))}
             </div>
           </div>
-        ))}
+        )} />
       </ReviewCard>
 
       <ReviewCard title="Participation" onEdit={() => onGoStep(4)}>

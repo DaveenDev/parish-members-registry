@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { shapeDashboard, shapeReport } from '../src/lib/stats.js';
+import { shapeDashboard, shapeReport, multiFamilyNote } from '../src/lib/stats.js';
 
 describe('shapeDashboard', () => {
   const raw = {
@@ -103,5 +103,35 @@ describe('shapeReport', () => {
 
   test('no members means 0%, not NaN', () => {
     assert.equal(shapeReport({}).anyVolunteer, 0);
+  });
+});
+
+describe('family figures (0054)', () => {
+  const family_stats = { families: 14, multi_family_households: 3, by_gkk: [{ label: 'GKK A', households: 4, families: 6, multi: 2 }] };
+
+  test('the Dashboard gets a Families card after Households, opening the Families reports', () => {
+    const cards = shapeDashboard({ households: 11, family_stats }).statCards;
+    assert.deepEqual(cards.slice(0, 2).map((c) => c.label), ['Households', 'Families']);
+    assert.equal(cards[1].value, 14);
+    assert.equal(cards[1].note, '3 houses with 2+ families');
+    assert.equal(cards[1].to, '/admin/reports?tab=gen&source=Families');
+  });
+
+  test('no Families card before the migration', () => {
+    assert.equal(shapeDashboard({}).statCards.some((c) => c.label === 'Families'), false);
+  });
+
+  test('Reports get the totals and each GKK\'s families', () => {
+    const r = shapeReport({ households: 11, by_gkk: [{ label: 'GKK A', verified: 3, pending: 1 }, { label: 'GKK B', verified: 1, pending: 0 }], family_stats });
+    assert.equal(r.totalFamilies, 14);
+    assert.equal(r.multiFamilyHouseholds, 3);
+    assert.deepEqual([r.regByGkk[0].families, r.regByGkk[0].multi], [6, 2]);
+    assert.deepEqual([r.regByGkk[1].families, r.regByGkk[1].multi], [0, 0]);
+    assert.equal(shapeReport({}).totalFamilies, null);
+  });
+
+  test('multiFamilyNote', () => {
+    assert.equal(multiFamilyNote(0), 'one family in each household');
+    assert.equal(multiFamilyNote(1), '1 house with 2+ families');
   });
 });

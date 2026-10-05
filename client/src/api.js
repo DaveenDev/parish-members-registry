@@ -3,14 +3,14 @@
 // the admin pages and the public registration wizard already call, so this
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
-import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, parseAgeRange } from './constants.js';
+import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, HEADS, parseAgeRange } from './constants.js';
 import { memberFullName, inDateRange, plainLetters } from './lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
 import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, registryVsLastYear, householdsVsPreviousCensus, previousCensus, vsLastYearTable } from './lib/census.js';
-import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName } from './lib/reports.js';
+import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows } from './lib/reports.js';
 import { certTypeLabel } from './lib/requests.js';
 import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
 import { MEN_ONLY_FALLBACK, menOnlyBlocked, menOnlyMessage } from './lib/ministries.js';
@@ -81,6 +81,22 @@ export const api = {
     });
     if (error) throw mapError(error);
     return data; // { refNo, householdId, accessCode } (accessCode from 0040)
+  },
+
+  // ---- another family joins a registered house (0054 migration) --------
+  /** { ok, householdName, refNo, gkk, families } or { ok: false, error: 'invalid' | 'locked' }. */
+  async familyJoinCheck(refNo, code) {
+    const { data, error } = await supabase.rpc('family_join_check', { p_ref: refNo, p_code: code });
+    if (error) throw mapError(error);
+    return data;
+  },
+  /** { ok, refNo, householdName, familyNo } or { ok: false, error }. */
+  async submitFamilyRegistration({ refNo, code, members, consent }) {
+    const { data, error } = await supabase.rpc('submit_family_registration', {
+      p_ref: refNo, p_code: code, payload: { members, consent },
+    });
+    if (error) throw mapError(error);
+    return data;
   },
 
   // ---- census family portal (0008 migration) --------------------------
@@ -302,6 +318,7 @@ export const api = {
       .from('members')
       .insert({
         household_id: householdId,
+        family_no: member.familyNo || 1,
         first_name: member.firstName,
         middle_name: member.middleName || null,
         last_name: member.lastName,
@@ -1382,16 +1399,30 @@ export const api = {
   // ---- dashboard ---------------------------------------------------------
   async dashboardStats() {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-    const { data, error } = await supabase.rpc('admin_dashboard_stats', { p_tz: tz });
+    const [{ data, error }, families] = await Promise.all([supabase.rpc('admin_dashboard_stats', { p_tz: tz }), api.familyStats()]);
     if (error) throw mapError(error);
-    return shapeDashboard(data);
+    return shapeDashboard({ ...data, family_stats: families });
+  },
+
+  /**
+   * Families within households (0054): { families, multi_family_households,
+   * by_gkk: [{ label, households, families, multi }] }, or null before the
+   * migration is run (the pages then leave family figures out).
+   */
+  async familyStats() {
+    const { data, error } = await supabase.rpc('family_stats');
+    if (error) {
+      if (isMissingFunction(error)) return null;
+      throw mapError(error);
+    }
+    return data;
   },
 
   // ---- reports -------------------------------------------------------
   async reportStats() {
-    const { data, error } = await supabase.rpc('admin_report_stats');
+    const [{ data, error }, families] = await Promise.all([supabase.rpc('admin_report_stats'), api.familyStats()]);
     if (error) throw mapError(error);
-    return shapeReport(data);
+    return shapeReport({ ...data, family_stats: families });
   },
 
   async reportSources() {
@@ -1488,6 +1519,37 @@ export const api = {
         cells: [memberFullName(m), m.household_name, m.household_gkk || '—', m.age ?? '—', bis(RELATIONSHIP_LABELS, m.relationship) || '—', m.contact || '—'],
       }));
       return { title: `Members — ${type}`, meta: `${rowsOut.length} member(s)`, columns, rows: rowsOut, empty: rowsOut.length === 0, csvColumns: columns };
+    }
+
+    if (source === 'Families') {
+      let houses;
+      try {
+        houses = await fetchAll(() => supabase.from('households_with_count')
+          .select('id, household_name, ref_no, gkk, member_count, family_count').order('household_name').order('id'));
+      } catch (e) {
+        if (/family_count/.test(e.message || '')) throw new Error('Run the 0054_household_families.sql migration in Supabase to use the Families reports');
+        throw e;
+      }
+      if (gkk && gkk !== 'All') houses = houses.filter((h) => h.gkk === gkk);
+      if (type === 'By GKK') {
+        const rows = familiesByGkkRows(houses);
+        const families = rows.reduce((n, r) => n + r.families, 0);
+        return table('Families by GKK', `${families} famil${families === 1 ? 'y' : 'ies'} in ${houses.length} household(s)`,
+          ['GKK', 'Households', 'Families', 'Households with 2+ families', 'Members'],
+          rows.map((r) => [r.label, r.households, r.families, r.multi, r.members]));
+      }
+      // Households with more than one family, and each family's head.
+      const multi = houses.filter((h) => h.family_count > 1);
+      const heads = multi.length ? await fetchAll(() => supabase.from('members')
+        .select('household_id, family_no, first_name, last_name, suffix, relationship')
+        .in('household_id', multi.map((h) => h.id)).in('relationship', HEADS).order('family_no').order('id')) : [];
+      return table('Households with more than one family', `${multi.length} household(s)`,
+        ['Household', 'GKK', 'Ref no', 'Families', 'Family heads', 'Members'],
+        multi.map((h) => [
+          h.household_name, h.gkk || '—', h.ref_no || '—', h.family_count,
+          heads.filter((m) => m.household_id === h.id).map((m) => [m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')).join('; ') || '—',
+          h.member_count,
+        ]));
     }
 
     if (source === 'Households') {
@@ -1829,6 +1891,7 @@ const MEMBER_CSV_COLUMNS = [
   { label: 'Last Name', value: 'last_name' },
   { label: 'Suffix', value: 'suffix' },
   { label: 'Household', value: 'household_name' },
+  { label: 'Family', value: (r) => r.family_no ?? 1 },
   { label: 'Relationship', value: (r) => bis(RELATIONSHIP_LABELS, r.relationship) },
   { label: 'Sex', value: (r) => bis(SEX_LABELS, r.sex) },
   { label: 'Date of Birth', value: 'dob' },
@@ -1868,6 +1931,7 @@ const HOUSEHOLD_CSV_COLUMNS = [
   { label: 'Contact', value: 'contact' },
   { label: 'Email', value: 'email' },
   { label: 'Members', value: 'member_count' },
+  { label: 'Families', value: (r) => r.family_count ?? 1 },
   { label: 'Status', value: 'status' },
   { label: 'Reference No.', value: 'ref_no' },
   ...PARTICIPATION_ITEMS.map(([key, label]) => ({ label, value: (r) => (r.participation || {})[key] || '' })),

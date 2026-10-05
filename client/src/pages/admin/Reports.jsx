@@ -9,6 +9,7 @@ import ActivenessReport from '../../components/ActivenessReport.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
+import { multiFamilyNote } from '../../lib/stats.js';
 
 function Bar({ label, right, w, color }) {
   return (
@@ -39,13 +40,14 @@ const REPORT_TABS = [['stats', 'Report Stats'], ['gen', 'Generate Report'], ['an
 const REPORTS = {
   Members: { types: ['By GKK', 'By Sacrament', 'By Ministry / Organization'] },
   Households: { types: ['By Status', 'By GKK', 'By registration month'] },
+  Families: { types: ['By GKK', 'Households with more than one family'] },
   Sacraments: { types: ['Verification progress by GKK'] },
   Census: { types: ['Results by GKK', 'Households vs last year', 'Not yet registered', 'Members not confirmed'], need: 'census' },
   Requests: { types: ['Certificate turnaround'], need: 'requests' },
 };
 function scopeFor(source, type) {
   return {
-    gkk: ['Members', 'Households', 'Sacraments'].includes(source) || ['Members not confirmed', 'Households vs last year', 'Not yet registered'].includes(type),
+    gkk: ['Members', 'Households', 'Families', 'Sacraments'].includes(source) || ['Members not confirmed', 'Households vs last year', 'Not yet registered'].includes(type),
     status: type === 'By Status',
     dateRange: source === 'Households' || source === 'Requests',
     sacrament: type === 'By Sacrament',
@@ -62,7 +64,8 @@ export default function Reports() {
   const setTab = (k) => setParams(k === REPORT_TABS[0][0] ? {} : { tab: k }, { replace: true });
   const { data: stats, loading: statsLoading, error: statsError, reload: reloadStats } = useAsyncData(() => api.reportStats(), []);
 
-  const [genSource, setGenSource] = useState('');
+  // "?source=Families" (the Dashboard's Families card) opens that source.
+  const [genSource, setGenSource] = useState(() => (REPORTS[params.get('source')] ? params.get('source') : ''));
   const [genType, setGenType] = useState('');
   const [scope, setScope] = useState({ gkk: 'All', status: 'All', dateFrom: '', dateTo: '', sacrament: 'Baptism', group: '', cycleId: '' });
   const [cycles, setCycles] = useState([]);
@@ -135,6 +138,30 @@ export default function Reports() {
                   {stats.regByGkk.map((g) => <SplitBar key={g.label} label={g.label} right={`${g.verified} verified · ${g.pending} pending`} vw={g.vw} pw={g.pw} />)}
                 </div>
               </Panel>
+
+              {stats.totalFamilies !== null && (
+                <Panel className="px-6 py-[22px]">
+                  <div className="flex items-baseline justify-between gap-3 mb-1 flex-wrap">
+                    <div className="font-serif text-[21px] font-semibold text-parish-navy">Families in Households</div>
+                    <div className="text-[13px] text-parish-muted">{stats.totalFamilies} families in {stats.totalHH} households · {multiFamilyNote(stats.multiFamilyHouseholds)}</div>
+                  </div>
+                  <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>
+                    A household is one house; some hold more than one family, each with its own head. Families per Basic Ecclesial Community.
+                  </p>
+                  <div className="flex flex-col gap-3.5">
+                    {(() => {
+                      const most = Math.max(1, ...stats.regByGkk.map((g) => g.families || 0));
+                      return stats.regByGkk.map((g) => (
+                        <Bar
+                          key={g.label} label={g.label}
+                          right={`${g.families || 0} families · ${g.verified + g.pending} households${g.multi ? ` · ${g.multi} with 2+` : ''}`}
+                          w={`${Math.round(((g.families || 0) / most) * 100)}%`} color="linear-gradient(90deg,#8a5fb0,#b294cf)"
+                        />
+                      ));
+                    })()}
+                  </div>
+                </Panel>
+              )}
 
               <Panel className="px-6 py-[22px]">
                 <div className="font-serif text-[21px] font-semibold text-parish-navy mb-1">Sacramental Completion</div>

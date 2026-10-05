@@ -1,5 +1,5 @@
 export const RELATIONSHIPS = [
-  'Head of Household', 'Spouse', 'Son', 'Daughter', 'Father', 'Mother',
+  'Head of Household', 'Head of Family', 'Spouse', 'Son', 'Daughter', 'Father', 'Mother',
   'Grandfather', 'Grandmother', 'Grandchild', 'Sibling', 'In-law', 'Household Helper', 'Other',
 ];
 
@@ -28,6 +28,12 @@ export function parseAgeRange(value) {
 }
 
 export const HEAD = 'Head of Household';
+// The head of each other family in the house (family 2, 3…, 0054 migration).
+// Family 1's head is the Household Head; everyone's relationship is to the
+// head of their own family.
+export const FAMILY_HEAD = 'Head of Family';
+export const HEADS = [HEAD, FAMILY_HEAD];
+export const MAX_FAMILIES = 10;
 
 // Sacraments and the member columns that hold each claim. `key` is what
 // sacrament_verifications.sacrament stores (0005 migration).
@@ -87,7 +93,7 @@ export const DEFAULT_ADDRESS = { city: 'Kidapawan City', province: 'North Cotaba
 
 export function blankMember() {
   return {
-    firstName: '', middleName: '', lastName: '', suffix: '', relationship: '', sex: '', dob: '', placeOfBirth: '', tribe: '',
+    familyNo: 1, firstName: '', middleName: '', lastName: '', suffix: '', relationship: '', sex: '', dob: '', placeOfBirth: '', tribe: '',
     civilStatus: '', contact: '', email: '', occupation: '', religion: 'Roman Catholic', bloodType: '', gkkRole: '', parishRole: '',
     hasBaptism: false, baptismDate: '', baptismChurch: '',
     hasCommunion: false, communionDate: '', communionChurch: '',

@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { syncSpouses, groupByHousehold, groupByGkk, toPayloadMember } from '../src/lib/household.js';
+import { syncSpouses, groupByHousehold, groupByGkk, toPayloadMember, familiesOf, familyNoOf, familyHeadIndex, nextFamilyNo, familyHeadName, weddingCouples } from '../src/lib/household.js';
 import { blankMember } from '../src/constants.js';
 
 const head = (over = {}) => ({ ...blankMember(), relationship: 'Head of Household', ...over });
@@ -107,5 +107,69 @@ describe('toPayloadMember', () => {
 
   test('a wedding type is dropped once the member is no longer married', () => {
     assert.equal(toPayloadMember(member({ civilStatus: 'Widowed', matType: 'Civil Wedding' })).matType, '');
+  });
+});
+
+describe('families within a household', () => {
+  const rows = [
+    { id: 1, relationship: 'Head of Household', family_no: 1, first_name: 'Juan', last_name: 'Dela Cruz' },
+    { id: 2, relationship: 'Spouse', family_no: 1 },
+    { id: 3, relationship: 'Son', family_no: 1 },
+    { id: 4, relationship: 'Head of Family', family_no: 2, first_name: 'Pedro', last_name: 'Dela Cruz' },
+    { id: 5, relationship: 'Daughter', family_no: 2 },
+    { id: 6, relationship: 'Son' }, // no family number yet: the first family
+  ];
+
+  test('familiesOf groups members by family, family 1 first, with each head', () => {
+    const groups = familiesOf([rows[3], rows[0], rows[4], rows[1], rows[5]]);
+    assert.deepEqual(groups.map((g) => [g.familyNo, g.head?.id, g.members.map((m) => m.id), g.indexes]), [
+      [1, 1, [1, 2, 6], [1, 3, 4]],
+      [2, 4, [4, 5], [0, 2]],
+    ]);
+  });
+
+  test('familyNoOf reads forms and rows, 1 when unset', () => {
+    assert.equal(familyNoOf({ familyNo: 3 }), 3);
+    assert.equal(familyNoOf({ family_no: 2 }), 2);
+    assert.equal(familyNoOf({}), 1);
+    assert.equal(familyNoOf({ family_no: 'x' }), 1);
+  });
+
+  test('familyHeadIndex: the Household Head heads family 1, a Head of Family the others', () => {
+    assert.equal(familyHeadIndex(rows, 1), 0);
+    assert.equal(familyHeadIndex(rows, 2), 3);
+    assert.equal(familyHeadIndex(rows, 3), -1);
+  });
+
+  test('nextFamilyNo and familyHeadName', () => {
+    assert.equal(nextFamilyNo(rows), 3);
+    assert.equal(nextFamilyNo([]), 1);
+    assert.equal(familyHeadName(rows[3]), 'Pedro Dela Cruz');
+    assert.equal(familyHeadName({ firstName: 'Ana', lastName: 'Cruz', suffix: '' }), 'Ana Cruz');
+    assert.equal(familyHeadName(null), '');
+  });
+
+  test('a spouse in the second family follows their own head, not the Household Head', () => {
+    const ms = syncSpouses([
+      head({ civilStatus: 'Widowed' }),
+      member({ relationship: 'Head of Family', familyNo: 2, civilStatus: 'Married' }),
+      member({ relationship: 'Spouse', familyNo: 2, civilFromHead: true }),
+    ]);
+    assert.equal(ms[2].civilStatus, 'Married');
+  });
+
+  test('each family head shares a wedding only with the spouse in their family', () => {
+    const w1 = { matType: 'Catholic Marriage', hasMatrimony: true, matDate: '1990-01-01', matChurch: 'OLG' };
+    const w2 = { matType: 'Catholic Marriage', hasMatrimony: true, matDate: '2018-06-09', matChurch: 'San Isidro' };
+    const ms = syncSpouses([
+      head({ civilStatus: 'Married', ...w1 }),
+      member({ relationship: 'Spouse', civilStatus: 'Married' }),
+      member({ relationship: 'Head of Family', familyNo: 2, civilStatus: 'Married', ...w2 }),
+      member({ relationship: 'Spouse', familyNo: 2, civilStatus: 'Married' }),
+    ]);
+    assert.equal(ms[1].matDate, '1990-01-01');
+    assert.equal(ms[3].matDate, '2018-06-09');
+    const couples = weddingCouples(ms);
+    assert.deepEqual([...couples.entries()], [[0, [1]], [1, [0]], [2, [3]], [3, [2]]]);
   });
 });

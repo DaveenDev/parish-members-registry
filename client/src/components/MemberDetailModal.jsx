@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, GKK_ROLES, HEAD, ageFromDob, fmtDateTime } from '../constants.js';
+import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, GKK_ROLES, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, ageFromDob, fmtDateTime } from '../constants.js';
+import { familiesOf, familyNoOf, nextFamilyNo } from '../lib/household.js';
+import { familyTitle } from './FamilyGroups.jsx';
 import SacramentVerifyDialog, { SacramentChip } from './SacramentVerifyDialog.jsx';
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect, ComboInput, OptionSelect, Badge } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
@@ -15,7 +17,7 @@ import { LoadingState } from './admin.jsx';
 import { can } from '../lib/access.js';
 import ActivityList from './ActivityList.jsx';
 
-// Stored columns for the wedding the Household Head and a married Spouse share.
+// Stored columns for the wedding a family head and a married Spouse share.
 const WEDDING_COLUMNS = ['has_matrimony', 'mat_date', 'mat_church', 'mat_type'];
 const wedding = (m) => Object.fromEntries(WEDDING_COLUMNS.map((c) => [c, c === 'has_matrimony' ? !!m[c] : (m[c] ? String(m[c]).slice(0, 10) : '')]));
 
@@ -90,13 +92,29 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
     setMember((m) => ({ ...m, [field]: value }));
   }
 
-  /** Who shares this member's wedding: the head and a married Spouse are wed to each other. */
+  /** Who shares this member's wedding: a family head and a married Spouse in their family are wed to each other. */
   function weddingPartners() {
     if (!member || member.civil_status !== 'Married') return [];
-    const others = housemates.filter((h) => h.id !== memberId && h.civil_status === 'Married');
-    if (member.relationship === HEAD) return others.filter((h) => h.relationship === 'Spouse');
-    if (member.relationship === 'Spouse') return others.filter((h) => h.relationship === HEAD);
+    const fam = familyNoOf(member);
+    const others = housemates.filter((h) => h.id !== memberId && h.civil_status === 'Married' && familyNoOf(h) === fam);
+    if (HEADS.includes(member.relationship)) return others.filter((h) => h.relationship === 'Spouse');
+    if (member.relationship === 'Spouse') return others.filter((h) => HEADS.includes(h.relationship));
     return [];
+  }
+  // Families in the house (0054): this member's can be changed, and its
+  // number decides which head they can be.
+  const families = familiesOf(housemates);
+  const memberFamily = familyNoOf(member);
+  const newFamilyNo = nextFamilyNo(housemates);
+  const relationshipOptions = RELATIONSHIPS.filter((r) => r === member?.relationship || (memberFamily === 1 ? r !== FAMILY_HEAD : r !== HEAD));
+  function chooseFamily(value) {
+    const no = value === 'new' ? newFamilyNo : Number(value);
+    // Someone starting a family of their own heads it; a head moved into a family that has one isn't its head any more.
+    setMember((m) => ({
+      ...m,
+      family_no: no,
+      relationship: value === 'new' ? FAMILY_HEAD : (HEADS.includes(m.relationship) ? '' : m.relationship),
+    }));
   }
   const partners = weddingPartners();
   const partnerNames = partners.map((p) => [p.first_name, p.last_name].filter(Boolean).join(' ')).join(' and ');
@@ -116,12 +134,14 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   }
 
   async function save() {
+    if (member.relationship === HEAD && memberFamily !== 1) { setError('The Household Head belongs to the first family.'); return; }
+    if (member.relationship === FAMILY_HEAD && memberFamily === 1) { setError('The first family’s head is the Household Head; choose another family for a Head of Family.'); return; }
     setSaving(true);
     setError('');
     try {
       const patch = {
         first_name: member.first_name, middle_name: member.middle_name, last_name: member.last_name, suffix: member.suffix,
-        relationship: member.relationship, sex: member.sex, dob: member.dob, place_of_birth: member.place_of_birth, tribe: member.tribe,
+        relationship: member.relationship, family_no: member.family_no, sex: member.sex, dob: member.dob, place_of_birth: member.place_of_birth, tribe: member.tribe,
         civil_status: member.civil_status, contact: member.contact, email: member.email, occupation: member.occupation,
         blood_type: member.blood_type, gkk_role: member.gkk_role, parish_role: member.parish_role,
         has_baptism: member.has_baptism, baptism_date: member.baptism_date, baptism_church: member.baptism_church,
@@ -198,9 +218,18 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               <Field label="Middle name"><TextInput value={member.middle_name || ''} onChange={(e) => set('middle_name', e.target.value)} onBlur={tidy('middle_name')} /></Field>
               <Field label="Last name"><TextInput value={member.last_name || ''} onChange={(e) => set('last_name', e.target.value)} onBlur={tidy('last_name')} /></Field>
               <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={member.suffix || ''} onChange={(e) => set('suffix', e.target.value)} onBlur={tidy('suffix', toSuffixCase)} /></Field>
-              <Field label="Relationship">
+              {member.family_no !== undefined && housemates.length > 0 && (
+                <Field label="Family">
+                  <Select value={String(memberFamily)} onChange={(e) => chooseFamily(e.target.value)} disabled={member.relationship === HEAD}>
+                    {families.map((g) => <option key={g.familyNo} value={String(g.familyNo)}>{familyTitle(g)}</option>)}
+                    {!families.some((g) => g.familyNo === memberFamily) && <option value={String(memberFamily)}>{`Family ${memberFamily}`}</option>}
+                    {member.relationship !== HEAD && newFamilyNo <= MAX_FAMILIES && <option value="new">A new family in this house</option>}
+                  </Select>
+                </Field>
+              )}
+              <Field label={memberFamily === 1 ? 'Relationship' : 'Relationship to their family head'}>
                 <Select value={member.relationship || ''} onChange={(e) => set('relationship', e.target.value)}>
-                  <option value="">Select…</option>{RELATIONSHIPS.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
+                  <option value="">Select…</option>{relationshipOptions.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
                 </Select>
               </Field>
               <Field label="Sex">

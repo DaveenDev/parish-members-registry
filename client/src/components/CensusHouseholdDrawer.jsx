@@ -4,7 +4,9 @@ import { Field, TextInput, Select, PrimaryButton, GhostButton, Badge } from './u
 import ParticipationSurvey from './ParticipationSurvey.jsx';
 import MemberDetailModal from './MemberDetailModal.jsx';
 import { AddMemberForm } from './HouseholdEditDrawer.jsx';
-import { HEAD, HELP_WAYS, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, ageFromDob } from '../constants.js';
+import { HELP_WAYS, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, ageFromDob } from '../constants.js';
+import { familiesOf, familyNoOf } from '../lib/household.js';
+import { familyTitle } from './FamilyGroups.jsx';
 import { bis, RELATIONSHIP_LABELS } from '../lib/bisaya.js';
 import { MEMBERSHIP_STATUSES, FORMER_STATUSES, CENSUS_SOURCES, STATUS_TONES, cleanParticipation, suggestStatus, formatAccessCode } from '../lib/census.js';
 import { useToast } from '../ToastContext.jsx';
@@ -191,7 +193,11 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
   // Members who moved away or died in an earlier census go last.
   const isFormer = (m) => FORMER_STATUSES.includes(m.membership_status) && !m.census;
   const ordered = [...members.filter((m) => !isFormer(m)), ...members.filter(isFormer)];
-  const head = members.find((m) => m.relationship === HEAD);
+  // With more than one family in the house, each row says whose family it is.
+  const families = familiesOf(members);
+  const familyOf = new Map(families.length > 1 ? families.flatMap((g) => g.members.map((m) => [m.id, familyTitle(g)])) : []);
+  // Keep each family together, current members first.
+  ordered.sort((a, b) => isFormer(a) - isFormer(b) || familyNoOf(a) - familyNoOf(b));
 
   return (
     <div className="fixed inset-0 z-[45] flex justify-end">
@@ -272,6 +278,7 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
                   <MemberCensusRow
                     key={m.id}
                     member={m}
+                    family={familyOf.get(m.id)}
                     row={rows[m.id] || rowFrom(m)}
                     former={isFormer(m)}
                     editable={editable}
@@ -293,8 +300,7 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
               {editable && adding && (
                 <AddMemberForm
                   householdId={householdId}
-                  defaultLastName={head?.last_name || ''}
-                  hasHead={!!head}
+                  members={members}
                   onCancel={() => setAdding(false)}
                   onAdded={(added) => {
                     setAdding(false);
@@ -350,7 +356,7 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
   );
 }
 
-function MemberCensusRow({ member: m, row, former, editable, onChange, onEdit, onClear }) {
+function MemberCensusRow({ member: m, family, row, former, editable, onChange, onEdit, onClear }) {
   const suggestion = suggestStatus(row.participation);
   const name = [m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ');
   const age = ageFromDob(m.dob);
@@ -361,7 +367,7 @@ function MemberCensusRow({ member: m, row, former, editable, onChange, onEdit, o
         <div className="min-w-0 flex-1">
           <div className="text-[15px] font-semibold text-parish-navy">{name}</div>
           <div className="text-[12.5px] text-parish-muted">
-            {[bis(RELATIONSHIP_LABELS, m.relationship), age !== null && `${age} yrs`].filter(Boolean).join(' · ') || '—'}
+            {[bis(RELATIONSHIP_LABELS, m.relationship), age !== null && `${age} yrs`, family].filter(Boolean).join(' · ') || '—'}
             {m.previous && <> · last census: <strong>{m.previous.status}</strong> ({m.previous.census_cycles?.label})</>}
             {!m.previous && m.membership_status && <> · status: <strong>{m.membership_status}</strong></>}
             {former && ' · no longer in the household'}
