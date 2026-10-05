@@ -5,6 +5,7 @@ import SacramentIcon from '../../components/SacramentIcon.jsx';
 import { BAND_PAD, Band, DataState, EmptyNote, Eyebrow, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { Organisasyon } from '../../components/site/OrgCharts.jsx';
 import VerseOfDay from '../../components/site/VerseOfDay.jsx';
+import DailyReadings from '../../components/site/DailyReadings.jsx';
 import { EventCard, MassRow, eventTone } from '../../components/site/cards.jsx';
 import {
   BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, agendaDays, calendarMonths, eventsOnDay, fmtTime12, guideShortTitle,
@@ -18,7 +19,8 @@ const TEACH_TABS = [['sakramento', 'Mga Sakramento ug Pormasyon'], ['organisasyo
 
 /**
  * Ang Simbahan: a random Bible verse with what the Catechism teaches about
- * it, on the light-blue band; then the Mass schedule (or the events agenda,
+ * it, and the day's Mass readings, on the light-blue band; then the Mass
+ * schedule (or the events agenda,
  * Kalendaryo); then the sacrament guides and the parish's organization
  * charts, as two tabs on the band again. Old /misa links land here (with
  * ?view=kalendaryo and ?view=sakramento still working).
@@ -35,8 +37,10 @@ export default function Simbahan() {
   };
   // Arriving for the sacraments or the org charts: go straight to them.
   const [jump] = useState(() => params.get('view') === 'sakramento' || params.has('tab'));
-  // The verse above changes the page's height when it comes in: jump after it.
+  // The verse and the readings above change the page's height when they come
+  // in: jump after them.
   const [verseIn, setVerseIn] = useState(false);
+  const [readingsIn, setReadingsIn] = useState(false);
 
   return (
     <main className="animate-fadeUp">
@@ -50,6 +54,9 @@ export default function Simbahan() {
             <PageJumps onTab={(t) => update({ tab: t === 'sakramento' ? null : t, view: null })} />
           </div>
           <VerseOfDay onLoad={() => setVerseIn(true)} />
+          <div className="mt-[18px] lg:mt-6">
+            <DailyReadings onLoad={() => setReadingsIn(true)} />
+          </div>
         </div>
       </Band>
 
@@ -66,7 +73,7 @@ export default function Simbahan() {
         </div>
       </section>
 
-      <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={jump && verseIn} />
+      <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={jump && verseIn && readingsIn} />
     </main>
   );
 }
