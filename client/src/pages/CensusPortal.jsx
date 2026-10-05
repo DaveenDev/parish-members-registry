@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GhostButton, Spinner } from '../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GhostButton, Spinner, FlagEmptyRequired } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
 import { HEAD, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
 import { bis, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
@@ -16,6 +16,9 @@ const NEW_RELATIONSHIPS = RELATIONSHIPS.filter((r) => r !== HEAD);
 function blankNewMember(lastName = '') {
   return { first_name: '', middle_name: '', last_name: lastName, suffix: '', relationship: '', sex: '', dob: '', civil_status: '', contact: '', status: '', participation: {}, notes: '', statusPicked: false };
 }
+
+/** A new-member card the family has started filling in (an untouched one is ignored). */
+const isFilledNew = (m) => !!(m.first_name || m.last_name || m.relationship);
 
 /** A young child with no status yet (or Aktibo) is Aktibo, with no participation answers. */
 function childDefaults(m) {
@@ -69,6 +72,7 @@ export default function CensusPortal() {
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
   const [error, setError] = useState('');
+  const [showStatusErrors, setShowStatusErrors] = useState(false);
   const [busy, setBusy] = useState(false);
   const [logo, setLogo] = useState(null);
 
@@ -113,8 +117,17 @@ export default function CensusPortal() {
 
   async function submit() {
     setError('');
-    const missing = form.newMembers.find((m) => (m.first_name || m.last_name || m.relationship) && (!m.first_name.trim() || !m.last_name.trim() || !m.relationship));
+    const missing = form.newMembers.find((m) => isFilledNew(m) && (!m.first_name.trim() || !m.last_name.trim() || !m.relationship));
     if (missing) { setError('Ibutang ang pangalan, apelyido ug relasyon sa matag bag-ong miyembro.'); return; }
+    // Every member (and every new member being added) needs a "Kahimtang karon".
+    const unmarked = [...form.members, ...form.newMembers.filter(isFilledNew)].filter((m) => !MEMBERSHIP_STATUSES.includes(m.status));
+    if (unmarked.length) {
+      setShowStatusErrors(true);
+      setError(`Pilia ang kahimtang karon sa matag miyembro (${unmarked.length} pa ang kulang).`);
+      // After the cards re-render with their errors, bring the first one into view.
+      setTimeout(() => document.querySelector('[data-census-status][aria-invalid=true]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      return;
+    }
     if (!form.consent) { setError('Palihug i-tsek ang pagtugot sa data privacy sa ubos.'); return; }
     setBusy(true);
     try {
@@ -209,6 +222,7 @@ export default function CensusPortal() {
   const head = form.members.find((m) => m.relationship === HEAD);
 
   return (
+    <FlagEmptyRequired.Provider value>
     <div className="min-h-screen px-4 py-10" style={BG}>
       <div className="max-w-[760px] mx-auto">
         {header}
@@ -248,7 +262,7 @@ export default function CensusPortal() {
         <Section title={`Mga miyembro (${form.members.length})`}>
           <div className="flex flex-col gap-4">
             {form.members.map((m, i) => (
-              <MemberCard key={m.id} member={m} onChange={(patch) => updateList('members', i, patch)} />
+              <MemberCard key={m.id} member={m} showStatusError={showStatusErrors} onChange={(patch) => updateList('members', i, patch)} />
             ))}
           </div>
         </Section>
@@ -261,6 +275,7 @@ export default function CensusPortal() {
                 key={i}
                 member={m}
                 isNew
+                showStatusError={showStatusErrors && isFilledNew(m)}
                 onChange={(patch) => updateList('newMembers', i, patch)}
                 onRemove={() => setForm((f) => ({ ...f, newMembers: f.newMembers.filter((_, j) => j !== i) }))}
               />
@@ -306,6 +321,7 @@ export default function CensusPortal() {
         <CreditFooter inline />
       </div>
     </div>
+    </FlagEmptyRequired.Provider>
   );
 }
 
@@ -318,7 +334,7 @@ function Section({ title, children }) {
   );
 }
 
-function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
+function MemberCard({ member: m, isNew = false, showStatusError = false, onChange, onRemove }) {
   // Names, birthdays and the like rarely change: existing members keep them
   // folded away and open them only to correct a mistake.
   const [editing, setEditing] = useState(isNew);
@@ -350,8 +366,8 @@ function MemberCard({ member: m, isNew = false, onChange, onRemove }) {
       </div>
 
       <div className="grid gap-3" style={GRID}>
-        <Field label="Kahimtang karon">
-          <Select value={m.status} onChange={(e) => pickStatus(e.target.value)}>
+        <Field label="Kahimtang karon" required error={showStatusError && !MEMBERSHIP_STATUSES.includes(m.status) ? 'Pilia ang kahimtang karon' : ''}>
+          <Select data-census-status value={m.status} onChange={(e) => pickStatus(e.target.value)}>
             <option value="">Pili…</option>
             {MEMBERSHIP_STATUSES.map((s) => <option key={s} value={s}>{MEMBERSHIP_STATUS_LABELS[s]}</option>)}
           </Select>
