@@ -1,3 +1,39 @@
-1. modify the notifications option, add a default "Member Request Only"
-where it will notify when someone hits the Request for Dihog, request for Certificate, 
-request for OCIA and Blood Donor and the Important Census Update
+in new register on website or on admin
+if the household member is below the required age for communion and confirmation, kasal
+then hide those in the step 3, mga sacrament to to tick...
+
+the same is true if a member is a child, then no need to be ask for Katungdanan in GKK
+and in Parish on step 4
+
+then in the step 5, the "Pamilya" card should be now "Panimalay (Household)" header
+the "Ngalan sa pamilya" should now display the 2 families in the same household too
+
+2. in the step 5:
+the Pag-apil should be "Pag-apil/Partisipasyon" and the data should be displayed as checklist
+instead of plainwords "Romnick Enaldo · Aktibo
+Mass (Misa): Aktibo · Bible Service (Kasaulogan): Panagsa · Devotions / Rosary: Aktibo · Meetings / Seminars: Aktibo · Pintakasi: Panagsa · Suporta Pinansyal: Aktibo"
+
+
+in the mga sakramento
+the Card Header "Romnick Enaldo" should have extra family number as info
+example "Romnick Enaldo (Family #1)"
+next member that belongs to the same family 
+like "Clarys Enaldo" should also have "Clarys Enaldo (Family #1)"
+so the next Family name will have #2
+
+like "Efren Dayao (Family #2)" when New Family was triggered.
+do the same for Step 2 "Mga Miyembro"
+
+3. on step 2 of new registry or new household on admin, if user selects "Asawa" for Relasyon sa ulo sa pamilya *
+if the Ulo sa Pamilya is "Lalaki" / male then the Kasarian/Gender should be automatic "Babaye"
+
+4. make the Generate Report on Families > Households with more than one family
+report become more detailed 
+by showing  the members grouped Per Family after each household record
+
+5. modify the Edit Household UI in the admin, now that
+each member will have to be marked active or not.
+
+6. any any of (website registry, admin new household and edit) they should not
+be able to register the Head of the Household as another Member of the family, 
+users should be warned if the new member matched to the Ulo sa Panimalay.
