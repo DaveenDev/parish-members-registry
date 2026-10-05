@@ -15,12 +15,15 @@ export const UNIVERSALIS_PAGE = `https://universalis.com/${UNIVERSALIS_CALENDAR}
 /** Days before and after today the visitor can move to. */
 export const DAY_RANGE = { min: -3, max: 7 };
 
-/** The readings in Mass order, with their Bisaya names. Weekdays have no second reading. */
+/**
+ * The readings in Mass order. In English, like the texts (there's no
+ * Cebuano Catholic text to have). Weekdays have no second reading.
+ */
 export const READING_PARTS = [
-  ['Mass_R1', 'Unang Pagbasa'],
-  ['Mass_Ps', 'Salmo'],
-  ['Mass_R2', 'Ikaduhang Pagbasa'],
-  ['Mass_G', 'Ebanghelyo'],
+  ['Mass_R1', 'First Reading'],
+  ['Mass_Ps', 'Responsorial Psalm'],
+  ['Mass_R2', 'Second Reading'],
+  ['Mass_G', 'Gospel'],
 ];
 
 /** Today in the Philippines, as YYYY-MM-DD, wherever the visitor is. */
@@ -77,6 +80,29 @@ export function plainText(html) {
     .trim();
 }
 
+// The short forms in Universalis's Gospel acclamations ("Jn1:14,12"), Jerusalem Bible style.
+const ABBREVIATIONS = {
+  Gn: 'Genesis', Ex: 'Exodus', Lv: 'Leviticus', Nb: 'Numbers', Dt: 'Deuteronomy', Jos: 'Joshua', Jg: 'Judges', Rt: 'Ruth',
+  S: 'Samuel', K: 'Kings', Ch: 'Chronicles', Ezr: 'Ezra', Ne: 'Nehemiah', Tb: 'Tobit', Jdt: 'Judith', Est: 'Esther', M: 'Maccabees',
+  Jb: 'Job', Ps: 'Psalm', Pr: 'Proverbs', Qo: 'Ecclesiastes', Sg: 'Song of Songs', Ws: 'Wisdom', Si: 'Ecclesiasticus',
+  Is: 'Isaiah', Jr: 'Jeremiah', Lm: 'Lamentations', Ba: 'Baruch', Ezk: 'Ezekiel', Dn: 'Daniel', Ho: 'Hosea', Jl: 'Joel', Am: 'Amos',
+  Ob: 'Obadiah', Jon: 'Jonah', Mi: 'Micah', Na: 'Nahum', Hab: 'Habakkuk', Zp: 'Zephaniah', Hg: 'Haggai', Zc: 'Zechariah', Ml: 'Malachi',
+  Mt: 'Matthew', Mk: 'Mark', Lk: 'Luke', Jn: 'John', Ac: 'Acts', Rm: 'Romans', Co: 'Corinthians', Ga: 'Galatians', Ep: 'Ephesians',
+  Ph: 'Philippians', Col: 'Colossians', Th: 'Thessalonians', Tm: 'Timothy', Tt: 'Titus', Phm: 'Philemon', Heb: 'Hebrews',
+  Jm: 'James', P: 'Peter', Jude: 'Jude', Rv: 'Apocalypse',
+};
+
+/**
+ * A Bible reference written out in full: "Jn1:14,12" → "John 1:14,12",
+ * "1Jn2:5" → "1 John 2:5". Full ones ("Galatians 1:13‐24") stay as they are.
+ */
+export function fullRef(ref) {
+  const s = String(ref || '').trim();
+  const m = /^(\d)?\s*([A-Za-z]+)\s*(\d.*)$/.exec(s);
+  const book = m && ABBREVIATIONS[m[2]];
+  return book ? [m[1], book, m[3]].filter(Boolean).join(' ') : s;
+}
+
 // A psalm starts with its response, in italics, on a line of its own.
 const RESPONSE = /^\s*<(div|p)[^>]*>\s*<i>([\s\S]*?)<\/i>\s*<\/\1>/i;
 
@@ -85,15 +111,19 @@ const RESPONSE = /^\s*<(div|p)[^>]*>\s*<i>([\s\S]*?)<\/i>\s*<\/\1>/i;
  * { key, label, source, heading, html }; the psalm adds `response` and the
  * Gospel `acclamation` ({ source, html }). All HTML is already cleaned.
  * Universalis sometimes sends only a reading's reference (seen with the
- * psalm): it stays, with an empty `html`.
+ * psalm): it stays, with an empty `html`. The second reading always has its
+ * place, third: on a day without one (weekdays) it's there with `none` set.
  */
 export function toReadings(data) {
   if (!data || typeof data !== 'object') return { day: '', readings: [], copyright: '' };
   const readings = [];
   for (const [key, label] of READING_PARTS) {
     const r = data[key];
-    if (!r || !(r.text || r.source)) continue;
-    const reading = { key, label, source: plainText(r.source), heading: plainText(r.heading), html: cleanHtml(r.text) };
+    if (!r || !(r.text || r.source)) {
+      if (key === 'Mass_R2' && readings.length) readings.push({ key, label, source: '', heading: '', html: '', none: true });
+      continue;
+    }
+    const reading = { key, label, source: fullRef(plainText(r.source)), heading: plainText(r.heading), html: cleanHtml(r.text) };
     if (key === 'Mass_Ps' && r.text) {
       const m = RESPONSE.exec(r.text);
       if (m) {
@@ -102,7 +132,7 @@ export function toReadings(data) {
       }
     }
     if (key === 'Mass_G' && data.Mass_GA?.text) {
-      reading.acclamation = { source: plainText(data.Mass_GA.source), html: cleanHtml(data.Mass_GA.text) };
+      reading.acclamation = { source: fullRef(plainText(data.Mass_GA.source)), html: cleanHtml(data.Mass_GA.text) };
     }
     readings.push(reading);
   }

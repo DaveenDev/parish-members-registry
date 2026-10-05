@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Icon } from './Icons.jsx';
 import { Skeleton } from './kit.jsx';
-import { BIS_DAYS, BIS_MONTHS, parseIso } from '../../lib/site.js';
+import { parseIso } from '../../lib/site.js';
 import { addDays } from '../../lib/website.js';
 import { DAY_RANGE, UNIVERSALIS_PAGE, manilaToday, toReadings, universalisUrl } from '../../lib/readings.js';
 
@@ -34,21 +34,25 @@ function loadDay(iso) {
   return days.get(iso);
 }
 
-/** "Martes, 6 Oktubre 2026" */
+const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
+/** "Tuesday, October 6, 2026" */
 function fmtDate(iso) {
   const d = parseIso(iso);
-  return `${BIS_DAYS[d.getDay()]}, ${d.getDate()} ${BIS_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+  return `${DAYS[d.getDay()]}, ${MONTHS[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
 }
 
-const WHEN = { '-1': 'Kagahapon', 0: 'Karong adlawa', 1: 'Ugma' };
+const WHEN = { '-1': 'Yesterday', 0: 'Today', 1: 'Tomorrow' };
 
 /**
- * Mga Pagbasa sa Misa: the day's readings (first reading, psalm, second
- * reading on Sundays and feasts, Gospel) from Universalis, Philippine
- * calendar (lib/readings.js). On a computer the readings are a list on the
- * left and the chosen one on the right; on a phone they're tabs above the
- * text. Visitors can move a few days back or ahead. `onLoad` says when the
- * first day is in (or failed), since the card changes the page's height.
+ * Daily Readings: the day's Mass readings (first reading, psalm, second
+ * reading, Gospel) from Universalis, Philippine calendar (lib/readings.js).
+ * In English throughout, like the texts: there's no Cebuano Catholic text to
+ * show. On a computer the readings are a list on the left and the chosen one
+ * on the right; on a phone they're tabs above the text. Visitors can move a
+ * few days back or ahead. `onLoad` says when the first day is in (or
+ * failed), since the card changes the page's height.
  */
 export default function DailyReadings({ onLoad }) {
   const today = manilaToday();
@@ -79,7 +83,8 @@ export default function DailyReadings({ onLoad }) {
   const readings = state.status === 'ok' ? state.readings : [];
   const at = Math.max(0, readings.findIndex((r) => r.key === picked));
   const current = readings[at];
-  const next = readings[at + 1];
+  // "Next" reads on to the next reading there is (a weekday has no second reading).
+  const next = readings.slice(at + 1).find((r) => !r.none);
 
   function choose(key, focus) {
     setPicked(key);
@@ -113,7 +118,7 @@ export default function DailyReadings({ onLoad }) {
         <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start lg:mb-6">
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1.5">
-              <h2 id="pagbasa-title" className="m-0 font-bold text-[12px] lg:text-[12.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)]">Mga Pagbasa sa Misa</h2>
+              <h3 id="pagbasa-title" className="m-0 font-bold text-[12px] lg:text-[12.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)]">Daily Readings</h3>
               {WHEN[offset] && (
                 <span className="font-bold text-[11px] tracking-[.06em] uppercase rounded-md px-2 py-0.5 text-parish-blueDeep border border-[var(--p-blue-border)]" style={{ background: 'var(--p-blue-tint)' }}>
                   {WHEN[offset]}
@@ -124,11 +129,11 @@ export default function DailyReadings({ onLoad }) {
             <div className="mt-1 text-[14.5px] lg:text-[15.5px] text-parish-text2 min-h-[1.5em]">{state.status === 'ok' ? state.day : ''}</div>
           </div>
           <div className="flex items-center gap-1.5">
-            <button type="button" className={NAV_BTN} onClick={() => setOffset(offset - 1)} disabled={offset <= DAY_RANGE.min} aria-label="Miaging adlaw">
+            <button type="button" className={NAV_BTN} onClick={() => setOffset(offset - 1)} disabled={offset <= DAY_RANGE.min} aria-label="Previous day">
               <Icon name="back" size={16} />
             </button>
-            {offset !== 0 && <button type="button" className={NAV_BTN} onClick={() => setOffset(0)}>Karong adlawa</button>}
-            <button type="button" className={NAV_BTN} onClick={() => setOffset(offset + 1)} disabled={offset >= DAY_RANGE.max} aria-label="Sunod nga adlaw">
+            {offset !== 0 && <button type="button" className={NAV_BTN} onClick={() => setOffset(0)}>Today</button>}
+            <button type="button" className={NAV_BTN} onClick={() => setOffset(offset + 1)} disabled={offset >= DAY_RANGE.max} aria-label="Next day">
               <Icon name="chev" size={16} />
             </button>
           </div>
@@ -143,10 +148,10 @@ export default function DailyReadings({ onLoad }) {
 
         {state.status === 'error' && (
           <div role="alert" className="rounded-xl border border-parish-border bg-[#fbf7ef] p-4 text-[15px] text-parish-ink">
-            Dili makuha ang mga pagbasa karon.{' '}
-            <button type="button" className="font-bold underline text-parish-blueDeep" onClick={() => setRetry(retry + 1)}>Sulayi pag-usab</button>
-            {' '}o{' '}
-            <a href={UNIVERSALIS_PAGE} target="_blank" rel="noopener noreferrer" className="font-bold underline text-parish-blueDeep">basaha sa Universalis</a>.
+            The readings couldn’t be loaded right now.{' '}
+            <button type="button" className="font-bold underline text-parish-blueDeep" onClick={() => setRetry(retry + 1)}>Try again</button>
+            {' '}or{' '}
+            <a href={UNIVERSALIS_PAGE} target="_blank" rel="noopener noreferrer" className="font-bold underline text-parish-blueDeep">read them on Universalis</a>.
           </div>
         )}
 
@@ -155,7 +160,7 @@ export default function DailyReadings({ onLoad }) {
             {/* On a phone the tabs scroll sideways edge to edge; the inner row keeps the padding at both ends. */}
             <div className="-mx-4 overflow-x-auto scroll-px-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden mb-4 lg:mx-0 lg:mb-0 lg:overflow-visible lg:sticky lg:top-24">
             <div
-              role="tablist" aria-label="Mga pagbasa" onKeyDown={onTabKey}
+              role="tablist" aria-label="Readings" onKeyDown={onTabKey}
               className="flex gap-1.5 w-max px-4 pb-1 lg:w-auto lg:flex-col lg:gap-2 lg:px-0 lg:pb-0"
             >
               {readings.map((r, n) => {
@@ -167,13 +172,17 @@ export default function DailyReadings({ onLoad }) {
                     onClick={() => choose(r.key)}
                     className={`flex-none text-left rounded-xl border-[1.5px] px-3.5 py-2 lg:px-4 lg:py-3 min-h-[44px] transition ${on
                       ? 'bg-parish-blue border-parish-blue text-white'
-                      : 'bg-parish-card border-parish-borderSoft text-parish-ink hover:border-[var(--p-blue-border)]'}`}
+                      : r.none
+                        ? 'bg-transparent border-dashed border-parish-borderSoft text-parish-text2 hover:border-[var(--p-blue-border)]'
+                        : 'bg-parish-card border-parish-borderSoft text-parish-ink hover:border-[var(--p-blue-border)]'}`}
                   >
                     <span className="flex items-center gap-2">
                       <span className={`hidden lg:inline-flex w-6 h-6 flex-none rounded-full items-center justify-center text-[12px] font-bold ${on ? 'bg-white/20' : 'bg-[var(--p-blue-tint)] text-parish-blueDeep'}`}>{n + 1}</span>
                       <span className="font-bold text-[14.5px] whitespace-nowrap">{r.label}</span>
                     </span>
-                    <span className={`hidden lg:block mt-1 lg:pl-8 text-[13px] font-semibold ${on ? 'text-white/85' : 'text-[var(--p-gold-deep)]'}`}>{r.source}</span>
+                    <span className={`hidden lg:block mt-1 lg:pl-8 text-[13px] font-semibold ${on ? 'text-white/85' : r.none ? 'italic font-normal' : 'text-[var(--p-gold-deep)]'}`}>
+                      {r.none ? 'None on this day' : r.source}
+                    </span>
                   </button>
                 );
               })}
@@ -182,15 +191,15 @@ export default function DailyReadings({ onLoad }) {
 
             <div ref={panel} id="pagbasa-panel" role="tabpanel" aria-labelledby={`pagbasa-tab-${current.key}`} className="scroll-mt-20 min-w-0">
               <div className="flex items-baseline gap-x-3 gap-y-1 flex-wrap">
-                <h3 className="m-0 font-serif text-[26px] lg:text-[32px] leading-tight text-parish-navy">{current.label}</h3>
+                <h4 className="m-0 font-serif font-normal text-[26px] lg:text-[32px] leading-tight text-parish-navy">{current.label}</h4>
                 <span className="font-bold text-[15px] lg:text-[16px] text-[var(--p-gold-deep)]">{current.source}</span>
               </div>
               {current.heading && <p className="m-0 mt-1.5 font-serif italic text-[18px] lg:text-[20px] text-parish-text2">{current.heading}</p>}
 
               {current.acclamation && (
-                <aside aria-label="Aleluya" className="mt-4 rounded-xl px-4 py-3" style={{ background: 'var(--p-blue-tint)' }}>
+                <aside aria-label="Gospel Acclamation" className="mt-4 rounded-xl px-4 py-3" style={{ background: 'var(--p-blue-tint)' }}>
                   <div className="font-bold text-[11.5px] tracking-[.12em] uppercase text-parish-blueDeep mb-1">
-                    Aleluya{current.acclamation.source ? ` · ${current.acclamation.source}` : ''}
+                    Gospel Acclamation{current.acclamation.source ? ` · ${current.acclamation.source}` : ''}
                   </div>
                   <div className="text-[15px] leading-relaxed text-parish-ink [&_[data-line]]:pl-[1.6em] [&_[data-line]]:-indent-[1.6em]" dangerouslySetInnerHTML={{ __html: current.acclamation.html }} />
                 </aside>
@@ -198,24 +207,29 @@ export default function DailyReadings({ onLoad }) {
 
               {current.response && (
                 <div className="mt-4 rounded-xl border-l-4 px-4 py-3" style={{ borderColor: 'var(--p-gold)', background: 'var(--p-gold-tint)' }}>
-                  <div className="font-bold text-[11.5px] tracking-[.12em] uppercase text-[var(--p-gold-deep)] mb-0.5">Tubag</div>
+                  <div className="font-bold text-[11.5px] tracking-[.12em] uppercase text-[var(--p-gold-deep)] mb-0.5">Response</div>
                   <p className="m-0 font-serif italic font-semibold text-[19px] lg:text-[21px] leading-snug text-parish-navy">{current.response}</p>
                 </div>
               )}
 
-              {current.html ? (
+              {current.none ? (
+                <p className="m-0 mt-4 max-w-[60ch] text-[15.5px] leading-relaxed text-parish-text2">
+                  There is no Second Reading on this day. It is read only on Sundays and solemnities; on other days the Mass
+                  has the First Reading, the Responsorial Psalm and the Gospel.
+                </p>
+              ) : current.html ? (
                 // Cleaned by toReadings (lib/readings.js): only plain formatting tags, no attributes.
                 <div className={`mt-4 ${BODY} ${current.key === 'Mass_Ps' ? PSALM : ''}`} dangerouslySetInnerHTML={{ __html: current.html }} />
               ) : (
                 <p className="m-0 mt-4 text-[15px] text-parish-text2">
-                  Wala pa ang teksto niini dinhi.{' '}
-                  <a href={UNIVERSALIS_PAGE} target="_blank" rel="noopener noreferrer" className="font-bold underline text-parish-blueDeep">Basaha sa Universalis</a>.
+                  The text isn’t available here yet.{' '}
+                  <a href={UNIVERSALIS_PAGE} target="_blank" rel="noopener noreferrer" className="font-bold underline text-parish-blueDeep">Read it on Universalis</a>.
                 </p>
               )}
 
               {next && (
                 <button type="button" className={`${NAV_BTN} mt-6`} onClick={readNext}>
-                  Sunod: {next.label}<Icon name="chev" size={16} />
+                  Next: {next.label}<Icon name="chev" size={16} />
                 </button>
               )}
             </div>
@@ -224,9 +238,10 @@ export default function DailyReadings({ onLoad }) {
       </div>
 
       <div className="px-4 py-3.5 lg:px-10 border-t border-[#f0e8d6] text-[12px] leading-relaxed text-parish-text2">
-        Mga pagbasa gikan sa{' '}
+        Readings from{' '}
         <a href={UNIVERSALIS_PAGE} target="_blank" rel="noopener noreferrer" className="font-bold underline text-parish-blueDeep">Universalis</a>
-        {' '}(kalendaryo sa Pilipinas).{state.status === 'ok' && state.copyright ? ` ${state.copyright}` : ''}
+        {' '}(Philippine calendar). Text from the Jerusalem Bible, a Catholic Bible, with the Grail Psalms.
+        {state.status === 'ok' && state.copyright ? ` ${state.copyright}` : ''}
       </div>
     </article>
   );

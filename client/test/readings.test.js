@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { cleanHtml, manilaToday, plainText, toReadings, universalisUrl } from '../src/lib/readings.js';
+import { cleanHtml, fullRef, manilaToday, plainText, toReadings, universalisUrl } from '../src/lib/readings.js';
 
 // Shaped like the Universalis feed (texts made up).
 const SUNDAY = {
@@ -50,11 +50,24 @@ test('plainText strips tags and decodes entities', () => {
   assert.equal(plainText('<b>Hodder &amp; Stoughton</b> &#169;'), 'Hodder & Stoughton ©');
 });
 
+test('Gospel acclamation short forms are written out; full references stay as they are', () => {
+  assert.equal(fullRef('Jn1:14,12'), 'John 1:14,12');
+  assert.equal(fullRef('1Jn2:5'), '1 John 2:5');
+  assert.equal(fullRef('Ph2:15‐16'), 'Philippians 2:15‐16');
+  assert.equal(fullRef('Ps118:24'), 'Psalm 118:24');
+  assert.equal(fullRef('Rv1:5'), 'Apocalypse 1:5');
+  for (const full of ['Galatians 1:13‐24', 'Psalm 138(139):1‐3,13‐15', '1 Kings 19:9,11‐13', 'Song of Songs 2:8‐14', 'Ecclesiasticus 27:30‐28:7', 'Acts 2:1‐11', 'Job 1:6‐22', 'Amos 6:1,4‐7', '']) {
+    assert.equal(fullRef(full), full);
+  }
+});
+
 test('a Sunday: four readings in Mass order, with the psalm response and the Gospel acclamation', () => {
   const { day, readings, copyright } = toReadings(SUNDAY);
   assert.equal(day, '28th Sunday in Ordinary Time');
-  assert.deepEqual(readings.map((r) => r.label), ['Unang Pagbasa', 'Salmo', 'Ikaduhang Pagbasa', 'Ebanghelyo']);
+  assert.deepEqual(readings.map((r) => r.label), ['First Reading', 'Responsorial Psalm', 'Second Reading', 'Gospel']);
   assert.equal(readings[0].source, 'Isaiah 25:6‐10');
+  assert.equal(readings[2].source, 'Philippians 4:12‐14');
+  assert.equal(readings[2].none, undefined);
   assert.equal(readings[0].heading, 'A banquet for every nation');
   assert.equal(readings[0].html, '<div data-line data-gap>Line one</div><div data-line>Line two</div>');
 
@@ -64,13 +77,14 @@ test('a Sunday: four readings in Mass order, with the psalm response and the Gos
   assert.ok(psalm.html.startsWith('<div data-line data-gap>The Lord is my shepherd;</div>'));
   assert.ok(psalm.html.includes('<i>'));
 
-  assert.deepEqual(readings[3].acclamation, { source: 'Jn1:14,12', html: '<div data-line>Alleluia, alleluia!</div>' });
+  assert.deepEqual(readings[3].acclamation, { source: 'John 1:14,12', html: '<div data-line>Alleluia, alleluia!</div>' });
   assert.equal(copyright, 'Copyright © 1996‐2026 Universalis Publishing Limited');
 });
 
-test('a weekday has no second reading', () => {
+test('a weekday keeps the second reading’s place, third, marked as none', () => {
   const { readings } = toReadings({ ...SUNDAY, Mass_R2: undefined });
-  assert.deepEqual(readings.map((r) => r.key), ['Mass_R1', 'Mass_Ps', 'Mass_G']);
+  assert.deepEqual(readings.map((r) => r.key), ['Mass_R1', 'Mass_Ps', 'Mass_R2', 'Mass_G']);
+  assert.deepEqual(readings[2], { key: 'Mass_R2', label: 'Second Reading', source: '', heading: '', html: '', none: true });
 });
 
 test('a reading sent without its text keeps its reference', () => {

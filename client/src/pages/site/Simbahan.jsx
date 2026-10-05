@@ -19,8 +19,8 @@ const TEACH_TABS = [['sakramento', 'Mga Sakramento ug Pormasyon'], ['organisasyo
 
 /**
  * Ang Simbahan: a random Bible verse with what the Catechism teaches about
- * it, and the day's Mass readings, on the light-blue band; then the Mass
- * schedule (or the events agenda,
+ * it, on the light-blue band; then the Mass schedule with the day's Mass
+ * readings under it (or the events agenda,
  * Kalendaryo); then the sacrament guides and the parish's organization
  * charts, as two tabs on the band again. Old /misa links land here (with
  * ?view=kalendaryo and ?view=sakramento still working).
@@ -37,8 +37,8 @@ export default function Simbahan() {
   };
   // Arriving for the sacraments or the org charts: go straight to them.
   const [jump] = useState(() => params.get('view') === 'sakramento' || params.has('tab'));
-  // The verse and the readings above change the page's height when they come
-  // in: jump after them.
+  // The verse and the readings (with the Mass schedule) change the page's
+  // height when they come in: jump after them.
   const [verseIn, setVerseIn] = useState(false);
   const [readingsIn, setReadingsIn] = useState(false);
 
@@ -54,9 +54,6 @@ export default function Simbahan() {
             <PageJumps onTab={(t) => update({ tab: t === 'sakramento' ? null : t, view: null })} />
           </div>
           <VerseOfDay onLoad={() => setVerseIn(true)} />
-          <div className="mt-[18px] lg:mt-6">
-            <DailyReadings onLoad={() => setReadingsIn(true)} />
-          </div>
         </div>
       </Band>
 
@@ -69,11 +66,18 @@ export default function Simbahan() {
             </div>
             <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={(v) => update({ view: v === 'events' ? 'kalendaryo' : null })} />
           </div>
-          {view === 'sched' ? <MassSchedule /> : <EventsAgenda />}
+          {view === 'sched' ? (
+            <>
+              <MassSchedule />
+              <div className="mt-[18px] lg:mt-6">
+                <DailyReadings onLoad={() => setReadingsIn(true)} />
+              </div>
+            </>
+          ) : <EventsAgenda />}
         </div>
       </section>
 
-      <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={jump && verseIn && readingsIn} />
+      <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={jump && verseIn && (readingsIn || view !== 'sched')} />
     </main>
   );
 }
