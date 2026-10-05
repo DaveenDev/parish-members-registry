@@ -7,7 +7,7 @@ import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { ActionMenu, ErrorState, FilterSelect, LoadingState, Modal, Panel } from '../admin.jsx';
 import { Field, GhostButton, PrimaryButton, TextInput } from '../ui.jsx';
-import { findCycle, fromRows, holderOf, isNewKey, NEW_PREFIX, removeLiftingChildren, savePayload, wouldCreateCycle } from '../../lib/orgChart.js';
+import { findCycle, fromRows, holderOf, parishRoleNote, isNewKey, NEW_PREFIX, removeLiftingChildren, savePayload, wouldCreateCycle } from '../../lib/orgChart.js';
 import { NODE_H, NODE_W, tidyPositions } from '../../lib/orgChartLayout.js';
 import NodePanel, { HolderAvatar } from './NodePanel.jsx';
 import GkkOfficers from './GkkOfficers.jsx';
@@ -242,7 +242,7 @@ function Editor({ chart, canEdit, onChartUpdated, onDeleted, onDirtyChange }) {
       const selectedKey = selected ? String(res?.keys?.[selected.id] ?? selected.id) : null;
       await load(selectedKey);
       setPreviewNonce((n) => n + 1);
-      toast.success(`${chart.title} saved${chart.published ? '. The website shows it now.' : ''}`);
+      toast.success(`${chart.title} saved${chart.published ? '. The website shows it now.' : '.'} ${parishRoleNote(res?.roles)}`.trim());
     } catch (e) {
       toast.error(e.message || 'Could not save the chart');
     } finally {

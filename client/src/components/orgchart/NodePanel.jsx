@@ -99,6 +99,9 @@ export default function NodePanel({ node, scope, positions, canEdit, onChange, o
           ) : (
             <div className="text-[13px] text-parish-muted">Vacant. The website shows the position with no name.</div>
           )}
+          {d.memberId && linked && (
+            <p className="m-0 text-[12.5px] text-parish-muted">Saving the chart also sets {d.memberName || 'this member'}'s Katungdanan sa Parish to {d.positionName} in the registry.</p>
+          )}
           {canEdit && (
             <>
               <MemberPicker onPick={(m) => onChange({ memberId: m.id, memberName: pickedName(m), holderName: '' })} />

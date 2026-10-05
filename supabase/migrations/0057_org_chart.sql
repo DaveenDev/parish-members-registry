@@ -10,6 +10,11 @@
 --                     page fills it with that GKK's member holding the role.
 -- Staff with full access can add more charts.
 --
+-- A position linked to the parish positions list (e.g. "PPC Secretary") and
+-- held by a registered member sets that member's Katungdanan sa Parish
+-- (members.parish_role) when the chart is saved, so the registry and the
+-- chart agree; taking them off the position clears it again.
+--
 -- Everyone signed in to the admin can look at the charts; only full access
 -- can change them (the same rule as the Ministries & organizations lists).
 -- All changes go through the functions below, which log them in the
@@ -302,19 +307,77 @@ begin
 end;
 $$;
 
+/** The (member, parish position) pairs a chart's positions link: [{ m, p }]. */
+create or replace function public.org_parish_links(p_chart_id integer) returns jsonb
+language sql stable security definer set search_path = public as $$
+  select coalesce(jsonb_agg(jsonb_build_object('m', n.member_id, 'p', n.position_name)), '[]'::jsonb)
+  from org_nodes n join org_charts c on c.id = n.chart_id
+  where n.chart_id = p_chart_id and c.scope = 'parish' and n.member_id is not null and n.position_name is not null;
+$$;
+
+/**
+ * Keep each member's "Katungdanan sa Parish" (members.parish_role) in step
+ * with the charts, for the members in `p_old` (a chart's links before a
+ * change) and `p_new` (after). A member holding a position linked to the
+ * parish positions list gets it as their parish role; one holding several
+ * keeps theirs if it's one of them, else gets the first. A member who no
+ * longer holds any loses the role the chart gave them, and only that one.
+ * Returns what changed: [{ memberId, name, from, to }].
+ */
+create or replace function public.org_sync_parish_roles(p_old jsonb, p_new jsonb) returns jsonb
+language plpgsql security definer set search_path = public as $$
+declare
+  mid integer;
+  held text[];
+  cur text;
+  target text;
+  changes jsonb := '[]'::jsonb;
+begin
+  for mid in
+    select distinct (e->>'m')::integer from jsonb_array_elements(coalesce(p_old, '[]'::jsonb) || coalesce(p_new, '[]'::jsonb)) e
+  loop
+    select parish_role into cur from members where id = mid;
+    continue when not found;
+    held := array(
+      select n.position_name from org_nodes n join org_charts c on c.id = n.chart_id
+      where c.scope = 'parish' and n.member_id = mid and n.position_name is not null
+      group by n.position_name order by min(n.id));
+    if cardinality(held) > 0 then
+      target := case when cur = any(held) then cur else held[1] end;
+    elsif exists (select 1 from jsonb_array_elements(coalesce(p_old, '[]'::jsonb)) e where (e->>'m')::integer = mid and e->>'p' = cur) then
+      target := null;
+    else
+      continue;
+    end if;
+    if target is distinct from cur then
+      -- The members write guard and activity log see this as the staff member's change.
+      update members set parish_role = target where id = mid;
+      changes := changes || jsonb_build_array(jsonb_build_object('memberId', mid, 'name', org_member_name(mid), 'from', cur, 'to', target));
+    end if;
+  end loop;
+  return changes;
+end;
+$$;
+
+revoke all on function public.org_parish_links(integer) from public, anon, authenticated;
+revoke all on function public.org_sync_parish_roles(jsonb, jsonb) from public, anon, authenticated;
+
 create or replace function public.delete_org_chart(p_id integer) returns void
 language plpgsql security definer set search_path = public as $$
 declare
   c org_charts;
   positions integer;
+  links jsonb;
 begin
   perform require_full_access('change the organization charts');
   select * into c from org_charts where id = p_id;
   if c.id is null then raise exception 'Chart not found'; end if;
   if c.builtin then raise exception '% can''t be deleted. Unpublish it to take it off the website.', c.title; end if;
   select count(*) into positions from org_nodes where chart_id = p_id;
+  links := org_parish_links(p_id);
   delete from org_charts where id = p_id;
   perform org_chart_log('delete', c, jsonb_build_object('positions', positions));
+  perform org_sync_parish_roles(links, null);
 end;
 $$;
 
@@ -325,7 +388,8 @@ $$;
  * a position within this call (its id, or a temporary key for a new one) and
  * `parentKey` is its parent's key. Positions not in the list are deleted.
  * Refuses a position placed under itself, directly or further down.
- * Returns { keys: { key: id } }.
+ * Holders' parish roles follow (org_sync_parish_roles).
+ * Returns { keys: { key: id }, roles: [{ memberId, name, from, to }] }.
  */
 create or replace function public.save_org_chart(p_chart_id integer, p_nodes jsonb) returns jsonb
 language plpgsql security definer set search_path = public as $$
@@ -343,6 +407,8 @@ declare
   mem integer;
   photo text;
   looped text;
+  links jsonb;
+  roles jsonb;
 begin
   perform require_full_access('change the organization charts');
   select * into c from org_charts where id = p_chart_id for update;
@@ -350,6 +416,7 @@ begin
   if jsonb_typeof(p_nodes) is distinct from 'array' then raise exception 'Nothing to save'; end if;
   if jsonb_array_length(p_nodes) > 500 then raise exception 'A chart can have at most 500 positions'; end if;
   select count(*) into old_count from org_nodes where chart_id = p_chart_id;
+  links := org_parish_links(p_chart_id);
 
   -- Each position, without its parent yet (a new parent may come later in the list).
   for n in select * from jsonb_array_elements(p_nodes) loop
@@ -430,7 +497,9 @@ begin
 
   update org_charts set updated_at = now() where id = p_chart_id;
   perform org_chart_log('update', c, jsonb_build_object('positions', jsonb_build_array(old_count, cardinality(kept))));
-  return jsonb_build_object('keys', keymap);
+  -- A holder picked from the registry for a linked position gets it as their Katungdanan sa Parish.
+  roles := org_sync_parish_roles(links, org_parish_links(p_chart_id));
+  return jsonb_build_object('keys', keymap, 'roles', roles);
 end;
 $$;
 

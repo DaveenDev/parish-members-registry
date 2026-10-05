@@ -18,7 +18,7 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 - Members: sortable/filterable directory with a full editable detail view (personal info, sacraments, ministries, organizations)
 - Sacraments overview table with per-sacrament filters
 - Ministry & organization directories with per-group rosters
-- Organization Structure (Parish life): org charts drawn on a drag-and-drop canvas (React Flow), one tab per chart: Church Structure, the GKK Structure every GKK shares (its officers filled in from members' GKK roles), and any chart staff add. Published charts show on the website under Komunidad → Organisasyon (zoomable and collapsible, d3-org-chart), and each GKK's page lists its officers under “Mga Opisyal”
+- Organization Structure (Parish life): org charts drawn on a drag-and-drop canvas (React Flow), one tab per chart: Church Structure, the GKK Structure every GKK shares (its officers filled in from members' GKK roles), and any chart staff add. Published charts show on the website under Komunidad → Organisasyon (zoomable and collapsible, d3-org-chart), and each GKK's page lists its officers under “Mga Opisyal”. A member placed on a position from the parish positions list gets it as their Katungdanan sa Parish
 - Reports: registration status by GKK, sacramental completion, ministry/org participation, blood type directory, and an ad-hoc report builder
 - CSV exports for members, households, and blood type directory
 - Parish census: start a census whenever the parish decides (yearly, every two years…), print pre-filled census forms by GKK, record each member's participation and status (Active, Inactive, Moved away, Deceased, Left the Church), and see results by GKK

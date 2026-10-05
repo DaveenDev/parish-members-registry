@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   descendantKeys, escapeHtml, findCycle, fromRows, hasCycle, HIDDEN_ROOT, holderOf, nameInitials,
-  removeLiftingChildren, safePhotoUrl, savePayload, siblingOrder, toD3Rows, wouldCreateCycle,
+  parishRoleNote, removeLiftingChildren, safePhotoUrl, savePayload, siblingOrder, toD3Rows, wouldCreateCycle,
 } from '../src/lib/orgChart.js';
 
 // Parish Priest → PPC President → (Secretary, Treasurer); Secretary → Clerk.
@@ -140,4 +140,13 @@ test('tidy layout copes with several tops and a loop', async () => {
   assert.equal(Object.keys(pos).length, 4);
   assert.ok(pos.b.x + NODE_W <= pos.a.x);
   assert.equal(pos.a.y, 0);
+});
+
+test('the save message names the parish roles it changed', () => {
+  assert.equal(parishRoleNote([]), '');
+  assert.equal(parishRoleNote(undefined), '');
+  assert.equal(
+    parishRoleNote([{ name: 'Juan Dela Cruz', from: null, to: 'PPC President' }, { name: 'Maria Reyes', from: 'PPC Secretary', to: null }]),
+    'Katungdanan sa Parish updated in the registry. Juan Dela Cruz: PPC President; Maria Reyes: none.',
+  );
 });

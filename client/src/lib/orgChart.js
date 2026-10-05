@@ -149,6 +149,16 @@ export function fromRows(rows) {
   }));
 }
 
+/**
+ * What saving a chart did to holders' Katungdanan sa Parish
+ * (save_org_chart's `roles`), in one line; '' when nothing changed.
+ */
+export function parishRoleNote(changes) {
+  if (!changes?.length) return '';
+  const parts = changes.map((c) => `${c.name || 'A member'}: ${c.to || 'none'}`);
+  return `Katungdanan sa Parish updated in the registry. ${parts.join('; ')}.`;
+}
+
 /** The name shown on a position in the editor: the member, else the typed name. */
 export function holderOf(n) {
   return n.memberName || n.holderName || '';

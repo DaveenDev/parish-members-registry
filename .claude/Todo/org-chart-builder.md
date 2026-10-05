@@ -9,7 +9,7 @@
 > - Tidy layout is a small tidy-tree in `client/src/lib/orgChartLayout.js` instead of dagre: dagre reorders siblings, and their left-to-right order is the order the website shows.
 > - `d3` isn't installed: d3-org-chart brings the d3 modules it uses; only `d3-transition` is added.
 > - Holder photos go to R2 under `org/` (redeploy `media-upload`).
-> - Step 7 (setting `members.parish_role` from the chart) is not done.
+> - Step 7 is done in the database: saving a chart (`save_org_chart` → `org_sync_parish_roles`) sets the Katungdanan sa Parish of each registered holder of a position linked to the parish positions list. A member with several such positions keeps their role if it's one of them, else gets the first; taking them off (or deleting the chart) clears the role the chart gave them. The save message lists what changed, and it shows in the activity log as the staff member's edit.
 > - Leaving the page inside the admin with unsaved changes isn't caught (the app uses `BrowserRouter`, which has no `useBlocker`); switching tabs and closing/reloading the browser tab are.
 
 ## Context
