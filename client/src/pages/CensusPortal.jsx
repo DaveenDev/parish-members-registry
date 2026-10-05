@@ -181,7 +181,7 @@ export default function CensusPortal() {
                 Ibutang ang <strong>reference number</strong> ug ang <strong>code</strong> nga anaa sa inyong census form gikan sa parokya.
               </p>
               <form onSubmit={open} className="flex flex-col gap-4">
-                <Field label="Reference number"><TextInput value={refNo} onChange={(e) => setRefNo(e.target.value.toUpperCase())} placeholder="OLG-2026-XXXXXX" autoComplete="off" /></Field>
+                <Field label="Reference number"><TextInput value={refNo} onChange={(e) => setRefNo(e.target.value.toUpperCase())} placeholder="MEO-2026-0001" autoComplete="off" /></Field>
                 <Field label="Code"><TextInput value={code} onChange={(e) => setCode(e.target.value.toUpperCase())} onBlur={() => setCode((c) => formatAccessCode(c))} placeholder="XXXX-XXXX" autoComplete="off" /></Field>
                 {error && <div role="alert" className="text-parish-error text-[14px] font-medium">{error}</div>}
                 <PrimaryButton type="submit" disabled={busy} className="py-3.5 text-[16px]">{busy ? <Spinner /> : 'Ablihi ang among rekord'}</PrimaryButton>

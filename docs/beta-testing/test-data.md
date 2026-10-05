@@ -69,15 +69,19 @@ something to show.
 
 ## Reference numbers
 
-Reference numbers look like `OLG-2026-K7P2XM`:
+Reference numbers look like `MEO-2026-0001`:
 
-- `OLG` — the parish
+- `MEO` — the 3-letter code of the barangay the household's GKK is in (the
+  part of the GKK name after " -"; Meohao is `MEO`, Birada Center `BRC`). Each
+  code can be changed under Parish Config → Parish GKK → Reference numbers.
 - the year of registration
-- six characters from `23456789ABCDEFGHJKLMNPQRSTUVWXYZ`
+- a number counted per barangay and year, at least 4 digits
 
-`0`, `O`, `1` and `I` are deliberately excluded so the number can be read aloud
-and copied off paper without ambiguity. A reference number containing any of
-those four characters is a bug.
+The second family registered in a Meohao GKK in 2026 is `MEO-2026-0002`. Two
+households with the same number, or a number whose code doesn't match the
+household's GKK at the time it registered, is a bug. Households registered
+before the change kept their old `OLG-2026-XXXXXX` number as a second number:
+it still works on Check Status and the census portal.
 
 ## Values worth testing with
 

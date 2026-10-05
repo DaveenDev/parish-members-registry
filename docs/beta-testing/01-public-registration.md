@@ -253,8 +253,8 @@ maximise the window, do not slow down to read carefully the first time through.
 
 **Expected**
 - A success screen: *Welcome to the family*.
-- A reference number in the form `OLG-2026-XXXXXX`, in large type.
-- The suffix uses no `0`, `O`, `1` or `I` — it has to be readable over the phone.
+- A reference number in the form `MEO-2026-0001`, in large type: the code of
+  the chosen GKK's barangay, the year, then the next number for that barangay.
 - Instruction to keep the number for their records.
 - Buttons: **Print confirmation** and **Register another household**.
 

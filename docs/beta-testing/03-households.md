@@ -224,7 +224,7 @@ to the office in person.
 
 **Expected**
 - The household appears in the list with both members.
-- It has a reference number in the `OLG-YYYY-XXXXXX` form.
+- It has a reference number in the `MEO-YYYY-0001` form, starting with its GKK's barangay code.
 - The comma in the name displays correctly everywhere — the list, the expanded
   view, the print sheet.
 - The sacrament ticks are visible on the member's detail view.

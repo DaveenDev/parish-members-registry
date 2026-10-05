@@ -558,7 +558,7 @@ Unless a row says otherwise, the check is: correct page heading, no
 | `s-p1-open-serbisyo` | `/serbisyo`, `/serbisyo/dugo`, `/kontak` | renders; blood calls list does **not** show the non-public `Test Hospital SV1001` request |
 | `s-p1-open-forms` | `/serbisyo/hangyo/sertipiko`, `…/pag-ampo`, `…/dugo`, `…/donor` | each form renders |
 | `s-p1-open-form-bogus` | `/serbisyo/hangyo/bogus` | redirects to `/serbisyo` |
-| `s-p1-open-susiha` | `/serbisyo/susiha` → look up `<certRef>`, then `<regRef>` | shows status only — **no** member names beyond the household name, no mobile numbers |
+| `s-p1-open-susiha` | `/serbisyo/susiha` → look up `<certRef>`, then `<regRef>` | shows status only — **no** household or member names, no mobile numbers |
 
 **Group 1 — public entry points outside `SiteLayout`:**
 | ID | Route | Expected |
@@ -824,7 +824,7 @@ Verify that first with `GET /auth/v1/user` (must be 401/403).
 | `a-pub-stats` | `public_parish_stats` | totals only |
 | `a-pub-gkk-dir` | `public_gkk_directory` | GKK names; household counts `null` below 5 households; coordinator only when marked public |
 | `a-pub-census` | `public_census_progress` | `open: true`, label `Census SV1001`, no household names |
-| `a-pub-reg-status` | `registration_status` `{"p_ref":"<regRef>"}` | ref, household name, status, date — **no** members, contacts or addresses |
+| `a-pub-reg-status` | `registration_status` `{"p_ref":"<regRef>"}` | ref, status, date — **no** household name, members, contacts or addresses |
 | `a-pub-cert-status` | `certificate_request_status` `{"p_ref":"<certRef>"}` | status fields only — no requester name/mobile |
 | `a-pub-blood-calls` | `public_blood_calls` | does **not** list the non-public `Test Hospital SV1001` request; never donor names |
 | `a-pub-prayers` | `public_prayer_intentions` | no requester details |

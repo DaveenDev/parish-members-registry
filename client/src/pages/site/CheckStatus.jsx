@@ -76,7 +76,7 @@ function useStatusCheck(initial = '') {
       } else {
         const r = await api.registrationStatus(value);
         if (!r) setResult({ kind: 'notfound', ref: value });
-        else setResult({ kind: r.status === 'Verified' ? 'verified' : 'received', ...r });
+        else setResult({ kind: r.status === 'Verified' ? 'verified' : 'received', ...r, asked: value });
       }
     } catch (err) {
       setResult(/Daghan na kaayo/i.test(err.message) ? { kind: 'limit' } : { kind: 'error' });
@@ -98,7 +98,7 @@ function RefForm({ s, inline = false, id = 'ref-in' }) {
           id={id}
           value={s.ref}
           onChange={(e) => s.setRef(e.target.value.toUpperCase())}
-          placeholder="OLG-2026-XXXXXX"
+          placeholder="MEO-2026-0001"
           autoCapitalize="characters"
           autoComplete="off"
           spellCheck={false}
@@ -125,7 +125,7 @@ export function StatusCheckCard() {
             <h2 id="susiha-title" className="m-0 font-serif font-bold text-[23px] lg:text-[30px] leading-tight text-parish-navy">Susiha ang inyong rehistro o hangyo</h2>
           </div>
           <p className="m-0 mb-3.5 text-[15px] leading-normal text-[#4d4636]">
-            Isulat ang reference number gikan sa inyong confirmation slip (OLG-…), sa hangyo sa sertipiko (CR-…), o sa OCIA ug Pagdihog (SR-…). Ang ngalan sa pamilya ug status lang ang ipakita.
+            Isulat ang reference number gikan sa inyong confirmation slip (pananglitan MEO-2026-0001), sa hangyo sa sertipiko (CR-…), o sa OCIA ug Pagdihog (SR-…). Ang status lang ang ipakita.
           </p>
           <RefForm s={s} inline id="ref-card" />
         </div>
@@ -141,7 +141,7 @@ export function StatusCheckCard() {
   );
 }
 
-/** Look up a household registration (OLG-…), a certificate request (CR-…) or a sacrament request (SR-…) by reference number. */
+/** Look up a household registration (MEO-2026-0001, or an older OLG-…), a certificate request (CR-…) or a sacrament request (SR-…) by reference number. */
 export default function CheckStatus() {
   useSiteTitle('Susiha ang Rehistro');
   const [params] = useSearchParams();
@@ -156,15 +156,15 @@ export default function CheckStatus() {
     <main className={`${INNER} lg:max-w-[1080px] lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start`}>
       <div>
       <h1 className="font-serif font-semibold text-[31px] lg:text-[42px] leading-[1.1] lg:leading-[1.06] m-0 mb-1.5 lg:mb-2 text-parish-navy">Susiha ang inyong rehistro o hangyo</h1>
-      <p className="m-0 mb-4 text-[15.5px] leading-normal text-[#4d4636]">Isulat ang reference number. Ang ngalan sa pamilya ug status lang ang ipakita.</p>
+      <p className="m-0 mb-4 text-[15.5px] leading-normal text-[#4d4636]">Isulat ang reference number. Ang status lang ang ipakita.</p>
 
       <div aria-hidden="true" className="bg-white border border-parish-borderSoft rounded-xl px-3.5 py-3 mb-4 -rotate-1" style={{ boxShadow: '0 8px 18px -14px rgba(23,38,63,.4)' }}>
         <div className="flex items-center gap-1.5 text-parish-gold mb-1.5"><Icon name="cross" size={16} /><span className="font-semibold text-[11px] text-parish-text2">Confirmation slip</span></div>
         <div className="h-1.5 w-[70%] bg-[#efe6d3] rounded mb-[5px]" />
         <div className="h-1.5 w-1/2 bg-[#efe6d3] rounded mb-2.5" />
         <div className="font-semibold text-[10px] tracking-[.14em] uppercase text-parish-text2">Inyong reference number</div>
-        <div className="inline-block mt-0.5 px-1.5 py-0.5 border-2 border-dashed border-parish-gold rounded-md font-serif text-[20px] font-bold tracking-[.06em] text-parish-blue">OLG-2026-XXXXXX</div>
-        <div className="text-[12.5px] text-[#4d4636] mt-1.5">Makita kini sa inyong confirmation slip. Ang hangyo sa sertipiko nagsugod sa CR-, ang OCIA ug Pagdihog sa SR-.</div>
+        <div className="inline-block mt-0.5 px-1.5 py-0.5 border-2 border-dashed border-parish-gold rounded-md font-serif text-[20px] font-bold tracking-[.06em] text-parish-blue">MEO-2026-0001</div>
+        <div className="text-[12.5px] text-[#4d4636] mt-1.5">Makita kini sa inyong confirmation slip. Ang unang tulo ka letra gikan sa barangay sa inyong GKK. Ang hangyo sa sertipiko nagsugod sa CR-, ang OCIA ug Pagdihog sa SR-.</div>
       </div>
 
       <RefForm s={s} />
@@ -187,8 +187,9 @@ function Result({ r, censusOpen }) {
           <span className="inline-flex items-center gap-1.5 font-bold text-[13px] text-parish-blueDeep border rounded-full px-2.5 py-1" style={{ background: 'var(--p-blue-tint)', borderColor: 'var(--p-blue-border)' }}>
             <Icon name="clock" size={14} />Nadawat
           </span>
-          <div className="font-serif text-[23px] font-bold text-parish-navy mt-2.5 mb-1">{r.household_name}</div>
+          <div className="font-serif text-[23px] font-bold text-parish-navy mt-2.5 mb-1">Rehistro · {r.ref_no}</div>
           <p className="m-0 text-[15.5px] leading-normal text-[#3f3b2f]">Nadawat namo ang inyong rehistro sa {fmtLong(r.registered_on)}. Gisusi pa sa kawani.</p>
+          <NewRefNote r={r} />
           {censusOpen && <BigButton variant="secondary" to="/census" className="mt-3.5">I-update ang among rekord</BigButton>}
         </div>
       );
@@ -196,8 +197,9 @@ function Result({ r, censusOpen }) {
       return (
         <div className="bg-parish-okBg border border-parish-okBorder rounded-2xl p-4">
           <span className="inline-flex items-center gap-1.5 font-bold text-[13px] text-white bg-parish-ok rounded-full px-2.5 py-1"><Icon name="check" size={14} />Napamatud-an</span>
-          <div className="font-serif text-[23px] font-bold text-[#1f4a31] mt-2.5 mb-1">{r.household_name}</div>
+          <div className="font-serif text-[23px] font-bold text-[#1f4a31] mt-2.5 mb-1">Rehistro · {r.ref_no}</div>
           <p className="m-0 text-[15.5px] leading-normal text-parish-ok">Napamatud-an na ang inyong rehistro.</p>
+          <NewRefNote r={r} />
         </div>
       );
     case 'request':
@@ -229,6 +231,16 @@ function Result({ r, censusOpen }) {
         </div>
       );
   }
+}
+
+/** Found by an old OLG-… number: tell the family their new one. */
+function NewRefNote({ r }) {
+  if (!r.ref_no || !r.asked || r.ref_no === r.asked) return null;
+  return (
+    <p className="m-0 mt-2.5 text-[14.5px] leading-normal text-[#3f3b2f] bg-parish-bg rounded-[10px] px-3 py-2.5">
+      Bag-o na ang inyong reference number: <strong className="tracking-[.04em]">{r.ref_no}</strong>. Gamita kini sunod.
+    </p>
+  );
 }
 
 function RequestStatus({ r }) {

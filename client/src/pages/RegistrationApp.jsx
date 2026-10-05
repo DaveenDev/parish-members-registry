@@ -501,7 +501,7 @@ function Confirmation({ refNo, accessCode, householdName, onRestart }) {
         </p>
         <Card className="p-[clamp(18px,5vw,26px)] mb-[26px]">
           <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[var(--p-gold-deep)] mb-2">Inyong Reference Number</div>
-          {/* Sized to the screen so "OLG-2026-XXXXXX" stays on one line on small phones. */}
+          {/* Sized to the screen so "MEO-2026-0001" stays on one line on small phones. */}
           <div className="font-serif font-semibold text-[clamp(20px,6.8vw,36px)] tracking-[.06em] text-parish-blue whitespace-nowrap">{refNo}</div>
           {code && (
             <>

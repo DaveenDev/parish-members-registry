@@ -868,6 +868,19 @@ export const api = {
     return data;
   },
 
+  // Household reference numbers (0047): each barangay's 3-letter code.
+  /** [{ barangay, code, gkks, next_ref }], A–Z. Every barangay with a GKK gets a code here if it has none yet. */
+  async listBarangayRefCodes() {
+    const { data, error } = await supabase.rpc('list_barangay_ref_codes');
+    if (isMissingFunction(error)) throw new Error('Run the 0047_household_ref_format.sql migration in Supabase to set the reference number codes');
+    if (error) throw mapError(error);
+    return data || [];
+  },
+  async setBarangayRefCode(barangay, code) {
+    const { error } = await supabase.rpc('set_barangay_ref_code', { p_barangay: barangay, p_code: code });
+    if (error) throw mapError(error);
+  },
+
   // A GKK's documents (0044): rows in gkk_documents, files in the private gkk-documents bucket.
   async listGkkDocuments(gkkId) {
     const { data, error } = await supabase.from('gkk_documents').select('*').eq('gkk_id', gkkId).order('created_at', { ascending: false });
@@ -972,7 +985,7 @@ export const api = {
   /** { open, label, ends_on, pct, gkks: [{ name, pct|null }] } */
   publicCensusProgress: () => publicRpc('public_census_progress'),
   publicOfficeDetails: () => publicRpc('public_office_details'),
-  /** { ref_no, household_name, status, registered_on }, or null if not found. */
+  /** { ref_no, status, registered_on } (the current number, also when found by an old one), or null if not found. */
   registrationStatus: (refNo) => publicRpc('registration_status', { p_ref: refNo }),
 
   // Staff queues.

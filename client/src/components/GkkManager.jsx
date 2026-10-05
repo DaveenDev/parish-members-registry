@@ -8,6 +8,7 @@ import { useToast } from '../ToastContext.jsx';
 import { AddButton, RowButton, SidePanel } from './panels.jsx';
 import GkkDocuments from './GkkDocuments.jsx';
 import LastYearList from './LastYearList.jsx';
+import RefCodes from './RefCodes.jsx';
 import { ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProblem, gkkForm, historyPatch, photosPatch, sameHistory, samePhotos, useGkkPhotos } from './GkkFields.jsx';
 
 // Desktop columns: name, chapel, puroks, year, last year's households, households, actions.
@@ -18,9 +19,10 @@ const missingAddress = (g) => !String(g.chapel_address || '').trim();
  * The parish's GKKs with their chapel details (shown and searched in the
  * website's GKK directory), each with its history (on its website page) and
  * its important documents. Add and Edit open a side panel. A GKK assigned
- * to a household, or with documents, can't be deleted. Below the GKKs is
- * last year's household list (0041), the paper census names the census
- * ticks off; each GKK's "Names" button opens its part of it.
+ * to a household, or with documents, can't be deleted. Below the GKKs are
+ * each barangay's reference number code (0047) and last year's household
+ * list (0041), the paper census names the census ticks off; each GKK's
+ * "Names" button opens its part of it.
  */
 export function GkkManager() {
   const [rows, setRows] = useState([]);
@@ -158,6 +160,9 @@ export function GkkManager() {
 
       {editing && <GkkPanel initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
     </Panel>
+
+    {/* Keyed on the GKK names, so a new barangay shows up (with its code) once its GKK is saved. */}
+    {!loading && <RefCodes key={rows.map((g) => g.name).join('|')} />}
 
     <div ref={listRef} className="scroll-mt-4">
       <Panel className="p-6 mt-6">

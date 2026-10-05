@@ -57,7 +57,7 @@ often (e.g. 2 times out of 5).
 - Screenshot or screen recording (drag it in). A recording is worth far more
   than a description for anything involving timing, scrolling or animation.
 - If the record is identifiable, include its reference number
-  (`OLG-2026-XXXXXX`) or the family name rather than a description.
+  (`MEO-2026-0001`) or the family name rather than a description.
 
 ## Console output (optional but very helpful)
 

@@ -86,7 +86,7 @@ Stat cards for: **members, households, GKKs, ministries, organizations, registra
   - **Napamatud-an (Verified):** green check, "Napamatud-an na ang inyong rehistro."
   - **Kinahanglan og koreksyon (Needs correction):** amber, short staff note, and a button to the census/update portal or the office contact.
   - **Not found:** friendly help text and the office contact.
-- Show only the household name and status, never member details. Add rate-limit/error copy ("Daghan na kaayo nga pagsulay. Sulayi pag-usab sa ulahi.", "too many tries, please try again later").
+- Show only the status and registration date, never the household name or member details (reference numbers run in order, so they can be guessed). Add rate-limit/error copy ("Daghan na kaayo nga pagsulay. Sulayi pag-usab sa ulahi.", "too many tries, please try again later").
 
 ### 1.7 Sacrament milestones for the year
 - One celebratory strip or card: "Karong 2026: 84 ang nabunyagan · 23 ang nakasal · 140 ang nakumpirmahan · …". Include First Communion too.
