@@ -1,6 +1,7 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { api } from '../api.js';
-import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect } from './ui.jsx';
+import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect, FlagEmptyRequired } from './ui.jsx';
+import { gkkBarangays } from '../lib/site.js';
 import ParticipationSurvey, { ParticipationReview } from './ParticipationSurvey.jsx';
 import { useHouseholdNameTaken } from '../hooks.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
@@ -24,9 +25,11 @@ const EMPTY_HOUSEHOLD = {
   contact: '', email: '', gkk: '', familyGrouping: '',
   participation: {}, helpWays: [],
 };
+// As in the public wizard: the GKK only when the list loaded (see validate).
 const REQUIRED_HOUSEHOLD = {
   householdName: 'Family (household) name is required', street: 'Street is required', barangay: 'Barangay is required',
   city: 'City / Municipality is required', province: 'Province is required', zip: 'ZIP code is required',
+  familyGrouping: 'Select the Family Grouping',
 };
 
 function blankHead() {
@@ -41,7 +44,7 @@ function displayName(m, i) {
 
 function memberErrors(m, { head = false } = {}) {
   const fe = {};
-  const req = [['lastName', 'Last name is required'], ['firstName', 'First name is required'], ['sex', 'Select the sex'], ['dob', 'Date of birth is required'], ['civilStatus', 'Select the civil status']];
+  const req = [['lastName', 'Last name is required'], ['firstName', 'First name is required'], ['sex', 'Select the sex'], ['dob', 'Birthday is required'], ['civilStatus', 'Select the civil status']];
   if (!head) req.push(['relationship', 'Select the relationship to the head']);
   req.forEach(([k, msg]) => { if (!String(m[k] || '').trim()) fe[k] = msg; });
   if (m.email && !/.+@.+\..+/.test(m.email)) fe.email = 'Enter a valid email';
@@ -194,6 +197,8 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
     const me = [];
     if (n === 1) {
       Object.keys(REQUIRED_HOUSEHOLD).forEach((k) => { if (!String(household[k] || '').trim()) e[k] = REQUIRED_HOUSEHOLD[k]; });
+      // Only ask for the GKK when the list loaded, so nobody is stuck if it didn't.
+      if (gkkOptions.length && !String(household.gkk || '').trim()) e.gkk = 'Select the GKK';
       if (household.email && !/.+@.+\..+/.test(household.email)) e.email = 'Enter a valid email';
       if (!e.householdName && nameTaken) e.householdName = `“${household.householdName.trim()}” is already registered. Press Edit to choose another name.`;
       me[0] = memberErrors(members[0], { head: true });
@@ -258,6 +263,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
   };
 
   return (
+    <FlagEmptyRequired.Provider value>
     <div className="fixed inset-0 z-[45] flex justify-end">
       <div className="absolute inset-0 bg-parish-scrim/35 backdrop-blur-[2px] animate-fadeIn" onClick={requestClose} />
       <aside
@@ -303,6 +309,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
         </footer>
       </aside>
     </div>
+    </FlagEmptyRequired.Provider>
   );
 }
 
@@ -431,7 +438,7 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
           {Object.entries(SEX_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select>
       </Field>
-      <Field label="Date of birth" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
+      <Field label="Birthday" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
       <Field label="Place of birth"><TextInput value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
       <Field label="Tribe"><TribeSelect placeholder="Select…" value={mv.tribe} onChange={(v) => onField(mv.mi, 'tribe', v)} /></Field>
       <Field label="Civil status" required error={mv.err.civilStatus}>
@@ -463,6 +470,10 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
 function StepHousehold({ household, err, onHouseholdField, gkkOptions, nameTaken, memberViews, onMemberField, onParticipation, onToggleHelpWay }) {
   const f = (field) => ({ value: household[field], onChange: (e) => onHouseholdField(field, e.target.value) });
   const head = memberViews[0];
+  // Barangays come from the GKK names, as in the public wizard; a value
+  // already typed stays selectable.
+  const listed = gkkBarangays(gkkOptions);
+  const barangays = household.barangay && !listed.includes(household.barangay) ? [household.barangay, ...listed] : listed;
   return (
     <div className="animate-fadeUp">
       <Panel title="Household Head" hint="Start with the head of the family; the household name fills in from their last name.">
@@ -477,7 +488,17 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, nameTaken
         <div className="flex flex-col gap-4">
           <Field label="Street / House No. / Purok" required error={err.street}><TextInput placeholder="e.g. Purok 3, 24 Rizal St." {...f('street')} /></Field>
           <div className="grid gap-4" style={GRID}>
-            <Field label="Barangay" required error={err.barangay}><TextInput {...f('barangay')} /></Field>
+            <Field label="Barangay" required error={err.barangay}>
+              {/* Free text only if the GKK list couldn't load, so nobody gets stuck. */}
+              {listed.length ? (
+                <Select {...f('barangay')}>
+                  <option value="">Select the barangay…</option>
+                  {barangays.map((b) => <option key={b} value={b}>{b}</option>)}
+                </Select>
+              ) : (
+                <TextInput placeholder="e.g. Mua-an" {...f('barangay')} />
+              )}
+            </Field>
             <Field label="City / Municipality" required error={err.city}><TextInput {...f('city')} /></Field>
           </div>
           <div className="grid gap-4" style={GRID}>
@@ -489,12 +510,12 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, nameTaken
             <Field label="Household email" error={err.email}><TextInput type="email" placeholder="optional" {...f('email')} /></Field>
           </div>
           <div className="grid gap-4" style={GRID}>
-            <Field label="Parish GKK">
+            <Field label="GKK" required={gkkOptions.length > 0} error={err.gkk}>
               <Select {...f('gkk')}>
                 <option value="">Select…</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
               </Select>
             </Field>
-            <Field label="Family Grouping"><FamilyGroupingSelect value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
+            <Field label="Family Grouping" required error={err.familyGrouping}><FamilyGroupingSelect value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
           </div>
         </div>
       </Panel>
@@ -743,7 +764,7 @@ function StepReview({ household, memberViews, status, volunteer, notifyOptin, co
     ['Household head', fullName(memberViews[0]) || '—'],
     ['Household name', household.householdName || '—'],
     ['Address', addr],
-    ['Parish GKK', household.gkk || '—'],
+    ['GKK', household.gkk || '—'],
     ['Family Grouping', household.familyGrouping || '—'],
     ['Contact', household.contact || '—'],
     ['Email', household.email || '—'],
