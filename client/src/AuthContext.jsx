@@ -35,14 +35,13 @@ export function AuthProvider({ children }) {
   const applySession = useCallback(async (session) => {
     const seq = ++loadSeq.current;
     const profile = await loadProfile(session);
-    if (seq === loadSeq.current) setUser(profile);
+    // Ready only once the latest load has landed: otherwise pages could decide
+    // "nobody signed in" from a superseded load, then change their mind.
+    if (seq === loadSeq.current) { setUser(profile); setReady(true); }
   }, []);
 
   useEffect(() => {
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      await applySession(session);
-      setReady(true);
-    });
+    supabase.auth.getSession().then(({ data: { session } }) => applySession(session));
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => { applySession(session); });
 

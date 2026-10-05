@@ -3,15 +3,26 @@ import { Link, Outlet } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
+// A signed-in staff member who chose "view the site anyway", for this tab only.
+const PREVIEW_KEY = 'maintenance-staff-preview';
+function readPreview() {
+  try { return sessionStorage.getItem(PREVIEW_KEY) === '1'; } catch { return false; }
+}
+function writePreview(on) {
+  try { if (on) sessionStorage.setItem(PREVIEW_KEY, '1'); else sessionStorage.removeItem(PREVIEW_KEY); } catch { /* storage blocked */ }
+}
+
 /**
  * Wraps the public pages (website, /register, /census). With maintenance mode
- * on (Parish Config), visitors see a notice instead of the page; signed-in
- * staff still see the site, under a reminder bar, so they can check it.
- * Nothing shows until the setting is known, so the site never flashes open.
+ * on (Parish Config), everyone sees a notice instead of the page, staff
+ * included. Signed-in staff get a button on the notice to look at the site
+ * anyway, under a reminder bar. Nothing shows until both the setting and the
+ * sign-in are known, so the site never flashes open or closed.
  */
 export default function MaintenanceGate() {
   const { user, ready } = useAuth();
   const [state, setState] = useState(null);
+  const [preview, setPreview] = useState(readPreview);
 
   useEffect(() => {
     let live = true;
@@ -21,21 +32,29 @@ export default function MaintenanceGate() {
 
   if (!state || !ready) return null;
   if (!state.on) return <Outlet />;
-  if (user) {
+  if (user && preview) {
     return (
       <>
         <div className="sticky top-0 z-[70] bg-[#c2410c] text-white text-[13px] font-semibold text-center px-4 py-2">
-          Maintenance mode is on: the public can't see the website.{' '}
-          <Link to="/admin/settings?tab=config" className="text-white underline">Turn it off in Parish Config</Link>
+          Maintenance mode is on: the public sees the maintenance notice, not this page.{' '}
+          <button type="button" onClick={() => { writePreview(false); setPreview(false); }} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-white underline font-semibold">Show the notice</button>
+          {' · '}
+          <Link to="/admin/settings?tab=config" className="text-white underline">Turn it off</Link>
         </div>
         <Outlet />
       </>
     );
   }
-  return <MaintenanceNotice parish={state.parish} message={state.message} />;
+  return (
+    <MaintenanceNotice
+      parish={state.parish}
+      message={state.message}
+      onPreview={user ? () => { writePreview(true); setPreview(true); } : null}
+    />
+  );
 }
 
-function MaintenanceNotice({ parish, message }) {
+function MaintenanceNotice({ parish, message, onPreview }) {
   return (
     <main className="min-h-screen bg-parish-bg flex items-center justify-center px-4 py-10 font-sans">
       <div className="max-w-[520px] w-full bg-parish-surface border border-parish-border rounded-[20px] shadow-card px-6 py-9 sm:px-9 text-center">
@@ -48,7 +67,16 @@ function MaintenanceNotice({ parish, message }) {
           Pasayloa, dili sa pagkakaron maablihan ang website samtang among ginaayo. Balik lang unya.
         </p>
         {message && <p className="text-[15px] text-parish-ink leading-relaxed mt-4 mb-0 whitespace-pre-line">{message}</p>}
-        <Link to="/admin/login" className="inline-block mt-7 text-[12.5px] text-parish-muted underline">Staff sign in</Link>
+        {onPreview ? (
+          <div className="mt-7 pt-5 border-t border-parish-border text-[13px] text-parish-muted">
+            You're signed in as staff.{' '}
+            <button type="button" onClick={onPreview} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue underline">View the site anyway</button>
+            {' · '}
+            <Link to="/admin/settings?tab=config" className="font-semibold text-parish-blue underline">Turn maintenance off</Link>
+          </div>
+        ) : (
+          <Link to="/admin/login" className="inline-block mt-7 text-[12.5px] text-parish-muted underline">Staff sign in</Link>
+        )}
       </div>
     </main>
   );
