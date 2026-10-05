@@ -615,14 +615,14 @@ function ProfileTab() {
           </ConfigCard>
         </form>
         <MaintenanceCard settings={saved} onSaved={applySaved} />
-        <PrivacyCard />
       </div>
 
-      <div className="min-w-0">
+      <div className="flex flex-col gap-[18px] min-w-0">
         <ConfigCard title="Logo & photo" note="These save as soon as you upload or remove them.">
           <LogoSection settings={settings} onSaved={applySaved} />
           <HeroImageSection settings={settings} onSaved={applySaved} />
         </ConfigCard>
+        <PrivacyCard />
       </div>
     </div>
   );
