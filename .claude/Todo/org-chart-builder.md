@@ -17,19 +17,19 @@ Goal:
 - **Public names and photos:** yes, show the holder's name and photo on the website. A node with no photo shows initials instead.
 - **Charts:** several. The first two:
   - **Parish:** PPC and the GKK clusters.
-  - **GKK level:** the officers inside a GKK.
+  - **GKK level:** **one uniform structure** shared by every GKK. The secretary draws it once. Each GKK's page shows that same structure with its own officers filled in.
 - **`parish_positions`:** stays as the pick-list for registrants ("Katungdanan sa Parish") and for node titles. The chart uses it but doesn't replace it.
+- **GKK officers come from the registry.** Members already have `members.gkk_role`, picked from `GKK_ROLES` in `client/src/constants.js` (GKK President, Vice-President, Secretary, Treasurer, Business Manager). A node in the GKK structure can link to one of those roles. Its holder in a given GKK is then the member of that GKK with that role, so nobody types officers in twice.
 
 ## Data model: migration `supabase/migrations/00NN_org_chart.sql`
 (Use the next free number at implementation time.) Follow the house style: a guard `do $$` block that checks the previous migration ran, `if not exists`, safe to re-run.
 
 ```sql
-create table if not exists org_charts (          -- several charts: Parish (PPC + clusters), GKK level, …
+create table if not exists org_charts (          -- several charts: Parish (PPC + clusters), GKK structure, …
   id serial primary key,
   title text not null,
   slug text unique not null,
   scope text not null default 'parish' check (scope in ('parish', 'gkk')),
-  gkk text,                            -- the GKK a GKK-level chart belongs to; null = parish chart
   published boolean not null default false,
   sort_order int not null default 0,
   updated_at timestamptz not null default now()
@@ -41,17 +41,39 @@ create table if not exists org_nodes (
   parent_id int references org_nodes on delete set null,  -- null = top
   title text not null,                 -- "PPC President"
   position_name text references parish_positions(name) on update cascade, -- optional link to the pick-list
-  member_id int references members on delete set null,    -- optional holder
+  gkk_role text,                       -- GKK structure only: one of GKK_ROLES; fills the holder per GKK
+  member_id int references members on delete set null,    -- optional holder (parish charts)
   holder_name text,                    -- free-text holder when not a registered member
   photo_url text,                      -- holder photo (media-upload function, like gkks.photo_url in 0046)
   note text,                           -- term, e.g. "2025–2028"
   sort_order int not null default 0,   -- order among siblings
   pos_x real, pos_y real               -- React Flow canvas position (admin only)
 );
+
+-- GKK structure only: one GKK's holder for one node. Used for nodes with no
+-- gkk_role (e.g. "Lector Coordinator"), or to add a photo or name to a
+-- role-filled node.
+create table if not exists org_gkk_holders (
+  node_id int not null references org_nodes on delete cascade,
+  gkk text not null,                   -- link to gkks the way other tables do
+  member_id int references members on delete set null,
+  holder_name text,
+  photo_url text,
+  note text,
+  primary key (node_id, gkk)
+);
 ```
+- **Only one GKK-scope chart.** It's the uniform template. Enforce this with a partial unique index on `org_charts (scope) where scope = 'gkk'`.
+- **Holder of a GKK-structure node in GKK X**, in this order:
+  1. the `org_gkk_holders` row for (node, X), if there is one
+  2. otherwise, the member of a household in GKK X whose `gkk_role` equals the node's `gkk_role`
+  3. otherwise, vacant
+  If two members of one GKK hold the same role, show both, oldest record first.
 - **RLS:** read for all signed-in staff. Write for `full` access only, the same rule as `manageLists` in `lib/access.js`. Check `staff_access() = 'full'` in the policies and in the save RPC, following 0014_roles_activity_trash.sql.
-- **`org_charts.gkk`:** link it to `gkks` (by name with `on update cascade`, or by id). Check how other tables reference GKKs at implementation time.
-- **Public RPC** `public_org_chart(slug text) returns jsonb`: a `security definer` function, granted to `anon`, that returns only published charts and only safe fields (id, parentId, title, holder display name, holder photo, note). It never returns member ids or contact details. Members have no photo column, so the photo is the node's `photo_url`. This follows the pattern of `list_public_parish_positions()` in 0006. Add a `public_org_charts()` list too (title, slug, scope, gkk), for the site's pills and GKK pages.
+- **Public RPC** `public_org_chart(slug text, gkk text default null) returns jsonb`: a `security definer` function, granted to `anon`, that returns only published charts and only safe fields (id, parentId, title, holder display name, holder photo, note). It never returns member ids or contact details. This follows the pattern of `list_public_parish_positions()` in 0006.
+  - For the GKK structure, pass `gkk` and it resolves holders as above.
+  - Members have no photo column, so the photo comes from `photo_url` on the node or holder row.
+  - Add a `public_org_charts()` list too (title, slug, scope), for the site's pills.
 - **Save RPC** `save_org_chart(chart_id, nodes jsonb)`: saves the whole canvas in one transaction (upsert nodes, delete removed ones). Edges are stored as `parent_id`. Log the change in the activity log, as the other admin writes do.
 - **Cycles:** reject any node that would become its own ancestor (check in the save RPC).
 
@@ -61,7 +83,11 @@ create table if not exists org_nodes (
   - Add a nav item in `client/src/components/adminNav.js` under "Settings", next to "Ministries & organizations" (`need: 'manageLists'`, `notForLeaders: true`).
   - Load it with `React.lazy` in `client/src/App.jsx` so React Flow stays out of the public bundle. No route is lazy-loaded today, so this would be the first.
 - **Layout:** chart picker plus "New chart" at the top, the canvas in the middle, and a side drawer for the selected node, reusing the drawer and form bits in `components/admin.jsx` and `ui.jsx`.
-- **New chart dialog:** asks for the title and scope (Parish or GKK). For GKK scope, it also asks which GKK.
+- **New chart dialog:** asks for the title. New charts are parish-scope. The single "GKK Structure" chart is created by the migration, so it can't be duplicated or deleted.
+- **GKK Structure chart:**
+  - the node drawer has a "GKK role" pick from `GKK_ROLES` instead of a member search
+  - a "Preview as GKK…" selector shows any GKK's officers filled in
+  - an "Officers per GKK" table (GKK × role-less node) edits `org_gkk_holders`, for the positions the registry doesn't cover
 - **Interactions:**
   - "+ Add position" adds a node. A "+" handle on a node adds a child under it.
   - Drag one node's handle to another to set its parent. Each node has a single incoming edge, so a new edge replaces the old parent.
@@ -90,7 +116,7 @@ create table if not exists org_nodes (
   - Buttons: fit, expand all, collapse, export PNG.
   - Escape all text inserted into `nodeContent` HTML, because it comes from the database.
 - **Parish charts:** a new view on Komunidad. Add `['organisasyon', 'Organisasyon']` to `VIEWS` in `client/src/pages/site/Komunidad.jsx`, with one pill per published parish-scope chart (e.g. "PPC ug Cluster"). Fetch via `useOrgCharts()` / `useOrgChart(slug)` hooks in `client/src/pages/site/data.js`, following the existing `useGkkDirectory` pattern.
-- **GKK-level charts:** show on that GKK's page (`GkkDetail` in `Komunidad.jsx`, route `/komunidad/gkk/:name`) as a "Mga Opisyal" section, when a published chart exists for that GKK.
+- **GKK Structure:** when it's published, every GKK's page (`GkkDetail` in `Komunidad.jsx`, route `/komunidad/gkk/:name`) gets a "Mga Opisyal" section. It shows the same structure with that GKK's officers, and vacant positions show "Bakante". The Organisasyon view can also show the bare structure (no names) as "Estruktura sa GKK".
 - **States:** use `DataState`, `Skeleton` and `EmptyNote` from `components/site/kit.jsx`.
 
 ## Steps (suggested order)
@@ -99,11 +125,11 @@ create table if not exists org_nodes (
 3. API functions in `api.js`.
 4. Admin `OrgChart.jsx` (React Flow), the nav item and the lazy route.
 5. Public `OrgChartView.jsx` (d3-org-chart) and the Komunidad "Organisasyon" view.
-6. GKK-level charts on the GKK detail page.
+6. The GKK Structure: role links, officers per GKK, and "Mga Opisyal" on each GKK page.
 7. Optional: when a node is linked to a `parish_positions` name and a member, also set that member's `members.parish_role`, so the registry and the chart agree.
 
-## Still open
-- **GKK level:** one chart per GKK (assumed; each GKK fills in its own officers), or a single chart of the standard GKK structure shared by every GKK?
+## Ideas for later
+- Let GKK leaders fill in `org_gkk_holders` (photos, role-less positions) for their own GKK. Today, only full access can edit.
 
 ## Verification
 - `npm test`: the new `org-chart.test.js` passes along with the existing suite.
@@ -112,6 +138,10 @@ create table if not exists org_nodes (
   - Try to make a cycle and confirm it's rejected.
   - Sign in as a non-full user (read-only, website, GKK leader) and confirm they can't open or save the editor. The database must refuse the save as well, not just the UI.
 - Publish a parish chart, then on `/komunidad?view=organisasyon`: confirm the chart renders with names and photos, collapse, expand and fit work, and it's usable at 375 px width in light and dark.
-- Publish a GKK chart and confirm it appears on `/komunidad/gkk/<name>`.
+- Publish the GKK Structure and open two GKK pages (`/komunidad/gkk/<name>`). Confirm:
+  - both show the same structure with their own officers taken from `gkk_role`
+  - a GKK with no Treasurer shows "Bakante"
+  - an `org_gkk_holders` entry overrides the role holder
+- Change a member's `gkk_role` in the registry and confirm the GKK page follows.
 - Unpublish and confirm the public RPC returns nothing. Confirm no member ids or contacts appear in the public network response.
 - `npm run build`: React Flow and d3 end up in separate lazy chunks, not the main bundle.
