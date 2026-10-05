@@ -268,7 +268,9 @@ export default function RegistrationApp() {
     const e = {};
     const me = [];
     if (currentStep === 1) {
-      const req = { householdName: 'Kinahanglan ang ngalan sa pamilya', street: 'Kinahanglan ang dalan', barangay: 'Kinahanglan ang barangay', city: 'Kinahanglan ang siyudad / lungsod', province: 'Kinahanglan ang probinsya', zip: 'Kinahanglan ang ZIP code' };
+      const req = { householdName: 'Kinahanglan ang ngalan sa pamilya', street: 'Kinahanglan ang dalan', barangay: 'Kinahanglan ang barangay', city: 'Kinahanglan ang siyudad / lungsod', province: 'Kinahanglan ang probinsya', zip: 'Kinahanglan ang ZIP code', familyGrouping: 'Kinahanglan ang Family Grouping' };
+      // Only ask for the GKK when the list loaded, so nobody is stuck if it didn't.
+      if (gkkOptions.length) req.gkk = 'Kinahanglan ang GKK';
       Object.keys(req).forEach((k) => { if (!String(household[k] || '').trim()) e[k] = req[k]; });
       if (household.email && !/.+@.+\..+/.test(household.email)) e.email = 'Isulat ang saktong email';
       me[0] = memberErrors(members[0], { head: true });
@@ -737,13 +739,13 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
           <Field label="Email sa pamilya" error={err.email}><TextInput type="email" placeholder="opsyonal" {...f('email')} /></Field>
         </div>
         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
-          <Field label="GKK sa Parokya">
+          <Field label="Nasakop sa unsa nga GKK" required={gkkOptions.length > 0} error={err.gkk}>
             <Select {...f('gkk')}>
               <option value="">Pilia ang inyong GKK…</option>
               {gkks.map((g) => <option key={g} value={g}>{g}</option>)}
             </Select>
           </Field>
-          <Field label="Family Grouping (FG)"><FamilyGroupingSelect placeholder="Pili…" value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
+          <Field label="Family Grouping (FG)" required error={err.familyGrouping}><FamilyGroupingSelect placeholder="Pili…" value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
         </div>
       </Card>
 
@@ -1078,7 +1080,7 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
     ['Ulo sa pamilya', fullName(memberViews[0]) || '—'],
     ['Ngalan sa pamilya', household.householdName || '—'],
     ['Puy-anan', addr],
-    ['GKK sa Parokya', household.gkk || '—'],
+    ['Nasakop sa unsa nga GKK', household.gkk || '—'],
     ['Family Grouping', household.familyGrouping || '—'],
     ['Kontak', household.contact || '—'],
     ['Email', household.email || '—'],
