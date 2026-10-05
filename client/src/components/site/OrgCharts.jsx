@@ -6,7 +6,13 @@ import { listState, useOrgChart, useOrgCharts } from '../../pages/site/data.js';
 // d3 is heavy: the chart loads only when one is shown.
 const OrgChartView = React.lazy(() => import('./OrgChartView.jsx'));
 
-export const chartLabel = (c) => (c.scope === 'gkk' ? 'Estruktura sa GKK' : c.title);
+// The built-in charts' names in Bisaya. Church Structure keeps a name staff
+// gave it in Rename; only the default English title is translated.
+export function chartLabel(c) {
+  if (c.scope === 'gkk') return 'Estruktura sa GKK';
+  if (c.title === 'Church Structure') return 'Estruktura sa Parokya';
+  return c.title;
+}
 
 /**
  * The published org charts (Ang Simbahan → Organisasyon), one pill each;
