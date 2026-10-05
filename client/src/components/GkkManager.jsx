@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { SearchInput, Pagination, ErrorState, LoadingState, Panel } from './admin.jsx';
 import { useClientList } from '../hooks.js';
@@ -9,20 +8,22 @@ import { useToast } from '../ToastContext.jsx';
 import { AddButton, RowButton, SectionLabel, SidePanel, TextArea } from './panels.jsx';
 import { FilePick, PublishSwitch } from './website/shared.jsx';
 import GkkDocuments from './GkkDocuments.jsx';
+import LastYearList from './LastYearList.jsx';
 
 const THIS_YEAR = new Date().getFullYear();
 // Desktop columns: name, chapel, puroks, year, last year's households, households, actions.
 const COLS = 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_64px_96px_96px_auto] lg:gap-4';
 const EMPTY = { name: '', chapel_address: '', puroks: '', year_established: '', previous_households: '', history: '', history_photos: [], history_published: false };
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
-const lastYearPath = (name) => `/admin/census?tab=lastYear&gkk=${encodeURIComponent(name)}`;
 const missingAddress = (g) => !String(g.chapel_address || '').trim();
 
 /**
  * The parish's GKKs with their chapel details (shown and searched in the
  * website's GKK directory), each with its history (on its website page) and
  * its important documents. Add and Edit open a side panel. A GKK assigned
- * to a household, or with documents, can't be deleted.
+ * to a household, or with documents, can't be deleted. Below the GKKs is
+ * last year's household list (0041), the paper census names the census
+ * ticks off; each GKK's "Names" button opens its part of it.
  */
 export function GkkManager() {
   const [rows, setRows] = useState([]);
@@ -33,6 +34,22 @@ export function GkkManager() {
   const toast = useToast();
   const list = useClientList(rows, (r) => `${r.name} ${r.chapel_address || ''} ${r.puroks || ''}`);
   const noAddress = rows.filter(missingAddress).length;
+  const [listGkk, setListGkk] = useState(''); // the GKK shown in last year's list ('' = all)
+  const [listCounts, setListCounts] = useState(new Map());
+  const [parish, setParish] = useState(null);
+  const listRef = useRef(null);
+
+  const reloadCounts = () => api.lastYearCounts().then(setListCounts).catch(() => {});
+  useEffect(() => {
+    reloadCounts();
+    api.getSettings().then((r) => setParish(r.settings)).catch(() => {});
+  }, []);
+
+  function openList(name) {
+    setEditing(null);
+    setListGkk(name);
+    requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  }
 
   function reload() {
     setLoadError('');
@@ -72,6 +89,7 @@ export function GkkManager() {
     : { ...EMPTY, tab });
 
   return (
+    <>
     <Panel className="p-6">
       <div className="flex items-start justify-between gap-3 flex-wrap mb-[18px]">
         <div className="min-w-0 max-w-[640px]">
@@ -116,6 +134,9 @@ export function GkkManager() {
               <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.previous_households ?? dash}</span>
               <span className="font-semibold text-[12px] text-parish-muted whitespace-nowrap">{g.count}<span className="lg:hidden"> household(s)</span></span>
               <div className="flex items-center gap-2.5 lg:justify-end">
+              <RowButton tone="gray" onClick={() => openList(g.name)} className="px-3.5 py-2" title="Last year's household names for this GKK">
+                Names ({listCounts.get(g.name)?.total || 0})
+              </RowButton>
               <RowButton onClick={() => open(g)} className="px-3.5 py-2">Edit</RowButton>
               <RowButton
                 tone="red"
@@ -139,14 +160,26 @@ export function GkkManager() {
         <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
       </div>
 
-      {editing && <GkkPanel initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} />}
+      {editing && <GkkPanel initial={editing} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
     </Panel>
+
+    <div ref={listRef} className="scroll-mt-4">
+      <Panel className="p-6 mt-6">
+        <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Last year's household list</div>
+        <div className="text-[13.5px] text-parish-muted mb-4">
+          The names from the previous paper census, the reference for this census: each household head, their purok and a note.
+          Choose a GKK, then type or paste its names, or upload a spreadsheet. The same list is on the Census page, where families are ticked off as they register.
+        </div>
+        <LastYearList key={listGkk} initialGkk={listGkk} parish={parish} canEdit canManage onChanged={reloadCounts} />
+      </Panel>
+    </div>
+    </>
   );
 }
 
 /**
- * For a GKK leader: their own GKK's documents, and a link to its last
- * year's household list. (The GKK's details are kept by full-access staff.)
+ * For a GKK leader: their own GKK's documents and last year's household
+ * list. (The GKK's details are kept by full-access staff.)
  */
 export function OwnGkkDocuments({ name }) {
   const [gkk, setGkk] = useState(null);
@@ -165,13 +198,18 @@ export function OwnGkkDocuments({ name }) {
   useEffect(() => { load(); }, [name]);
 
   return (
-    <Panel className="p-6">
-      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">{name}</div>
-      <div className="text-[13.5px] text-parish-muted mb-4">
-        Your GKK's important documents. Last year's household list is on the <Link to={lastYearPath(name)} className="font-semibold text-parish-blue">Census page</Link>.
-      </div>
-      {error ? <ErrorState message={error} onRetry={load} /> : !gkk ? <LoadingState label="Loading…" /> : <GkkDocuments gkk={gkk} />}
-    </Panel>
+    <>
+      <Panel className="p-6">
+        <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">{name}</div>
+        <div className="text-[13.5px] text-parish-muted mb-4">Your GKK's important documents.</div>
+        {error ? <ErrorState message={error} onRetry={load} /> : !gkk ? <LoadingState label="Loading…" /> : <GkkDocuments gkk={gkk} />}
+      </Panel>
+      <Panel className="p-6 mt-6">
+        <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Last year's household list</div>
+        <div className="text-[13.5px] text-parish-muted mb-4">The names from the previous paper census, the reference for this census.</div>
+        <LastYearList ownGkk={name} canEdit />
+      </Panel>
+    </>
   );
 }
 
@@ -203,7 +241,7 @@ const sameHistory = (a, b) => (a.history || '').trim() === (b.history || '').tri
  * picked; on Cancel the ones uploaded here are deleted again, and photos
  * taken off a saved history are deleted once it's saved.
  */
-function GkkPanel({ initial, onClose, onSaved }) {
+function GkkPanel({ initial, onClose, onSaved, onOpenList }) {
   const toast = useToast();
   const [form, setForm] = useState(initial);
   const [tab, setTab] = useState(initial.tab || 'details');
@@ -331,7 +369,7 @@ function GkkPanel({ initial, onClose, onSaved }) {
           </Field>
           <div className="-mt-2 text-[13px] text-parish-muted">
             From the previous census. The ongoing census counts how many of these households have registered and how many have not yet.
-            {!isNew && <> The names themselves go on <Link to={lastYearPath(initial.original)} className="font-semibold text-parish-blue">last year's household list</Link> on the Census page.</>}
+            {!isNew && <> The names themselves go on <button type="button" onClick={() => onOpenList(initial.original)} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue">last year's household list</button>, below the GKKs.</>}
           </div>
           {!isNew && initial.name !== form.name.trim() && form.name.trim() && (
             <div className="text-[13px] text-parish-muted">Renaming also moves every household in this GKK to the new name.</div>
