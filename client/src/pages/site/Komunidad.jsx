@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
@@ -8,6 +8,7 @@ import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkk
 import { todayIso } from '../../lib/website.js';
 import { useSiteTitle } from './SiteLayout.jsx';
 import { listState, useCensusProgress, useGkkDirectory, useGkkPage } from './data.js';
+import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
 
 const SMALL = 'Ubos sa 5';
 
@@ -54,9 +55,18 @@ function CensusAlertBadges({ label, className = '' }) {
  * the articles (the GKK directory is reference); ?view=gkk opens the GKKs.
  * While a census is open, the GKK tab has its full progress on top (on the
  * light-blue band, with every GKK); the articles tab a one-line strip.
+ * The org charts moved to Ang Simbahan; old ?view=organisasyon links go there.
  */
 export default function Komunidad() {
   const [params, setParams] = useSearchParams();
+  if (params.get('view') === 'organisasyon') {
+    const chart = params.get('chart');
+    return <Navigate replace to={`/simbahan?tab=organisasyon${chart ? `&chart=${encodeURIComponent(chart)}` : ''}`} />;
+  }
+  return <KomunidadPage params={params} setParams={setParams} />;
+}
+
+function KomunidadPage({ params, setParams }) {
   const view = params.get('view') === 'gkk' ? 'gkk' : 'artikulo';
   const setView = (v) => setParams(v === 'gkk' ? { view: 'gkk' } : {}, { replace: true });
   const q = useCensusProgress();
@@ -316,6 +326,7 @@ export function GkkDetail() {
       >
         Mao ni ang akong GKK, magparehistro
       </Link>
+      <GkkOfficers gkk={g.name} />
       {page?.photos?.length > 0 && (
         <div className="mt-9 lg:mt-12">
           <Gallery photos={page.photos} id="gkk-photos-title" cols="grid-cols-2 sm:grid-cols-3" />

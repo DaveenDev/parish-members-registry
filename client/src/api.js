@@ -707,6 +707,48 @@ export const api = {
   renameParishPosition: (oldName, newName) => renameGroup('rename_parish_position', oldName, newName, 'A position with this name'),
   deleteParishPosition: (name) => deleteGroup('delete_parish_position', name),
 
+  // ---- Organization Structure charts (0057) ----------------------------
+  // Read by any staff account; changed (full access) only through the
+  // functions, which check access and log to the activity log.
+  /** Every chart, in tab order: [{ id, title, slug, scope, builtin, published, sort_order, updated_at }]. */
+  async listOrgCharts() {
+    const { data, error } = await supabase.from('org_charts').select('*').order('sort_order').order('id');
+    if (orgMissing(error)) throw new Error(ORG_HINT);
+    if (error) throw mapError(error);
+    return data || [];
+  },
+  /** A chart's positions: org_nodes rows, each with its holder's name as `member` (or null). */
+  async listOrgNodes(chartId) {
+    const { data, error } = await supabase.from('org_nodes')
+      .select('*, member:members(first_name, last_name, suffix)')
+      .eq('chart_id', chartId).order('sort_order').order('id');
+    if (orgMissing(error)) throw new Error(ORG_HINT);
+    if (error) throw mapError(error);
+    return data || [];
+  },
+  /** A new (parish-level) chart after the others; returns its row. */
+  createOrgChart: (title) => orgRpc('create_org_chart', { p_title: title }),
+  renameOrgChart: (id, title) => orgRpc('update_org_chart', { p_id: id, p_title: title }),
+  setOrgChartPublished: (id, published) => orgRpc('update_org_chart', { p_id: id, p_published: published }),
+  deleteOrgChart: (id) => orgRpc('delete_org_chart', { p_id: id }),
+  /** Save every position of a chart at once (lib/orgChart.js savePayload). */
+  saveOrgChart: (id, nodes) => orgRpc('save_org_chart', { p_chart_id: id, p_nodes: nodes }),
+  /** The saved chart as the website shows it, published or not; `gkk` fills in the GKK Structure. */
+  orgChartPreview: (id, gkk) => orgRpc('org_chart_preview', { p_chart_id: id, p_gkk: gkk || null }),
+  /** One GKK's own holders on the GKK Structure (org_gkk_holders rows, with `member`). */
+  async listOrgGkkHolders(gkk) {
+    const { data, error } = await supabase.from('org_gkk_holders')
+      .select('*, member:members(first_name, last_name, suffix)').eq('gkk', gkk);
+    if (orgMissing(error)) throw new Error(ORG_HINT);
+    if (error) throw mapError(error);
+    return data || [];
+  },
+  /** Set one GKK's holder of a GKK Structure position; all empty goes back to the registry's. */
+  saveOrgGkkHolder: ({ nodeId, gkk, memberId, holderName, photoUrl, note }) => orgRpc('save_org_gkk_holder', {
+    p_node_id: nodeId, p_gkk: gkk, p_member_id: memberId || null,
+    p_holder_name: holderName || null, p_photo_url: photoUrl || null, p_note: note || null,
+  }),
+
   // ---- parish settings ---------------------------------------------------
   async getSettings() {
     const { data, error } = await supabase.from('parish_settings').select('*').eq('id', 1).single();
@@ -1017,6 +1059,10 @@ export const api = {
       return h && { photo_url: null, photos: [], history: h.history, history_photos: h.photos };
     }
   },
+  /** The published org charts, in order: [{ title, slug, scope }] (0057). */
+  publicOrgCharts: () => publicRpc('public_org_charts'),
+  /** One published chart: { title, slug, scope, nodes: [{ id, parentId, title, holders, photo, note }] }, or null. `gkk` fills in the GKK Structure. */
+  publicOrgChart: (slug, gkk) => publicRpc('public_org_chart', { p_slug: slug, p_gkk: gkk || null }),
   /** { open, label, ends_on, pct, gkks: [{ name, pct|null }] } */
   publicCensusProgress: () => publicRpc('public_census_progress'),
   publicOfficeDetails: () => publicRpc('public_office_details'),
@@ -1755,6 +1801,18 @@ function requestsError(error) {
   // Before 0012 is run the tables don't exist; say which file fixes it.
   if (error.code === '42P01' || error.code === 'PGRST205') return new Error('Run the 0012_requests.sql migration in Supabase to use this page');
   return mapError(error);
+}
+
+const ORG_HINT = 'Run the 0057_org_chart.sql migration in Supabase to use Organization Structure';
+/** A missing org chart table or function: 0057 hasn't been run. */
+function orgMissing(error) {
+  return ['42P01', 'PGRST205'].includes(error?.code) || isMissingFunction(error);
+}
+async function orgRpc(name, args) {
+  const { data, error } = await supabase.rpc(name, args);
+  if (orgMissing(error)) throw new Error(ORG_HINT);
+  if (error) throw mapError(error);
+  return data;
 }
 
 async function publicRpc(name, args) {

@@ -30,6 +30,7 @@ export const NAV_GROUPS = [
       { to: '/admin/requests', label: 'Requests', need: 'requests', badge: 'requests', badgeLabel: 'waiting' },
       { to: '/admin/ministries', label: 'Ministry rosters', need: 'registry', notForLeaders: true },
       { to: '/admin/organizations', label: 'Organization rosters', need: 'registry', notForLeaders: true },
+      { to: '/admin/org-structure', label: 'Organization Structure', need: 'registry', notForLeaders: true },
     ],
   },
   {

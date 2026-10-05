@@ -129,7 +129,7 @@ export default function Home() {
 
       <section className="px-3.5 pt-7 lg:p-0 lg:contents">
         <div className="lg:col-start-2 lg:row-start-1">
-          <SectionHead dark title="Umaabot nga kalihokan" to="/misa?view=kalendaryo" action="Kalendaryo" actionLg="Kalendaryo →" />
+          <SectionHead dark title="Umaabot nga kalihokan" to="/simbahan?view=kalendaryo" action="Kalendaryo" actionLg="Kalendaryo →" />
         </div>
         <div className="lg:col-start-2 lg:row-start-2">
           {events.loading ? <Skeleton h={150} /> : events.error ? (
@@ -259,7 +259,7 @@ function MassToday({ mass }) {
           {todays.map((m) => <MassRow key={m.id} m={m} compact />)}
         </div>
       )}
-      <Link to="/misa" className="min-h-[44px] mt-1.5 lg:mt-2 px-0.5 inline-flex items-center gap-1 font-bold text-[15px] lg:text-[15.5px] text-parish-blue hover:text-parish-blueDeep">
+      <Link to="/simbahan" className="min-h-[44px] mt-1.5 lg:mt-2 px-0.5 inline-flex items-center gap-1 font-bold text-[15px] lg:text-[15.5px] text-parish-blue hover:text-parish-blueDeep">
         Tibuok iskedyul sa semana<Icon name="chev" size={16} />
       </Link>
     </Card>

@@ -6,7 +6,7 @@ import { ActivityEntry } from '../../components/ActivityList.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useAsyncData, useDebounced, useUrlState } from '../../hooks.js';
 
-const TABLES = [['All', 'Everything'], ['households', 'Households'], ['members', 'Members'], ['sacrament_verifications', 'Sacrament verifications']];
+const TABLES = [['All', 'Everything'], ['households', 'Households'], ['members', 'Members'], ['sacrament_verifications', 'Sacrament verifications'], ['org_charts', 'Org charts']];
 const URL_DEFAULTS = { table: 'All', who: 'All', q: '', page: 1, size: 20 };
 const URL_ALLOWED = { table: TABLES.map(([k]) => k), who: ['All', 'online'], size: [10, 20, 50] };
 
@@ -24,7 +24,8 @@ export default function ActivityLog() {
   const filtered = url.table !== 'All' || url.who !== 'All' || !!search;
 
   function open(e) {
-    if (e.member_id && e.action !== 'trash') setOpenMemberId(e.member_id);
+    if (e.table_name === 'org_charts') navigate(e.action === 'delete' ? '/admin/org-structure' : `/admin/org-structure?chart=${e.record_id}`);
+    else if (e.member_id && e.action !== 'trash') setOpenMemberId(e.member_id);
     else if (e.table_name === 'households' && e.action !== 'trash') navigate(`/admin/households?status=All&q=${encodeURIComponent(e.label || '')}`);
     else navigate('/admin/settings/trash');
   }

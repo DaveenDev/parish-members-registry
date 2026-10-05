@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import RegistrationApp from './pages/RegistrationApp.jsx';
@@ -6,7 +6,7 @@ import CensusPortal from './pages/CensusPortal.jsx';
 import MaintenanceGate from './components/MaintenanceGate.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Home from './pages/site/Home.jsx';
-import Misa from './pages/site/Misa.jsx';
+import Simbahan from './pages/site/Simbahan.jsx';
 import Pahibalo from './pages/site/Pahibalo.jsx';
 import Komunidad, { GkkDetail } from './pages/site/Komunidad.jsx';
 import Serbisyo, { Kontak, Blood } from './pages/site/Serbisyo.jsx';
@@ -36,6 +36,15 @@ import AdminNotFound from './pages/admin/NotFound.jsx';
 import ActivityLog from './pages/admin/ActivityLog.jsx';
 import Trash from './pages/admin/Trash.jsx';
 import Notifications from './pages/admin/Notifications.jsx';
+import { LoadingState } from './components/admin.jsx';
+
+// The org chart editor brings React Flow: loaded only when it's opened.
+const OrgStructure = React.lazy(() => import('./pages/admin/OrgStructure.jsx'));
+
+function ToSimbahan() {
+  const { search, hash } = useLocation();
+  return <Navigate to={`/simbahan${search}${hash}`} replace />;
+}
 
 function RequireAuth({ children }) {
   const { user, ready } = useAuth();
@@ -56,7 +65,9 @@ export default function App() {
         <Route element={<MaintenanceGate />}>
         <Route element={<SiteLayout />}>
           <Route path="/" element={<Home />} />
-          <Route path="/misa" element={<Misa />} />
+          <Route path="/simbahan" element={<Simbahan />} />
+          {/* The page was Misa ug Sakramento: old links keep their ?view=. */}
+          <Route path="/misa" element={<ToSimbahan />} />
           <Route path="/misa/kalihokan/:id" element={<EventDetail />} />
           <Route path="/pahibalo" element={<Pahibalo />} />
           <Route path="/pahibalo/bulletin/:id" element={<BulletinDetail />} />
@@ -96,6 +107,7 @@ export default function App() {
           <Route path="blood" element={<BloodTypes />} />
           <Route path="ministries" element={<Ministries />} />
           <Route path="organizations" element={<Organizations />} />
+          <Route path="org-structure" element={<Suspense fallback={<LoadingState label="Loading the editor…" />}><OrgStructure /></Suspense>} />
           <Route path="census" element={<Census />} />
           {/* My GKK is a tab of GKK Config now; old links still land there. */}
           <Route path="my-gkk" element={<Navigate to="/admin/settings?tab=mygkk" replace />} />

@@ -1,6 +1,17 @@
 # Org Chart Builder (React Flow admin + d3-org-chart website)
 
-> **Status:** idea saved for later. Not a priority. Decisions recorded 2026-10-05 (see "Decisions").
+> **Status:** implemented 2026-10-05 (migration `0057_org_chart.sql`). Decisions recorded 2026-10-05 (see "Decisions").
+>
+> **Where it differs from the plan below:**
+> - The admin page is **Parish life → Organization Structure** (`/admin/org-structure`, `client/src/pages/admin/OrgStructure.jsx`), not under Settings. One tab per chart: **Church Structure** (the default tab) and **GKK Structure** come with the migration and can't be deleted; **+ New chart** adds more. Each tab is the chart editor (`client/src/components/orgchart/`).
+> - `org_charts` has a `builtin` column for the two charts that can't be deleted.
+> - Writes go only through the functions (`create_org_chart`, `update_org_chart`, `delete_org_chart`, `save_org_chart`, `save_org_gkk_holder`); the tables are read-only to staff. `org_chart_preview` is the staff "Preview as GKK…".
+> - Tidy layout is a small tidy-tree in `client/src/lib/orgChartLayout.js` instead of dagre: dagre reorders siblings, and their left-to-right order is the order the website shows.
+> - `d3` isn't installed: d3-org-chart brings the d3 modules it uses; only `d3-transition` is added.
+> - Holder photos go to R2 under `org/` (redeploy `media-upload`).
+> - Step 7 is done in the database: saving a chart (`save_org_chart` → `org_sync_parish_roles`) sets the Katungdanan sa Parish of each registered holder of a position linked to the parish positions list. A member with several such positions keeps their role if it's one of them, else gets the first; taking them off (or deleting the chart) clears the role the chart gave them. The save message lists what changed, and it shows in the activity log as the staff member's edit.
+> - The website charts moved from Komunidad to **Ang Simbahan** (`/simbahan?tab=organisasyon`, the old Misa page), as a tab beside the sacrament guides. `/komunidad?view=organisasyon` redirects there. "Mga Opisyal" stays on each GKK's page.
+> - Leaving the page inside the admin with unsaved changes isn't caught (the app uses `BrowserRouter`, which has no `useBlocker`); switching tabs and closing/reloading the browser tab are.
 
 ## Context
 The secretary should be able to build the parish's organization structure (PPC, councils, commissions, GKK clusters, GKK officers, …) freely and publish it on the website.
@@ -137,7 +148,7 @@ create table if not exists org_gkk_holders (
   - In `/admin/settings/org-chart`: build a 3-level chart, drag to reparent, tidy, save, reload, and confirm it persists.
   - Try to make a cycle and confirm it's rejected.
   - Sign in as a non-full user (read-only, website, GKK leader) and confirm they can't open or save the editor. The database must refuse the save as well, not just the UI.
-- Publish a parish chart, then on `/komunidad?view=organisasyon`: confirm the chart renders with names and photos, collapse, expand and fit work, and it's usable at 375 px width in light and dark.
+- Publish a parish chart, then on `/simbahan?tab=organisasyon`: confirm the chart renders with names and photos, collapse, expand and fit work, and it's usable at 375 px width in light and dark.
 - Publish the GKK Structure and open two GKK pages (`/komunidad/gkk/<name>`). Confirm:
   - both show the same structure with their own officers taken from `gkk_role`
   - a GKK with no Treasurer shows "Bakante"

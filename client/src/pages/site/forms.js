@@ -50,7 +50,7 @@ export const FORMS = {
     submit: (v) => api.submitCertificateRequest(v),
   },
 
-  // "Request to avail" on the Misa ug Sakramento page (0032 submit_sacrament_request).
+  // "Request to avail" on the Ang Simbahan page (0032 submit_sacrament_request).
   ocia: {
     title: 'Moapil sa OCIA',
     short: 'OCIA',
