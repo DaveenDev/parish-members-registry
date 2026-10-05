@@ -450,6 +450,12 @@ export function gkkParts(name) {
   return { patron: s.slice(0, i).trim(), area: s.slice(i + 2).trim() };
 }
 
+/** The barangays the GKKs are in (the part of each name after " -"), once each, A–Z. */
+export function gkkBarangays(names) {
+  const areas = new Set((names || []).map((n) => gkkParts(n).area).filter(Boolean));
+  return [...areas].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true }));
+}
+
 /**
  * GKKs whose name (and so its barangay), puroks or chapel address contain the
  * search text, in the order given, each with its patron and area split out.

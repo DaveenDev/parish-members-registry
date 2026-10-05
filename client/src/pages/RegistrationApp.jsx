@@ -16,6 +16,7 @@ import CreditFooter from '../components/CreditFooter.jsx';
 import ParticipationSurvey, { ParticipationReview } from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
 import { formatAccessCode } from '../lib/census.js';
+import { gkkBarangays } from '../lib/site.js';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 
 const STEPS = ['Pamilya ug Ulo', 'Mga Miyembro', 'Mga Sakramento', 'Pag-apil', 'Pagsusi'];
@@ -681,6 +682,9 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
   const head = memberViews[0];
   // Keep a GKK saved in an older draft selectable even if it's no longer in the list.
   const gkks = household.gkk && !gkkOptions.includes(household.gkk) ? [household.gkk, ...gkkOptions] : gkkOptions;
+  // Barangays come from the GKK names; likewise keep an older draft's barangay selectable.
+  const listed = gkkBarangays(gkkOptions);
+  const barangays = household.barangay && !listed.includes(household.barangay) ? [household.barangay, ...listed] : listed;
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Pamilya ug Ulo sa Pamilya</h2>
@@ -711,7 +715,17 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
           </Field>
         </div>
         <div className="grid gap-4 mb-[18px]" style={GRID}>
-          <Field label="Barangay" required error={err.barangay}><TextInput placeholder="pananglitan: Mua-an" {...f('barangay')} /></Field>
+          <Field label="Barangay" required error={err.barangay}>
+            {/* Free text only if the GKK list couldn't load, so nobody gets stuck. */}
+            {listed.length ? (
+              <Select {...f('barangay')}>
+                <option value="">Pilia ang inyong barangay…</option>
+                {barangays.map((b) => <option key={b} value={b}>{b}</option>)}
+              </Select>
+            ) : (
+              <TextInput placeholder="pananglitan: Mua-an" {...f('barangay')} />
+            )}
+          </Field>
           <Field label="Siyudad / Lungsod" required error={err.city}><TextInput {...f('city')} /></Field>
         </div>
         <div className="grid gap-4 mb-[18px]" style={GRID}>
@@ -786,7 +800,7 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
           {Object.entries(SEX_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </Select>
       </Field>
-      <Field label="Adlaw sa pagkatawo (Birthday)" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
+      <Field label="Birthday" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
       <Field label="Lugar sa pagkatawo"><TextInput placeholder="Asa gipanganak" value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
       <Field label="Tribu"><TribeSelect placeholder="Pili…" value={mv.tribe} onChange={(v) => onField(mv.mi, 'tribe', v)} /></Field>
       <Field label="Kahimtang sibil (Civil status)" required error={mv.err.civilStatus}>

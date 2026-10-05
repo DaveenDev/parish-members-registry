@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { filterGkks, gkkParts } from '../src/lib/site.js';
+import { filterGkks, gkkBarangays, gkkParts } from '../src/lib/site.js';
 
 const gkks = [
   { name: 'Sto. Niño -Ginatilan', puroks: 'Purok 1, Purok 2' },
@@ -12,6 +12,12 @@ const gkks = [
 test('the patron and the barangay come from the GKK name', () => {
   assert.deepEqual(gkkParts('Sto. Niño -Ginatilan'), { patron: 'Sto. Niño', area: 'Ginatilan' });
   assert.deepEqual(gkkParts('Kapilya'), { patron: 'Kapilya', area: '' });
+});
+
+test('the barangays come from the GKK names, once each, A–Z', () => {
+  assert.deepEqual(gkkBarangays(gkks.map((g) => g.name)), ['Ginatilan', 'Meohao']);
+  assert.deepEqual(gkkBarangays(['Kapilya', 'San Jose -Balabag']), ['Balabag']);
+  assert.deepEqual(gkkBarangays(undefined), []);
 });
 
 test('every GKK in one list, in the order given, not grouped by barangay', () => {
