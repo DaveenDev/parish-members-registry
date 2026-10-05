@@ -7,6 +7,9 @@ import { useConfirm } from './ConfirmDialog.jsx';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
 
+// Keep in sync with the matrimony check in verify_sacrament (0043 migration).
+const MARRIAGE_SOURCES = ['Marriage contract / certificate', 'Parish register entry'];
+
 /**
  * A sacrament's status at a glance: "—" (not claimed), amber "Claimed"
  * (self-reported, awaiting staff), or green "Verified". When `onClick` is
@@ -80,7 +83,15 @@ export default function SacramentVerifyDialog({ member, sacrament, verification,
 
   const name = [member.first_name, member.last_name, member.suffix].filter(Boolean).join(' ');
 
+  // Matrimony needs a marriage document or the register, and always a reference.
+  const isMatrimony = sacrament.key === 'matrimony';
+  const sources = isMatrimony ? VERIFICATION_SOURCES.filter((s) => MARRIAGE_SOURCES.includes(s)) : VERIFICATION_SOURCES;
+
   async function save() {
+    if (isMatrimony && !reference.trim()) {
+      toast.error('Enter the book / page / entry or certificate number for the marriage');
+      return;
+    }
     setSaving(true);
     try {
       await api.verifySacrament(member.id, sacrament.key, source, reference);
@@ -140,10 +151,10 @@ export default function SacramentVerifyDialog({ member, sacrament, verification,
           <div className="flex flex-col gap-4 mb-5">
             <Field label="How was this verified?" required>
               <Select value={source} onChange={(e) => setSource(e.target.value)}>
-                {VERIFICATION_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {sources.map((s) => <option key={s} value={s}>{s}</option>)}
               </Select>
             </Field>
-            <Field label="Reference (optional)">
+            <Field label={isMatrimony ? 'Reference' : 'Reference (optional)'} required={isMatrimony}>
               <TextInput placeholder="e.g. Book 3, Page 12, Line 4 or certificate no." value={reference} onChange={(e) => setReference(e.target.value)} />
             </Field>
           </div>
