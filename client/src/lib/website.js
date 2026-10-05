@@ -288,6 +288,15 @@ export function messengerUsername(input) {
   return FB_NAME.test(name) ? name : null;
 }
 
+/**
+ * True for an office number that can be dialled (7 digits or more). The
+ * Kontak page gives only these a Call / Text button; anything else typed in
+ * a phone field (a name, say) is shown as plain text.
+ */
+export function isPhoneNumber(v) {
+  return String(v || '').replace(/\D/g, '').length >= 7;
+}
+
 /** "https://m.me/<username>" for what staff typed, or '' when there's no usable username. */
 export function messengerLink(input) {
   const name = messengerUsername(input);

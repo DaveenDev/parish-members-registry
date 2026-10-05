@@ -4,7 +4,7 @@ import { api } from '../../api.js';
 import { Field, TextInput, Checkbox, PrimaryButton } from '../ui.jsx';
 import { LoadingState, ErrorState } from '../admin.jsx';
 import { useToast } from '../../ToastContext.jsx';
-import { DAYS, normalizeOfficeHours, messengerLink, messengerUsername, validCoords, mapEmbedUrl } from '../../lib/website.js';
+import { DAYS, normalizeOfficeHours, messengerLink, messengerUsername, validCoords, mapEmbedUrl, isPhoneNumber } from '../../lib/website.js';
 import { TextArea, Panel } from './shared.jsx';
 
 const TEXT_FIELDS = ['address', 'contact', 'mobile', 'email', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'secretary_messenger'];
@@ -96,8 +96,8 @@ export default function OfficeTab() {
       <Card title="Contact details" subtitle="Shown on the website and printed on household and census sheets.">
         <Field label="Address"><TextInput value={form.address} onChange={set('address')} placeholder="Purok 3, Mua-an, Kidapawan City, North Cotabato" /></Field>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Office phone"><TextInput type="tel" value={form.contact} onChange={set('contact')} placeholder="Landline or main number" /></Field>
-          <Field label="Mobile (for calls and texts)"><TextInput type="tel" value={form.mobile} onChange={set('mobile')} disabled={!migrated} placeholder="09xx xxx xxxx" /></Field>
+          <Field label="Office phone"><TextInput type="tel" value={form.contact} onChange={set('contact')} placeholder="Landline or main number" /><NotPhoneNote value={form.contact} /></Field>
+          <Field label="Mobile (for calls and texts)"><TextInput type="tel" value={form.mobile} onChange={set('mobile')} disabled={!migrated} placeholder="09xx xxx xxxx" /><NotPhoneNote value={form.mobile} /></Field>
           <Field label="Email"><TextInput type="email" value={form.email} onChange={set('email')} /></Field>
           <Field label="Facebook page"><TextInput type="url" value={form.facebook_url} onChange={set('facebook_url')} disabled={!migrated} placeholder="https://facebook.com/…" /></Field>
         </div>
@@ -207,4 +207,14 @@ function fromSettings(s) {
     longitude: s.longitude ?? '',
     office_hours: normalizeOfficeHours(s.office_hours),
   };
+}
+
+/** Under a phone field: what's typed isn't a number, so the website won't offer to call or text it. */
+function NotPhoneNote({ value }) {
+  if (!String(value || '').trim() || isPhoneNumber(value)) return null;
+  return (
+    <div className="text-[12.5px] font-semibold text-parish-warn mt-1">
+      This isn't a phone number, so the website shows it as plain text with no Call or Text button.
+    </div>
+  );
 }
