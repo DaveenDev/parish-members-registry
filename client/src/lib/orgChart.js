@@ -1,4 +1,4 @@
-// Organization Structure charts (0057_org_chart.sql): the tree helpers the
+// Organization Structure charts (00571_org_chart.sql): the tree helpers the
 // admin editor and the website chart share. Pure, so they can be unit tested.
 //
 // The editor works on positions keyed by `key` (the database id as a string,

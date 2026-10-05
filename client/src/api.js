@@ -31,7 +31,7 @@ function mapError(error, { fallback = 'Request failed', dupLabel } = {}) {
   if (error.code === '23505' && dupLabel) return new Error(`${dupLabel} already exists`);
   // The staff functions found no profile for this signed-in account (0020 adds the missing ones).
   if (/^Only parish staff can/.test(error.message || '')) {
-    return new Error(`${error.message}. This account has no staff profile yet: run the 0020_staff_profiles.sql migration in Supabase, then sign in again.`);
+    return new Error(`${error.message}. This account has no staff profile yet: run the 00201_staff_profiles.sql migration in Supabase, then sign in again.`);
   }
   return new Error(error.message || fallback);
 }
@@ -1803,7 +1803,7 @@ function requestsError(error) {
   return mapError(error);
 }
 
-const ORG_HINT = 'Run the 0057_org_chart.sql migration in Supabase to use Organization Structure';
+const ORG_HINT = 'Run the 00571_org_chart.sql migration in Supabase to use Organization Structure';
 /** A missing org chart table or function: 0057 hasn't been run. */
 function orgMissing(error) {
   return ['42P01', 'PGRST205'].includes(error?.code) || isMissingFunction(error);

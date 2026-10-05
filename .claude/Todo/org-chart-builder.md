@@ -1,6 +1,6 @@
 # Org Chart Builder (React Flow admin + d3-org-chart website)
 
-> **Status:** implemented 2026-10-05 (migration `0057_org_chart.sql`). Decisions recorded 2026-10-05 (see "Decisions").
+> **Status:** implemented 2026-10-05 (migration `00571_org_chart.sql`). Decisions recorded 2026-10-05 (see "Decisions").
 >
 > **Where it differs from the plan below:**
 > - The admin page is **Parish life → Organization Structure** (`/admin/org-structure`, `client/src/pages/admin/OrgStructure.jsx`), not under Settings. One tab per chart: **Church Structure** (the default tab) and **GKK Structure** come with the migration and can't be deleted; **+ New chart** adds more. Each tab is the chart editor (`client/src/components/orgchart/`).
