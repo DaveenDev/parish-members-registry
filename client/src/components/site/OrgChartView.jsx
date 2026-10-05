@@ -144,18 +144,18 @@ export default function OrgChartView({ nodes, showHolders = true, height = 520, 
   return (
     <div ref={wrap} className={full ? 'fixed inset-0 z-[100] flex flex-col bg-parish-bg p-3 sm:p-4' : ''}>
       <div className="flex flex-wrap gap-2 mb-2.5">
-        <button type="button" className={BTN} onClick={() => chart.current?.fit()}>Ihaum sa screen</button>
-        <button type="button" className={BTN} onClick={() => chart.current?.expandAll().fit()}>Ablihi tanan</button>
-        <button type="button" className={BTN} onClick={() => chart.current?.collapseAll().fit()}>Tikopa</button>
-        <button type="button" className={BTN} onClick={() => chart.current?.exportImg({ full: true, save: true, backgroundColor: '#fffdf8', imageName: fileName })}>I-download (PNG)</button>
-        <button type="button" className={`${BTN} ${full ? 'ml-auto' : ''}`} onClick={full ? closeFull : openFull}>
+        <button type="button" className={BTN} onClick={full ? closeFull : openFull}>
           {full ? (
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
           ) : (
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
           )}
-          {full ? 'Isira ang tibuok screen' : 'Tibuok screen'}
+          {full ? 'Isira ang Full Screen' : 'I-Full Screen'}
         </button>
+        <button type="button" className={BTN} onClick={() => chart.current?.fit()}>Ihaum sa screen</button>
+        <button type="button" className={BTN} onClick={() => chart.current?.expandAll().fit()}>Ablihi tanan</button>
+        <button type="button" className={BTN} onClick={() => chart.current?.collapseAll().fit()}>Tikopa</button>
+        <button type="button" className={BTN} onClick={() => chart.current?.exportImg({ full: true, save: true, backgroundColor: '#fffdf8', imageName: fileName })}>I-download (PNG)</button>
       </div>
       <div
         ref={box} aria-hidden="true"
