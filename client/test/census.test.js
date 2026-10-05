@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
-  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus,
+  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, householdsVsLastYear,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
 } from '../src/lib/census.js';
 
@@ -199,5 +199,52 @@ describe('diffSubmission', () => {
   test('no changes', () => {
     const d = diffSubmission({ before, proposed: { household: before.household, members: [], newMembers: [] } });
     assert.equal(d.changeCount, 0);
+  });
+});
+
+describe('householdsVsLastYear', () => {
+  const gkks = [{ name: 'San Roque', previous_households: 40 }, { name: 'Bethany', previous_households: 10 }, { name: 'Calvary', previous_households: null }];
+  const counts = new Map([['San Roque', { started: 12, confirmed: 9 }], ['Bethany', { started: 13, confirmed: 13 }], ['Calvary', { started: 5, confirmed: 2 }], [null, { started: 2, confirmed: 1 }]]);
+
+  test('registered and not yet per GKK against last year', () => {
+    const { rows } = householdsVsLastYear(gkks, counts);
+    assert.deepEqual(rows.map((r) => r.label), ['Bethany', 'Calvary', 'San Roque', 'No GKK']);
+    const roque = rows.find((r) => r.label === 'San Roque');
+    assert.deepEqual(roque, { label: 'San Roque', lastYear: 40, registered: 12, confirmed: 9, notYet: 28, pct: 30 });
+    // More households than last year: nothing left, capped at 100%.
+    const bethany = rows.find((r) => r.label === 'Bethany');
+    assert.equal(bethany.notYet, 0);
+    assert.equal(bethany.pct, 100);
+  });
+
+  test('a GKK without a baseline has no not-yet or share', () => {
+    const calvary = householdsVsLastYear(gkks, counts).rows.find((r) => r.label === 'Calvary');
+    assert.equal(calvary.lastYear, null);
+    assert.equal(calvary.notYet, null);
+    assert.equal(calvary.pct, null);
+    assert.equal(calvary.registered, 5);
+  });
+
+  test('the total covers only GKKs with a baseline', () => {
+    const { total, hasBaseline } = householdsVsLastYear(gkks, counts);
+    assert.equal(hasBaseline, true);
+    assert.equal(total.lastYear, 50);
+    assert.equal(total.registered, 25);
+    assert.equal(total.notYet, 28);
+    assert.equal(total.pct, 50);
+    assert.equal(total.registeredAll, 32);
+  });
+
+  test('a GKK leader sees only their GKK', () => {
+    const { rows, total } = householdsVsLastYear(gkks, counts, 'San Roque');
+    assert.deepEqual(rows.map((r) => r.label), ['San Roque']);
+    assert.equal(total.notYet, 28);
+  });
+
+  test('no baselines entered', () => {
+    const { hasBaseline, total } = householdsVsLastYear([{ name: 'A' }], new Map());
+    assert.equal(hasBaseline, false);
+    assert.equal(total.lastYear, null);
+    assert.equal(total.notYet, null);
   });
 });

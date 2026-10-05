@@ -8,9 +8,9 @@ import { useToast } from '../ToastContext.jsx';
 import { AddButton, RowButton, SidePanel } from './panels.jsx';
 
 const THIS_YEAR = new Date().getFullYear();
-// Desktop columns: name, chapel, puroks, year, households, actions.
-const COLS = 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_64px_96px_auto] lg:gap-4';
-const EMPTY ={ name: '', chapel_address: '', puroks: '', year_established: '' };
+// Desktop columns: name, chapel, puroks, year, last year's households, households, actions.
+const COLS = 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_64px_96px_96px_auto] lg:gap-4';
+const EMPTY = { name: '', chapel_address: '', puroks: '', year_established: '', previous_households: '' };
 
 /**
  * The parish's GKKs with their chapel details (shown and searched in the
@@ -57,7 +57,7 @@ export function GkkManager() {
   }
 
   const open = (g) => setEditing(g
-    ? { id: g.id, original: g.name, name: g.name, chapel_address: g.chapel_address || '', puroks: g.puroks || '', year_established: g.year_established ?? '' }
+    ? { id: g.id, original: g.name, name: g.name, chapel_address: g.chapel_address || '', puroks: g.puroks || '', year_established: g.year_established ?? '', previous_households: g.previous_households ?? '' }
     : { ...EMPTY });
 
   return (
@@ -65,7 +65,7 @@ export function GkkManager() {
       <div className="flex items-start justify-between gap-3 flex-wrap mb-[18px]">
         <div className="min-w-0 max-w-[640px]">
           <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Basic Ecclesial Communities (GKK)</div>
-          <div className="text-[13.5px] text-parish-muted">Each GKK's chapel, puroks and year established show in the website's GKK directory. A GKK assigned to a household can't be deleted.</div>
+          <div className="text-[13.5px] text-parish-muted">Each GKK's chapel, puroks and year established show in the website's GKK directory. Last year's household count is the baseline the census measures its progress against. A GKK assigned to a household can't be deleted.</div>
         </div>
         <AddButton onClick={() => open(null)}>Add GKK</AddButton>
       </div>
@@ -77,12 +77,12 @@ export function GkkManager() {
       )}
       {list.rows.length > 0 && (
         <div className={`hidden lg:grid ${COLS} px-3.5 pb-2 font-semibold text-[11.5px] tracking-wide uppercase text-parish-muted`}>
-          <span>GKK</span><span>Chapel address</span><span>Puroks covered</span><span>Est.</span><span>Households</span><span />
+          <span>GKK</span><span>Chapel address</span><span>Puroks covered</span><span>Est.</span><span>Last year</span><span>Households</span><span />
         </div>
       )}
       <div className="flex flex-col gap-2">
         {list.rows.map((g) => {
-          const info = [g.chapel_address && `Chapel: ${g.chapel_address}`, g.puroks, g.year_established && `Est. ${g.year_established}`].filter(Boolean).join(' · ');
+          const info = [g.chapel_address && `Chapel: ${g.chapel_address}`, g.puroks, g.year_established && `Est. ${g.year_established}`, g.previous_households != null && `${g.previous_households} household(s) last year`].filter(Boolean).join(' · ');
           const dash = <span className="text-parish-faint">—</span>;
           return (
             <div key={g.id} className={`flex items-center gap-2.5 lg:grid ${COLS} border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field`}>
@@ -93,6 +93,7 @@ export function GkkManager() {
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{g.chapel_address || dash}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{g.puroks || dash}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.year_established || dash}</span>
+              <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.previous_households ?? dash}</span>
               <span className="font-semibold text-[12px] text-parish-muted whitespace-nowrap">{g.count}<span className="lg:hidden"> household(s)</span></span>
               <div className="flex items-center gap-2.5 lg:justify-end">
               <RowButton onClick={() => open(g)} className="px-3.5 py-2">Edit</RowButton>
@@ -140,7 +141,9 @@ function GkkPanel({ initial, onClose, onSaved }) {
       setError(`Enter the year established as four digits, up to ${THIS_YEAR}.`);
       return;
     }
-    const details = { chapel_address: form.chapel_address, puroks: form.puroks, year_established: year ? Number(year) : null };
+    const previous = String(form.previous_households ?? '').trim();
+    if (previous && Number(previous) > 100000) { setError("Enter last year's household count as a number up to 100,000."); return; }
+    const details = { chapel_address: form.chapel_address, puroks: form.puroks, year_established: year ? Number(year) : null, previous_households: previous ? Number(previous) : null };
     setSaving(true);
     try {
       if (isNew) {
@@ -181,6 +184,10 @@ function GkkPanel({ initial, onClose, onSaved }) {
       <Field label="Year established">
         <TextInput inputMode="numeric" maxLength={4} value={form.year_established} placeholder="e.g. 1985" className="max-w-[160px]" onChange={(e) => { setForm((f) => ({ ...f, year_established: e.target.value.replace(/\D/g, '') })); setError(''); }} />
       </Field>
+      <Field label="Households last year">
+        <TextInput inputMode="numeric" maxLength={6} value={form.previous_households} placeholder="e.g. 120" className="max-w-[160px]" onChange={(e) => { setForm((f) => ({ ...f, previous_households: e.target.value.replace(/\D/g, '') })); setError(''); }} />
+      </Field>
+      <div className="-mt-2 text-[13px] text-parish-muted">From the previous census. The ongoing census counts how many of these households have registered and how many have not yet.</div>
       {!isNew && initial.name !== form.name.trim() && form.name.trim() && (
         <div className="text-[13px] text-parish-muted">Renaming also moves every household in this GKK to the new name.</div>
       )}

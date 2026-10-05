@@ -135,6 +135,40 @@ export function summarizeCensus(rows) {
   return { columns, rows: out, total: finish('All GKKs', all) };
 }
 
+/**
+ * Households registered in this census against each GKK's household count
+ * from the previous year (gkks.previous_households, 0040). `gkks` is
+ * [{ name, previous_households }]; `counts` is a Map of GKK name (null for
+ * no GKK) → { started, confirmed } from censusGkkHouseholdCounts().
+ * "Registered" is every household with at least one member confirmed;
+ * "not yet" is last year's count minus those, never below zero (new
+ * households can push a GKK past its baseline). A GKK with no baseline has
+ * lastYear, notYet and pct null. Pass `onlyGkk` for a GKK leader's own GKK.
+ */
+export function householdsVsLastYear(gkks, counts, onlyGkk = null) {
+  const row = (label, lastYear, c = {}) => {
+    const registered = c.started || 0;
+    const known = lastYear != null;
+    return {
+      label, lastYear: known ? lastYear : null, registered, confirmed: c.confirmed || 0,
+      notYet: known ? Math.max(lastYear - registered, 0) : null,
+      pct: known && lastYear > 0 ? Math.min(Math.round((registered / lastYear) * 100), 100) : known ? (registered ? 100 : 0) : null,
+    };
+  };
+  const list = (gkks || []).filter((g) => !onlyGkk || g.name === onlyGkk).sort((a, b) => a.name.localeCompare(b.name));
+  const rows = list.map((g) => row(g.name, g.previous_households ?? null, counts?.get(g.name)));
+  const none = counts?.get(null);
+  if (!onlyGkk && none && none.started) rows.push(row('No GKK', null, none));
+  // The total compares only the GKKs that have a baseline, so a missing count doesn't read as "not yet".
+  const withBase = rows.filter((r) => r.lastYear != null);
+  const sum = (k, rs) => rs.reduce((n, r) => n + r[k], 0);
+  const lastYear = withBase.length ? sum('lastYear', withBase) : null;
+  const total = row('All GKKs', lastYear, { started: sum('registered', withBase), confirmed: sum('confirmed', withBase) });
+  total.notYet = withBase.length ? sum('notYet', withBase) : null;
+  total.registeredAll = sum('registered', rows);
+  return { rows, total, hasBaseline: withBase.length > 0 };
+}
+
 // ---- family portal (0008 migration) -------------------------------------
 
 /** "ab3k-77xq " → "AB3K77XQ" (what census_normalize_code() compares). */

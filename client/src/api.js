@@ -838,14 +838,14 @@ export const api = {
     const fields = Object.fromEntries(GKK_DETAIL_FIELDS.filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
     const { data, error } = await supabase.from('gkks').insert({ name: name.trim(), ...cleanPatch(fields) }).select().single();
     if (error?.code === '23505') throw new Error('A GKK with this name already exists');
-    if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql migration in Supabase to save GKK details');
+    if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql and 0040_gkk_previous_households.sql migrations in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
   },
   async saveGkkDetails(id, patch) {
     const fields = Object.fromEntries(GKK_DETAIL_FIELDS.filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
     const { data, error } = await supabase.from('gkks').update(cleanPatch(fields)).eq('id', id).select().single();
-    if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql migration in Supabase to save GKK details');
+    if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql and 0040_gkk_previous_households.sql migrations in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
   },
@@ -1023,6 +1023,24 @@ export const api = {
     const counts = { 'Not started': 0, 'Partly confirmed': 0, Confirmed: 0 };
     for (const r of data) counts[r.progress] = (counts[r.progress] || 0) + 1;
     return counts;
+  },
+
+  /**
+   * Per GKK (null = no GKK): { started, confirmed } households in this
+   * census, where started counts every household with at least one member
+   * confirmed (partly or fully). Compared against each GKK's
+   * previous_households baseline (0040).
+   */
+  async censusGkkHouseholdCounts(cycleId) {
+    const data = await fetchAll(() => supabase.rpc('census_household_progress', { p_cycle_id: cycleId }).select('gkk, progress').order('household_id'));
+    const out = new Map();
+    for (const r of data) {
+      const c = out.get(r.gkk) || { started: 0, confirmed: 0 };
+      if (r.progress !== 'Not started') c.started += 1;
+      if (r.progress === 'Confirmed') c.confirmed += 1;
+      out.set(r.gkk, c);
+    }
+    return out;
   },
 
   /** census_summary() rows: { gkk, status, members }. */
@@ -1317,7 +1335,7 @@ const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'dire
 
 const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles'];
 
-const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on'];
+const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households'];
 
 async function listWebsite(table, order, migration = '0011_website_content.sql') {
   const { data, error } = await order(supabase.from(table).select('*'));
