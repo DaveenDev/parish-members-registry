@@ -45,6 +45,11 @@ export function GkkManager({ onOpenList }) {
   }, []);
 
   const openList = listOn && onOpenList ? (name) => { setEditing(null); onOpenList(name); } : null;
+  // Names on last year's list that still count (0058): while the list is on, they're the GKK's baseline, not the typed count.
+  const listNames = (name) => {
+    const c = listOn && listCounts.get(name);
+    return c ? c.total - c.setAside : 0;
+  };
 
   function reload() {
     setLoadError('');
@@ -112,7 +117,9 @@ export function GkkManager({ onOpenList }) {
       )}
       <div className="flex flex-col gap-2">
         {list.rows.map((g) => {
-          const info = [g.puroks, g.year_established && `Est. ${g.year_established}`, g.previous_households != null && `${g.previous_households} household(s) last year`].filter(Boolean).join(' · ');
+          const names = listNames(g.name);
+          const lastYear = names || g.previous_households;
+          const info = [g.puroks, g.year_established && `Est. ${g.year_established}`, lastYear != null && `${lastYear} household(s) last year${names ? ' (list)' : ''}`].filter(Boolean).join(' · ');
           const dash = <span className="text-parish-faint">—</span>;
           const missing = <span className="font-semibold text-[#c2410c]">Missing</span>;
           return (
@@ -134,7 +141,10 @@ export function GkkManager({ onOpenList }) {
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{missingAddress(g) ? missing : g.chapel_address}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{g.puroks || dash}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.year_established || dash}</span>
-              <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.previous_households ?? dash}</span>
+              <span className="hidden lg:block text-[13.5px] text-parish-text2" title={names ? "From last year's list" : undefined}>
+                {lastYear ?? dash}
+                {names > 0 && <span className="ml-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-parish-muted">list</span>}
+              </span>
               <span className="font-semibold text-[12px] text-parish-muted whitespace-nowrap">{g.count}<span className="lg:hidden"> household(s)</span></span>
               <div className="flex items-center gap-2.5 lg:justify-end">
               {openList && (
@@ -165,7 +175,7 @@ export function GkkManager({ onOpenList }) {
         <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
       </div>
 
-      {editing && <GkkPanel initial={editing} codes={codes} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
+      {editing && <GkkPanel initial={editing} codes={codes} listNames={editing.original ? listNames(editing.original) : 0} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
     </Panel>
     </>
   );
@@ -234,7 +244,7 @@ function PanelTabs({ tabs, value, onChange }) {
  * picked; on Cancel the ones uploaded here are deleted again, and photos
  * taken off a saved history are deleted once it's saved.
  */
-function GkkPanel({ initial, codes, onClose, onSaved, onOpenList }) {
+function GkkPanel({ initial, codes, listNames = 0, onClose, onSaved, onOpenList }) {
   const toast = useToast();
   const [form, setForm] = useState(initial);
   const [tab, setTab] = useState(initial.tab || 'details');
@@ -276,7 +286,9 @@ function GkkPanel({ initial, codes, onClose, onSaved, onOpenList }) {
       if (problem) { setCodeError(problem); fail(problem); return; }
     }
     if (pagePhotos.uploading || historyPhotos.uploading) { setError('Wait for the photos to finish uploading.'); return; }
-    const details = { ...chapelPatch(form), previous_households: previous ? Number(previous) : null };
+    // While the GKK has names on the list, a count that doesn't match them saves empty (as 0058 does).
+    const count = previous ? Number(previous) : null;
+    const details = { ...chapelPatch(form), previous_households: listNames > 0 && count !== listNames ? null : count };
     // Only when they changed, so the details still save before the 0044 and 0046 migrations.
     if (!samePhotos(form, initial)) Object.assign(details, photosPatch(form));
     if (!sameHistory(form, initial)) Object.assign(details, historyPatch(form));
@@ -332,11 +344,15 @@ function GkkPanel({ initial, codes, onClose, onSaved, onOpenList }) {
             onChange={(value) => { setCodeDraft({ barangay: barangay.toLowerCase(), value }); setCodeError(''); setError(''); }} />}
           <ChapelFields form={form} setForm={setForm} setError={setError} addressError={addressError} setAddressError={setAddressError} />
           <Field label="Households last year">
-            <TextInput inputMode="numeric" maxLength={6} value={form.previous_households} placeholder="e.g. 120" className="max-w-[160px]" onChange={(e) => { setForm((f) => ({ ...f, previous_households: e.target.value.replace(/\D/g, '') })); setError(''); }} />
+            {listNames > 0
+              ? <TextInput value={listNames} disabled readOnly aria-label="Households last year, from last year's list" className="max-w-[160px]" />
+              : <TextInput inputMode="numeric" maxLength={6} value={form.previous_households} placeholder="e.g. 120" className="max-w-[160px]" onChange={(e) => { setForm((f) => ({ ...f, previous_households: e.target.value.replace(/\D/g, '') })); setError(''); }} />}
           </Field>
           <div className="-mt-2 text-[13px] text-parish-muted">
-            From the previous census. The ongoing census counts how many of these households have registered and how many have not yet.
-            {!isNew && onOpenList && <> The names themselves go on <button type="button" onClick={() => onOpenList(initial.original)} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue">last year's household list</button>.</>}
+            {listNames > 0
+              ? <>From the {listNames} name(s) on {onOpenList ? <button type="button" onClick={() => onOpenList(initial.original)} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue">last year's household list</button> : "last year's household list"}, which come first: a typed count that doesn't match them is cleared. It's used once, until a census is recorded in the registry.</>
+              : <>From the previous census. The ongoing census counts how many of these households have registered and how many have not yet, until a census is recorded in the registry.
+                {!isNew && onOpenList && <> The names themselves go on <button type="button" onClick={() => onOpenList(initial.original)} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue">last year's household list</button>; once a GKK has names there, they're used instead of this count.</>}</>}
           </div>
           {!isNew && initial.name !== form.name.trim() && form.name.trim() && (
             <div className="text-[13px] text-parish-muted">Renaming also moves every household in this GKK to the new name.</div>
