@@ -2,8 +2,10 @@ import { can } from '../lib/access.js';
 
 /**
  * The admin sidebar, in groups. `need` is the lib/access.js permission a
- * page requires; `leaderOnly` shows it to GKK leaders only; `leaderLabel`
- * is its name for GKK leaders; `badge` names a count from api.navCounts().
+ * page requires; `leaderOnly` shows it to GKK leaders only, `notForLeaders`
+ * hides it from them; `leaderLabel` is its name for GKK leaders; `badge`
+ * names a count from api.navCounts(). A `collapsible` group stays open for
+ * GKK leaders, who have only a few pages.
  */
 export const NAV_GROUPS = [
   {
@@ -20,7 +22,6 @@ export const NAV_GROUPS = [
       { to: '/admin/members', label: 'Members', need: 'registry' },
       { to: '/admin/sacraments', label: 'Sacraments', need: 'registry', badge: 'sacraments', badgeLabel: 'claims to verify' },
       { to: '/admin/census', label: 'Census', need: 'census', badge: 'census', badgeLabel: 'online updates to review' },
-      { to: '/admin/my-gkk', label: 'My GKK', leaderOnly: true },
       { to: '/admin/blood', label: 'Blood Types', need: 'registry' },
     ],
   },
@@ -28,8 +29,8 @@ export const NAV_GROUPS = [
     label: 'Parish life',
     items: [
       { to: '/admin/requests', label: 'Requests', need: 'requests', badge: 'requests', badgeLabel: 'waiting' },
-      { to: '/admin/ministries', label: 'Ministry rosters', need: 'registry' },
-      { to: '/admin/organizations', label: 'Organization rosters', need: 'registry' },
+      { to: '/admin/ministries', label: 'Ministry rosters', need: 'registry', notForLeaders: true },
+      { to: '/admin/organizations', label: 'Organization rosters', need: 'registry', notForLeaders: true },
     ],
   },
   {
@@ -44,6 +45,7 @@ export const NAV_GROUPS = [
     label: 'Settings',
     collapsible: true,
     items: [
+      { to: '/admin/my-gkk', label: 'My GKK', leaderOnly: true },
       { to: '/admin/settings', end: true, label: 'Parish Config', leaderLabel: 'GKK Config' },
       { to: '/admin/settings/notifications', label: 'Notifications' },
       { to: '/admin/settings/organizations', label: 'Ministries & organizations', need: 'manageLists' },
@@ -58,7 +60,13 @@ export const NAV_GROUPS = [
 export function navAllowed(item, user) {
   if (item.adminOnly && !user?.isAdmin) return false;
   if (item.leaderOnly && user?.access !== 'gkk_leader') return false;
+  if (item.notForLeaders && user?.access === 'gkk_leader') return false;
   return !item.need || can(user, item.need);
+}
+
+/** Whether the group folds away for this account (not for GKK leaders). */
+export function navCollapsible(group, user) {
+  return !!group.collapsible && user?.access !== 'gkk_leader';
 }
 
 /** The item's name for this account: GKK leaders see some pages under their own name. */

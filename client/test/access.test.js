@@ -79,6 +79,18 @@ describe('admin nav', async () => {
     assert.equal(navLabel(navItemFor('/admin/census'), { access: 'gkk_leader' }), 'Census');
   });
 
+  test("GKK leaders: no Parish life pages, My GKK under an always-open Settings", async () => {
+    const { NAV_GROUPS, navCollapsible } = await import('../src/components/adminNav.js');
+    const leader = { access: 'gkk_leader' };
+    const parishLife = NAV_GROUPS.find((g) => g.label === 'Parish life');
+    assert.deepEqual(parishLife.items.filter((i) => navAllowed(i, leader)), []);
+    assert.ok(navAllowed(navItemFor('/admin/ministries'), { access: 'read_only' }));
+    const settings = NAV_GROUPS.find((g) => g.label === 'Settings');
+    assert.equal(settings.items.filter((i) => navAllowed(i, leader))[0].label, 'My GKK');
+    assert.ok(!navCollapsible(settings, leader));
+    assert.ok(navCollapsible(settings, { access: 'full' }));
+  });
+
   test('My GKK is for GKK leaders only', () => {
     const mine = navItemFor('/admin/my-gkk');
     assert.equal(mine.label, 'My GKK');

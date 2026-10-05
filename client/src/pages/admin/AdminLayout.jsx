@@ -8,7 +8,7 @@ import { PageHeader, PageBody, EmptyState } from '../../components/admin.jsx';
 import CommandPalette, { useCommandPaletteShortcut } from '../../components/CommandPalette.jsx';
 import IdleSignOut from '../../components/IdleSignOut.jsx';
 import NotificationBell, { useStaffNotifications } from '../../components/NotificationBell.jsx';
-import { NAV_GROUPS, navAllowed, navItemFor, navBadges, navLabel } from '../../components/adminNav.js';
+import { NAV_GROUPS, navAllowed, navCollapsible, navItemFor, navBadges, navLabel } from '../../components/adminNav.js';
 import { accessLabel } from '../../lib/access.js';
 import { keepServiceWorker } from '../../lib/push.js';
 
@@ -160,7 +160,7 @@ export default function AdminLayout() {
         {NAV_GROUPS.map((g) => {
           const items = g.items.filter((n) => navAllowed(n, user)).map((n) => ({ ...n, label: navLabel(n, user) }));
           if (!items.length) return null;
-          if (g.collapsible) {
+          if (navCollapsible(g, user)) {
             // Collapsed by default; opens on its own while one of its pages is showing.
             const hasCurrent = items.some((n) => n === current || n.to === current?.to);
             const open = openGroups[g.label] ?? hasCurrent;
