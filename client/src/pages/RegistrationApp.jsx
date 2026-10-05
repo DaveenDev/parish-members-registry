@@ -11,7 +11,7 @@ import {
   blankMember, HEAD, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
   HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate,
 } from '../constants.js';
-import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect } from '../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect, FlagEmptyRequired } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
 import ParticipationSurvey, { ParticipationReview } from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
@@ -350,6 +350,7 @@ export default function RegistrationApp() {
   }));
 
   return (
+    <FlagEmptyRequired.Provider value>
     <div className="min-h-screen relative font-sans">
       {screen === 'wizard' && (
         <Wizard
@@ -389,6 +390,7 @@ export default function RegistrationApp() {
         </div>
       )}
     </div>
+    </FlagEmptyRequired.Provider>
   );
 }
 

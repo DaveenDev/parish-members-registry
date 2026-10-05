@@ -1,9 +1,16 @@
-import React, { useId, useRef, useState } from 'react';
+import React, { createContext, useContext, useId, useRef, useState } from 'react';
 import { TRIBES, FAMILY_GROUPINGS } from '../constants.js';
 import { TRIBE_OTHER_LABEL } from '../lib/bisaya.js';
 
 /**
- * Label + control + error. The label is linked to the control so tapping it
+ * Inside this provider (the public registration wizard), a required Field whose
+ * control is still empty gets a light orange border; it returns to normal once
+ * filled. A focused box keeps the blue focus border, and an error stays red.
+ */
+export const FlagEmptyRequired = createContext(false);
+
+/**
+ * Label + control + error.The label is linked to the control so tapping it
  * focuses the field and screen readers announce it, and an error marks the
  * control aria-invalid (which the wizard also uses to find the first error).
  * A required field marks the control aria-required; the "*" itself is hidden
@@ -14,6 +21,7 @@ import { TRIBE_OTHER_LABEL } from '../lib/bisaya.js';
  * on the input directly.
  */
 export function Field({ label, required, error, children, inputId }) {
+  const flagEmpty = useContext(FlagEmptyRequired);
   const autoId = useId();
   const errorId = `${autoId}-error`;
   const items = React.Children.toArray(children);
@@ -24,6 +32,7 @@ export function Field({ label, required, error, children, inputId }) {
       id: controlId,
       'aria-required': required ? true : undefined,
       'aria-invalid': error ? true : undefined,
+      'data-empty': flagEmpty && required && c.props.value !== undefined && String(c.props.value ?? '').trim() === '' ? true : undefined,
       'aria-describedby': error ? errorId : undefined,
     })
   ));
@@ -46,7 +55,7 @@ export function Field({ label, required, error, children, inputId }) {
 export const INVALID_INPUT = 'aria-[invalid=true]:!border-parish-error aria-[invalid=true]:!bg-parish-errorBg/40 aria-[invalid=true]:ring-4 aria-[invalid=true]:!ring-parish-error/20';
 
 const inputBase =
-  `w-full px-3.5 py-3 text-[16px] text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15 ${INVALID_INPUT}`;
+  `w-full px-3.5 py-3 text-[16px] text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none transition focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15 ${INVALID_INPUT} [&[data-empty=true]:not(:focus)]:border-[#fdba74]`;
 
 export const TextInput = React.forwardRef(function TextInput(props, ref) {
   return <input ref={ref} {...props} className={`${inputBase} ${props.className || ''}`} />;
