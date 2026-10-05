@@ -1113,7 +1113,11 @@ export const api = {
     return { ok: true };
   },
 
-  /** Households with how many of their members are confirmed in this census. */
+  /**
+   * Households with how many of their members are confirmed in this census.
+   * Sorted for the page's grouping: by GKK across all GKKs, or by Family
+   * Grouping (FG 1, FG 2 … FG 10, then unset) within one GKK (0057).
+   */
   async listCensusHouseholds(cycleId, params = {}) {
     const { gkk = 'All', progress = 'All', search = '' } = params;
     const { page, pageSize, from, to } = clampPaging(params);
@@ -1125,6 +1129,8 @@ export const api = {
       const s = `%${search.trim()}%`;
       q = q.or(`household_name.ilike.${s},head_name.ilike.${s},ref_no.ilike.${s}`);
     }
+    if (gkk === 'All') q = q.order('gkk', { nullsFirst: false });
+    else q = q.order('family_grouping_no', { nullsFirst: false }).order('family_grouping', { nullsFirst: false });
     q = q.order('household_name').order('household_id').range(from, to);
     const { data, error, count } = await q;
     if (error) throw mapError(error);
@@ -2027,7 +2033,10 @@ async function withMemberMatches(params = {}) {
   return { params: matches ? { ...params, memberHouseholdIds: matches.ids } : params, matches };
 }
 
-function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir } = {}) {
+// groupBy: 'gkk' or 'family_grouping' sorts by that first, so the Households
+// page can show the rows in groups; the chosen sort applies within a group.
+// family_grouping orders FG 1, FG 2 … FG 10 (family_grouping_no, 0057).
+function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir, groupBy } = {}) {
   if (status !== 'All') q = q.eq('status', status);
   if (gkk !== 'All') q = q.eq('gkk', gkk);
   if (ids) q = q.in('id', ids);
@@ -2040,6 +2049,8 @@ function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, memb
   const col = HOUSEHOLD_SORTS[sortKey] || HOUSEHOLD_SORTS.registered;
   // Dates read newest first unless asked otherwise; names and counts A→Z / low→high.
   const ascending = sortDir ? sortDir === 'asc' : !['created_at', 'updated_at'].includes(col);
+  if (groupBy === 'gkk' && col !== 'gkk') q = q.order('gkk', { nullsFirst: false });
+  else if (groupBy === 'family_grouping') q = q.order('family_grouping_no', { nullsFirst: false }).order('family_grouping', { nullsFirst: false });
   q = q.order(col, { ascending, nullsFirst: false });
   if (col !== 'household_name') q = q.order('household_name', { ascending: true });
   return q.order('id', { ascending: true });

@@ -11,6 +11,7 @@ import CensusSubmissionDrawer from '../../components/CensusSubmissionDrawer.jsx'
 import LastYearList, { NotYetPrintSheet } from '../../components/LastYearList.jsx';
 import { fmtDate } from '../../constants.js';
 import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, vsLastYearTable } from '../../lib/census.js';
+import { groupRuns, groupHeading } from '../../lib/household.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { useClientList, useDebounced } from '../../hooks.js';
@@ -318,6 +319,8 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
 
   const t = summary?.total;
   const open = cycle.status === 'Open';
+  // All GKKs: grouped by GKK. One GKK (or "No GKK"): grouped by Family Grouping.
+  const groupKey = gkk === 'All' ? 'gkk' : 'family_grouping';
 
   return (
     <>
@@ -365,7 +368,7 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
 
       <DataTable
         minWidth={720}
-        columns={[{ label: 'Household' }, { label: 'GKK' }, { label: 'Members confirmed' }, { label: 'Progress' }, { label: '', key: 'actions' }]}
+        columns={[{ label: 'Household' }, { label: 'Family Grouping' }, { label: 'Members confirmed' }, { label: 'Progress' }, { label: '', key: 'actions' }]}
         footer={
           <>
             {loading && <LoadingState label="Loading households…" />}
@@ -375,32 +378,41 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
           </>
         }
       >
-        {!loading && rows.map((r) => (
-          <tr key={r.household_id} className="border-t border-parish-line">
-            <td className="px-4 py-3">
-              <div className="font-semibold text-[14.5px] text-parish-navy">{r.household_name}</div>
-              <div className="text-[12.5px] text-parish-muted">{[r.head_name, r.ref_no].filter(Boolean).join(' · ')}</div>
-            </td>
-            <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.gkk || '—'}</td>
-            <td className="px-4 py-3 text-[14px] text-parish-text3">{r.members_confirmed} of {r.members_expected}</td>
-            <td className="px-4 py-3">
-              <div className="flex flex-wrap gap-1.5">
-                {/* "Not started" next to a waiting online update read as if the family's answers were lost. */}
-                {!(r.pending_update && r.progress === 'Not started') && <Badge tone={PROGRESS_TONES[r.progress]}>{r.progress}</Badge>}
-                {r.pending_update && <Badge tone="blue" title="The family sent their answers online. Approve them under Online updates to confirm the members.">Sent online · to review</Badge>}
-              </div>
-            </td>
-            <td className="px-4 py-3">
-              <div className="flex gap-1.5 justify-end">
-                {open && (
-                  <button onClick={() => print({ householdIds: [r.household_id] })} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg whitespace-nowrap">Print form</button>
-                )}
-                <button onClick={() => setOpenId(r.household_id)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
-                  {open ? 'Record census' : 'View'}
-                </button>
-              </div>
-            </td>
-          </tr>
+        {!loading && groupRuns(rows, groupKey).map((g, gi) => (
+          <React.Fragment key={g.key ?? 'none'}>
+            <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
+              <th scope="colgroup" colSpan={5} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
+                {groupHeading(g.key, groupKey)}
+              </th>
+            </tr>
+            {g.rows.map((r) => (
+              <tr key={r.household_id} className="border-t border-parish-line">
+                <td className="px-4 py-3">
+                  <div className="font-semibold text-[14.5px] text-parish-navy">{r.household_name}</div>
+                  <div className="text-[12.5px] text-parish-muted">{[r.head_name, r.ref_no].filter(Boolean).join(' · ')}</div>
+                </td>
+                <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.family_grouping || '—'}</td>
+                <td className="px-4 py-3 text-[14px] text-parish-text3">{r.members_confirmed} of {r.members_expected}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {/* "Not started" next to a waiting online update read as if the family's answers were lost. */}
+                    {!(r.pending_update && r.progress === 'Not started') && <Badge tone={PROGRESS_TONES[r.progress]}>{r.progress}</Badge>}
+                    {r.pending_update && <Badge tone="blue" title="The family sent their answers online. Approve them under Online updates to confirm the members.">Sent online · to review</Badge>}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1.5 justify-end">
+                    {open && (
+                      <button onClick={() => print({ householdIds: [r.household_id] })} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg whitespace-nowrap">Print form</button>
+                    )}
+                    <button onClick={() => setOpenId(r.household_id)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
+                      {open ? 'Record census' : 'View'}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </React.Fragment>
         ))}
       </DataTable>
 
