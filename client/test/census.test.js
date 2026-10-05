@@ -6,7 +6,7 @@ import {
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
-  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, vsLastYearTable, registrationAnswers, censusCardPatch,
+  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
 
@@ -401,6 +401,40 @@ describe('vsLastYearTable', () => {
     const t = vsLastYearTable({ mode: 'list', ...res }, { label: '2026 Census' });
     assert.equal(t.title, "2026 Census: households vs last year's list");
     assert.deepEqual(t.rows, [['A', 'Count', 4, 2, 1, 1, 2, '50%'], ['All GKKs', '', 4, 2, 1, 1, 2, '50%']]);
+  });
+
+  test('count mode (list off, no earlier census): titled by the household count', () => {
+    const res = registryVsLastYear([{ name: 'A', previous_households: 4 }], [{ household_id: 1, gkk: 'A', status: 'Verified' }], []);
+    assert.equal(vsLastYearTable({ mode: 'count', ...res }, { label: '2026 Census' }).title, "2026 Census: households vs last year's household count");
+  });
+});
+
+describe('the list comes before the typed count (0058)', () => {
+  const gkks = [{ name: 'A', previous_households: 25 }, { name: 'B', previous_households: 10 }];
+  const heads = [{ household_id: 1, gkk: 'A', status: 'Verified' }, { household_id: 2, gkk: 'B', status: 'Pending' }];
+  const list = Array.from({ length: 30 }, (_, i) => ({ id: i + 1, gkk: 'A', head_name: `Name ${i + 1}`, status: i < 2 ? 'Moved away' : 'Not yet' }));
+
+  test("a GKK with names measures against them, not its count; one without uses the count", () => {
+    const res = registryVsLastYear(gkks, heads, list);
+    const [a, b] = res.rows;
+    assert.equal(a.fromList, true);
+    assert.equal(a.lastYear, 28); // 30 names, 2 set aside: not the 25 typed
+    assert.equal(b.fromList, false);
+    assert.equal(b.lastYear, 10);
+    assert.equal(res.total.lastYear, 38);
+  });
+
+  test('unnamedNotYet: only the GKKs measured by their count, which have no names to list', () => {
+    const res = { mode: 'list', ...registryVsLastYear(gkks, heads, list) };
+    assert.equal(res.notYet.length, 28);
+    assert.equal(unnamedNotYet(res), 9);
+    assert.equal(unnamedNotYet({ mode: 'census', rows: [{ lastYear: 5, notYet: 5, fromList: false }] }), 0);
+  });
+
+  test('vsLastYearBaseline names what the census is measured against', () => {
+    assert.equal(vsLastYearBaseline({ mode: 'list' }), "last year's list");
+    assert.equal(vsLastYearBaseline({ mode: 'count' }), "last year's household count");
+    assert.equal(vsLastYearBaseline({ mode: 'census', previous: { label: '2025 Census' } }), 'the 2025 Census');
   });
 });
 

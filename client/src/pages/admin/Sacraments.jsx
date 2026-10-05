@@ -5,7 +5,7 @@ import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import SacramentVerifyDialog, { SacramentChip } from '../../components/SacramentVerifyDialog.jsx';
 import { SACRAMENTS } from '../../constants.js';
 import { useDebounced, useUrlState } from '../../hooks.js';
-import { groupByHousehold } from '../../lib/household.js';
+import { groupByGkk } from '../../lib/household.js';
 import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 
 // Filter values understood by api.listMembers for each sacrament.
@@ -17,7 +17,7 @@ const STATUS_OPTIONS = [
   ['No', 'Not claimed'],
 ];
 const DEFAULT_FILTERS = { gkk: 'All', baptism: 'All', communion: 'All', confirmation: 'All', matrimony: 'All' };
-// Rows are grouped by household, so a bigger page keeps families together more often.
+// Rows are grouped by GKK, households kept together inside each GKK.
 const URL_DEFAULTS = { ...DEFAULT_FILTERS, q: '', page: 1, size: 20 };
 const STATUS_VALUES = STATUS_OPTIONS.map(([v]) => v);
 const URL_ALLOWED = { baptism: STATUS_VALUES, communion: STATUS_VALUES, confirmation: STATUS_VALUES, matrimony: STATUS_VALUES, size: [10, 20, 50] };
@@ -49,7 +49,7 @@ export default function Sacraments() {
   function reload({ quiet = false } = {}) {
     if (!quiet) setLoading(true);
     setError('');
-    api.listMembers({ ...filters, search: debouncedSearch, page, pageSize, sortKey: 'household', sortDir: 'asc' })
+    api.listMembers({ ...filters, search: debouncedSearch, page, pageSize, sortKey: 'household', sortDir: 'asc', groupBy: 'gkk' })
       .then((res) => { setRows(res.rows); setTotal(res.total); })
       .catch((e) => { if (!quiet) setError(e.message); })
       .finally(() => { if (!quiet) setLoading(false); });
@@ -147,8 +147,8 @@ export default function Sacraments() {
         </div>
 
         <DataTable
-          minWidth={720}
-          columns={[{ label: 'Member' }, ...SACRAMENTS.map((s) => ({ label: s.label, align: 'center' }))]}
+          minWidth={860}
+          columns={[{ label: 'Member' }, { label: 'Household' }, ...SACRAMENTS.map((s) => ({ label: s.label, align: 'center' }))]}
           footer={
             <>
               {loading && <LoadingState label="Loading members…" />}
@@ -162,20 +162,20 @@ export default function Sacraments() {
             </>
           }
         >
-          {groupByHousehold(rows).map((g, gi) => (
-            <React.Fragment key={g.householdId}>
-              <tr className={`bg-parish-hover ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
-                <th scope="colgroup" colSpan={SACRAMENTS.length + 1} className="text-left px-4 py-2">
-                  <span className="font-serif text-[16.5px] font-semibold text-parish-navy">{g.name}</span>
-                  {g.gkk && <span className="text-[12px] font-medium text-parish-muted"> · {g.gkk}</span>}
+          {groupByGkk(rows).map((g, gi) => (
+            <React.Fragment key={g.gkk || 'no-gkk'}>
+              <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
+                <th scope="colgroup" colSpan={SACRAMENTS.length + 2} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
+                  {g.gkk || 'No GKK'}
                 </th>
               </tr>
               {g.members.map((m) => (
             <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-parish-line cursor-pointer hover:bg-parish-hover focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
-              <td className="pl-7 pr-4 py-2.5">
+              <td className="px-4 py-2.5">
                 <div className="font-semibold text-[14px] text-parish-navy whitespace-nowrap">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
                 <div className="text-[12px] text-parish-muted whitespace-nowrap">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</div>
               </td>
+              <td className="px-4 py-2.5 text-[14px] text-parish-text3 whitespace-nowrap">{m.household_name || '—'}</td>
               {SACRAMENTS.map((s) => (
                 <td key={s.key} className="text-center px-2.5 py-2.5">
                   <SacramentChip

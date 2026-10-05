@@ -10,7 +10,7 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
-import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, registryVsLastYear, householdsVsPreviousCensus, previousCensus, vsLastYearTable } from './lib/census.js';
+import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, registryVsLastYear, householdsVsPreviousCensus, previousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet } from './lib/census.js';
 import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows } from './lib/reports.js';
 import { certTypeLabel } from './lib/requests.js';
 import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
@@ -1159,7 +1159,11 @@ export const api = {
     return { ok: true };
   },
 
-  /** Households with how many of their members are confirmed in this census. */
+  /**
+   * Households with how many of their members are confirmed in this census.
+   * Sorted for the page's grouping: by GKK across all GKKs, or by Family
+   * Grouping (FG 1, FG 2 … FG 10, then unset) within one GKK (0057).
+   */
   async listCensusHouseholds(cycleId, params = {}) {
     const { gkk = 'All', progress = 'All', search = '' } = params;
     const { page, pageSize, from, to } = clampPaging(params);
@@ -1171,6 +1175,8 @@ export const api = {
       const s = `%${search.trim()}%`;
       q = q.or(`household_name.ilike.${s},head_name.ilike.${s},ref_no.ilike.${s}`);
     }
+    if (gkk === 'All') q = q.order('gkk', { nullsFirst: false });
+    else q = q.order('family_grouping_no', { nullsFirst: false }).order('family_grouping', { nullsFirst: false });
     q = q.order('household_name').order('household_id').range(from, to);
     const { data, error, count } = await q;
     if (error) throw mapError(error);
@@ -1222,9 +1228,11 @@ export const api = {
    * - list on: registryVsLastYear(): the GKK's names on last year's list (or
    *   its typed count) against the households in the registry, queued or verified;
    * - list off: householdsVsPreviousCensus(): the households that took part
-   *   in the census before `cycle` against this one (`noPrevious` when there
-   *   is none).
-   * Both give { mode, rows, total, hasBaseline, notYet: [{ key, title, detail, gkk }], previous }.
+   *   in the census before `cycle` against this one;
+   * - list off and no earlier census yet: registryVsLastYear() on the
+   *   household counts typed in Parish GKK alone (mode 'count'), the one-time
+   *   baseline until a census is recorded (`noPrevious` when no GKK has one).
+   * All give { mode, rows, total, hasBaseline, notYet: [{ key, title, detail, gkk }], previous }.
    */
   async censusVsLastYear(cycle, cycles, ownGkk = null) {
     if (await api.lastYearListEnabled()) {
@@ -1232,7 +1240,11 @@ export const api = {
       return { mode: 'list', previous: null, ...registryVsLastYear(details.rows, heads, list, ownGkk) };
     }
     const previous = cycle ? previousCensus(cycles, cycle) : null;
-    if (!previous) return { mode: 'census', previous: null, noPrevious: true, rows: [], total: null, hasBaseline: false, notYet: [] };
+    if (!previous) {
+      const [details, heads] = await Promise.all([api.listGkkDetails(), api.registryHeads()]);
+      const res = registryVsLastYear(details.rows, heads, [], ownGkk);
+      return { mode: 'count', previous: null, noPrevious: !res.hasBaseline, ...res };
+    }
     const [before, now] = await Promise.all([api.censusHouseholdProgressRows(previous.id), api.censusHouseholdProgressRows(cycle.id)]);
     const res = householdsVsPreviousCensus(before, now, ownGkk);
     const notYet = res.notYetHouseholds.map((h) => ({
@@ -1533,18 +1545,25 @@ export const api = {
       if (type === 'Households vs last year' || type === 'Not yet registered') {
         const res = await api.censusVsLastYear(cycle, cycles, gkk === 'All' ? null : gkk);
         const where = gkk === 'All' ? '' : ` · ${gkk}`;
-        const baseline = res.mode === 'census' ? (res.previous ? `the ${res.previous.label}` : 'no earlier census') : "last year's list";
+        const baseline = vsLastYearBaseline(res);
+        const noBaseline = res.mode === 'count'
+          ? `No baseline to compare with: type each GKK's households last year in Parish GKK, or turn the list on${where}`
+          : `No baseline to compare with (${baseline}): add last year's names or counts, or turn the list off once there's an earlier census${where}`;
         if (type === 'Households vs last year') {
           const t = vsLastYearTable(res, cycle);
-          const meta = res.hasBaseline
-            ? `${res.total.pct}% registered against ${baseline} · ${res.total.notYet} of ${res.total.lastYear} not yet${where}`
-            : `No baseline to compare with (${baseline}): add last year's names or counts, or turn the list off once there's an earlier census${where}`;
+          const meta = res.hasBaseline ? `${res.total.pct}% registered against ${baseline} · ${res.total.notYet} of ${res.total.lastYear} not yet${where}` : noBaseline;
           return table(t.title, meta, t.columns, t.rows);
         }
-        const list = res.mode === 'list'
+        const list = res.mode !== 'census'
           ? { columns: ['GKK', 'Head of household', 'Purok', 'Note'], rows: res.notYet.map((n) => [n.gkk, n.title, n.purok || '—', n.note || '—']) }
           : { columns: ['GKK', 'Household', 'Head · ref no'], rows: res.notYet.map((n) => [n.gkk || 'No GKK', n.title, n.detail || '—']) };
-        return table(`${cycle?.label || 'Census'}: not yet registered`, `${res.notYet.length} famil${res.notYet.length === 1 ? 'y' : 'ies'} from ${baseline} not yet registered${where}`, list.columns, list.rows);
+        // GKKs measured by their typed count have no names to list, only how many are left.
+        const unnamed = unnamedNotYet(res);
+        const named = res.mode === 'count' ? '' : `${res.notYet.length} famil${res.notYet.length === 1 ? 'y' : 'ies'} from ${baseline} not yet registered`;
+        const counted = unnamed ? `${unnamed} household(s) not yet registered by last year's household count (no names to list)` : '';
+        const meta = !res.hasBaseline && res.mode !== 'census' ? noBaseline
+          : `${[named, counted].filter(Boolean).join(' · ') || `Every household from ${baseline} has registered`}${where}`;
+        return table(`${cycle?.label || 'Census'}: not yet registered`, meta, list.columns, list.rows);
       }
       if (type === 'Results by GKK') {
         const sum = summarizeCensus(await api.censusSummary(cycleId));
@@ -2085,7 +2104,10 @@ async function withMemberMatches(params = {}) {
   return { params: matches ? { ...params, memberHouseholdIds: matches.ids } : params, matches };
 }
 
-function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir } = {}) {
+// groupBy: 'gkk' or 'family_grouping' sorts by that first, so the Households
+// page can show the rows in groups; the chosen sort applies within a group.
+// family_grouping orders FG 1, FG 2 … FG 10 (family_grouping_no, 0057).
+function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir, groupBy } = {}) {
   if (status !== 'All') q = q.eq('status', status);
   if (gkk !== 'All') q = q.eq('gkk', gkk);
   if (ids) q = q.in('id', ids);
@@ -2098,6 +2120,8 @@ function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, memb
   const col = HOUSEHOLD_SORTS[sortKey] || HOUSEHOLD_SORTS.registered;
   // Dates read newest first unless asked otherwise; names and counts A→Z / low→high.
   const ascending = sortDir ? sortDir === 'asc' : !['created_at', 'updated_at'].includes(col);
+  if (groupBy === 'gkk' && col !== 'gkk') q = q.order('gkk', { nullsFirst: false });
+  else if (groupBy === 'family_grouping') q = q.order('family_grouping_no', { nullsFirst: false }).order('family_grouping', { nullsFirst: false });
   q = q.order(col, { ascending, nullsFirst: false });
   if (col !== 'household_name') q = q.order('household_name', { ascending: true });
   return q.order('id', { ascending: true });

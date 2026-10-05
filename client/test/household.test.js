@@ -2,7 +2,7 @@ import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  syncSpouses, groupByHousehold, groupByGkk, toPayloadMember, familiesOf, familyNoOf, familyHeadIndex, nextFamilyNo, familyHeadName, familyTitle, weddingCouples,
+  syncSpouses, groupByHousehold, groupByGkk, groupRuns, groupHeading, toPayloadMember, familiesOf, familyNoOf, familyHeadIndex, nextFamilyNo, familyHeadName, familyTitle, weddingCouples,
   familyTag, compactFamilies, samePerson, repeatedMember, spouseSex, askedForAge, clearForAge,
 } from '../src/lib/household.js';
 import { blankMember } from '../src/constants.js';
@@ -25,6 +25,27 @@ describe('groupByHousehold', () => {
 
   test('returns nothing for no rows', () => {
     assert.deepEqual(groupByHousehold([]), []);
+  });
+});
+
+describe('groupRuns', () => {
+  test('groups consecutive household rows by the given column, blanks together', () => {
+    const rows = [
+      { id: 1, family_grouping: 'FG 1' },
+      { id: 2, family_grouping: 'FG 1' },
+      { id: 3, family_grouping: 'FG 2' },
+      { id: 4, family_grouping: null },
+      { id: 5, family_grouping: '' },
+    ];
+    assert.deepEqual(groupRuns(rows, 'family_grouping').map((g) => [g.key, g.rows.map((r) => r.id)]), [
+      ['FG 1', [1, 2]], ['FG 2', [3]], [null, [4, 5]],
+    ]);
+  });
+
+  test('headings name the group, or what is missing', () => {
+    assert.equal(groupHeading('GKK San Isidro', 'gkk'), 'GKK San Isidro');
+    assert.equal(groupHeading(null, 'gkk'), 'No GKK');
+    assert.equal(groupHeading(null, 'family_grouping'), 'No Family Grouping');
   });
 });
 
