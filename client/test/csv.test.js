@@ -7,7 +7,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { toCsv, triggerDownload, downloadCsv } from '../src/lib/csv.js';
+import { toCsv, triggerDownload, downloadCsv, parseCsv } from '../src/lib/csv.js';
 
 describe('toCsv', () => {
   test('renders a header row from column labels', () => {
@@ -106,3 +106,18 @@ function installFakeDom() {
 
   return state;
 }
+
+describe('parseCsv', () => {
+  test('quotes, escaped quotes, commas and newlines inside quotes', () => {
+    assert.deepEqual(parseCsv('a,"b, c","say ""hi""","two\nlines"\r\n1,2,3,4\n'), [['a', 'b, c', 'say "hi"', 'two\nlines'], ['1', '2', '3', '4']]);
+  });
+  test('keeps blank lines so row numbers match, drops the final newline and a BOM', () => {
+    assert.deepEqual(parseCsv('\uFEFFx\n\ny\n'), [['x'], [''], ['y']]);
+    assert.deepEqual(parseCsv(''), []);
+  });
+  test('round-trips toCsv', () => {
+    const rows = [{ a: 'Cruz, Juan', b: 'He said "ok"' }];
+    const cols = [{ label: 'A', value: 'a' }, { label: 'B', value: 'b' }];
+    assert.deepEqual(parseCsv(toCsv(rows, cols)), [['A', 'B'], ['Cruz, Juan', 'He said "ok"']]);
+  });
+});

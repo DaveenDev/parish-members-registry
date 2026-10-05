@@ -7,6 +7,7 @@ import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../compo
 import CensusHouseholdDrawer from '../../components/CensusHouseholdDrawer.jsx';
 import CensusPrintSheet from '../../components/CensusPrintSheet.jsx';
 import CensusSubmissionDrawer from '../../components/CensusSubmissionDrawer.jsx';
+import LastYearList from '../../components/LastYearList.jsx';
 import { fmtDate } from '../../constants.js';
 import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, householdsVsLastYear } from '../../lib/census.js';
 import { useToast } from '../../ToastContext.jsx';
@@ -166,9 +167,14 @@ export default function Census() {
         )}
 
         {!cycle && !starting && (
-          <Panel>
-            <EmptyState title="No census yet" subtitle="Start a census, print the pre-filled forms by GKK, and record the answers as they come back." />
-          </Panel>
+          <>
+            <Panel>
+              <EmptyState title="No census yet" subtitle="Start a census, print the pre-filled forms by GKK, and record the answers as they come back." />
+            </Panel>
+            {/* The list can be typed in before the census starts. */}
+            <h2 className="font-serif text-[22px] font-semibold text-parish-navy mt-8 mb-3">Last year's household list</h2>
+            <LastYearList ownGkk={ownGkk} parish={parish} canEdit={canEdit} canManage={canManage} />
+          </>
         )}
 
         {cycle && (
@@ -188,13 +194,14 @@ export default function Census() {
             </div>
 
             <Tabs
-              tabs={[['households', 'Households'], ['updates', `Online updates${pendingCount ? ` (${pendingCount})` : ''}`], ['results', 'Results by GKK']]}
+              tabs={[['households', 'Households'], ['updates', `Online updates${pendingCount ? ` (${pendingCount})` : ''}`], ['results', 'Results by GKK'], ['lastYear', "Last year's list"]]}
               value={tab}
               onChange={setTab}
             />
             {tab === 'households' && <HouseholdsTab cycle={cycle} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'results' && <ResultsTab cycle={cycle} ownGkk={ownGkk} refreshKey={refreshKey} />}
+            {tab === 'lastYear' && <LastYearList ownGkk={ownGkk} parish={parish} canEdit={canEdit} canManage={canManage} />}
           </>
         )}
       </PageBody>
@@ -311,8 +318,8 @@ function HouseholdsTab({ cycle, parish, ownGkk, refreshKey, onChanged }) {
         {vsLastYear?.hasBaseline && (
           <Tile
             label="Registered vs last year"
-            value={`${vsLastYear.total.registered} / ${vsLastYear.total.lastYear}`}
-            note={`${vsLastYear.total.pct}% · ${vsLastYear.total.notYet} not yet registered`}
+            value={`${vsLastYear.total.pct}%`}
+            note={`${vsLastYear.total.notYet} of last year's ${vsLastYear.total.lastYear} not yet registered`}
             accent="rgb(var(--c-ok-text))"
           />
         )}
@@ -479,10 +486,14 @@ function UpdatesTab({ cycle, refreshKey, onChanged }) {
   );
 }
 
-/** Households registered in this census per GKK against last year's counts (Parish Config → Parish GKK). */
+/**
+ * Households registered in this census per GKK against last year: the GKK's
+ * list on the "Last year's list" tab when it has one, else the count typed
+ * in Parish Config → Parish GKK.
+ */
 async function loadVsLastYear(cycleId, ownGkk) {
-  const [details, counts] = await Promise.all([api.listGkkDetails(), api.censusGkkHouseholdCounts(cycleId)]);
-  return householdsVsLastYear(details.rows, counts, ownGkk);
+  const [details, counts, lists] = await Promise.all([api.listGkkDetails(), api.censusGkkHouseholdCounts(cycleId), api.lastYearCounts()]);
+  return householdsVsLastYear(details.rows, counts, ownGkk, lists);
 }
 
 function ResultsTab({ cycle, ownGkk, refreshKey }) {
@@ -506,8 +517,9 @@ function ResultsTab({ cycle, ownGkk, refreshKey }) {
   }
 
   async function exportVsLastYear() {
-    const columns = ['GKK', 'Last year', 'Registered', 'Fully confirmed', 'Not yet', 'Registered %'];
-    const row = (r) => ({ cells: [r.label, r.lastYear ?? '', r.registered, r.confirmed, r.notYet ?? '', r.pct == null ? '' : `${r.pct}%`] });
+    const columns = ['GKK', 'Last year from', 'Last year', 'Registered', 'Fully confirmed', 'Not yet', 'Registered %'];
+    const from = (r) => (r.fromList ? 'List' : r.lastYear == null ? '' : 'Count');
+    const row = (r) => ({ cells: [r.label, from(r), r.lastYear ?? '', r.registered, r.confirmed, r.notYet ?? '', r.pct == null ? '' : `${r.pct}%`] });
     const blob = await api.exportGenerated({ title: `${cycle.label} households vs last year`, columns, rows: [...vsLastYear.rows.map(row), row(vsLastYear.total)] });
     triggerDownload(blob, `${cycle.label.toLowerCase().replace(/\s+/g, '-')}-households-vs-last-year.csv`);
   }
@@ -523,7 +535,7 @@ function ResultsTab({ cycle, ownGkk, refreshKey }) {
         <>
           <div className="flex items-center gap-3 mb-3">
             <p className="text-[13px] text-parish-muted m-0">
-              Households registered in the {cycle.label} (at least one member confirmed) against each GKK's household count last year, set in Parish Config → Parish GKK.
+              Households registered in the {cycle.label} (at least one member confirmed) against last year. A GKK marked “list” counts its names on the Last year's list tab, where “not yet” is the names not yet ticked off; the others use the count set in Parish Config → Parish GKK.
             </p>
             <button onClick={exportVsLastYear} className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
           </div>
@@ -534,7 +546,10 @@ function ResultsTab({ cycle, ownGkk, refreshKey }) {
             >
               {[...vsLastYear.rows, vsLastYear.total].map((r, i) => (
                 <tr key={r.label} className={`border-t border-parish-line ${i === vsLastYear.rows.length ? 'bg-parish-sunk font-semibold' : ''}`}>
-                  <td className="px-4 py-3 text-[14px] text-parish-navy whitespace-nowrap">{r.label}</td>
+                  <td className="px-4 py-3 text-[14px] text-parish-navy whitespace-nowrap">
+                    {r.label}
+                    {r.fromList && <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-parish-muted">list</span>}
+                  </td>
                   <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.lastYear ?? dash}</td>
                   <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.registered}</td>
                   <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.confirmed}</td>

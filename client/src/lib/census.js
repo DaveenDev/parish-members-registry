@@ -135,37 +135,140 @@ export function summarizeCensus(rows) {
   return { columns, rows: out, total: finish('All GKKs', all) };
 }
 
+// ---- last year's household list (0041 migration) -------------------------
+
+// Keep in sync with census_last_year_list's status check.
+export const LAST_YEAR_STATUSES = ['Not yet', 'Registered', 'Moved away', 'Deceased', 'Duplicate'];
+// Names set aside: they no longer count toward last year's households.
+export const LAST_YEAR_SET_ASIDE = ['Moved away', 'Deceased', 'Duplicate'];
+export const LAST_YEAR_STATUS_TONES = { 'Not yet': 'gold', Registered: 'green', 'Moved away': 'gray', Deceased: 'gray', Duplicate: 'gray' };
+
+const clip = (v, n) => String(v ?? '').trim().slice(0, n);
+
 /**
- * Households registered in this census against each GKK's household count
- * from the previous year (gkks.previous_households, 0040). `gkks` is
- * [{ name, previous_households }]; `counts` is a Map of GKK name (null for
- * no GKK) → { started, confirmed } from censusGkkHouseholdCounts().
- * "Registered" is every household with at least one member confirmed;
- * "not yet" is last year's count minus those, never below zero (new
- * households can push a GKK past its baseline). A GKK with no baseline has
- * lastYear, notYet and pct null. Pass `onlyGkk` for a GKK leader's own GKK.
+ * Names typed or pasted one household per line: "Head name, Purok, note".
+ * Only the name is needed; extra commas stay in the note. Blank lines are
+ * skipped. Returns [{ head_name, purok, note }].
  */
-export function householdsVsLastYear(gkks, counts, onlyGkk = null) {
-  const row = (label, lastYear, c = {}) => {
+export function parseLastYearLines(text) {
+  return String(text || '').split(/\r?\n/).map((line) => {
+    const [name, purok, ...rest] = line.split(',');
+    return { head_name: clip(name, 200), purok: clip(purok, 200), note: clip(rest.join(','), 500) };
+  }).filter((r) => r.head_name);
+}
+
+// Header names a spreadsheet might use for each column (lowercased, spaces and punctuation dropped).
+const CSV_HEADERS = {
+  gkk: ['gkk', 'bec'],
+  head_name: ['headname', 'headofhousehold', 'head', 'name', 'householdhead', 'pangalan', 'ngalan'],
+  purok: ['purok', 'sitio', 'puroksitio', 'zone'],
+  note: ['note', 'notes', 'remarks', 'address'],
+};
+
+/**
+ * Rows from an uploaded spreadsheet (parseCsv() output). A header row names
+ * the columns (GKK, Head of household, Purok, Note, in any order); without
+ * one the columns are read as name, purok, note. Rows without a GKK go to
+ * `defaultGkk`. GKK names are matched to `gkkNames` ignoring case. Returns
+ * { rows: [{ gkk, head_name, purok, note }], skipped: [{ line, reason }] }.
+ */
+export function parseLastYearCsv(csvRows, { defaultGkk = null, gkkNames = [] } = {}) {
+  const norm = (h) => String(h || '').toLowerCase().replace(/[^a-z]/g, '');
+  const header = (csvRows[0] || []).map(norm);
+  const col = Object.fromEntries(Object.entries(CSV_HEADERS).map(([k, names]) => [k, header.findIndex((h) => names.includes(h))]));
+  const hasHeader = col.head_name >= 0;
+  if (!hasHeader) Object.assign(col, { gkk: -1, head_name: 0, purok: 1, note: 2 });
+  const byLower = new Map(gkkNames.map((g) => [g.toLowerCase(), g]));
+  const rows = [];
+  const skipped = [];
+  csvRows.slice(hasHeader ? 1 : 0).forEach((r, i) => {
+    const line = i + (hasHeader ? 2 : 1);
+    if (!r.some((c) => c.trim())) return; // blank line
+    const get = (k) => (col[k] >= 0 ? r[col[k]] : '');
+    const head_name = clip(get('head_name'), 200);
+    if (!head_name) { skipped.push({ line, reason: 'No name' }); return; }
+    const typed = clip(get('gkk'), 200);
+    const gkk = typed ? byLower.get(typed.toLowerCase()) : defaultGkk;
+    if (!gkk) { skipped.push({ line, reason: typed ? `Unknown GKK “${typed}”` : 'No GKK' }); return; }
+    rows.push({ gkk, head_name, purok: clip(get('purok'), 200), note: clip(get('note'), 500) });
+  });
+  return { rows, skipped };
+}
+
+/**
+ * Leave out names already on the list (same GKK, name and purok, ignoring
+ * case and spacing) or repeated within `rows`, so uploading the same
+ * spreadsheet twice adds nothing. Returns { fresh, repeated }.
+ */
+export function dropRepeatedNames(rows, existing) {
+  const key = (r) => [r.gkk, r.head_name, r.purok].map((v) => String(v || '').toLowerCase().replace(/\s+/g, ' ').trim()).join('|');
+  const seen = new Set((existing || []).map(key));
+  const fresh = [];
+  let repeated = 0;
+  for (const r of rows || []) {
+    const k = key(r);
+    if (seen.has(k)) { repeated += 1; continue; }
+    seen.add(k);
+    fresh.push(r);
+  }
+  return { fresh, repeated };
+}
+
+/** Map of GKK → { total, notYet, registered, setAside } from list rows ({ gkk, status }). */
+export function countLastYearList(rows) {
+  const out = new Map();
+  for (const r of rows || []) {
+    const c = out.get(r.gkk) || { total: 0, notYet: 0, registered: 0, setAside: 0 };
+    c.total += 1;
+    if (r.status === 'Not yet') c.notYet += 1;
+    else if (r.status === 'Registered') c.registered += 1;
+    else c.setAside += 1;
+    out.set(r.gkk, c);
+  }
+  return out;
+}
+
+/**
+ * Households registered in this census against each GKK's households last
+ * year. `gkks` is [{ name, previous_households }]; `counts` is a Map of GKK
+ * name (null for no GKK) → { started, confirmed } from
+ * censusGkkHouseholdCounts(); `lists` is countLastYearList() output.
+ * "Registered" is every household with at least one member confirmed.
+ *
+ * A GKK with last year's list (0041) uses it: last year is the names not
+ * set aside, and "not yet" the names not yet ticked off. Otherwise the
+ * typed count (gkks.previous_households, 0040) is the baseline and "not yet"
+ * is that count minus those registered, never below zero (new households can
+ * push a GKK past it). A GKK with neither has lastYear, notYet and pct null.
+ * Pass `onlyGkk` for a GKK leader's own GKK.
+ */
+export function householdsVsLastYear(gkks, counts, onlyGkk = null, lists = null) {
+  const share = (done, of) => (of > 0 ? Math.min(Math.round((done / of) * 100), 100) : done ? 100 : 0);
+  const row = (label, lastYear, c = {}, list = null) => {
     const registered = c.started || 0;
-    const known = lastYear != null;
-    return {
-      label, lastYear: known ? lastYear : null, registered, confirmed: c.confirmed || 0,
-      notYet: known ? Math.max(lastYear - registered, 0) : null,
-      pct: known && lastYear > 0 ? Math.min(Math.round((registered / lastYear) * 100), 100) : known ? (registered ? 100 : 0) : null,
-    };
+    const base = { label, registered, confirmed: c.confirmed || 0, fromList: false };
+    if (list && list.total) {
+      const of = list.total - list.setAside;
+      return { ...base, fromList: true, lastYear: of, notYet: list.notYet, pct: share(of - list.notYet, of) };
+    }
+    if (lastYear == null) return { ...base, lastYear: null, notYet: null, pct: null };
+    return { ...base, lastYear, notYet: Math.max(lastYear - registered, 0), pct: share(registered, lastYear) };
   };
   const list = (gkks || []).filter((g) => !onlyGkk || g.name === onlyGkk).sort((a, b) => a.name.localeCompare(b.name));
-  const rows = list.map((g) => row(g.name, g.previous_households ?? null, counts?.get(g.name)));
+  const rows = list.map((g) => row(g.name, g.previous_households ?? null, counts?.get(g.name), lists?.get(g.name)));
   const none = counts?.get(null);
   if (!onlyGkk && none && none.started) rows.push(row('No GKK', null, none));
-  // The total compares only the GKKs that have a baseline, so a missing count doesn't read as "not yet".
+  // The total covers only the GKKs with a baseline, so a missing one doesn't read as "not yet".
   const withBase = rows.filter((r) => r.lastYear != null);
   const sum = (k, rs) => rs.reduce((n, r) => n + r[k], 0);
   const lastYear = withBase.length ? sum('lastYear', withBase) : null;
-  const total = row('All GKKs', lastYear, { started: sum('registered', withBase), confirmed: sum('confirmed', withBase) });
-  total.notYet = withBase.length ? sum('notYet', withBase) : null;
-  total.registeredAll = sum('registered', rows);
+  const notYet = withBase.length ? sum('notYet', withBase) : null;
+  const total = {
+    label: 'All GKKs', lastYear, notYet, fromList: false,
+    registered: sum('registered', withBase), confirmed: sum('confirmed', withBase),
+    pct: lastYear == null ? null : share(lastYear - notYet, lastYear),
+    registeredAll: sum('registered', rows),
+  };
   return { rows, total, hasBaseline: withBase.length > 0 };
 }
 

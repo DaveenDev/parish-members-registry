@@ -42,7 +42,7 @@ export function GkkManager() {
   async function remove(g) {
     const ok = await confirm({
       title: `Delete “${g.name}”?`,
-      message: "This removes the GKK and its chapel details. It can't be undone, but you can add it again later.",
+      message: "This removes the GKK, its chapel details and its last year's household list on the Census page. It can't be undone, but you can add it again later.",
       confirmLabel: 'Delete GKK',
       tone: 'danger',
     });

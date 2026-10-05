@@ -4,8 +4,10 @@ import assert from 'node:assert/strict';
 import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, householdsVsLastYear,
+  parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
 } from '../src/lib/census.js';
+import { parseCsv } from '../src/lib/csv.js';
 
 describe('suggestStatus', () => {
   test('Mass Aktibo alone is enough for Active', () => {
@@ -210,7 +212,7 @@ describe('householdsVsLastYear', () => {
     const { rows } = householdsVsLastYear(gkks, counts);
     assert.deepEqual(rows.map((r) => r.label), ['Bethany', 'Calvary', 'San Roque', 'No GKK']);
     const roque = rows.find((r) => r.label === 'San Roque');
-    assert.deepEqual(roque, { label: 'San Roque', lastYear: 40, registered: 12, confirmed: 9, notYet: 28, pct: 30 });
+    assert.deepEqual(roque, { label: 'San Roque', lastYear: 40, registered: 12, confirmed: 9, notYet: 28, pct: 30, fromList: false });
     // More households than last year: nothing left, capped at 100%.
     const bethany = rows.find((r) => r.label === 'Bethany');
     assert.equal(bethany.notYet, 0);
@@ -231,7 +233,8 @@ describe('householdsVsLastYear', () => {
     assert.equal(total.lastYear, 50);
     assert.equal(total.registered, 25);
     assert.equal(total.notYet, 28);
-    assert.equal(total.pct, 50);
+    // Share of last year's households no longer outstanding: Bethany's extra households don't offset San Roque's.
+    assert.equal(total.pct, 44);
     assert.equal(total.registeredAll, 32);
   });
 
@@ -246,5 +249,63 @@ describe('householdsVsLastYear', () => {
     assert.equal(hasBaseline, false);
     assert.equal(total.lastYear, null);
     assert.equal(total.notYet, null);
+  });
+});
+
+describe('last year\'s list', () => {
+  test('a GKK with a list uses it in place of the typed count', () => {
+    const lists = countLastYearList([
+      ...Array(30).fill({ gkk: 'San Roque', status: 'Not yet' }),
+      ...Array(8).fill({ gkk: 'San Roque', status: 'Registered' }),
+      { gkk: 'San Roque', status: 'Moved away' }, { gkk: 'San Roque', status: 'Duplicate' },
+    ]);
+    assert.deepEqual(lists.get('San Roque'), { total: 40, notYet: 30, registered: 8, setAside: 2 });
+    const gkks = [{ name: 'San Roque', previous_households: 99 }, { name: 'Bethany', previous_households: 10 }];
+    const counts = new Map([['San Roque', { started: 12, confirmed: 9 }], ['Bethany', { started: 4, confirmed: 4 }]]);
+    const { rows, total } = householdsVsLastYear(gkks, counts, null, lists);
+    const roque = rows.find((r) => r.label === 'San Roque');
+    assert.equal(roque.fromList, true);
+    assert.equal(roque.lastYear, 38);
+    assert.equal(roque.notYet, 30);
+    assert.equal(roque.registered, 12);
+    assert.equal(roque.pct, 21);
+    assert.equal(rows.find((r) => r.label === 'Bethany').fromList, false);
+    assert.equal(total.lastYear, 48);
+    assert.equal(total.notYet, 36);
+  });
+
+  test('names already on the list or repeated are left out', () => {
+    const existing = [{ gkk: 'A', head_name: 'Juan  Cruz', purok: 'Purok 1' }];
+    const { fresh, repeated } = dropRepeatedNames([
+      { gkk: 'A', head_name: 'juan cruz', purok: 'purok 1' },
+      { gkk: 'A', head_name: 'Juan Cruz', purok: 'Purok 2' },
+      { gkk: 'B', head_name: 'Juan Cruz', purok: 'Purok 1' },
+      { gkk: 'B', head_name: 'Juan Cruz', purok: 'Purok 1 ' },
+    ], existing);
+    assert.equal(repeated, 2);
+    assert.deepEqual(fresh.map((r) => `${r.gkk}/${r.purok}`), ['A/Purok 2', 'B/Purok 1']);
+  });
+
+  test('typed lines: name, purok, note', () => {
+    assert.deepEqual(parseLastYearLines('Juan Dela Cruz, Purok 3, near the chapel, blue gate\n\n  Maria Santos  \r\n'), [
+      { head_name: 'Juan Dela Cruz', purok: 'Purok 3', note: 'near the chapel, blue gate' },
+      { head_name: 'Maria Santos', purok: '', note: '' },
+    ]);
+  });
+
+  test('spreadsheet with a header row', () => {
+    const csv = parseCsv('\uFEFFPurok,Head of Household,GKK,Remarks\r\nP-1,"Cruz, Juan",san roque,\r\nP-2,Ana Reyes,,widow\nP-3,Pedro,Nowhere,\n,,,\nP-4,,San Roque,\n');
+    const { rows, skipped } = parseLastYearCsv(csv, { defaultGkk: 'Bethany', gkkNames: ['San Roque', 'Bethany'] });
+    assert.deepEqual(rows, [
+      { gkk: 'San Roque', head_name: 'Cruz, Juan', purok: 'P-1', note: '' },
+      { gkk: 'Bethany', head_name: 'Ana Reyes', purok: 'P-2', note: 'widow' },
+    ]);
+    assert.deepEqual(skipped, [{ line: 4, reason: 'Unknown GKK “Nowhere”' }, { line: 6, reason: 'No name' }]);
+  });
+
+  test('spreadsheet without a header row needs a chosen GKK', () => {
+    const csv = parseCsv('Juan Dela Cruz,Purok 1\nMaria,Purok 2,new house');
+    assert.equal(parseLastYearCsv(csv, { defaultGkk: 'Bethany', gkkNames: ['Bethany'] }).rows.length, 2);
+    assert.equal(parseLastYearCsv(csv, { gkkNames: ['Bethany'] }).skipped.length, 2);
   });
 });

@@ -9,7 +9,7 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
-import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus } from './lib/census.js';
+import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus, countLastYearList } from './lib/census.js';
 import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName } from './lib/reports.js';
 import { certTypeLabel } from './lib/requests.js';
 import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
@@ -50,6 +50,14 @@ async function fetchAll(build) {
 /** True when a Postgres function doesn't exist yet (its migration hasn't been run). */
 function isMissingFunction(error) {
   return error?.code === 'PGRST202' || error?.code === '42883';
+}
+
+/** Before 0041 the list's table doesn't exist; say which file adds it. */
+function lastYearMissing(error) {
+  if (['42P01', 'PGRST205'].includes(error?.code) || /census_last_year_list/.test(error?.message || '') && /does not exist|schema cache/.test(error?.message || '')) {
+    return new Error("Run the 0041_census_last_year_list.sql migration in Supabase to use last year's list");
+  }
+  return error instanceof Error && !error.code ? error : mapError(error);
 }
 
 /** A missing table is a migration that hasn't been run; say which one. */
@@ -1041,6 +1049,57 @@ export const api = {
       out.set(r.gkk, c);
     }
     return out;
+  },
+
+  // ---- last year's household list (0041 migration) -------------------
+  /** Every name on one GKK's list (or every GKK's, for 'All'), by purok then name. */
+  async listLastYear(gkk = 'All') {
+    try {
+      return await fetchAll(() => {
+        let q = supabase.from('census_last_year_list').select('*');
+        if (gkk !== 'All') q = q.eq('gkk', gkk);
+        return q.order('gkk').order('purok', { nullsFirst: true }).order('head_name').order('id');
+      });
+    } catch (e) {
+      throw lastYearMissing(e);
+    }
+  },
+  /** Map of GKK → { total, notYet, registered, setAside }; empty before 0041. */
+  async lastYearCounts() {
+    try {
+      const rows = await fetchAll(() => supabase.from('census_last_year_list').select('gkk, status').order('id'));
+      return countLastYearList(rows);
+    } catch {
+      return new Map();
+    }
+  },
+  /** Add names: [{ gkk, head_name, purok, note }]. Returns how many were added. */
+  async addLastYear(rows) {
+    let added = 0;
+    // A few hundred per request keeps each insert small.
+    for (let i = 0; i < rows.length; i += 500) {
+      const chunk = rows.slice(i, i + 500).map((r) => ({ gkk: r.gkk, head_name: r.head_name, purok: r.purok || null, note: r.note || null }));
+      const { error } = await supabase.from('census_last_year_list').insert(chunk);
+      if (error) throw lastYearMissing(error);
+      added += chunk.length;
+    }
+    return added;
+  },
+  /** Change a name's details or status ({ head_name, purok, note, status }). */
+  async saveLastYear(id, patch) {
+    const fields = Object.fromEntries(['head_name', 'purok', 'note', 'status'].filter((f) => f in patch).map((f) => [f, typeof patch[f] === 'string' ? patch[f].trim() : patch[f]]));
+    const { data, error } = await supabase.from('census_last_year_list').update(cleanPatch(fields)).eq('id', id).select().single();
+    if (error) throw lastYearMissing(error);
+    return data;
+  },
+  async deleteLastYear(id) {
+    const { error } = await supabase.from('census_last_year_list').delete().eq('id', id);
+    if (error) throw lastYearMissing(error);
+  },
+  /** Remove a GKK's whole list (e.g. once the census is done). */
+  async clearLastYear(gkk) {
+    const { error } = await supabase.from('census_last_year_list').delete().eq('gkk', gkk);
+    if (error) throw lastYearMissing(error);
   },
 
   /** census_summary() rows: { gkk, status, members }. */
