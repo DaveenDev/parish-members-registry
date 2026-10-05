@@ -34,6 +34,24 @@ export function groupByGkk(rows) {
   return groups;
 }
 
+/**
+ * Rows (already sorted by `key`) as consecutive runs: [{ key, rows }].
+ * Rows with no value share one group with key = null.
+ */
+export function groupRuns(rows, key) {
+  const groups = [];
+  for (const r of rows) {
+    const k = r[key] || null;
+    const last = groups[groups.length - 1];
+    if (last && last.key === k) last.rows.push(r);
+    else groups.push({ key: k, rows: [r] });
+  }
+  return groups;
+}
+
+/** A household group's heading: its GKK or Family Grouping, or what's missing. */
+export const groupHeading = (key, by) => key || (by === 'gkk' ? 'No GKK' : 'No Family Grouping');
+
 // ---- families within a household (0054 migration) ------------------------
 
 /** A member's family number: `familyNo` (forms) or `family_no` (rows), 1 when unset. */

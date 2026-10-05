@@ -17,6 +17,7 @@ import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
 import { daysAgo, fmtDateTime } from '../../constants.js';
 import { ByFamily } from '../../components/FamilyGroups.jsx';
+import { groupRuns, groupHeading } from '../../lib/household.js';
 
 const SORTS = [['registered', 'Registered'], ['name', 'Household'], ['gkk', 'GKK'], ['members', 'Members'], ['updated', 'Last updated']];
 // The status tabs; the page opens on the verification queue, or on Verified
@@ -63,6 +64,9 @@ export default function Households() {
   const [exporting, setExporting] = useState(false);
 
   const filters = { status, gkk, search: debouncedSearch };
+  // Every tab lists the households grouped by GKK, or by Family Grouping when
+  // the list covers one GKK (filtered to it, or a GKK leader's own).
+  const groupKey = gkk === 'All' && !leaderGkk(user) ? 'gkk' : 'family_grouping';
 
   // Opened without a tab in the link: start on the queue, but go straight to
   // Verified when nothing is waiting. The list waits for that choice, so an
@@ -87,7 +91,7 @@ export default function Households() {
   function reload() {
     setLoading(true);
     setError('');
-    api.listHouseholds({ ...filters, sortKey: sort, sortDir: dir, page, pageSize })
+    api.listHouseholds({ ...filters, sortKey: sort, sortDir: dir, groupBy: groupKey, page, pageSize })
       .then((res) => { setRows(res.rows); setTotal(res.total); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
@@ -355,58 +359,67 @@ export default function Households() {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((h) => (
-                  <React.Fragment key={h.id}>
-                    <tr className={`border-t border-parish-line ${selected.has(h.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
-                      <td className="pl-4 pr-0 py-3.5 align-top">
-                        <Checkbox checked={selected.has(h.id)} onChange={() => toggleSelect(h.id)} aria-label={`Select ${h.household_name}`} className="mt-1" />
-                      </td>
-                      <td className="p-0 min-w-[220px]">
-                        <button
-                          onClick={() => toggleExpand(h.id)}
-                          aria-expanded={!!expanded[h.id]}
-                          className="appearance-none border-none bg-none cursor-pointer text-left w-full px-4 py-2.5 flex items-center gap-2.5 hover:bg-parish-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue"
-                        >
-                          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--c-icon))" strokeWidth="2.6" className="flex-none transition-transform" style={{ transform: expanded[h.id] ? 'rotate(90deg)' : 'none' }} aria-hidden><path d="M9 6l6 6-6 6" /></svg>
-                          <span>
-                            <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
-                            {h.head_name && <span className="block text-[12.5px] text-parish-text2 mt-0.5">Head: {h.head_name}</span>}
-                            <MatchedMembers household={h} search={debouncedSearch} />
-                            <span className="block text-[12px] text-parish-muted mt-0.5">{[h.street, h.barangay, h.city].filter(Boolean).join(', ')}</span>
-                          </span>
-                        </button>
-                      </td>
-                      <td className="px-4 py-3.5 text-[13.5px] text-parish-text3 whitespace-nowrap">{h.gkk || '—'}<div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div></td>
-                      <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.family_count > 1 && <span className="block mb-1"><Badge tone="gold">{h.family_count} families</Badge></span>}{h.member_count} member(s)</td>
-                      <td className="px-4 py-3.5 text-[13px] text-parish-text2 whitespace-nowrap" title={fmtDateTime(h.created_at)}>
-                        {daysAgo(h.created_at)}
-                        {sort === 'updated' && h.updated_at && <div className="text-[12px] text-parish-muted">updated {daysAgo(h.updated_at)}</div>}
-                      </td>
-                      <td className="px-4 py-3.5 align-top"><StatusPill status={h.status} /></td>
-                      <td className="px-4 py-3.5 align-top w-[230px]">
-                        {h.status === 'Verified'
-                          ? <VerifiedLine household={h} className="text-[12px] leading-snug text-parish-muted" />
-                          : <span className="text-[13px] text-parish-muted">—</span>}
-                      </td>
-                      <td className="px-4 py-3.5">
-                        <div className="flex gap-2 justify-end items-center">
-                          {canEdit && (
-                            <button onClick={() => toggleStatus(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
-                              {h.status === 'Verified' ? 'Mark Pending' : 'Verify'}
-                            </button>
-                          )}
-                          <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">{canEdit ? 'Edit' : 'View'}</button>
-                          <ActionMenu label={`More actions for ${h.household_name}`} items={rowActions(h)} />
-                        </div>
-                      </td>
+                {groupRuns(rows, groupKey).map((g, gi) => (
+                  <React.Fragment key={g.key ?? 'none'}>
+                    <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
+                      <th scope="colgroup" colSpan={8} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
+                        {groupHeading(g.key, groupKey)}
+                      </th>
                     </tr>
-                    {expanded[h.id] && (
-                      <tr className="bg-parish-field">
-                        <td colSpan={8} className="px-4 py-4 md:pl-[52px]">
-                          <MemberList members={expandedMembers[h.id]} onOpen={setOpenMemberId} />
-                        </td>
-                      </tr>
-                    )}
+                    {g.rows.map((h) => (
+                      <React.Fragment key={h.id}>
+                        <tr className={`border-t border-parish-line ${selected.has(h.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
+                          <td className="pl-4 pr-0 py-3.5 align-top">
+                            <Checkbox checked={selected.has(h.id)} onChange={() => toggleSelect(h.id)} aria-label={`Select ${h.household_name}`} className="mt-1" />
+                          </td>
+                          <td className="p-0 min-w-[220px]">
+                            <button
+                              onClick={() => toggleExpand(h.id)}
+                              aria-expanded={!!expanded[h.id]}
+                              className="appearance-none border-none bg-none cursor-pointer text-left w-full px-4 py-2.5 flex items-center gap-2.5 hover:bg-parish-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue"
+                            >
+                              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--c-icon))" strokeWidth="2.6" className="flex-none transition-transform" style={{ transform: expanded[h.id] ? 'rotate(90deg)' : 'none' }} aria-hidden><path d="M9 6l6 6-6 6" /></svg>
+                              <span>
+                                <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
+                                {h.head_name && <span className="block text-[12.5px] text-parish-text2 mt-0.5">Head: {h.head_name}</span>}
+                                <MatchedMembers household={h} search={debouncedSearch} />
+                                <span className="block text-[12px] text-parish-muted mt-0.5">{[h.street, h.barangay, h.city].filter(Boolean).join(', ')}</span>
+                              </span>
+                            </button>
+                          </td>
+                          <td className="px-4 py-3.5 text-[13.5px] text-parish-text3 whitespace-nowrap">{h.gkk || '—'}<div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div></td>
+                          <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.family_count > 1 && <span className="block mb-1"><Badge tone="gold">{h.family_count} families</Badge></span>}{h.member_count} member(s)</td>
+                          <td className="px-4 py-3.5 text-[13px] text-parish-text2 whitespace-nowrap" title={fmtDateTime(h.created_at)}>
+                            {daysAgo(h.created_at)}
+                            {sort === 'updated' && h.updated_at && <div className="text-[12px] text-parish-muted">updated {daysAgo(h.updated_at)}</div>}
+                          </td>
+                          <td className="px-4 py-3.5 align-top"><StatusPill status={h.status} /></td>
+                          <td className="px-4 py-3.5 align-top w-[230px]">
+                            {h.status === 'Verified'
+                              ? <VerifiedLine household={h} className="text-[12px] leading-snug text-parish-muted" />
+                              : <span className="text-[13px] text-parish-muted">—</span>}
+                          </td>
+                          <td className="px-4 py-3.5">
+                            <div className="flex gap-2 justify-end items-center">
+                              {canEdit && (
+                                <button onClick={() => toggleStatus(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
+                                  {h.status === 'Verified' ? 'Mark Pending' : 'Verify'}
+                                </button>
+                              )}
+                              <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">{canEdit ? 'Edit' : 'View'}</button>
+                              <ActionMenu label={`More actions for ${h.household_name}`} items={rowActions(h)} />
+                            </div>
+                          </td>
+                        </tr>
+                        {expanded[h.id] && (
+                          <tr className="bg-parish-field">
+                            <td colSpan={8} className="px-4 py-4 md:pl-[52px]">
+                              <MemberList members={expandedMembers[h.id]} onOpen={setOpenMemberId} />
+                            </td>
+                          </tr>
+                        )}
+                      </React.Fragment>
+                    ))}
                   </React.Fragment>
                 ))}
               </tbody>
@@ -415,32 +428,37 @@ export default function Households() {
 
           {/* Phones: one card per household. */}
           <ul className="md:hidden list-none m-0 p-0 divide-y divide-parish-line" aria-label="Registered households">
-            {rows.map((h) => (
-              <li key={h.id} className={`px-4 py-3.5 ${selected.has(h.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
-                <div className="flex items-start gap-3">
-                  <Checkbox checked={selected.has(h.id)} onChange={() => toggleSelect(h.id)} aria-label={`Select ${h.household_name}`} className="mt-1.5" />
-                  <button onClick={() => toggleExpand(h.id)} aria-expanded={!!expanded[h.id]} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-left min-w-0 flex-1">
-                    <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
-                    <span className="block text-[12.5px] text-parish-text2 mt-0.5">
-                      {h.family_count > 1 && <><Badge tone="gold">{h.family_count} families</Badge>{' '}</>}
-                      {[h.head_name && `Head: ${h.head_name}`, `${h.member_count} member(s)`].filter(Boolean).join(' · ')}
-                    </span>
-                    <MatchedMembers household={h} search={debouncedSearch} />
-                    <span className="block text-[12px] text-parish-muted mt-0.5">{[h.gkk, `registered ${daysAgo(h.created_at)}`].filter(Boolean).join(' · ')}</span>
-                  </button>
-                  <StatusPill status={h.status} />
-                </div>
-                <div className="flex gap-2 mt-3 pl-8">
-                  {canEdit && (
-                    <button onClick={() => toggleStatus(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">
-                      {h.status === 'Verified' ? 'Mark Pending' : 'Verify'}
-                    </button>
-                  )}
-                  <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">{canEdit ? 'Edit' : 'View'}</button>
-                  <span className="ml-auto"><ActionMenu label={`More actions for ${h.household_name}`} items={rowActions(h)} /></span>
-                </div>
-                {expanded[h.id] && <div className="mt-3 pl-8"><MemberList members={expandedMembers[h.id]} onOpen={setOpenMemberId} /></div>}
-              </li>
+            {groupRuns(rows, groupKey).map((g) => (
+              <React.Fragment key={g.key ?? 'none'}>
+                <li className="px-4 py-2 bg-parish-sunk font-serif text-[16.5px] font-semibold text-parish-navy">{groupHeading(g.key, groupKey)}</li>
+                {g.rows.map((h) => (
+                  <li key={h.id} className={`px-4 py-3.5 ${selected.has(h.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
+                    <div className="flex items-start gap-3">
+                      <Checkbox checked={selected.has(h.id)} onChange={() => toggleSelect(h.id)} aria-label={`Select ${h.household_name}`} className="mt-1.5" />
+                      <button onClick={() => toggleExpand(h.id)} aria-expanded={!!expanded[h.id]} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-left min-w-0 flex-1">
+                        <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
+                        <span className="block text-[12.5px] text-parish-text2 mt-0.5">
+                          {h.family_count > 1 && <><Badge tone="gold">{h.family_count} families</Badge>{' '}</>}
+                          {[h.head_name && `Head: ${h.head_name}`, `${h.member_count} member(s)`].filter(Boolean).join(' · ')}
+                        </span>
+                        <MatchedMembers household={h} search={debouncedSearch} />
+                        <span className="block text-[12px] text-parish-muted mt-0.5">{[h.gkk, h.family_grouping, `registered ${daysAgo(h.created_at)}`].filter(Boolean).join(' · ')}</span>
+                      </button>
+                      <StatusPill status={h.status} />
+                    </div>
+                    <div className="flex gap-2 mt-3 pl-8">
+                      {canEdit && (
+                        <button onClick={() => toggleStatus(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">
+                          {h.status === 'Verified' ? 'Mark Pending' : 'Verify'}
+                        </button>
+                      )}
+                      <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">{canEdit ? 'Edit' : 'View'}</button>
+                      <span className="ml-auto"><ActionMenu label={`More actions for ${h.household_name}`} items={rowActions(h)} /></span>
+                    </div>
+                    {expanded[h.id] && <div className="mt-3 pl-8"><MemberList members={expandedMembers[h.id]} onOpen={setOpenMemberId} /></div>}
+                  </li>
+                ))}
+              </React.Fragment>
             ))}
           </ul>
 
