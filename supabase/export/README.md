@@ -2,6 +2,7 @@
 
 | File | What | In git? |
 |---|---|---|
+| `00_reset_new_project.sql` | Empties the new project's public schema and staff logins. Refuses to run on a database that has members. | Yes |
 | `01_schema.sql` | Tables, views, functions, triggers, RLS policies, grants (public schema) | No: a snapshot, regenerate it |
 | `02_data.sql` | Every row, including `auth.users` + `auth.identities`, so staff keep their passwords | **No: member data + R2 keys** |
 | `03_extras.sql` | auth.users trigger, `gkk-documents` bucket and its policies, morning-digest cron job, realtime | Yes |
@@ -31,8 +32,16 @@ npx supabase db dump --linked --dry-run --data-only -x auth.sessions,auth.refres
 3. Run (psql 16 is fine for loading):
 
 ```bash
-psql --single-transaction -v ON_ERROR_STOP=1 -f 01_schema.sql -c "SET session_replication_role = replica" -f 02_data.sql -f 03_extras.sql -d "postgresql://postgres.NEWREF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres"
+psql --single-transaction -v ON_ERROR_STOP=1 -f 00_reset_new_project.sql -f 01_schema.sql -c "SET session_replication_role = replica" -f 02_data.sql -f 03_extras.sql -d "postgresql://postgres.NEWREF:PASSWORD@aws-0-REGION.pooler.supabase.com:5432/postgres"
 ```
+
+In the dashboard SQL editor instead, run the four files one at a time, in order.
+`02_data.sql` sets `session_replication_role` itself.
+
+Always start with `00_reset_new_project.sql`. The tables are created with plain
+`CREATE TABLE`, so a leftover table stops the import with "already exists". It
+won't silently keep an old shape (the cause of an earlier
+`column "previous_ref_no" does not exist` error).
 
 `session_replication_role = replica` stops triggers firing while the rows go in.
 Without it, staff would get notifications, activity would be logged twice and
