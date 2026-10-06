@@ -894,7 +894,7 @@ function JoinHouseCard({ join, joinStatus, error, onJoinField, onCheckJoin }) {
   );
 }
 
-function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, onParticipation, onToggleHelpWay, nameStatus, nameSuggestion, mode, onMode, join, joinStatus, onJoinField, onCheckJoin }) {
+function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, nameStatus, nameSuggestion, mode, onMode, join, joinStatus, onJoinField, onCheckJoin }) {
   const f = (field) => ({ value: household[field], onChange: (e) => onHouseholdField(field, e.target.value) });
   const head = memberViews[0];
   if (mode === 'join') {
@@ -980,18 +980,6 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
           </Field>
           <Field label="Family Grouping (FG)" required error={err.familyGrouping}><FamilyGroupingSelect placeholder="Pili…" value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
         </div>
-      </Card>
-
-      <Card className="p-[clamp(20px,4vw,32px)]">
-        <SectionTitle>Pagtabang sa Parokya / GKK</SectionTitle>
-        {/* The participation questions are asked of each member in Pag-apil (0055). */}
-        <ParticipationSurvey
-          participation={household.participation}
-          helpWays={household.helpWays}
-          onParticipation={onParticipation}
-          onToggleHelpWay={onToggleHelpWay}
-          withParticipation={false}
-        />
       </Card>
     </div>
   );
@@ -1328,7 +1316,7 @@ function WeddingBlock({ mv, sharedWith, onField }) {
   );
 }
 
-function StepEngagement({ memberViews, onMemberField, onMemberCensus, orgOptions, onToggleOrganization, parishRoleOptions, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent, consentMissing = false, mode }) {
+function StepEngagement({ household, onParticipation, onToggleHelpWay, memberViews, onMemberField, onMemberCensus, orgOptions, onToggleOrganization, parishRoleOptions, volunteer, setVolunteer, notifyOptin, setNotifyOptin, consent, setConsent, consentMissing = false, mode }) {
   // Volunteering and the email list are asked of the house, when it registers.
   const houseQuestions = mode !== 'join';
   // Children aren't asked about a Katungdanan (see askedForAge).
@@ -1406,6 +1394,19 @@ function StepEngagement({ memberViews, onMemberField, onMemberCensus, orgOptions
               </div>
             ))}
           </div>
+        </Card>
+      )}
+      {houseQuestions && (
+        <Card className="p-[clamp(20px,4vw,32px)] mb-5">
+          <SectionTitle>Pagtabang sa Parokya / GKK</SectionTitle>
+          {/* How the house can help; the participation questions are asked of each member above (0055). */}
+          <ParticipationSurvey
+            participation={household.participation}
+            helpWays={household.helpWays}
+            onParticipation={onParticipation}
+            onToggleHelpWay={onToggleHelpWay}
+            withParticipation={false}
+          />
         </Card>
       )}
       <Card className="p-[clamp(20px,4vw,32px)]">
