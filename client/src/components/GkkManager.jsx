@@ -22,9 +22,11 @@ const missingAddress = (g) => !String(g.chapel_address || '').trim();
  * barangay's reference number code (0047), kept in the GKK's panel. While
  * the parish uses last year's household list (0041, 0048), each GKK's
  * "Names" button opens its part of it on the Last year's list tab
- * (`onOpenList`).
+ * (`onOpenList`). `historyOf` (a GKK id, from the "GKK history to review"
+ * notification's ?history=) opens that GKK on its History tab, to review and
+ * publish; `onHistoryOpened` then drops it from the address.
  */
-export function GkkManager({ onOpenList }) {
+export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -88,6 +90,15 @@ export function GkkManager({ onOpenList }) {
   const open = (g, tab = 'details') => setEditing(g
     ? { ...gkkForm(g), id: g.id, original: g.name, tab, name: g.name, previous_households: g.previous_households ?? '' }
     : { ...gkkForm(null), name: '', previous_households: '', tab });
+
+  // Once the GKKs are loaded, and again if another notification is clicked
+  // while this page is open. A GKK that's gone just shows the list.
+  useEffect(() => {
+    if (!historyOf || loading) return;
+    const g = rows.find((r) => String(r.id) === historyOf);
+    if (g) open(g, 'history');
+    onHistoryOpened?.();
+  }, [historyOf, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -175,7 +186,7 @@ export function GkkManager({ onOpenList }) {
         <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
       </div>
 
-      {editing && <GkkPanel initial={editing} codes={codes} listNames={editing.original ? listNames(editing.original) : 0} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
+      {editing && <GkkPanel key={editing.id ?? 'new'} initial={editing} codes={codes} listNames={editing.original ? listNames(editing.original) : 0} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
     </Panel>
     </>
   );
