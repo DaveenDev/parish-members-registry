@@ -76,10 +76,10 @@ export default function VerseOfDay({ onLoad }) {
           <button type="button" className={NAV_BTN} onClick={() => go(1)} aria-label="Sunod nga bersikulo">
             Sunod<Icon name="chev" size={16} />
           </button>
-          {/* The day's Mass readings, on their own page. */}
+          {/* The day's Mass readings, on their own page. Coloured like an active tab (Segmented), flat. */}
           <Link
             to="/simbahan/pagbasa"
-            className="min-h-[44px] px-4 inline-flex items-center gap-1.5 rounded-xl bg-parish-blue text-white font-bold text-[14px] shadow-btn hover:brightness-110"
+            className="min-h-[44px] px-4 inline-flex items-center gap-1.5 rounded-xl border-[1.5px] border-parish-blue bg-parish-blue text-white font-bold text-[14px] hover:brightness-110"
           >
             <Icon name="doc" size={16} />Daily Readings
           </Link>
