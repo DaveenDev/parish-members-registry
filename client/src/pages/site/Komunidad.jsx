@@ -295,11 +295,43 @@ export function GkkDetail() {
       {(page?.history || page?.history_photos?.length > 0) && (
         <section aria-labelledby="gkk-history-title" className="mt-9 lg:mt-12">
           <h2 id="gkk-history-title" className="font-serif font-semibold text-[26px] lg:text-[34px] m-0 mb-3 lg:mb-4 text-parish-navy">Kasaysayan</h2>
-          {page.history && <Body text={page.history} />}
-          <Gallery photos={page.history_photos} title="Mga litrato sa kasaysayan" id="gkk-history-photos-title" />
+          <GkkHistory text={page.history} photos={page.history_photos} />
         </section>
       )}
     </main>
+  );
+}
+
+/**
+ * A GKK's history, read like an article: its first photo (the main one;
+ * staff set the order) sits on the right of the first paragraph with the
+ * text wrapping round it, and the rest are a gallery underneath. Any photo
+ * opens full screen. Without text, the photos are just the gallery.
+ */
+function GkkHistory({ text, photos }) {
+  const list = (photos || []).filter((p) => p?.url);
+  const [open, setOpen] = useState(null);
+  const hasText = !!String(text || '').trim();
+  const [main, ...rest] = hasText ? list : [null, ...list];
+  return (
+    <>
+      {hasText && (
+        // flow-root: the section ends below the photo even when the text is short.
+        <div className="flow-root">
+          {main && (
+            <figure className="float-right m-0 ml-3.5 mb-3 mt-1 w-[46%] sm:w-[40%] max-w-[340px] lg:ml-6">
+              <button type="button" onClick={() => setOpen(0)} aria-label="Tan-awa ang litrato" className="block w-full p-0 border-0 bg-transparent cursor-zoom-in">
+                <img src={main.url} alt={main.caption || 'Litrato sa kasaysayan'} loading="lazy" decoding="async" className="w-full aspect-[4/3] object-cover rounded-xl lg:rounded-[14px] bg-[#efe6d3]" />
+              </button>
+              {main.caption && <figcaption className="mt-1.5 text-[13px] leading-snug text-parish-text2">{main.caption}</figcaption>}
+            </figure>
+          )}
+          <Body text={text} />
+        </div>
+      )}
+      <Gallery photos={rest} title={hasText ? 'Uban pang mga litrato' : 'Mga litrato sa kasaysayan'} id="gkk-history-photos-title" />
+      {open != null && <Lightbox photos={list} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
+    </>
   );
 }
 

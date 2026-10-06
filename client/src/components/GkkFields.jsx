@@ -143,8 +143,8 @@ export function useGkkPhotos(setError) {
   };
 }
 
-/** A list of photos with captions, reorderable. `field` is the form key. */
-function PhotoList({ form, setForm, field, photos }) {
+/** A list of photos with captions, reorderable. `field` is the form key; `firstLabel` marks the first photo. */
+function PhotoList({ form, setForm, field, photos, firstLabel }) {
   const list = form[field];
   const update = (i, patch) => setForm((f) => ({ ...f, [field]: f[field].map((p, j) => (j === i ? { ...p, ...patch } : p)) }));
   const move = (i, d) => setForm((f) => {
@@ -158,7 +158,10 @@ function PhotoList({ form, setForm, field, photos }) {
     <ul className="list-none m-0 p-0 flex flex-col gap-2.5">
       {list.map((p, i) => (
         <li key={p.url} className="flex items-center gap-3 flex-wrap sm:flex-nowrap border border-parish-line2 rounded-xl p-2 bg-parish-field">
-          <img src={p.url} alt="" className="w-[88px] h-[60px] flex-none rounded-lg object-cover" />
+          <div className="flex-none flex flex-col items-center gap-1">
+            <img src={p.url} alt="" className="w-[88px] h-[60px] rounded-lg object-cover" />
+            {firstLabel && i === 0 && <span className="font-bold text-[10.5px] tracking-[.06em] uppercase text-parish-blue">{firstLabel}</span>}
+          </div>
           <TextInput value={p.caption} onChange={(e) => update(i, { caption: e.target.value })} placeholder="Caption (optional)" aria-label={`Caption for photo ${i + 1}`} className="flex-1 min-w-[160px] !py-2" />
           <div className="flex gap-1">
             <RowButton tone="gray" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">↑</RowButton>
@@ -225,11 +228,17 @@ export function HistoryFields({ form, setForm, setError, photos, canPublish }) {
       </Field>
 
       <SectionLabel>Photos</SectionLabel>
-      <PhotoList form={form} setForm={setForm} field="history_photos" photos={photos} />
+      <PhotoList form={form} setForm={setForm} field="history_photos" photos={photos} firstLabel="Main photo" />
       <div className="flex items-center gap-3 flex-wrap">
         <FilePick multiple label="+ Add photos" onFiles={(files) => photos.upload(files, (url) => setForm((f) => ({ ...f, history_photos: [...f.history_photos, { url, caption: '' }] })))} disabled={photos.uploading > 0} />
         {photos.uploading > 0 && <span className="text-[13px] text-parish-muted">Uploading {photos.uploading} photo(s)…</span>}
-        {!photos.uploading && !form.history_photos.length && <span className="text-[12.5px] text-parish-muted">The chapel then and now, the founders, feasts. Pick several at once.</span>}
+        {!photos.uploading && (
+          <span className="text-[12.5px] text-parish-muted">
+            {form.history_photos.length
+              ? 'On the website the first photo sits beside the first paragraph and the rest go underneath. Use ↑ ↓ to choose which is first.'
+              : 'The chapel then and now, the founders, feasts. Pick several at once.'}
+          </span>
+        )}
       </div>
 
       {canPublish ? (
