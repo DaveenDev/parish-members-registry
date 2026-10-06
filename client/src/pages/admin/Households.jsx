@@ -527,14 +527,17 @@ function MemberList({ members, onOpen }) {
   if (!members) return <LoadingState label="Loading members…" compact />;
   if (!members.length) return <div className="text-[13px] text-parish-muted">No members yet.</div>;
   return (
-    <ByFamily members={members} groupGap="gap-4" render={(m) => (
-        <button key={m.id} onClick={() => onOpen(m.id)} className="flex items-center gap-3 px-3.5 py-2.5 bg-parish-card border border-parish-line2 rounded-xl text-left hover:border-parish-focusLine focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue flex-wrap">
-          <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12px] flex-none" aria-hidden>
-            {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
-          </div>
-          <div className="flex-none min-w-[140px]">
-            <div className="text-[14px] font-semibold text-parish-navy">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
-            <div className="text-[12px] text-parish-muted">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</div>
+    // Short cards that fill the row's width, as many per line as fit.
+    <ByFamily members={members} groupGap="gap-4" listClass="grid gap-2 grid-cols-[repeat(auto-fill,minmax(210px,1fr))]" render={(m) => (
+        <button key={m.id} onClick={() => onOpen(m.id)} className="flex flex-col gap-1.5 px-3 py-2 bg-parish-card border border-parish-line2 rounded-xl text-left hover:border-parish-focusLine focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue min-w-0">
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="w-[30px] h-[30px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[11px] flex-none" aria-hidden>
+              {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
+            </div>
+            <div className="min-w-0">
+              <div className="text-[13.5px] font-semibold text-parish-navy truncate">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
+              <div className="text-[12px] text-parish-muted truncate">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</div>
+            </div>
           </div>
           <MemberBadges member={m} />
         </button>
@@ -542,15 +545,13 @@ function MemberList({ members, onOpen }) {
   );
 }
 
-/** At-a-glance parish and GKK roles, ministries and organizations, right of the member's name. */
+/** At-a-glance parish and GKK roles, ministries and organizations, under the member's name. */
 function MemberBadges({ member }) {
   const ministries = member.ministries || [];
   const organizations = member.organizations || [];
-  if (!member.gkk_role && !member.parish_role && !ministries.length && !organizations.length) {
-    return <span className="ml-auto text-[12px] text-parish-muted">No roles or groups</span>;
-  }
+  if (!member.gkk_role && !member.parish_role && !ministries.length && !organizations.length) return null;
   return (
-    <div className="ml-auto flex flex-wrap gap-1.5 justify-end">
+    <div className="flex flex-wrap gap-1">
       {member.parish_role && <Badge tone="gold" title="Responsibility in Parish">Parish: {member.parish_role}</Badge>}
       {member.gkk_role && <Badge tone="gold" title="Responsibility in GKK">GKK: {member.gkk_role}</Badge>}
       {ministries.map((name) => <Badge key={`m-${name}`} tone="blue" title="Ministry">{name}</Badge>)}

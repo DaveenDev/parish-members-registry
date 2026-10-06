@@ -23,15 +23,16 @@ export function FamilyHeading({ group, title, className = 'mb-2.5', children }) 
  * more than one family; just the members otherwise. `render(member, index)`
  * draws one, `index` being its position in `members`.
  */
-export function ByFamily({ members, render, gap = 'gap-2', groupGap = 'gap-5', heading }) {
+export function ByFamily({ members, render, gap = 'gap-2', groupGap = 'gap-5', heading, listClass }) {
   const groups = familiesOf(members);
-  if (groups.length < 2) return <div className={`flex flex-col ${gap}`}>{(members || []).map(render)}</div>;
+  const list = listClass || `flex flex-col ${gap}`;
+  if (groups.length < 2) return <div className={list}>{(members || []).map(render)}</div>;
   return (
     <div className={`flex flex-col ${groupGap}`}>
       {groups.map((g) => (
         <section key={g.familyNo}>
           {heading ? heading(g) : <FamilyHeading group={g} />}
-          <div className={`flex flex-col ${gap}`}>{g.members.map((m, k) => render(m, g.indexes[k]))}</div>
+          <div className={list}>{g.members.map((m, k) => render(m, g.indexes[k]))}</div>
         </section>
       ))}
     </div>
