@@ -298,7 +298,7 @@ export default function ManageStaff() {
       {dialog?.kind === 'edit' && (
         <Modal title="Edit staff" onClose={close}>
           <StaffForm
-            initial={{ name: dialog.target.name, email: dialog.target.email, role: dialog.target.role, isAdmin: dialog.target.is_admin, access: dialog.target.access || 'full', accessGkkId: dialog.target.access_gkk_id || '' }}
+            initial={{ name: dialog.target.name, email: dialog.target.email, role: dialog.target.role, isAdmin: dialog.target.is_admin, access: dialog.target.access || 'none', accessGkkId: dialog.target.access_gkk_id || '' }}
             busy={busy} error={formError} gkks={gkks}
             onSubmit={(form) => update(dialog.target, form)} onCancel={close}
           />

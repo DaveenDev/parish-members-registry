@@ -96,7 +96,8 @@ async function loadStaff(admin) {
         name: p?.name || '',
         role: p?.role || '',
         is_admin: !!p?.is_admin,
-        access: p?.access || 'full',
+        // A login without a profile or an access level has none (0065).
+        access: p?.access || 'none',
         access_gkk_id: p?.access_gkk_id || null,
         access_gkk: p?.gkk?.name || null,
         has_profile: !!p,

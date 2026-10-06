@@ -19,8 +19,9 @@ async function loadProfile(session) {
     name: data?.name || session.user.email,
     role: data?.role || '',
     isAdmin: !!data?.is_admin,
-    // No staff profile at all means no access, as in the database (0062).
-    access: data ? data.access || 'full' : 'none',
+    // No staff profile, or one without an access level, means no access, as in
+    // the database (0062, 0065). Before 0014 there is no access column at all.
+    access: !data ? 'none' : 'access' in data ? data.access || 'none' : 'full',
     accessGkkId: data?.access_gkk_id || null,
     accessGkk: data?.gkk?.name || data?.access_gkk || null,
     // Set by a staff admin on a new account or a password reset (manage-staff);

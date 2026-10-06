@@ -262,8 +262,8 @@ export async function handleMediaRequest({ admin, token, body, r2, saved = null,
     return ok(await testConnection({ form: body, saved, makeR2, fetchPublic, uuid }));
   }
 
-  // No access column yet (before 0014) or no value means full access, like staff_access().
-  const access = me?.access || 'full';
+  // No profile or no access level means no access, like staff_access() (0065).
+  const access = me?.access || 'none';
   // A GKK leader may only add and remove their own GKK's photos (0045, 0046).
   const leaderGkk = access === 'gkk_leader' ? me?.gkk?.name || null : null;
   if (!EDIT_WEBSITE.includes(access) && !leaderGkk) return fail(403, "Your account can't change the website");

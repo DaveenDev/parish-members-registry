@@ -48,8 +48,13 @@ describe('who may upload', () => {
     assert.equal((await call('token-off', sign())).status, 403);
     assert.equal((await call('token-reader', sign())).status, 403);
   });
-  test('website, full and pre-0014 (no access value) accounts are allowed', async () => {
-    for (const t of ['token-web', 'token-full', 'token-legacy']) assert.equal((await call(t, sign())).status, 200, t);
+  test('website and full accounts are allowed', async () => {
+    for (const t of ['token-web', 'token-full']) assert.equal((await call(t, sign())).status, 200, t);
+  });
+  test('an account without an access level, or without a profile, is refused (0065)', async () => {
+    assert.equal((await call('token-legacy', sign())).status, 403);
+    const noProfile = fakeAdmin({ users: [{ id: 'new' }], profiles: [] });
+    assert.equal((await handleMediaRequest({ admin: noProfile, token: 'token-new', body: sign(), r2: fakeR2(), uuid: () => 'abc', now: NOW })).status, 403);
   });
   test('says R2 is not set up when the secrets are missing', async () => {
     const res = await call('token-web', sign(), fakeR2(false));
