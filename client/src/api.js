@@ -817,6 +817,17 @@ export const api = {
     if (error) throw mapError(error);
   },
 
+  /**
+   * Try R2 settings before saving them (staff admins): the media-upload
+   * function uploads a test file, reads it back through the Public URL and
+   * deletes it. A blank `secretAccessKey` uses the saved one.
+   * Returns { passed, steps: [{ step, ok, message }] }.
+   */
+  async testMediaStorage({ accountId, accessKeyId, secretAccessKey, bucket, publicBaseUrl }) {
+    const data = await callMediaFunction({ action: 'test', accountId, accessKeyId, secretAccessKey, bucket, publicBaseUrl });
+    return { passed: !!data?.passed, steps: data?.steps || [] };
+  },
+
   // ---- parish website content (0011 migration) ------------------------
   async listMassSchedules() {
     return listWebsite('mass_schedules', (q) => q.order('day_of_week').order('start_time'));

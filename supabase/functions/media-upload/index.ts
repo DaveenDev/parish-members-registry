@@ -51,6 +51,11 @@ function r2Client(settings: Settings | null) {
       const res = await s3.fetch(objectUrl(to), { method: 'PUT', headers: { 'x-amz-copy-source': `/${settings.bucket}/${encodeKey(from)}` } });
       if (!res.ok) throw new Error(`R2 refused to rename a photo (${res.status})`);
     },
+    /** Upload a small object directly (the connection test); returns R2's HTTP status. */
+    async put(key: string, body: string, contentType: string) {
+      const res = await s3.fetch(objectUrl(key), { method: 'PUT', headers: { 'Content-Type': contentType }, body });
+      return res.status;
+    },
     async remove(key: string) {
       const res = await s3.fetch(objectUrl(key), { method: 'DELETE' });
       if (!res.ok && res.status !== 404) throw new Error(`R2 refused the delete (${res.status})`);
@@ -79,6 +84,18 @@ Deno.serve(async (req: Request) => {
   const { data: row } = await admin.from('media_storage_settings').select('*').eq('id', 1).maybeSingle();
   const r2 = r2Client(r2Settings(row, env));
 
-  const result = await handleMediaRequest({ admin, token, body, r2 });
+  const result = await handleMediaRequest({
+    admin,
+    token,
+    body,
+    r2,
+    // For the connection test (Parish Config): settings typed in the form, not yet saved.
+    saved: row,
+    makeR2: (settings: Settings) => r2Client(settings),
+    fetchPublic: async (url: string) => {
+      const res = await fetch(url, { headers: { 'Cache-Control': 'no-cache' }, signal: AbortSignal.timeout(10000) });
+      return { status: res.status, text: await res.text() };
+    },
+  });
   return json(result.status, result.body);
 });

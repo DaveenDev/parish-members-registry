@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { handleMediaRequest, keyFromUrl, namePlan, objectKey, r2Settings, MAX_BYTES, NOT_CONFIGURED } from '../../supabase/functions/media-upload/handler.js';
+import { handleMediaRequest, keyFromUrl, namePlan, objectKey, r2Settings, testConnection, MAX_BYTES, NOT_CONFIGURED, TEST_FOLDER } from '../../supabase/functions/media-upload/handler.js';
 
 const BASE = 'https://media.example.org';
 const NOW = new Date('2026-10-02T03:00:00Z');
@@ -281,5 +281,113 @@ describe('name', () => {
     assert.equal((await run(db, { table: 'profiles', id: 1 }, r2WithCopy())).status, 400);
     assert.equal((await run(db, { table: 'articles', id: 'x' }, r2WithCopy())).status, 400);
     assert.equal((await run(db, { table: 'articles', id: 9 }, r2WithCopy())).status, 404);
+  });
+});
+
+describe('connection test (Parish Config → Platform Integrations)', () => {
+  const FORM = { accountId: 'acc', accessKeyId: 'key', secretAccessKey: 'secret', bucket: 'parish-media', publicBaseUrl: 'https://media.example.org/' };
+
+  /** An R2 bucket and its public address: what's put can be read back unless `publicServes` is false. */
+  function fakeStorage({ putStatus = 200, putThrows = false, publicStatus, publicServes = true, removeThrows = false } = {}) {
+    const files = new Map();
+    const calls = [];
+    return {
+      calls,
+      makeR2: (settings) => {
+        calls.push(['settings', settings]);
+        return {
+          put: async (key, body) => {
+            calls.push(['put', key]);
+            if (putThrows) throw new Error('getaddrinfo failed');
+            if (putStatus === 200) files.set(key, body);
+            return putStatus;
+          },
+          remove: async (key) => {
+            calls.push(['remove', key]);
+            if (removeThrows) throw new Error('403');
+            files.delete(key);
+          },
+        };
+      },
+      fetchPublic: async (url) => {
+        calls.push(['get', url]);
+        const key = url.replace('https://media.example.org/', '');
+        if (publicStatus) return { status: publicStatus, text: '' };
+        if (!publicServes) return { status: 200, text: '<html>a website</html>' };
+        return files.has(key) ? { status: 200, text: files.get(key) } : { status: 404, text: '' };
+      },
+    };
+  }
+  const run = (storage, form = FORM, saved = null) => testConnection({ form, saved, ...storage, uuid: () => 'u1' });
+  const steps = (res) => res.steps.map((s) => `${s.step}:${s.ok ? 'ok' : 'fail'}`);
+
+  test('good settings: upload, read back through the Public URL, clean up', async () => {
+    const storage = fakeStorage();
+    const res = await run(storage);
+    assert.equal(res.passed, true);
+    assert.deepEqual(steps(res), ['upload:ok', 'public:ok', 'cleanup:ok']);
+    assert.deepEqual(storage.calls.slice(1), [
+      ['put', `${TEST_FOLDER}/u1.txt`],
+      ['get', `https://media.example.org/${TEST_FOLDER}/u1.txt`],
+      ['remove', `${TEST_FOLDER}/u1.txt`],
+    ]);
+  });
+
+  test('a blank secret uses the saved one; missing fields stop before anything is sent', async () => {
+    const storage = fakeStorage();
+    await run(storage, { ...FORM, secretAccessKey: '' }, { secret_access_key: 'saved-secret' });
+    assert.equal(storage.calls[0][1].secretAccessKey, 'saved-secret');
+
+    const empty = fakeStorage();
+    const res = await run(empty, { ...FORM, bucket: '', secretAccessKey: '' });
+    assert.equal(res.passed, false);
+    assert.deepEqual(steps(res), ['settings:fail']);
+    assert.match(res.steps[0].message, /Bucket name, Secret Access Key/);
+    assert.deepEqual(empty.calls, []);
+  });
+
+  test('the Public URL must be https', async () => {
+    const res = await run(fakeStorage(), { ...FORM, publicBaseUrl: 'http://media.example.org' });
+    assert.deepEqual(steps(res), ['settings:fail']);
+  });
+
+  test('wrong keys, wrong bucket or an unreachable account stop at the upload', async () => {
+    for (const [opts, pattern] of [[{ putStatus: 403 }, /Access Key ID/], [{ putStatus: 404 }, /Bucket not found/], [{ putThrows: true }, /Account ID/]]) {
+      const storage = fakeStorage(opts);
+      const res = await run(storage);
+      assert.equal(res.passed, false);
+      assert.deepEqual(steps(res), ['upload:fail']);
+      assert.match(res.steps[0].message, pattern);
+      assert.ok(!storage.calls.some(([c]) => c === 'get'), 'no public check after a failed upload');
+    }
+  });
+
+  test('a Public URL that misses the file, or shows something else, fails but still cleans up', async () => {
+    const missing = await run(fakeStorage({ publicStatus: 404 }));
+    assert.equal(missing.passed, false);
+    assert.deepEqual(steps(missing), ['upload:ok', 'public:fail', 'cleanup:ok']);
+    assert.match(missing.steps[1].message, /HTTP 404/);
+
+    const elsewhere = await run(fakeStorage({ publicServes: false }));
+    assert.deepEqual(steps(elsewhere), ['upload:ok', 'public:fail', 'cleanup:ok']);
+  });
+
+  test('a test file that cannot be removed is only a warning', async () => {
+    const res = await run(fakeStorage({ removeThrows: true }));
+    assert.equal(res.passed, true);
+    assert.deepEqual(steps(res), ['upload:ok', 'public:ok', 'cleanup:fail']);
+  });
+
+  test('only staff admins may run it, even before R2 is set up', async () => {
+    const db = fakeAdmin({
+      users: [{ id: 'boss' }, { id: 'web' }],
+      profiles: [{ id: 'boss', access: 'full', is_admin: true }, { id: 'web', access: 'website' }],
+    });
+    const storage = fakeStorage();
+    const ask = (token) => handleMediaRequest({ admin: db, token, body: { action: 'test', ...FORM }, r2: fakeR2(false), ...storage, uuid: () => 'u1', now: NOW });
+    assert.equal((await ask('token-web')).status, 403);
+    const res = await ask('token-boss');
+    assert.equal(res.status, 200);
+    assert.equal(res.body.passed, true);
   });
 });

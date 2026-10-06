@@ -53,6 +53,94 @@ export function r2Settings(row, env = {}) {
   return null;
 }
 
+// Where the connection test writes its throwaway file: outside the photo
+// folders, so nothing on the website can ever point at it.
+export const TEST_FOLDER = '_connection-test';
+
+const httpOk = (status) => status >= 200 && status < 300;
+
+/**
+ * Connection test for R2 settings typed under Parish Config, before they're
+ * saved: upload a tiny file, read it back through the Public URL, delete it.
+ * `form` has the form's fields (accountId, accessKeyId, secretAccessKey,
+ * bucket, publicBaseUrl); a blank secret means the one already saved
+ * (`saved`, the media_storage_settings row). `makeR2(settings)` gives
+ * { put(key, body, contentType) → HTTP status, remove(key) }; `fetchPublic(url)`
+ * gives { status, text }. Returns { passed, steps: [{ step, ok, message }] }.
+ */
+export async function testConnection({ form, saved, makeR2, fetchPublic, uuid = () => crypto.randomUUID() }) {
+  const settings = {
+    accountId: trimmed(form?.accountId),
+    accessKeyId: trimmed(form?.accessKeyId),
+    secretAccessKey: trimmed(form?.secretAccessKey) || trimmed(saved?.secret_access_key),
+    bucket: trimmed(form?.bucket),
+    publicBase: trimmed(form?.publicBaseUrl).replace(/\/+$/, ''),
+  };
+  const steps = [];
+  const done = () => ({ passed: steps.every((s) => s.ok || s.step === 'cleanup'), steps });
+
+  const missing = [['accountId', 'Account ID'], ['bucket', 'Bucket name'], ['accessKeyId', 'Access Key ID'], ['secretAccessKey', 'Secret Access Key'], ['publicBase', 'Public URL']]
+    .filter(([k]) => !settings[k]).map(([, label]) => label);
+  if (missing.length) {
+    steps.push({ step: 'settings', ok: false, message: `Fill in: ${missing.join(', ')}.` });
+    return done();
+  }
+  if (!/^https:\/\/[^/\s]+/i.test(settings.publicBase)) {
+    steps.push({ step: 'settings', ok: false, message: 'The Public URL must start with https://' });
+    return done();
+  }
+
+  const r2 = makeR2(settings);
+  const key = `${TEST_FOLDER}/${uuid()}.txt`;
+  const marker = `parish-registry connection test ${key}`;
+
+  // 1. Upload: checks the account, the keys, the bucket and write permission.
+  try {
+    const status = await r2.put(key, marker, 'text/plain');
+    if (!httpOk(status)) {
+      const why = status === 403 || status === 401
+        ? 'R2 refused the keys. Check the Access Key ID and Secret Access Key, and that the API token can write to this bucket.'
+        : status === 404
+          ? 'Bucket not found. Check the Bucket name and the Account ID.'
+          : `R2 answered with an error (HTTP ${status}).`;
+      steps.push({ step: 'upload', ok: false, message: why });
+      return done();
+    }
+    steps.push({ step: 'upload', ok: true, message: `Uploaded a test file to the “${settings.bucket}” bucket.` });
+  } catch (e) {
+    steps.push({ step: 'upload', ok: false, message: `Couldn't reach R2. Check the Account ID. (${e?.message || 'no answer'})` });
+    return done();
+  }
+
+  // 2. Public URL: the address photos are shown from must serve this bucket.
+  const publicUrl = `${settings.publicBase}/${key}`;
+  try {
+    const res = await fetchPublic(publicUrl);
+    if (httpOk(res.status) && String(res.text).includes(marker)) {
+      steps.push({ step: 'public', ok: true, message: `The Public URL shows files from this bucket (${settings.publicBase}).` });
+    } else if (httpOk(res.status)) {
+      steps.push({ step: 'public', ok: false, message: 'The Public URL answered, but not with the test file: it seems to show a different bucket or website.' });
+    } else {
+      steps.push({
+        step: 'public',
+        ok: false,
+        message: `The Public URL didn't find the test file (HTTP ${res.status}). Check the address. If it's the website's /media address, the /media proxy in client/vercel.json must point at this bucket's public r2.dev address.`,
+      });
+    }
+  } catch (e) {
+    steps.push({ step: 'public', ok: false, message: `Couldn't open the Public URL. Check the address. (${e?.message || 'no answer'})` });
+  }
+
+  // 3. Clean up. A leftover test file is harmless, so this never fails the test.
+  try {
+    await r2.remove(key);
+    steps.push({ step: 'cleanup', ok: true, message: 'Removed the test file.' });
+  } catch (e) {
+    steps.push({ step: 'cleanup', ok: false, message: `Couldn't remove the test file (${key}); it's harmless. The API token may lack delete permission.` });
+  }
+  return done();
+}
+
 const ok = (body) => ({ status: 200, body: { ok: true, ...body } });
 const fail = (status, error) => ({ status, body: { error } });
 
@@ -152,16 +240,27 @@ async function gkksUsing(admin, url) {
 
 /**
  * `r2` is { configured, publicBase, signPut(key, contentType) → url, copy(from, to) → void, remove(key) → void }.
+ * For the connection test: `saved` is the media_storage_settings row, and
+ * `makeR2` / `fetchPublic` are as in testConnection.
  * `uuid` and `now` are injectable for tests.
  */
-export async function handleMediaRequest({ admin, token, body, r2, uuid = () => crypto.randomUUID(), now = new Date() }) {
+export async function handleMediaRequest({ admin, token, body, r2, saved = null, makeR2, fetchPublic, uuid = () => crypto.randomUUID(), now = new Date() }) {
   if (!token) return fail(401, 'Please sign in again');
   const { data: auth, error: authError } = await admin.auth.getUser(token);
   const caller = auth?.user;
   if (authError || !caller) return fail(401, 'Please sign in again');
   if (isDisabled(caller, now)) return fail(403, 'This account has been disabled');
 
-  const { data: me } = await admin.from('profiles').select('access, access_gkk').eq('id', caller.id).maybeSingle();
+  const { data: me } = await admin.from('profiles').select('access, access_gkk, is_admin').eq('id', caller.id).maybeSingle();
+
+  // Testing R2 settings (Parish Config → Platform Integrations) is for staff
+  // admins, like the settings themselves, and works before any are saved.
+  if (body?.action === 'test') {
+    if (!me?.is_admin) return fail(403, 'Only staff admins can test the photo storage settings');
+    if (!makeR2 || !fetchPublic) return fail(500, 'The connection test is not available');
+    return ok(await testConnection({ form: body, saved, makeR2, fetchPublic, uuid }));
+  }
+
   // No access column yet (before 0014) or no value means full access, like staff_access().
   const access = me?.access || 'full';
   // A GKK leader may only add and remove their own GKK's photos (0045, 0046).

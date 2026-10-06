@@ -372,6 +372,46 @@ const storageForm = (s) => ({
  * Locked by default: a wrong value breaks every photo upload, so editing sits
  * behind a danger-zone warning.
  */
+const TEST_STEPS = { settings: 'Settings', upload: 'Upload to R2', public: 'Public URL', cleanup: 'Clean up' };
+
+/** The result of Test connection on the Photo storage card: a verdict, then each step. */
+function ConnectionTest({ test }) {
+  if (test.running) {
+    return (
+      <div role="status" className="rounded-xl border border-parish-line bg-parish-field px-3.5 py-3 text-[13.5px] text-parish-text2">
+        Testing: uploading a small file to R2 and reading it back through the Public URL…
+      </div>
+    );
+  }
+  if (test.error) {
+    return <div role="alert" className="rounded-xl border border-parish-errorBorder bg-parish-errorBg px-3.5 py-3 text-[13.5px] text-parish-error">{test.error}</div>;
+  }
+  const { passed, steps } = test.result;
+  return (
+    <div role="status" className={`rounded-xl border overflow-hidden ${passed ? 'border-parish-okBorder' : 'border-parish-errorBorder'}`}>
+      <div className={`px-3.5 py-2.5 font-bold text-[14px] ${passed ? 'bg-parish-okBg text-parish-ok' : 'bg-parish-errorBg text-parish-error'}`}>
+        {passed ? 'Connection works: these settings are ready to save.' : 'Connection failed: fix the settings below and test again.'}
+      </div>
+      <ul className="m-0 p-0 list-none divide-y divide-parish-line bg-parish-field">
+        {steps.map((s) => {
+          // A test file that couldn't be deleted is only a warning.
+          const tone = s.ok ? 'text-parish-ok' : s.step === 'cleanup' ? 'text-parish-warnStrong' : 'text-parish-error';
+          return (
+            <li key={s.step} className="flex gap-2.5 items-start px-3.5 py-2.5">
+              <span className={`flex-none font-bold text-[14px] leading-5 ${tone}`} aria-hidden>{s.ok ? '✓' : s.step === 'cleanup' ? '!' : '✕'}</span>
+              <div className="min-w-0 text-[13.5px] leading-snug">
+                <span className="font-semibold text-parish-navy">{TEST_STEPS[s.step] || s.step}</span>
+                <span className="sr-only">{s.ok ? ' passed' : ' failed'}</span>
+                <span className="block text-parish-text2 break-words">{s.message}</span>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
 function PhotoStorageCard() {
   const toast = useToast();
   const [saved, setSaved] = useState(null);
@@ -381,10 +421,22 @@ function PhotoStorageCard() {
   // 'locked' → 'warning' (danger-zone notice shown) → 'editing'
   const [mode, setMode] = useState('locked');
   const editing = mode === 'editing';
+  // The connection test of what's in the form: null, { running }, { result } or { error }.
+  const [test, setTest] = useState(null);
 
   function lock() {
     setForm(storageForm(saved));
+    setTest(null);
     setMode('locked');
+  }
+
+  async function runTest() {
+    setTest({ running: true });
+    try {
+      setTest({ result: await api.testMediaStorage(form) });
+    } catch (e) {
+      setTest({ error: e.message || 'Could not run the test' });
+    }
   }
 
   useEffect(() => {
@@ -393,15 +445,18 @@ function PhotoStorageCard() {
       .catch((e) => setError(e.message));
   }, []);
 
-  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  // A change makes the last test result out of date.
+  const set = (k) => (e) => { setForm((f) => ({ ...f, [k]: e.target.value })); setTest(null); };
   const complete = saved && saved.account_id && saved.access_key_id && saved.has_secret && saved.bucket && saved.public_base_url;
 
   async function save() {
+    if (test?.result && !test.result.passed && !window.confirm('The connection test failed with these settings. Save them anyway?')) return;
     setBusy(true);
     try {
       const s = await api.saveMediaStorage(form);
       setSaved(s);
       setForm(storageForm(s));
+      setTest(null);
       setMode('locked');
       const moved = s.photos_moved || 0;
       toast.success(moved ? `Photo storage settings saved; ${moved} article${moved === 1 ? '' : 's'} now use the new Public URL` : 'Photo storage settings saved');
@@ -442,7 +497,10 @@ function PhotoStorageCard() {
   } else if (saved && editing) {
     footer = (
       <>
-        <PrimaryButton onClick={save} disabled={busy} className="px-[22px] py-2.5 text-[14px]">{busy ? 'Saving…' : 'Save storage settings'}</PrimaryButton>
+        <GhostButton onClick={runTest} disabled={busy || test?.running} className="px-4 py-2.5 text-[14px] disabled:opacity-60">
+          {test?.running ? 'Testing…' : 'Test connection'}
+        </GhostButton>
+        <PrimaryButton onClick={save} disabled={busy || test?.running} className="px-[22px] py-2.5 text-[14px]">{busy ? 'Saving…' : 'Save storage settings'}</PrimaryButton>
         <button type="button" onClick={lock} disabled={busy} className={linkButton}>Cancel</button>
         {saved.updated_at && (
           <button type="button" onClick={clear} disabled={busy} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-error p-0 ml-auto">
@@ -485,6 +543,13 @@ function PhotoStorageCard() {
               </Field>
               <div className="sm:col-span-2">
                 <Field label="Public URL"><TextInput value={form.publicBaseUrl} onChange={set('publicBaseUrl')} placeholder="https://media.yourparish.org" autoComplete="off" spellCheck={false} inputMode="url" /></Field>
+              </div>
+              <div className="sm:col-span-2">
+                {test ? <ConnectionTest test={test} /> : (
+                  <p className="m-0 text-[13px] text-parish-muted">
+                    Use <strong>Test connection</strong> before saving: it uploads a tiny file with these settings, opens it through the Public URL, then deletes it.
+                  </p>
+                )}
               </div>
             </div>
           ) : (

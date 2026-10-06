@@ -64,6 +64,19 @@ in the SQL editor, then sign in as a **staff admin** and open
 name, Access Key ID, Secret Access Key and public URL, and save. Changes apply
 to the next upload; no redeploy needed.
 
+Before saving, press **Test connection**. The media-upload function tries the
+settings in the form, without saving them:
+
+1. **Upload to R2:** it writes a tiny file to `_connection-test/` in the bucket.
+   This checks the Account ID, the keys, the bucket name and write permission.
+2. **Public URL:** it opens that file through the Public URL. This checks that
+   the address shows this bucket. With the website's `/media` address, the proxy
+   in `client/vercel.json` must point at this bucket's r2.dev address.
+3. **Clean up:** it deletes the test file. If it can't, the file is harmless.
+
+Each step shows whether it passed and, if not, what to check. Saving after a
+failed test asks you to confirm first.
+
 The settings live in a table no browser can read (only the Edge Function, with
 the service role key). The secret key is write-only: after saving, the form only
 shows that one is saved; leave it blank to keep it, or type a new one to replace it.
