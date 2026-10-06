@@ -108,7 +108,7 @@ export default function SacramentsTab({ onCountsChanged }) {
               </div>
               <div className="flex gap-1.5 flex-wrap justify-end max-w-[300px]">
                 {r.status === 'New' && <RowButton tone="gray" disabled={busy} onClick={() => patch(r, { status: 'Contacted' }, 'Marked contacted')}>Contacted</RowButton>}
-                {SACRAMENT_REQUEST_OPEN.includes(r.status) && <RowButton disabled={busy} onClick={() => setEditing(r)}>{r.status === 'Scheduled' ? 'Edit' : 'Schedule…'}</RowButton>}
+                {SACRAMENT_REQUEST_OPEN.includes(r.status) && <RowButton disabled={busy} onClick={() => setEditing(r)} viewLabel="View">{r.status === 'Scheduled' ? 'Edit' : 'Schedule…'}</RowButton>}
                 {SACRAMENT_REQUEST_OPEN.includes(r.status) && <RowButton tone="green" disabled={busy} onClick={() => patch(r, { status: 'Done' }, 'Marked done')}>Done</RowButton>}
                 {SACRAMENT_REQUEST_OPEN.includes(r.status) && <RowButton tone="gray" disabled={busy} onClick={() => patch(r, { status: 'Cancelled' }, 'Cancelled')}>Cancel</RowButton>}
                 {!SACRAMENT_REQUEST_OPEN.includes(r.status) && <RowButton tone="gray" disabled={busy} onClick={() => patch(r, { status: 'New' }, 'Reopened')}>Reopen</RowButton>}

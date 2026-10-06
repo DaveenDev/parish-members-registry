@@ -7,6 +7,7 @@ import { useToast } from '../../ToastContext.jsx';
 import { DAYS, normalizeOfficeHours, messengerLink, messengerUsername, validCoords, mapEmbedUrl, isPhoneNumber, officeDayError } from '../../lib/website.js';
 import { officeHourRows, officeStatus } from '../../lib/site.js';
 import { TextArea, Panel } from './shared.jsx';
+import { useViewOnly } from '../panels.jsx';
 
 const TEXT_FIELDS = ['address', 'contact', 'mobile', 'email', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'secretary_messenger'];
 // Monday first, as the website lists the hours (DAYS and office_hours start on Sunday).
@@ -37,6 +38,7 @@ export default function OfficeTab() {
   const [attempted, setAttempted] = useState(false); // show "enter the times" errors after a save attempt
   const [migrated, setMigrated] = useState(true);
   const [messengerReady, setMessengerReady] = useState(true);
+  const viewOnly = useViewOnly();
 
   function apply(settings) {
     const next = fromSettings(settings);
@@ -97,7 +99,8 @@ export default function OfficeTab() {
   const messengerUrl = messengerLink(form.secretary_messenger);
 
   return (
-    <div className="max-w-[1180px]">
+    // View-only accounts see the details with every field and button disabled.
+    <fieldset disabled={viewOnly} className="max-w-[1180px] min-w-0 border-0 p-0 m-0">
       {!migrated && (
         <div className="mb-[18px] px-4 py-3 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13.5px] font-medium" role="status">
           Run the <strong>0011_website_content.sql</strong> migration in Supabase to save office hours, the map and the extra contact numbers. The address, phone and email below save already.
@@ -204,8 +207,8 @@ export default function OfficeTab() {
         <WebsitePreview form={form} />
       </div>
 
-      <SaveBar dirty={dirty} saving={saving} onSave={save} onDiscard={() => { setForm(JSON.parse(saved.current)); setAttempted(false); }} />
-    </div>
+      {!viewOnly && <SaveBar dirty={dirty} saving={saving} onSave={save} onDiscard={() => { setForm(JSON.parse(saved.current)); setAttempted(false); }} />}
+    </fieldset>
   );
 }
 

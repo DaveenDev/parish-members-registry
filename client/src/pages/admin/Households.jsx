@@ -167,8 +167,9 @@ export default function Households() {
     try {
       const [data, codes] = await Promise.all([
         Promise.all(list.map((h) => api.getHousehold(h.id))),
-        // Census online codes (0008). Without that migration the record prints without them.
-        api.censusAccessCodes(list.map((h) => h.id)).catch(() => ({})),
+        // Census online codes (0008), for accounts that may hand them out. Otherwise, or
+        // without that migration, the record prints without them.
+        can(user, 'censusCodes') ? api.censusAccessCodes(list.map((h) => h.id)).catch(() => ({})) : {},
       ]);
       const withCodes = data.map((d) => ({ ...d, code: codes[d.household.id] || null }));
       setPrintData(withCodes.length === 1 ? withCodes[0] : withCodes);
@@ -256,7 +257,7 @@ export default function Households() {
 
   const rowActions = (h) => [
     { label: 'Print record', onClick: () => print([h]) },
-    { label: 'Get codes', onClick: () => setCodesFor(h) },
+    can(user, 'censusCodes') && { label: 'Get codes', onClick: () => setCodesFor(h) },
     canDelete && { label: 'Delete household', tone: 'danger', onClick: () => removeHousehold(h) },
   ];
 

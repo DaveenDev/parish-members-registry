@@ -263,6 +263,7 @@ function StartCensusForm({ onCancel, onStarted }) {
 
 function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged }) {
   const toast = useToast();
+  const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -305,7 +306,8 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
   async function print(args) {
     setPrinting(true);
     try {
-      const forms = await api.censusPrintData(args);
+      // Only accounts that may hand out census codes get them on the forms.
+      const forms = await api.censusPrintData({ ...args, withCodes: can(user, 'censusCodes') });
       if (!forms.length) { toast.error('No households to print'); return; }
       setPrintForms(forms);
       // Let the sheet render before opening the print dialog.

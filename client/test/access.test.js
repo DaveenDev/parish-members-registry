@@ -17,6 +17,11 @@ describe('can', () => {
     assert.ok(!can(u, 'editRegistry') && !can(u, 'editRequests') && !can(u, 'trash'));
   });
 
+  test('only full access downloads the whole registry', () => {
+    assert.ok(can({ access: 'full' }, 'exports'));
+    for (const access of ['read_only', 'gkk_leader', 'website']) assert.ok(!can({ access }, 'exports'), access);
+  });
+
   test('a GKK leader edits the registry only; website staff edit website and requests', () => {
     assert.ok(can({ access: 'gkk_leader' }, 'editRegistry'));
     assert.ok(!can({ access: 'gkk_leader' }, 'requests'));
@@ -82,6 +87,16 @@ describe('admin nav', async () => {
     assert.equal(navLabel(config, { access: 'gkk_leader' }), 'GKK Config');
     assert.equal(navLabel(config, { access: 'full' }), 'Parish Config');
     assert.equal(navLabel(navItemFor('/admin/census'), { access: 'gkk_leader' }), 'Census');
+  });
+
+  test('accounts with only their own settings see Parish Config as My Account', async () => {
+    const { navLabel } = await import('../src/components/adminNav.js');
+    const config = navItemFor('/admin/settings');
+    assert.equal(navLabel(config, { access: 'read_only' }), 'My Account');
+    assert.equal(navLabel(config, { access: 'website' }), 'My Account');
+    // A staff admin also has Platform Integrations there.
+    assert.equal(navLabel(config, { access: 'read_only', isAdmin: true }), 'Parish Config');
+    assert.equal(navLabel(navItemFor('/admin/households'), { access: 'read_only' }), 'Households');
   });
 
   test('GKK leaders: no Parish life pages, an always-open Settings starting with GKK Config', async () => {

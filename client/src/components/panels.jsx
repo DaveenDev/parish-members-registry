@@ -1,5 +1,16 @@
-import React, { useEffect, useId, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useId, useRef } from 'react';
 import { PrimaryButton, GhostButton, INVALID_INPUT } from './ui.jsx';
+
+/**
+ * True on a page the account may only look at (Parish Website, Requests for
+ * read-only accounts). The building blocks below then drop their editing
+ * controls: AddButton and RowButton hide (a RowButton with `viewLabel` stays,
+ * renamed, to open the record), and SidePanel shows its fields disabled with
+ * only Close. The database refuses the changes either way.
+ */
+const ViewOnlyContext = createContext(false);
+export const ViewOnlyProvider = ViewOnlyContext.Provider;
+export const useViewOnly = () => useContext(ViewOnlyContext);
 
 /**
  * Slide-in editor panel used by the Parish Website and Requests pages. Same
@@ -7,9 +18,13 @@ import { PrimaryButton, GhostButton, INVALID_INPUT } from './ui.jsx';
  * confirm dialog is open on top. Leave out `onSave` for a read-and-act panel
  * whose footer only has Close.
  */
-export function SidePanel({ title, subtitle, onClose, onSave, saving, saveLabel = 'Save', error, footerStart, children }) {
+export function SidePanel({ title, subtitle, onClose, onSave: save, saving, saveLabel = 'Save', error, footerStart, children }) {
   const titleId = useId();
   const ref = useRef(null);
+  const viewOnly = useViewOnly();
+  const onSave = viewOnly ? undefined : save;
+  // "Edit announcement" reads "Announcement" when it can't be edited.
+  const heading = viewOnly && typeof title === 'string' ? title.replace(/^Edit (\w)/, (_, c) => c.toUpperCase()) : title;
 
   useEffect(() => {
     // Only the topmost dialog closes: not when a confirm or another dialog
@@ -41,19 +56,20 @@ export function SidePanel({ title, subtitle, onClose, onSave, saving, saveLabel 
       >
         <header className="flex items-start justify-between gap-3 px-5 sm:px-7 pt-5 pb-4 border-b border-parish-line2">
           <div className="min-w-0">
-            <h3 id={titleId} className="font-serif text-[24px] font-semibold m-0 text-parish-navy truncate">{title}</h3>
+            <h3 id={titleId} className="font-serif text-[24px] font-semibold m-0 text-parish-navy truncate">{heading}</h3>
             {subtitle && <p className="text-[13px] text-parish-muted m-0">{subtitle}</p>}
+            {viewOnly && <p className="text-[12.5px] font-semibold text-parish-muted m-0 mt-0.5">View only</p>}
           </div>
           <button type="button" onClick={onClose} aria-label="Close" className="appearance-none border-none bg-transparent cursor-pointer text-parish-muted text-2xl leading-none px-1">×</button>
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 sm:px-7 py-5 flex flex-col gap-4">
-          {children}
+          {viewOnly ? <fieldset disabled className="contents">{children}</fieldset> : children}
           {error && <div className="text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
         </div>
 
         <footer className="flex items-center gap-2.5 justify-end px-5 sm:px-7 py-3.5 border-t border-parish-line2 bg-parish-card flex-wrap">
-          {footerStart && <div className="mr-auto flex items-center gap-2 flex-wrap">{footerStart}</div>}
+          {footerStart && !viewOnly && <div className="mr-auto flex items-center gap-2 flex-wrap">{footerStart}</div>}
           <GhostButton type="button" onClick={onClose} className="px-5 py-2.5 text-[14px]">{onSave ? 'Cancel' : 'Close'}</GhostButton>
           {onSave && <PrimaryButton type="submit" disabled={saving} className="px-6 py-2.5 text-[14px]">{saving ? 'Saving…' : saveLabel}</PrimaryButton>}
         </footer>
@@ -81,8 +97,16 @@ export const TextArea = React.forwardRef(function TextArea({ className = '', ...
   );
 });
 
-/** Small text buttons on a list row. */
-export function RowButton({ tone = 'blue', className = '', ...props }) {
+/**
+ * Small text buttons on a list row. On a view-only page it hides, unless it
+ * has a `viewLabel` (e.g. "View" for an Edit button), which it shows instead.
+ */
+export function RowButton({ tone = 'blue', className = '', viewLabel, ...props }) {
+  const viewOnly = useViewOnly();
+  if (viewOnly) {
+    if (!viewLabel) return null;
+    props = { ...props, children: viewLabel, disabled: false };
+  }
   const tones = {
     blue: 'bg-[var(--p-blue-tint)] text-parish-blue',
     red: 'bg-parish-errorBg text-parish-error',
@@ -112,6 +136,7 @@ export function TabIntro({ text, children }) {
 }
 
 export function AddButton({ children, ...props }) {
+  if (useViewOnly()) return null;
   return (
     <PrimaryButton type="button" {...props} className="px-[18px] py-2.5 text-[14px] whitespace-nowrap">
       + {children}

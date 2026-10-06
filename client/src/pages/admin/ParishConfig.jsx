@@ -7,6 +7,7 @@ import MyGkk from './MyGkk.jsx';
 import LastYearList from '../../components/LastYearList.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
+import { ownSettingsOnly } from '../../components/adminNav.js';
 import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
 import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
 import { useTheme, THEMES } from '../../ThemeContext.jsx';
@@ -1163,14 +1164,17 @@ export default function ParishConfig() {
   const leader = user?.access === 'gkk_leader';
   const show = { mygkk: leader, config: can(user, 'settings'), gkk: can(user, 'settings'), lastyear: can(user, 'settings'), personal: true, integrations: !!user?.isAdmin };
   const tabs = CONFIG_TABS.filter(([k]) => show[k]);
-  // GKK leaders see this page as "GKK Config" (as in the sidebar).
-  const title = leader ? 'GKK Config' : 'Parish Config';
+  // GKK leaders see this page as "GKK Config", and accounts with only their
+  // own settings as "My Account" (as in the sidebar).
+  const ownOnly = ownSettingsOnly(user);
+  const title = leader ? 'GKK Config' : ownOnly ? 'My Account' : 'Parish Config';
+  const subtitle = leader ? 'Your GKK and your personal settings' : ownOnly ? 'Your personal settings' : 'Profile, privacy, GKK settings & integrations';
   const tab = tabs.some(([k]) => k === params.get('tab')) ? params.get('tab') : tabs[0][0];
   const setTab = (k) => setParams(k === tabs[0][0] ? {} : { tab: k }, { replace: true });
 
   return (
     <>
-      <PageHeader title={title} subtitle={leader ? 'Your GKK and your personal settings' : 'Profile, privacy, GKK settings & integrations'} />
+      <PageHeader title={title} subtitle={subtitle} />
       <PageBody>
         <div className="max-w-[1180px]">
           {tabs.length > 1 && <Tabs tabs={tabs} value={tab} onChange={setTab} />}

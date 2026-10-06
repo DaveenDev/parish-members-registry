@@ -41,7 +41,7 @@ export default function SacramentGuidesTab() {
                 </div>
                 <div className="text-[12px] text-parish-muted">Updated {fmtDateTime(g.updated_at, { time: false })}</div>
                 <div className="flex gap-1.5 mt-1">
-                  <RowButton onClick={() => setEditing(g)}>{empty ? 'Fill in' : 'Edit'}</RowButton>
+                  <RowButton onClick={() => setEditing(g)} viewLabel="View">{empty ? 'Fill in' : 'Edit'}</RowButton>
                   <RowButton tone="gray" disabled={list.busyId === g.id} onClick={() => list.togglePublished(g)}>{g.published ? 'Unpublish' : 'Publish'}</RowButton>
                 </div>
               </Panel>

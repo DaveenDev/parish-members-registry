@@ -62,7 +62,7 @@ export default function ArticlesTab() {
                 <div className="text-[12px] text-parish-muted mt-1">{[`#${r.id}`, fmtDate(r.held_on), r.place, r.author && `by ${r.author}`].filter(Boolean).join(' · ')}</div>
               </div>
               <div className="flex gap-1.5">
-                <RowButton onClick={() => setEditing(r)}>Edit</RowButton>
+                <RowButton onClick={() => setEditing(r)} viewLabel="View">Edit</RowButton>
                 <RowButton tone="gray" disabled={list.busyId === r.id} onClick={() => list.togglePublished(r)}>{r.published ? 'Unpublish' : 'Publish'}</RowButton>
                 <RowButton tone="red" disabled={list.busyId === r.id} onClick={() => list.removeRow(r)}>Delete</RowButton>
               </div>

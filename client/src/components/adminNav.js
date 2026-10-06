@@ -45,7 +45,7 @@ export const NAV_GROUPS = [
     label: 'Settings',
     collapsible: true,
     items: [
-      { to: '/admin/settings', end: true, label: 'Parish Config', leaderLabel: 'GKK Config' },
+      { to: '/admin/settings', end: true, label: 'Parish Config', leaderLabel: 'GKK Config', ownLabel: 'My Account' },
       { to: '/admin/settings/notifications', label: 'Notifications' },
       { to: '/admin/settings/organizations', label: 'Ministries & organizations', need: 'manageLists' },
       { to: '/admin/duplicates', label: 'Duplicates', need: 'registry', badge: 'duplicates', badgeLabel: 'groups to review' },
@@ -67,9 +67,20 @@ export function navCollapsible(group, user) {
   return !!group.collapsible && user?.access !== 'gkk_leader';
 }
 
-/** The item's name for this account: GKK leaders see some pages under their own name. */
+/**
+ * The item's name for this account: GKK leaders see some pages under their own
+ * name, and `ownLabel` names a settings page that holds only the account's own
+ * settings (no parish settings, not a staff admin).
+ */
 export function navLabel(item, user) {
-  return (user?.access === 'gkk_leader' && item.leaderLabel) || item.label;
+  if (user?.access === 'gkk_leader') return item.leaderLabel || item.label;
+  if (item.ownLabel && ownSettingsOnly(user)) return item.ownLabel;
+  return item.label;
+}
+
+/** Parish Config shows this account only its Personal Settings tab. */
+export function ownSettingsOnly(user) {
+  return user?.access !== 'gkk_leader' && !can(user, 'settings') && !user?.isAdmin;
 }
 
 /** The nav item a path belongs to (the longest matching link), or null. */

@@ -73,7 +73,7 @@ export default function AnnouncementsTab() {
                 <div className="text-[12px] text-parish-muted mt-1">From {fmtDate(r.publish_on)} {untilText(r)}</div>
               </div>
               <div className="flex gap-1.5">
-                <RowButton onClick={() => setEditing(r)}>Edit</RowButton>
+                <RowButton onClick={() => setEditing(r)} viewLabel="View">Edit</RowButton>
                 <RowButton tone="gray" disabled={list.busyId === r.id} onClick={() => list.togglePublished(r)}>{r.published ? 'Unpublish' : 'Publish'}</RowButton>
                 <RowButton tone="red" disabled={list.busyId === r.id} onClick={() => list.removeRow(r)}>Delete</RowButton>
               </div>

@@ -1463,7 +1463,7 @@ export const api = {
    * Households and their current members for the printed census form —
    * either one GKK ('None' = households without one) or the given ids.
    */
-  async censusPrintData({ gkk, householdIds }) {
+  async censusPrintData({ gkk, householdIds, withCodes = true }) {
     let hq = supabase.from('households').select('*').order('household_name');
     let mq = supabase.from('members_with_household').select('*').eq('is_current', true).order('id');
     if (householdIds) {
@@ -1479,8 +1479,9 @@ export const api = {
     const [{ data: households, error: hErr }, { data: members, error: mErr }] = await Promise.all([hq, mq]);
     if (hErr) throw mapError(hErr);
     if (mErr) throw mapError(mErr);
-    // Online access codes (0008). Without that migration the forms print without them.
-    const codes = await api.censusAccessCodes(households.map((h) => h.id)).catch(() => ({}));
+    // Online access codes (0008), unless the caller leaves them out. Without that
+    // migration the forms print without them.
+    const codes = withCodes ? await api.censusAccessCodes(households.map((h) => h.id)).catch(() => ({})) : {};
     return households.map((h) => ({ household: h, code: codes[h.id] || null, members: members.filter((m) => m.household_id === h.id) }));
   },
 

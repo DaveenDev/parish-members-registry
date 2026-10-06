@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { PageHeader, PageBody, Tabs, ViewOnlyNote } from '../../components/admin.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
+import { ViewOnlyProvider } from '../../components/panels.jsx';
 import MassScheduleTab from '../../components/website/MassScheduleTab.jsx';
 import SacramentGuidesTab from '../../components/website/SacramentGuidesTab.jsx';
 import AnnouncementsTab from '../../components/website/AnnouncementsTab.jsx';
@@ -38,7 +39,9 @@ export default function Website() {
       <PageBody>
         {!can(user, 'editWebsite') && <ViewOnlyNote />}
         <Tabs tabs={TABS.map(([k, label]) => [k, label])} value={current[0]} onChange={setTab} />
-        <Tab key={current[0]} />
+        <ViewOnlyProvider value={!can(user, 'editWebsite')}>
+          <Tab key={current[0]} />
+        </ViewOnlyProvider>
       </PageBody>
     </>
   );

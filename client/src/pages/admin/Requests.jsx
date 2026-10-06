@@ -3,6 +3,7 @@ import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { PageHeader, PageBody, Tabs, ViewOnlyNote } from '../../components/admin.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
+import { ViewOnlyProvider } from '../../components/panels.jsx';
 import CertificatesTab from '../../components/requests/CertificatesTab.jsx';
 import BloodRequestsTab from '../../components/requests/BloodRequestsTab.jsx';
 import SacramentsTab from '../../components/requests/SacramentsTab.jsx';
@@ -34,7 +35,9 @@ export default function Requests() {
       <PageBody>
         {!can(user, 'editRequests') && <ViewOnlyNote />}
         <Tabs tabs={tabs} value={current[0]} onChange={setTab} />
-        <Tab key={current[0]} onCountsChanged={() => layout?.refreshRequestCounts?.()} />
+        <ViewOnlyProvider value={!can(user, 'editRequests')}>
+          <Tab key={current[0]} onCountsChanged={() => layout?.refreshRequestCounts?.()} />
+        </ViewOnlyProvider>
       </PageBody>
     </>
   );

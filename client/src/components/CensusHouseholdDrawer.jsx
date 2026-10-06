@@ -59,10 +59,13 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
   const editable = cycle.status === 'Open' && canRecord;
   const [accessCode, setAccessCode] = useState(null);
 
-  // The family's code for the online census form (0008); hidden without it.
+  // The family's code for the online census form (0008); hidden without it,
+  // and from accounts that can't hand codes out.
+  const showCode = can(user, 'censusCodes');
   useEffect(() => {
+    if (!showCode) return;
     api.censusAccessCodes([householdId]).then((codes) => setAccessCode(codes[householdId] || null)).catch(() => setAccessCode(null));
-  }, [householdId]);
+  }, [householdId, showCode]);
 
   async function newCode() {
     const ok = await confirm({

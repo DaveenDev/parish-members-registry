@@ -149,7 +149,7 @@ export default function MassScheduleTab() {
                   {!isCurrentMass(r) && <Badge tone="gray">Past</Badge>}
                   {!r.published && <StateBadge state="Draft" />}
                   <div className="flex gap-1.5">
-                    <RowButton onClick={() => setEditing(r)}>Edit</RowButton>
+                    <RowButton onClick={() => setEditing(r)} viewLabel="View">Edit</RowButton>
                     <RowButton tone="gray" disabled={busy === r.id} onClick={() => togglePublished(r)}>{r.published ? 'Unpublish' : 'Publish'}</RowButton>
                     <RowButton tone="red" disabled={busy === r.id} onClick={() => remove(r)}>Delete</RowButton>
                   </div>
