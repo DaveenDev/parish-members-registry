@@ -467,6 +467,24 @@ describe('matching last year\'s names: suffixes and corrections (0052)', () => {
     // A link to a household no longer in the registry is ignored.
     assert.deepEqual(ids(matchListToRegistry([n(1, 'Perfecto Panes', { household_id: 77 })], heads)), []);
   });
+
+  test('a Head of Family on the list is found too (0054)', () => {
+    const heads = [h(1, 'Perfecto', 'Panes')];
+    const fam = (member_id, household_id, first_name, last_name) => ({ member_id, household_id, first_name, middle_name: '', last_name, suffix: '' });
+    // The household head and the head of the second family in the same house both count.
+    const m = matchListToRegistry([n(1, 'Perfecto Panes'), n(2, 'Reyian Panes')], heads, [fam(10, 1, 'Reyian', 'Panes')]);
+    assert.deepEqual(ids(m), [[1, 1, false], [2, 1, false]]);
+    assert.equal(m.get(2).family, true);
+    assert.equal(m.get(1).family, undefined);
+    // A family head in a house no longer in the registry doesn't count.
+    assert.deepEqual(ids(matchListToRegistry([n(1, 'Reyian Panes')], heads, [fam(10, 99, 'Reyian', 'Panes')])), []);
+    // "Not this household" skips the house's family heads too.
+    assert.deepEqual(ids(matchListToRegistry([n(1, 'Reyian Panes', { not_household_ids: [1] })], heads, [fam(10, 1, 'Reyian', 'Panes')])), []);
+    // On a tie the household head wins; each family head matches one name.
+    const tie = matchListToRegistry([n(1, 'Juan Cruz'), n(2, 'Juan Cruz')], [h(3, 'Juan', 'Cruz')], [fam(11, 3, 'Juan', 'Cruz')]);
+    assert.equal(tie.get(1).family, undefined);
+    assert.equal(tie.get(2).family, true);
+  });
 });
 
 describe('census answers at registration (0055)', () => {

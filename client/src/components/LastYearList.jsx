@@ -43,11 +43,12 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
 
   // A name still "Not yet" counts as registered once its household is in the
   // registry (on the queue or verified), as on the Census page's results.
-  const matches = useMemo(() => matchListToRegistry(rows || [], heads), [rows, heads]);
+  const [familyHeads, setFamilyHeads] = useState([]); // Heads of Family, who may be the name on the list
+  const matches = useMemo(() => matchListToRegistry(rows || [], heads, familyHeads), [rows, heads, familyHeads]);
   // Names not registered here whose head is registered in another GKK (0053).
   const [otherHeads, setOtherHeads] = useState([]);
   const elsewhere = useMemo(() => otherGkkMatches(rows || [], otherHeads, matches), [rows, otherHeads, matches]);
-  const overview = useMemo(() => (allRows ? countLastYearList(allRows, matchListToRegistry(allRows, heads)) : null), [allRows, heads]);
+  const overview = useMemo(() => (allRows ? countLastYearList(allRows, matchListToRegistry(allRows, heads, familyHeads)) : null), [allRows, heads, familyHeads]);
   const shown = (rows || []).filter((r) => {
     const s = listStatus(r, matches);
     return status === 'All' || (status === 'Set aside' ? !['Not yet', 'Registered'].includes(s) : s === status);
@@ -67,7 +68,10 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
     }
   }
   useEffect(() => { load(); }, [gkk]);
-  useEffect(() => { api.registryHeads().then(setHeads).catch(() => setHeads([])); }, []);
+  useEffect(() => {
+    api.registryHeads().then(setHeads).catch(() => setHeads([]));
+    api.registryFamilyHeads().then(setFamilyHeads).catch(() => setFamilyHeads([]));
+  }, []);
   useEffect(() => { setStatus('All'); list.setQuery(''); }, [gkk]);
   useEffect(() => { if (!ownGkk) api.listGkks().then((r) => setGkkNames(r.rows.map((x) => x.name))).catch(() => {}); }, [ownGkk]);
 
@@ -180,7 +184,7 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
     <>
       <div className="flex flex-wrap items-start gap-3 mb-4">
         <p className="m-0 text-[13.5px] text-parish-muted max-w-[640px]">
-          The households on last year's paper census, typed in per GKK. A name counts as registered once its household is in the registry (on the verification queue or verified), found by the head of household's name, or when you tick it off; the ones left are the households not yet registered. Only parish staff and the GKK's own leader can see these names.
+          The households on last year's paper census, typed in per GKK. A name counts as registered once its household is in the registry (on the verification queue or verified), found by the name of the household head or of a family head in the house, or when you tick it off; the ones left are the households not yet registered. Only parish staff and the GKK's own leader can see these names.
         </p>
       </div>
 
@@ -288,7 +292,7 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
                           <div className="text-[12.5px] mt-0.5 flex flex-wrap items-center gap-x-2.5 gap-y-1">
                             <span className="font-semibold text-parish-ok">
                               ✓ {m.linked ? 'Linked to' : 'In the registry:'} {m.household_name}
-                              <span className="font-normal text-parish-text2"> · head {[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')} · {m.status === 'Verified' ? 'verified' : 'on the verification queue'}</span>
+                              <span className="font-normal text-parish-text2"> · {m.family ? 'head of a family in this house:' : 'head'} {[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')} · {m.status === 'Verified' ? 'verified' : 'on the verification queue'}</span>
                             </span>
                             {canEdit && (m.linked
                               ? <button type="button" onClick={() => saveRow(r, { household_id: null })} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue">Unlink</button>
@@ -436,7 +440,7 @@ function AddNamesPanel({ gkk, onClose, onAdd }) {
 function ChooseHouseholdPanel({ row, heads, matches, names, onClose, onPick }) {
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState(null);
-  const matchedTo = new Map([...matches.entries()].map(([id, h]) => [h.household_id, names.find((n) => n.id === id)?.head_name]));
+  const matchedTo = new Map([...matches.entries()].filter(([, h]) => !h.family).map(([id, h]) => [h.household_id, names.find((n) => n.id === id)?.head_name]));
   const q = query.trim().toLowerCase();
   const shown = heads
     .filter((h) => !q || `${h.household_name} ${h.first_name} ${h.middle_name} ${h.last_name}`.toLowerCase().includes(q))

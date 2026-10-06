@@ -1290,6 +1290,11 @@ export const api = {
       last_name: head.get(h.id)?.last_name || '', suffix: head.get(h.id)?.suffix || '',
     }));
   },
+  /** Every Head of Family (families 2, 3… in a house, 0054), for matching last year's list too. */
+  async registryFamilyHeads() {
+    const rows = await fetchAll(() => supabase.from('members').select('id, household_id, first_name, middle_name, last_name, suffix').eq('relationship', 'Head of Family').order('id'));
+    return rows.map(({ id, ...m }) => ({ member_id: id, ...m }));
+  },
   /**
    * Households registered against last year, as the Census page and Reports
    * show it, following Parish Config -> Last year's list (0048):
@@ -1304,8 +1309,10 @@ export const api = {
    */
   async censusVsLastYear(cycle, cycles, ownGkk = null) {
     if (await api.lastYearListEnabled()) {
-      const [details, heads, list] = await Promise.all([api.listGkkDetails(), api.registryHeads(), api.listLastYear('All').catch(() => [])]);
-      return { mode: 'list', previous: null, ...registryVsLastYear(details.rows, heads, list, ownGkk) };
+      const [details, heads, list, families] = await Promise.all([
+        api.listGkkDetails(), api.registryHeads(), api.listLastYear('All').catch(() => []), api.registryFamilyHeads().catch(() => []),
+      ]);
+      return { mode: 'list', previous: null, ...registryVsLastYear(details.rows, heads, list, ownGkk, families) };
     }
     const previous = cycle ? previousCensus(cycles, cycle) : null;
     if (!previous) {

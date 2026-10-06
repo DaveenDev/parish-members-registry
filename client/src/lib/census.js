@@ -299,20 +299,32 @@ export function nameSuffix(name) {
  *    Panes Sr." never finds Perfecto Panes Jr. Households marked "Not this
  *    household" for the name (0052) are skipped. The closest pairs are made
  *    first (same suffix, then more first and middle name words in common),
- *    and each household matches one name at most.
+ *    and each head matches one name at most.
+ * 3. Last year's paper list sometimes names the head of a second family in
+ *    a house (0054) rather than the Household Head. `familyHeads` (one row
+ *    per Head of Family: { member_id, household_id, first_name, ... }) are
+ *    matched the same way, after the household heads on a tie, and come back
+ *    with `family: true` and their household's details. "Not this household"
+ *    skips the whole house, its family heads too.
  */
-export function matchListToRegistry(listRows, heads) {
+export function matchListToRegistry(listRows, heads, familyHeads = []) {
   const byId = new Map((heads || []).map((h) => [h.household_id, h]));
   const out = new Map();
-  const taken = new Set();
+  const taken = new Set(); // 'h<household id>' for a Household Head, 'f<member id>' for a Head of Family
   for (const r of listRows || []) {
     const h = r.household_id != null ? byId.get(r.household_id) : null;
-    if (h && !taken.has(h.household_id)) { out.set(r.id, { ...h, linked: true }); taken.add(h.household_id); }
+    if (h && !taken.has(`h${h.household_id}`)) { out.set(r.id, { ...h, linked: true }); taken.add(`h${h.household_id}`); }
   }
 
-  const people = (heads || []).filter((h) => !taken.has(h.household_id)).map((h, order) => ({
-    h, order, last: nameWords(h.last_name), first: nameWords(h.first_name), middle: nameWords(h.middle_name), suffix: nameSuffix(h.suffix),
-  })).filter((p) => p.last.length && p.first.length);
+  // A family head counts only while their household is in the registry.
+  const families = (familyHeads || []).filter((f) => byId.has(f.household_id)).map((f) => {
+    const { household_name, gkk, status } = byId.get(f.household_id);
+    return { ...f, household_name, gkk, status, family: true, key: `f${f.member_id}` };
+  });
+  const people = [...(heads || []).map((h) => ({ ...h, key: `h${h.household_id}` })), ...families]
+    .filter((h) => !taken.has(h.key)).map(({ key, ...h }, order) => ({
+      h, key, order, last: nameWords(h.last_name), first: nameWords(h.first_name), middle: nameWords(h.middle_name), suffix: nameSuffix(h.suffix),
+    })).filter((p) => p.last.length && p.first.length);
 
   const pairs = [];
   (listRows || []).forEach((r, index) => {
@@ -332,9 +344,9 @@ export function matchListToRegistry(listRows, heads) {
   });
   pairs.sort((x, y) => y.score - x.score || x.index - y.index || x.p.order - y.p.order);
   for (const { r, p } of pairs) {
-    if (out.has(r.id) || taken.has(p.h.household_id)) continue;
+    if (out.has(r.id) || taken.has(p.key)) continue;
     out.set(r.id, p.h);
-    taken.add(p.h.household_id);
+    taken.add(p.key);
   }
   return out;
 }
@@ -382,15 +394,16 @@ export function listStatus(row, matches = null) {
  * household count typed in Parish GKK (0040) measures against that count:
  * "not yet" is the count minus the households registered, never below zero.
  * A GKK with neither has lastYear, notYet and pct null. Pass `onlyGkk` for a
- * GKK leader's own GKK. Also returns `notYet`: the names to visit, by GKK
- * then purok, as { key, title, detail, gkk, purok, note }.
+ * GKK leader's own GKK. `familyHeads` also lets a name match a Head of
+ * Family (see matchListToRegistry()). Also returns `notYet`: the names to
+ * visit, by GKK then purok, as { key, title, detail, gkk, purok, note }.
  */
-export function registryVsLastYear(gkks, heads, listRows, onlyGkk = null) {
+export function registryVsLastYear(gkks, heads, listRows, onlyGkk = null, familyHeads = []) {
   const share = (done, of) => (of > 0 ? Math.min(Math.round((done / of) * 100), 100) : done ? 100 : 0);
   const mine = (r) => !onlyGkk || r.gkk === onlyGkk;
   const myHeads = (heads || []).filter(mine);
   const myList = (listRows || []).filter(mine);
-  const matches = matchListToRegistry(myList, myHeads);
+  const matches = matchListToRegistry(myList, myHeads, familyHeads);
   const lists = countLastYearList(myList, matches);
 
   const reg = new Map(); // GKK → { registered, verified, pending }
