@@ -228,6 +228,16 @@ export function normalizeOfficeHours(saved) {
   }));
 }
 
+/** What's wrong with one day of office hours (Office & Contact tab), or '' when it's fine. */
+export function officeDayError(d) {
+  if (d.closed) return '';
+  if (!d.open || !d.close) return 'Enter the opening and closing times, or switch the day to Closed.';
+  if (d.close <= d.open) return 'The closing time must be after the opening time.';
+  if (!!d.break_from !== !!d.break_to) return 'Enter both ends of the break, or remove it.';
+  if (d.break_from && (d.break_from <= d.open || d.break_to >= d.close || d.break_to <= d.break_from)) return 'The break must fall inside the office hours.';
+  return '';
+}
+
 /** Days an announcement with no end date stays on the website. */
 export const ANNOUNCEMENT_DAYS = 30;
 /** More pinned announcements than this and a pin stops meaning much; the admin warns. */
