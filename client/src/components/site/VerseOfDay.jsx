@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Icon } from './Icons.jsx';
 import { Skeleton } from './kit.jsx';
 
@@ -74,6 +75,13 @@ export default function VerseOfDay({ onLoad }) {
           <button type="button" className={NAV_BTN} onClick={() => go(1)} aria-label="Sunod nga bersikulo">
             Sunod<Icon name="chev" size={16} />
           </button>
+          {/* The day's Mass readings, on their own page. */}
+          <Link
+            to="/simbahan/pagbasa"
+            className="min-h-[44px] px-4 inline-flex items-center gap-1.5 rounded-xl bg-parish-blue text-white font-bold text-[14px] shadow-btn hover:brightness-110"
+          >
+            <Icon name="doc" size={16} />Daily Readings
+          </Link>
           <span className="ml-auto text-[13px] text-parish-text2">{i + 1} sa {VERSES.length}</span>
         </div>
         <p className="m-0 mt-3 text-[12px] text-parish-text2">Bibliya: World English Bible (public domain). Ang pagpasabot gikan sa Katesismo sa Simbahang Katoliko.</p>

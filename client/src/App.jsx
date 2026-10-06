@@ -7,6 +7,7 @@ import MaintenanceGate from './components/MaintenanceGate.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Home from './pages/site/Home.jsx';
 import Simbahan from './pages/site/Simbahan.jsx';
+import Pagbasa from './pages/site/Pagbasa.jsx';
 import Pahibalo from './pages/site/Pahibalo.jsx';
 import Komunidad, { GkkDetail } from './pages/site/Komunidad.jsx';
 import { ArticlesArchive } from './pages/site/Articles.jsx';
@@ -67,6 +68,7 @@ export default function App() {
         <Route element={<SiteLayout />}>
           <Route path="/" element={<Home />} />
           <Route path="/simbahan" element={<Simbahan />} />
+          <Route path="/simbahan/pagbasa" element={<Pagbasa />} />
           {/* The page was Misa ug Sakramento: old links keep their ?view=. */}
           <Route path="/misa" element={<ToSimbahan />} />
           <Route path="/misa/kalihokan/:id" element={<EventDetail />} />

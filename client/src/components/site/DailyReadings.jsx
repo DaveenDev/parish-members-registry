@@ -59,7 +59,7 @@ export default function DailyReadings({ onLoad }) {
   const [offset, setOffset] = useState(0);
   const iso = addDays(today, offset);
   const [state, setState] = useState({ status: 'loading' });
-  const [picked, setPicked] = useState('Mass_R1');
+  const [picked, setPicked] = useState('Mass_G');
   const [retry, setRetry] = useState(0);
   const reported = useRef(false);
   const panel = useRef(null);
@@ -80,7 +80,10 @@ export default function DailyReadings({ onLoad }) {
     return () => { live = false; };
   }, [iso, retry]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const readings = state.status === 'ok' ? state.readings : [];
+  // The Gospel first (and open), then the others in Mass order, numbered 1–3
+  // among themselves, so the second reading stays number 3.
+  const inOrder = state.status === 'ok' ? state.readings : [];
+  const readings = [...inOrder.filter((r) => r.key === 'Mass_G'), ...inOrder.filter((r) => r.key !== 'Mass_G')];
   const at = Math.max(0, readings.findIndex((r) => r.key === picked));
   const current = readings[at];
   // "Next" reads on to the next reading there is (a weekday has no second reading).
@@ -168,7 +171,7 @@ export default function DailyReadings({ onLoad }) {
               role="tablist" aria-label="Readings" onKeyDown={onTabKey}
               className="flex gap-1.5 w-max px-4 pb-1 lg:w-auto lg:flex-col lg:gap-2 lg:px-0 lg:pb-0"
             >
-              {readings.map((r, n) => {
+              {readings.map((r) => {
                 const on = r.key === current.key;
                 return (
                   <button
@@ -182,7 +185,9 @@ export default function DailyReadings({ onLoad }) {
                         : 'bg-parish-card border-parish-borderSoft text-parish-ink hover:border-[var(--p-blue-border)]'}`}
                   >
                     <span className="flex items-center gap-2">
-                      <span className={`hidden lg:inline-flex w-6 h-6 flex-none rounded-full items-center justify-center text-[12px] font-bold ${on ? 'bg-white/20' : 'bg-[var(--p-blue-tint)] text-parish-blueDeep'}`}>{n + 1}</span>
+                      <span className={`hidden lg:inline-flex w-6 h-6 flex-none rounded-full items-center justify-center text-[12px] font-bold ${on ? 'bg-white/20' : 'bg-[var(--p-blue-tint)] text-parish-blueDeep'}`}>
+                        {r.key === 'Mass_G' ? <Icon name="cross" size={13} /> : readings.filter((x) => x.key !== 'Mass_G').indexOf(r) + 1}
+                      </span>
                       <span className="font-bold text-[14.5px] whitespace-nowrap">{r.label}</span>
                     </span>
                     <span className={`hidden lg:block mt-1 lg:pl-8 text-[13px] font-semibold ${on ? 'text-white/85' : r.none ? 'italic font-normal' : 'text-[var(--p-gold-deep)]'}`}>
