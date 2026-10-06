@@ -1177,7 +1177,13 @@ export default function ParishConfig() {
           {tab === 'mygkk' && <MyGkk />}
           {tab === 'config' && <ProfileTab />}
           {tab === 'personal' && <PersonalTab withPrivacy={!show.config} />}
-          {tab === 'gkk' && <GkkManager onOpenList={(name) => setParams({ tab: 'lastyear', gkk: name }, { replace: true })} />}
+          {tab === 'gkk' && (
+            <GkkManager
+              onOpenList={(name) => setParams({ tab: 'lastyear', gkk: name }, { replace: true })}
+              historyOf={params.get('history') || ''}
+              onHistoryOpened={() => setParams({ tab: 'gkk' }, { replace: true })}
+            />
+          )}
           {tab === 'lastyear' && <LastYearTab gkk={params.get('gkk') || ''} />}
           {tab === 'integrations' && <IntegrationsTab />}
         </div>
