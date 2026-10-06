@@ -211,7 +211,7 @@ export function Gallery({ photos, title = 'Mga litrato', id = 'gallery-title', c
   );
 }
 
-function Lightbox({ photos, index, onIndex, onClose }) {
+export function Lightbox({ photos, index, onIndex, onClose }) {
   const p = photos[index];
   const go = (d) => onIndex((index + d + photos.length) % photos.length);
   useEffect(() => {

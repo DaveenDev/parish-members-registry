@@ -3,7 +3,7 @@ import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
-import { Body, Gallery, Photo } from './Details.jsx';
+import { Body, Gallery, Lightbox } from './Details.jsx';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { useSiteTitle } from './SiteLayout.jsx';
@@ -184,10 +184,21 @@ function GkkDirectory({ scrollHere = false }) {
 
 const gkkPath = (name) => `/komunidad/gkk/${encodeURIComponent(name)}`;
 
+/**
+ * One GKK in the directory: its main photo on top (the chapel, set in
+ * Parish GKK or My GKK, 0046/0059; a chapel drawing until there is one),
+ * then its name and details. The whole card opens the GKK's page.
+ */
 function GkkCard({ g }) {
   return (
-    <Card className="flex flex-col h-full lg:rounded-[18px] hover:border-[var(--p-blue-border)]">
-      <Link to={gkkPath(g.name)} className="w-full text-left px-3.5 pt-3.5 pb-3 lg:px-[18px] lg:pt-4 lg:pb-4 flex gap-2.5 items-start flex-1">
+    <Card className="flex flex-col h-full overflow-hidden lg:rounded-[18px] hover:border-[var(--p-blue-border)]">
+      <Link to={gkkPath(g.name)} className="flex flex-col flex-1 text-left">
+        <div className="relative aspect-[16/9] bg-[#efe6d3] flex items-center justify-center text-[var(--p-gold-deep)]">
+          {g.photo_url
+            ? <img src={g.photo_url} alt={`Kapilya sa ${g.patron}`} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
+            : <Icon name="church" size={44} />}
+        </div>
+        <div className="px-3.5 pt-3 pb-3.5 lg:px-[18px] lg:pt-3.5 lg:pb-4 flex gap-2.5 items-start flex-1">
         <div className="flex-1 min-w-0">
           <div className="font-serif text-[21px] lg:text-[23px] font-bold leading-[1.15] text-parish-navy">
             {g.patron} {g.area && <span className="text-parish-blue">-{g.area}</span>}
@@ -202,6 +213,7 @@ function GkkCard({ g }) {
           </div>
         </div>
         <Icon name="chev" size={18} className="text-parish-muted mt-1 flex-none" />
+        </div>
       </Link>
     </Card>
   );
@@ -225,7 +237,7 @@ export function GkkDetail() {
   return (
     <main className={`${INNER} lg:max-w-[880px]`}>
       <div>
-      {page?.photo_url && <Photo src={page.photo_url} h={210} hLg={440} alt={`Kapilya sa ${patron}`} />}
+      <GkkPhotos page={page} patron={patron} />
       {area && <div className="inline-flex items-center gap-[5px] font-bold text-[12px] lg:text-[12.5px] tracking-[.1em] uppercase text-[var(--p-eyebrow)]"><Icon name="pin" size={14} />{area}</div>}
       <h1 className="font-serif font-semibold text-[34px] lg:text-[54px] leading-[1.05] lg:leading-[1.02] mt-1 mb-1 lg:mt-1.5 lg:mb-1.5 text-parish-navy">{patron}</h1>
       {g.puroks && <div className="text-[15px] lg:text-[17px] text-[#4d4636] mb-4 lg:mb-6">{g.puroks}</div>}
@@ -280,11 +292,6 @@ export function GkkDetail() {
         Mao ni ang akong GKK, magparehistro
       </Link>
       <GkkOfficers gkk={g.name} />
-      {page?.photos?.length > 0 && (
-        <div className="mt-9 lg:mt-12">
-          <Gallery photos={page.photos} id="gkk-photos-title" cols="grid-cols-2 sm:grid-cols-3" />
-        </div>
-      )}
       {(page?.history || page?.history_photos?.length > 0) && (
         <section aria-labelledby="gkk-history-title" className="mt-9 lg:mt-12">
           <h2 id="gkk-history-title" className="font-serif font-semibold text-[26px] lg:text-[34px] m-0 mb-3 lg:mb-4 text-parish-navy">Kasaysayan</h2>
@@ -293,6 +300,55 @@ export function GkkDetail() {
         </section>
       )}
     </main>
+  );
+}
+
+/**
+ * The top of a GKK's page: its main photo large, then it and the gallery
+ * photos (0046) as small thumbnails underneath. A thumbnail shows that photo
+ * in the main area; the main photo opens full screen. A chapel drawing
+ * holds the place until the GKK has a photo.
+ */
+function GkkPhotos({ page, patron }) {
+  const [sel, setSel] = useState(0);
+  const [open, setOpen] = useState(null);
+  const all = [
+    ...(page?.photo_url ? [{ url: page.photo_url, caption: '' }] : []),
+    ...(page?.photos || []).filter((p) => p?.url),
+  ];
+  const shown = all[Math.min(sel, all.length - 1)];
+  const box = 'relative w-full aspect-[16/10] lg:aspect-[16/8] rounded-[14px] lg:rounded-[18px] overflow-hidden bg-[#efe6d3]';
+
+  if (!shown) {
+    return (
+      <div className={`${box} mb-4 lg:mb-6 flex flex-col items-center justify-center gap-1.5 text-[var(--p-gold-deep)]`}>
+        <Icon name="church" size={56} />
+        <span className="text-[13.5px] text-parish-text2">Wala pay litrato sa kapilya</span>
+      </div>
+    );
+  }
+  return (
+    <div className="mb-4 lg:mb-6">
+      <button type="button" onClick={() => setOpen(Math.min(sel, all.length - 1))} aria-label="Tan-awa ang litrato" className={`${box} block p-0 border-0 cursor-zoom-in`}>
+        <img src={shown.url} alt={shown.caption || `Kapilya sa ${patron}`} className="absolute inset-0 w-full h-full object-cover" />
+      </button>
+      {shown.caption && <p className="m-0 mt-1.5 text-[13.5px] text-parish-text2">{shown.caption}</p>}
+      {all.length > 1 && (
+        <ul className="list-none m-0 mt-2.5 p-0 flex gap-2 overflow-x-auto pb-1" aria-label="Mga litrato">
+          {all.map((p, i) => (
+            <li key={p.url} className="flex-none">
+              <button
+                type="button" onClick={() => setSel(i)} aria-label={p.caption || `Litrato ${i + 1}`} aria-current={i === sel ? 'true' : undefined}
+                className={`block p-0 border-0 cursor-pointer rounded-lg overflow-hidden w-[76px] h-[56px] lg:w-[104px] lg:h-[72px] bg-[#efe6d3] ${i === sel ? 'ring-[3px] ring-[var(--p-blue)] ring-offset-2 ring-offset-parish-bg' : 'opacity-80 hover:opacity-100'}`}
+              >
+                <img src={p.url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+      {open != null && <Lightbox photos={all} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
+    </div>
   );
 }
 
