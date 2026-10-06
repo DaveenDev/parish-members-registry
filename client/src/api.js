@@ -684,8 +684,9 @@ export const api = {
   // Runs in the manage-staff Edge Function, which holds the service-role key.
   staff: {
     list: () => callStaffFunction({ action: 'list' }).then((r) => r.staff || []),
-    create: ({ name, email, role, isAdmin, access, accessGkk, password }) => callStaffFunction({ action: 'create', name, email, role, is_admin: !!isAdmin, access, access_gkk: accessGkk, password }),
-    update: (id, { name, role, isAdmin, access, accessGkk }) => callStaffFunction({ action: 'update', id, name, role, is_admin: !!isAdmin, access, access_gkk: accessGkk }),
+    // A GKK leader's GKK goes by its id (0063).
+    create: ({ name, email, role, isAdmin, access, accessGkkId, password }) => callStaffFunction({ action: 'create', name, email, role, is_admin: !!isAdmin, access, access_gkk_id: accessGkkId, password }),
+    update: (id, { name, role, isAdmin, access, accessGkkId }) => callStaffFunction({ action: 'update', id, name, role, is_admin: !!isAdmin, access, access_gkk_id: accessGkkId }),
     resetPassword: (id, password) => callStaffFunction({ action: 'reset_password', id, password }),
     setDisabled: (id, disabled) => callStaffFunction({ action: disabled ? 'disable' : 'enable', id }),
   },
@@ -712,6 +713,12 @@ export const api = {
   // ---- GKKs ------------------------------------------------------------
   async listGkks() {
     return { rows: await listCounts('gkks') };
+  },
+  /** Every GKK's id and name, for choosing a GKK leader's GKK (0063). */
+  async gkkChoices() {
+    const { data, error } = await supabase.from('gkks').select('id, name').order('name');
+    if (error) throw mapError(error);
+    return data || [];
   },
 
   async addGkk(name) {

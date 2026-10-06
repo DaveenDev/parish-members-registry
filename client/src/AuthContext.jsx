@@ -6,9 +6,11 @@ const AuthContext = createContext(null);
 async function loadProfile(session) {
   if (!session?.user) return null;
   const byId = (cols) => supabase.from('profiles').select(cols).eq('id', session.user.id).single();
-  let { data, error } = await byId('name, role, is_admin, access, access_gkk');
-  // Before 0014 there are no access columns, and before 0010 no is_admin;
-  // still load the rest.
+  // A GKK leader's GKK by id, with its current name (0063).
+  let { data, error } = await byId('name, role, is_admin, access, access_gkk_id, gkk:gkks(name)');
+  // Before 0063 the GKK is saved by name, before 0014 there are no access
+  // columns, and before 0010 no is_admin; still load the rest.
+  if (error && /access_gkk_id|gkks/.test(error.message || '')) ({ data, error } = await byId('name, role, is_admin, access, access_gkk'));
   if (error && /access/.test(error.message || '')) ({ data, error } = await byId('name, role, is_admin'));
   if (error && /is_admin/.test(error.message || '')) ({ data } = await byId('name, role'));
   return {
@@ -19,7 +21,8 @@ async function loadProfile(session) {
     isAdmin: !!data?.is_admin,
     // No staff profile at all means no access, as in the database (0062).
     access: data ? data.access || 'full' : 'none',
-    accessGkk: data?.access_gkk || null,
+    accessGkkId: data?.access_gkk_id || null,
+    accessGkk: data?.gkk?.name || data?.access_gkk || null,
     // Set by a staff admin on a new account or a password reset (manage-staff);
     // RequireAuth keeps the person on the change-password screen until it's cleared.
     mustChangePassword: !!session.user.user_metadata?.must_change_password,

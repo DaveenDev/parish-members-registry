@@ -51,7 +51,8 @@ export default function MyGkk() {
     setLoadError('');
     api.listGkkDetails()
       .then(({ rows }) => {
-        const g = rows.find((r) => r.name === name);
+        // By id since 0063, so a renamed GKK is still found.
+        const g = rows.find((r) => (user.accessGkkId ? r.id === user.accessGkkId : r.name === name));
         if (!g) throw new Error(`${name} wasn't found in the GKK list. Ask the parish office.`);
         setGkk(g);
         setForm(gkkForm(g));

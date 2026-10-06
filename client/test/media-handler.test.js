@@ -99,7 +99,7 @@ describe('sign', () => {
 describe('GKK leaders (0045)', () => {
   // Profiles plus a gkks table whose history_photos say who uses a photo.
   const leaderAdmin = (gkks) => {
-    const base = fakeAdmin({ users: [{ id: 'lead' }, { id: 'lost' }], profiles: [{ id: 'lead', access: 'gkk_leader', access_gkk: 'San Jose' }, { id: 'lost', access: 'gkk_leader' }] });
+    const base = fakeAdmin({ users: [{ id: 'lead' }, { id: 'lost' }], profiles: [{ id: 'lead', access: 'gkk_leader', gkk: { name: 'San Jose' } }, { id: 'lost', access: 'gkk_leader' }] });
     return {
       auth: base.auth,
       from: (name) => (name === 'gkks'

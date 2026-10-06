@@ -29,14 +29,18 @@ const clean = (v) => (typeof v === 'string' ? v.trim() : '');
 export const ACCESS_LEVELS = ['full', 'read_only', 'gkk_leader', 'website'];
 const MIGRATION_HINT = 'Run the 0014_roles_activity_trash.sql migration in Supabase to use access levels';
 
-/** { access, access_gkk } from a request, or { error }. Staff admins always have full access. */
+/**
+ * { access, access_gkk_id } from a request, or { error }. A GKK leader's GKK
+ * is its gkks id (0063), so renaming the GKK keeps it. Staff admins always
+ * have full access.
+ */
 export function accessInput(body) {
   const access = clean(body?.access) || 'full';
   if (!ACCESS_LEVELS.includes(access)) return { error: 'Choose an access level' };
   if (body?.is_admin && access !== 'full') return { error: 'Staff admins need full access' };
-  const gkk = access === 'gkk_leader' ? clean(body?.access_gkk) : '';
-  if (access === 'gkk_leader' && !gkk) return { error: 'Choose the GKK this leader looks after' };
-  return { access, access_gkk: gkk || null };
+  const gkkId = access === 'gkk_leader' ? Number(body?.access_gkk_id) : null;
+  if (access === 'gkk_leader' && !(Number.isInteger(gkkId) && gkkId > 0)) return { error: 'Choose the GKK this leader looks after' };
+  return { access, access_gkk_id: gkkId };
 }
 
 const missingAccessColumn = (error) => /access/.test(error?.message || '') && /column|schema cache/i.test(error?.message || '');
@@ -49,7 +53,7 @@ async function saveProfile(admin, method, row) {
   let { error } = await admin.from('profiles')[method](row);
   if (error && missingAccessColumn(error)) {
     if (row.access !== 'full') return { error: { message: MIGRATION_HINT } };
-    const { access: _a, access_gkk: _g, ...rest } = row;
+    const { access: _a, access_gkk_id: _g, ...rest } = row;
     ({ error } = await admin.from('profiles')[method](rest));
   }
   return { error };
@@ -78,7 +82,8 @@ async function loadStaff(admin) {
     users.push(...(data?.users || []));
     if (!data?.users || data.users.length < 1000) break;
   }
-  let { data: profiles, error } = await admin.from('profiles').select('id, name, role, is_admin, access, access_gkk');
+  // A leader's GKK by id, with its current name (0063).
+  let { data: profiles, error } = await admin.from('profiles').select('id, name, role, is_admin, access, access_gkk_id, gkk:gkks(name)');
   if (error && missingAccessColumn(error)) ({ data: profiles, error } = await admin.from('profiles').select('id, name, role, is_admin'));
   if (error) throw error;
   const byId = new Map((profiles || []).map((p) => [p.id, p]));
@@ -92,7 +97,8 @@ async function loadStaff(admin) {
         role: p?.role || '',
         is_admin: !!p?.is_admin,
         access: p?.access || 'full',
-        access_gkk: p?.access_gkk || null,
+        access_gkk_id: p?.access_gkk_id || null,
+        access_gkk: p?.gkk?.name || null,
         has_profile: !!p,
         disabled: isDisabled(u),
         last_sign_in_at: u.last_sign_in_at || null,
@@ -144,7 +150,7 @@ export async function handleStaffRequest({ admin, token, body }) {
       // Upsert: since 0020 a trigger on auth.users has already made a bare profile row.
       const { error: pErr } = await saveProfile(admin, 'upsert', {
         id: created.user.id, name: input.name, role: clean(body.role) || 'Parish Staff', is_admin: !!body.is_admin,
-        access: access.access, access_gkk: access.access_gkk,
+        access: access.access, access_gkk_id: access.access_gkk_id,
       });
       if (pErr) {
         // Don't leave a login without a profile behind.
@@ -177,7 +183,7 @@ export async function handleStaffRequest({ admin, token, body }) {
       }
       const { error } = await saveProfile(admin, 'upsert', {
         id, name: input.name, role: clean(body.role) || 'Parish Staff', is_admin: makeAdmin,
-        access: access.access, access_gkk: access.access_gkk,
+        access: access.access, access_gkk_id: access.access_gkk_id,
       });
       if (error) return fail(400, error.message || 'Could not save the changes');
       return ok({});

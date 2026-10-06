@@ -10,7 +10,7 @@ import { fmtDateTime } from '../../constants.js';
 import { generateTempPassword } from '../../lib/util.js';
 import { ACCESS_LEVELS, accessLabel } from '../../lib/access.js';
 
-const EMPTY_FORM = { name: '', email: '', role: 'Parish Staff', isAdmin: false, access: 'full', accessGkk: '' };
+const EMPTY_FORM = { name: '', email: '', role: 'Parish Staff', isAdmin: false, access: 'full', accessGkkId: '' };
 
 /** Add or edit form. Email is fixed once an account exists. */
 function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
@@ -62,9 +62,9 @@ function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
         </div>
         {form.access === 'gkk_leader' && (
           <Field label="GKK" required>
-            <Select value={form.accessGkk || ''} onChange={set('accessGkk')}>
+            <Select value={form.accessGkkId || ''} onChange={set('accessGkkId')}>
               <option value="">Choose the GKK…</option>
-              {gkks.map((g) => <option key={g} value={g}>{g}</option>)}
+              {gkks.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
             </Select>
           </Field>
         )}
@@ -127,7 +127,7 @@ export default function ManageStaff() {
   const [formError, setFormError] = useState('');
   const [rowBusy, setRowBusy] = useState(null);
   const [gkks, setGkks] = useState([]);
-  useEffect(() => { api.listGkks().then((r) => setGkks(r.rows.map((g) => g.name))).catch(() => {}); }, []);
+  useEffect(() => { api.gkkChoices().then(setGkks).catch(() => {}); }, []);
 
   if (!user?.isAdmin) {
     return (
@@ -298,7 +298,7 @@ export default function ManageStaff() {
       {dialog?.kind === 'edit' && (
         <Modal title="Edit staff" onClose={close}>
           <StaffForm
-            initial={{ name: dialog.target.name, email: dialog.target.email, role: dialog.target.role, isAdmin: dialog.target.is_admin, access: dialog.target.access || 'full', accessGkk: dialog.target.access_gkk || '' }}
+            initial={{ name: dialog.target.name, email: dialog.target.email, role: dialog.target.role, isAdmin: dialog.target.is_admin, access: dialog.target.access || 'full', accessGkkId: dialog.target.access_gkk_id || '' }}
             busy={busy} error={formError} gkks={gkks}
             onSubmit={(form) => update(dialog.target, form)} onCancel={close}
           />

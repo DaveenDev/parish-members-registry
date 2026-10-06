@@ -128,7 +128,7 @@ describe('manage-staff: create', () => {
     // Flagged so the first sign-in goes to "Set a new password".
     assert.deepEqual(admin.calls[0], ['createUser', { email: 'juan@parish.test', password: 'temp-pass-123', email_confirm: true, user_metadata: { must_change_password: true } }]);
     assert.equal(profiles.filter((p) => p.id === res.body.id).length, 1);
-    assert.deepEqual(profiles.at(-1), { id: res.body.id, name: 'Juan', role: 'Encoder', is_admin: false, access: 'full', access_gkk: null });
+    assert.deepEqual(profiles.at(-1), { id: res.body.id, name: 'Juan', role: 'Encoder', is_admin: false, access: 'full', access_gkk_id: null });
   });
 
   test('validates name, email and password length', async () => {
@@ -179,7 +179,7 @@ describe('manage-staff: edit and reset', () => {
   test('promotes another member of staff', async () => {
     const res = await call('u1', { action: 'update', id: 'u2', name: 'Pedro S.', role: 'Encoder', is_admin: true });
     assert.equal(res.status, 200);
-    assert.deepEqual(profiles[1], { id: 'u2', name: 'Pedro S.', role: 'Encoder', is_admin: true, access: 'full', access_gkk: null });
+    assert.deepEqual(profiles[1], { id: 'u2', name: 'Pedro S.', role: 'Encoder', is_admin: true, access: 'full', access_gkk_id: null });
   });
 
   test('resets a password, enforcing the minimum length', async () => {
@@ -202,12 +202,13 @@ describe('validateStaffInput', () => {
 
 describe('manage-staff: access levels', () => {
   test('saves a GKK leader with their GKK', async () => {
-    const res = await call('u1', { action: 'update', id: 'u2', name: 'Pedro', access: 'gkk_leader', access_gkk: 'GKK San Isidro' });
+    const res = await call('u1', { action: 'update', id: 'u2', name: 'Pedro', access: 'gkk_leader', access_gkk_id: '4' });
     assert.equal(res.status, 200);
     assert.equal(profiles[1].access, 'gkk_leader');
-    assert.equal(profiles[1].access_gkk, 'GKK San Isidro');
+    assert.equal(profiles[1].access_gkk_id, 4);
     const list = await call('u1', { action: 'list' });
     assert.deepEqual(list.body.staff.map((s) => s.access), ['full', 'gkk_leader']);
+    assert.deepEqual(list.body.staff.map((s) => s.access_gkk_id), [null, 4]);
   });
 
   test('a GKK leader needs a GKK, and admins need full access', async () => {
@@ -226,7 +227,13 @@ describe('manage-staff: access levels', () => {
   });
 
   test('accessInput defaults to full and drops the GKK for other levels', () => {
-    assert.deepEqual(accessInput({}), { access: 'full', access_gkk: null });
-    assert.deepEqual(accessInput({ access: 'website', access_gkk: 'GKK X' }), { access: 'website', access_gkk: null });
+    assert.deepEqual(accessInput({}), { access: 'full', access_gkk_id: null });
+    assert.deepEqual(accessInput({ access: 'website', access_gkk_id: 4 }), { access: 'website', access_gkk_id: null });
+  });
+
+  test('a GKK leader is saved with the GKK id, not its name (0063)', () => {
+    assert.deepEqual(accessInput({ access: 'gkk_leader', access_gkk_id: 4 }), { access: 'gkk_leader', access_gkk_id: 4 });
+    assert.match(accessInput({ access: 'gkk_leader', access_gkk: 'GKK X' }).error, /GKK/);
+    assert.match(accessInput({ access: 'gkk_leader', access_gkk_id: 'x' }).error, /GKK/);
   });
 });

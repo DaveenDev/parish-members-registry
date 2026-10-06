@@ -251,7 +251,8 @@ export async function handleMediaRequest({ admin, token, body, r2, saved = null,
   if (authError || !caller) return fail(401, 'Please sign in again');
   if (isDisabled(caller, now)) return fail(403, 'This account has been disabled');
 
-  const { data: me } = await admin.from('profiles').select('access, access_gkk, is_admin').eq('id', caller.id).maybeSingle();
+  // A GKK leader's GKK by id, with its current name (0063).
+  const { data: me } = await admin.from('profiles').select('access, is_admin, gkk:gkks(name)').eq('id', caller.id).maybeSingle();
 
   // Testing R2 settings (Parish Config → Platform Integrations) is for staff
   // admins, like the settings themselves, and works before any are saved.
@@ -264,7 +265,7 @@ export async function handleMediaRequest({ admin, token, body, r2, saved = null,
   // No access column yet (before 0014) or no value means full access, like staff_access().
   const access = me?.access || 'full';
   // A GKK leader may only add and remove their own GKK's photos (0045, 0046).
-  const leaderGkk = access === 'gkk_leader' ? me?.access_gkk || null : null;
+  const leaderGkk = access === 'gkk_leader' ? me?.gkk?.name || null : null;
   if (!EDIT_WEBSITE.includes(access) && !leaderGkk) return fail(403, "Your account can't change the website");
 
   if (!r2?.configured) return fail(503, NOT_CONFIGURED);
