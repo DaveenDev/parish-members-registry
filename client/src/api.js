@@ -68,6 +68,32 @@ function migrationError(error, table) {
   return mapError(error);
 }
 
+const isMissingTable = (error) => ['42P01', 'PGRST205'].includes(error?.code);
+
+/**
+ * Blood types (member_blood_types, 0062) onto rows read from the members
+ * table, which no longer has them. A GKK leader reads none. Before 0062 the
+ * rows still carry their own.
+ */
+async function attachBloodTypes(members) {
+  if (!members?.length) return;
+  const { data, error } = await supabase.from('member_blood_types').select('member_id, blood_type').in('member_id', members.map((m) => m.id));
+  if (error) return;
+  const byId = new Map(data.map((b) => [b.member_id, b.blood_type]));
+  for (const m of members) m.blood_type = byId.get(m.id) || null;
+}
+
+/** Save or clear a member's blood type; false before 0062 (the column is still on members). */
+async function saveMemberBloodType(memberId, value) {
+  const blood = String(value || '').trim();
+  const { error } = blood
+    ? await supabase.from('member_blood_types').upsert({ member_id: memberId, blood_type: blood }, { onConflict: 'member_id' })
+    : await supabase.from('member_blood_types').delete().eq('member_id', memberId);
+  if (isMissingTable(error)) return false;
+  if (error) throw mapError(error);
+  return true;
+}
+
 function cleanPatch(patch) {
   const out = {};
   for (const [key, value] of Object.entries(patch || {})) out[key] = value === '' ? null : value;
@@ -239,6 +265,7 @@ export const api = {
     if (error) throw mapError(error, { fallback: 'Household not found' });
     const { data: members, error: mErr } = await supabase.from('members').select('*').eq('household_id', id).order('id');
     if (mErr) throw mapError(mErr);
+    await attachBloodTypes(members);
     // Attach staff verifications ({ baptism: true, … }) for the print sheet.
     // Before the 0005 migration the table doesn't exist; just skip it.
     const { data: checks } = await supabase.from('sacrament_verifications').select('member_id, sacrament').in('member_id', members.map((m) => m.id));
@@ -429,9 +456,21 @@ export const api = {
   },
 
   async updateMember(id, patch) {
-    const { data, error } = await supabase.from('members').update(cleanPatch(patch)).eq('id', id).select().single();
-    if (error) throw mapError(error, { fallback: 'Member not found' });
-    return { member: data };
+    const { blood_type: blood, ...fields } = patch;
+    let bloodSaved = false;
+    if ('blood_type' in patch) {
+      // Blood types have their own table (0062) that GKK leaders can't reach;
+      // before that migration they're still a member column.
+      bloodSaved = await saveMemberBloodType(id, blood);
+      if (!bloodSaved) fields.blood_type = blood;
+    }
+    let member = { id };
+    if (Object.keys(fields).length) {
+      const { data, error } = await supabase.from('members').update(cleanPatch(fields)).eq('id', id).select().single();
+      if (error) throw mapError(error, { fallback: 'Member not found' });
+      member = data;
+    }
+    return { member: bloodSaved ? { ...member, blood_type: (blood || '').trim() || null } : member };
   },
 
   /** Move a member to the trash; like deleteHousehold. */

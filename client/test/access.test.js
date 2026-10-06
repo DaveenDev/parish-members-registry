@@ -118,3 +118,11 @@ describe('admin nav', async () => {
       { pending: 2, duplicates: 0, sacraments: 0, census: 0, requests: 6 });
   });
 });
+
+test('an account without a staff profile has no access (0062)', () => {
+  const none = { access: 'none' };
+  for (const what of ['registry', 'requests', 'website', 'census', 'reports', 'exports', 'bloodTypes', 'settings', 'editRegistry']) {
+    assert.equal(can(none, what), false, what);
+  }
+  assert.equal(accessLabel('none'), 'No access');
+});

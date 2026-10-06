@@ -17,7 +17,8 @@ async function loadProfile(session) {
     name: data?.name || session.user.email,
     role: data?.role || '',
     isAdmin: !!data?.is_admin,
-    access: data?.access || 'full',
+    // No staff profile at all means no access, as in the database (0062).
+    access: data ? data.access || 'full' : 'none',
     accessGkk: data?.access_gkk || null,
     // Set by a staff admin on a new account or a password reset (manage-staff);
     // RequireAuth keeps the person on the change-password screen until it's cleared.

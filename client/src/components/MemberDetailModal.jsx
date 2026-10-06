@@ -143,7 +143,9 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
         first_name: member.first_name, middle_name: member.middle_name, last_name: member.last_name, suffix: member.suffix,
         relationship: member.relationship, family_no: member.family_no, sex: member.sex, dob: member.dob, place_of_birth: member.place_of_birth, tribe: member.tribe,
         civil_status: member.civil_status, contact: member.contact, email: member.email, occupation: member.occupation,
-        blood_type: member.blood_type, gkk_role: member.gkk_role, parish_role: member.parish_role,
+        gkk_role: member.gkk_role, parish_role: member.parish_role,
+        // GKK leaders can't read or change blood types (0062), so they never send one.
+        ...(can(user, 'bloodTypes') ? { blood_type: member.blood_type } : {}),
         has_baptism: member.has_baptism, baptism_date: member.baptism_date, baptism_church: member.baptism_church,
         has_communion: member.has_communion, communion_date: member.communion_date, communion_church: member.communion_church,
         has_confirmation: member.has_confirmation, conf_date: member.conf_date, conf_church: member.conf_church, conf_name: member.conf_name, conf_sponsor: member.conf_sponsor,
@@ -248,7 +250,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               <Field label="Contact"><TextInput value={member.contact || ''} onChange={(e) => set('contact', e.target.value)} /></Field>
               <Field label="Email"><TextInput value={member.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Occupation"><TextInput value={member.occupation || ''} onChange={(e) => set('occupation', e.target.value)} /></Field>
-              {/* Not for GKK leaders; the database keeps the value as it was when they save (0050). */}
+              {/* Not for GKK leaders, who can't read blood types at all (0062). */}
               {can(user, 'bloodTypes') && (
                 <Field label="Blood type">
                   <Select value={member.blood_type || ''} onChange={(e) => set('blood_type', e.target.value)}>
