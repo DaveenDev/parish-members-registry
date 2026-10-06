@@ -29,6 +29,8 @@ function clampPaging({ page, pageSize } = {}) {
 function mapError(error, { fallback = 'Request failed', dupLabel } = {}) {
   if (!error) return new Error(fallback);
   if (error.code === '23505' && dupLabel) return new Error(`${dupLabel} already exists`);
+  // A household's GKK must be in the GKK list (0064).
+  if (error.code === '23503' && /households_gkk_fkey/.test(error.message || '')) return new Error('Please select a GKK from the list');
   // The staff functions found no profile for this signed-in account (0020 adds the missing ones).
   if (/^Only parish staff can/.test(error.message || '')) {
     return new Error(`${error.message}. This account has no staff profile yet: run the 00201_staff_profiles.sql migration in Supabase, then sign in again.`);
