@@ -527,9 +527,10 @@ function MemberList({ members, onOpen }) {
   if (!members) return <LoadingState label="Loading members…" compact />;
   if (!members.length) return <div className="text-[13px] text-parish-muted">No members yet.</div>;
   return (
-    // Short cards that fill the row's width, as many per line as fit.
-    <ByFamily members={members} groupGap="gap-4" listClass="grid gap-2 grid-cols-[repeat(auto-fill,minmax(min(100%,360px),1fr))]" render={(m) => (
-        <button key={m.id} onClick={() => onOpen(m.id)} className="flex items-center gap-3 px-3 py-2 bg-parish-card border border-parish-line2 rounded-xl text-left hover:border-parish-focusLine focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue min-w-0">
+    // Each card starts at its content's width (name + badges), as many per line
+    // as fit, then the cards on a line stretch to fill the row's width.
+    <ByFamily members={members} groupGap="gap-4" listClass="flex flex-wrap gap-2" render={(m) => (
+        <button key={m.id} onClick={() => onOpen(m.id)} className="flex-auto basis-auto min-w-[min(100%,240px)] max-w-full flex items-center gap-3 px-3 py-2 bg-parish-card border border-parish-line2 rounded-xl text-left hover:border-parish-focusLine focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue min-w-0">
           <div className="flex items-center gap-2.5 min-w-0 flex-1">
             <div className="w-[30px] h-[30px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[11px] flex-none" aria-hidden>
               {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
@@ -551,7 +552,7 @@ function MemberBadges({ member }) {
   const organizations = member.organizations || [];
   if (!member.gkk_role && !member.parish_role && !ministries.length && !organizations.length) return null;
   return (
-    <div className="flex flex-wrap gap-1 justify-end max-w-[60%]">
+    <div className="flex flex-wrap gap-1 justify-end">
       {member.parish_role && <Badge tone="gold" title="Responsibility in Parish">Parish: {member.parish_role}</Badge>}
       {member.gkk_role && <Badge tone="gold" title="Responsibility in GKK">GKK: {member.gkk_role}</Badge>}
       {ministries.map((name) => <Badge key={`m-${name}`} tone="blue" title="Ministry">{name}</Badge>)}
