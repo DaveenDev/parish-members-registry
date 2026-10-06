@@ -192,10 +192,26 @@ export function sortAnnouncements(rows) {
 }
 
 export const ANNOUNCEMENT_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', 'Schedule change': 'Kausaban sa iskedyul' };
-// Articles live on Komunidad (its "Mga Artikulo" tab, the one it opens on).
-// Older links, /pahibalo/artikulo/:id and /komunidad/balita/:id, redirect here.
-export const ARTICLES_PAGE = '/komunidad';
+// Komunidad shows the newest articles; every article is on its own page,
+// by year. Older links, /pahibalo/artikulo/:id and /komunidad/balita/:id,
+// redirect to an article's page.
+export const ARTICLES_PAGE = '/komunidad/artikulo';
 export const articlePath = (id) => `/komunidad/artikulo/${id}`;
+
+/** The years articles were held in, newest first, with how many: [{ year, count }]. */
+export function articleYears(articles) {
+  const counts = new Map();
+  for (const a of articles || []) {
+    const y = String(a.held_on || '').slice(0, 4);
+    if (/^\d{4}$/.test(y)) counts.set(y, (counts.get(y) || 0) + 1);
+  }
+  return [...counts].sort(([a], [b]) => b.localeCompare(a)).map(([year, count]) => ({ year, count }));
+}
+
+/** The articles held in `year` ('' or null for every year), in the order given. */
+export function articlesInYear(articles, year) {
+  return (articles || []).filter((a) => !year || String(a.held_on || '').startsWith(`${year}-`));
+}
 
 export const ARTICLE_LABELS ={ Parish: 'Parokya', GKK: 'GKK', Ministry: 'Ministry', History: 'Kasaysayan' };
 

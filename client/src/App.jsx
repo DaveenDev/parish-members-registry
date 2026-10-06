@@ -9,6 +9,7 @@ import Home from './pages/site/Home.jsx';
 import Simbahan from './pages/site/Simbahan.jsx';
 import Pahibalo from './pages/site/Pahibalo.jsx';
 import Komunidad, { GkkDetail } from './pages/site/Komunidad.jsx';
+import { ArticlesArchive } from './pages/site/Articles.jsx';
 import Serbisyo, { Kontak, Blood } from './pages/site/Serbisyo.jsx';
 import CheckStatus from './pages/site/CheckStatus.jsx';
 import RequestForm from './pages/site/RequestForm.jsx';
@@ -75,6 +76,7 @@ export default function App() {
           <Route path="/pahibalo/artikulo/:id" element={<ArticleRedirect />} />
           <Route path="/pahibalo/:id" element={<AnnouncementDetail />} />
           <Route path="/komunidad" element={<Komunidad />} />
+          <Route path="/komunidad/artikulo" element={<ArticlesArchive />} />
           <Route path="/komunidad/artikulo/:id" element={<ArticleDetail />} />
           <Route path="/komunidad/balita/:id" element={<ArticleRedirect />} />
           <Route path="/komunidad/gkk/:name" element={<GkkDetail />} />

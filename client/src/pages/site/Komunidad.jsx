@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
 import { Body, Gallery, Photo } from './Details.jsx';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
@@ -11,8 +11,6 @@ import { listState, useCensusProgress, useGkkDirectory, useGkkPage } from './dat
 import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
 
 const SMALL = 'Ubos sa 5';
-
-const VIEWS = [['artikulo', 'Mga Artikulo'], ['gkk', 'Mga GKK']];
 
 // The open census's card stands out from everything else on the page: warm
 // gold, a stronger gold edge, and the alert badges on top.
@@ -51,39 +49,41 @@ function CensusAlertBadges({ label, className = '' }) {
 }
 
 /**
- * Komunidad: the parish's stories and its GKKs, under two tabs. It opens on
- * the articles (the GKK directory is reference); ?view=gkk opens the GKKs.
- * While a census is open, the GKK tab has its full progress on top (on the
- * light-blue band, with every GKK); the articles tab a one-line strip.
+ * Komunidad, one page: the newest articles (every article is on the articles
+ * page), then, while a census is open, its full progress (with every GKK),
+ * then every GKK as a card, by name. The header has a one-line census strip.
+ * ?view=gkk (the old "Mga GKK" tab's link) scrolls to the GKKs.
  * The org charts moved to Ang Simbahan; old ?view=organisasyon links go there.
  */
 export default function Komunidad() {
-  const [params, setParams] = useSearchParams();
+  const [params] = useSearchParams();
   if (params.get('view') === 'organisasyon') {
     const chart = params.get('chart');
     return <Navigate replace to={`/simbahan?tab=organisasyon${chart ? `&chart=${encodeURIComponent(chart)}` : ''}`} />;
   }
-  return <KomunidadPage params={params} setParams={setParams} />;
+  return <KomunidadPage params={params} />;
 }
 
-function KomunidadPage({ params, setParams }) {
-  const view = params.get('view') === 'gkk' ? 'gkk' : 'artikulo';
-  const setView = (v) => setParams(v === 'gkk' ? { view: 'gkk' } : {}, { replace: true });
+function KomunidadPage({ params }) {
   const q = useCensusProgress();
-  // The full census progress only on the GKK tab; the articles tab has the strip.
-  const open = view === 'gkk' && !!q.data?.open;
-
-  const header = (
-    <PageHeader eyebrow="Komunidad" title="Ang atong komunidad">
-      <Segmented label="Komunidad" options={VIEWS} value={view} onChange={setView} />
-    </PageHeader>
-  );
+  const open = !!q.data?.open;
+  // The old "Mga GKK" tab's link goes to the GKKs (GkkDirectory scrolls there once they're in).
+  const toGkks = params.get('view') === 'gkk';
+  const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   return (
     <main className="animate-fadeUp">
-      {q.loading && view === 'gkk' && <div className={`${WRAP} ${BAND_PAD}`}><Skeleton h={220} className="lg:h-[420px]" /></div>}
+      {/* The title and census strip on the blue band, then the articles on the cream.
+          flow-root keeps the bottom margins inside the band (no gap above the articles). */}
+      <Band as="div">
+        <div className={`${WRAP} pt-4 lg:pt-9 flow-root`}>
+          <PageHeader eyebrow="Komunidad" title="Ang atong komunidad" />
+          {open && q.data.pct != null && <CensusStrip c={q.data} onMore={() => scrollTo('census')} />}
+        </div>
+      </Band>
+      <ArticlesSection />
       {open && (
-        <Band aria-labelledby="census-h">
+        <Band id="census" aria-labelledby="census-h" className="scroll-mt-20">
           <div className={`${WRAP} ${BAND_PAD}`}>
             <Eyebrow>Census sa parokya</Eyebrow>
             <h2 id="census-h" className="sr-only">Progreso sa census</h2>
@@ -91,28 +91,13 @@ function KomunidadPage({ params, setParams }) {
           </div>
         </Band>
       )}
-      {view === 'artikulo' ? (
-        // The articles: the title and census strip on the blue band, then their warm band.
-        // flow-root keeps the bottom margins inside the band (no gap above the articles).
-        <>
-          <Band as="div">
-            <div className={`${WRAP} pt-4 lg:pt-9 flow-root`}>
-              {header}
-              {q.data?.open && q.data.pct != null && <CensusStrip c={q.data} onMore={() => setView('gkk')} />}
-            </div>
-          </Band>
-          <ArticlesSection />
-        </>
-      ) : !q.loading && (
-        // The GKKs: on the blue band with the title, or under the census band on the page's cream.
-        open ? (
-          <div className={`${WRAP} pt-7 pb-7 lg:pt-12 lg:pb-0`}>{header}<GkkDirectory /></div>
-        ) : (
-          <Band aria-label="Mga GKK sa parokya">
-            <div className={`${WRAP} ${BAND_PAD}`}>{header}<GkkDirectory /></div>
-          </Band>
-        )
-      )}
+      <section id="mga-gkk" aria-labelledby="gkk-title" className="scroll-mt-20 py-7 lg:py-12">
+        <div className={WRAP}>
+          <Eyebrow>Gagmay nga Kristohanong Katilingban</Eyebrow>
+          <h2 id="gkk-title" className="m-0 mb-4 lg:mb-6 font-serif text-[28px] lg:text-[36px] font-bold text-parish-navy leading-tight">Mga GKK</h2>
+          <GkkDirectory scrollHere={toGkks} />
+        </div>
+      </section>
     </main>
   );
 }
@@ -135,10 +120,16 @@ function CensusStrip({ c, onMore }) {
   );
 }
 
-function GkkDirectory() {
+function GkkDirectory({ scrollHere = false }) {
   const dir = listState(useGkkDirectory());
+  // Once the GKKs (and the articles above, by then) are in, after the site's own scroll to the top.
+  useEffect(() => {
+    if (!scrollHere || dir.loading) return undefined;
+    const t = setTimeout(() => document.getElementById('mga-gkk')?.scrollIntoView({ block: 'start' }), 350);
+    return () => clearTimeout(t);
+  }, [scrollHere, dir.loading]);
   const [q, setQ] = useState('');
-  const items = filterGkks(dir.rows, q);
+  const items = filterGkks(dir.rows, q).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   const count = items.length;
   const examples = [...new Set(dir.rows.map((g) => gkkParts(g.name).area).filter(Boolean))].slice(0, 3);
 
@@ -182,10 +173,9 @@ function GkkDirectory() {
             <BigButton variant="secondary" to="/kontak" className="!w-auto inline-flex px-4">Kontaka ang opisina</BigButton>
           </div>
         ) : (
-          <>
-            <div className="flex flex-col gap-2.5 lg:hidden">{items.map((g) => <GkkCard key={g.name} g={g} />)}</div>
-            <GkkTable items={items} />
-          </>
+          <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-3.5 lg:grid-cols-3 lg:gap-4">
+            {items.map((g) => <GkkCard key={g.name} g={g} />)}
+          </div>
         )}
       </DataState>
     </>
@@ -194,47 +184,10 @@ function GkkDirectory() {
 
 const gkkPath = (name) => `/komunidad/gkk/${encodeURIComponent(name)}`;
 
-/** Desktop: every GKK in one table; the GKK name opens its page. */
-function GkkTable({ items }) {
-  const th = 'text-left px-4 py-2.5 font-bold text-[12px] tracking-[.08em] uppercase text-[#4d4636]';
-  return (
-    <div className="hidden lg:block bg-parish-card border border-parish-border rounded-[18px] shadow-cardSm overflow-hidden">
-      <table className="w-full border-collapse">
-        <thead className="bg-parish-bg">
-          <tr>
-            <th scope="col" className={th}>GKK</th>
-            <th scope="col" className={th}>Purok / Sitio</th>
-            <th scope="col" className={th}>Kapilya</th>
-            <th scope="col" className={th}>Natukod</th>
-            <th scope="col" className={`${th} whitespace-nowrap`}>Pamilya</th>
-            <th scope="col" className={th}>Iskedyul sa tigom</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((g) => (
-            <tr key={g.name} className="border-t border-[#f0e8d6] hover:bg-[#fbf7ef]">
-              <td className="px-4 py-3">
-                <Link to={gkkPath(g.name)} className="font-serif text-[18px] font-bold text-parish-navy hover:text-parish-blue">
-                  {g.patron} {g.area && <span className="text-parish-blue">-{g.area}</span>}
-                </Link>
-              </td>
-              <td className="px-4 py-3 text-[14px] text-parish-text2">{g.puroks || '—'}</td>
-              <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{g.chapel_address || '—'}</td>
-              <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{g.year_established || '—'}</td>
-              <td className="px-4 py-3 text-[14.5px] text-[#3f3b2f] whitespace-nowrap"><strong>{g.households ?? SMALL}</strong></td>
-              <td className="px-4 py-3 text-[14px] text-[#3f3b2f]">{g.meeting_schedule || '—'}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
 function GkkCard({ g }) {
   return (
-    <Card className="flex flex-col lg:rounded-[18px] hover:border-[var(--p-blue-border)]">
-      <Link to={gkkPath(g.name)} className="w-full text-left px-3.5 pt-3.5 pb-2.5 lg:px-[18px] lg:pt-4 lg:pb-3 flex gap-2.5 items-start lg:flex-1">
+    <Card className="flex flex-col h-full lg:rounded-[18px] hover:border-[var(--p-blue-border)]">
+      <Link to={gkkPath(g.name)} className="w-full text-left px-3.5 pt-3.5 pb-3 lg:px-[18px] lg:pt-4 lg:pb-4 flex gap-2.5 items-start flex-1">
         <div className="flex-1 min-w-0">
           <div className="font-serif text-[21px] lg:text-[23px] font-bold leading-[1.15] text-parish-navy">
             {g.patron} {g.area && <span className="text-parish-blue">-{g.area}</span>}
@@ -248,7 +201,7 @@ function GkkCard({ g }) {
             {g.meeting_schedule && <span className="flex items-center gap-[5px]"><Icon name="clock" size={15} className="text-parish-blue" />{g.meeting_schedule}</span>}
           </div>
         </div>
-        <Icon name="chev" size={18} className="text-parish-muted mt-1 lg:hidden" />
+        <Icon name="chev" size={18} className="text-parish-muted mt-1 flex-none" />
       </Link>
     </Card>
   );
