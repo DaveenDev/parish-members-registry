@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   syncSpouses, groupByHousehold, groupByGkk, groupRuns, groupHeading, toPayloadMember, familiesOf, familyNoOf, familyHeadIndex, nextFamilyNo, familyHeadName, familyTitle, weddingCouples,
-  familyTag, compactFamilies, samePerson, repeatedMember, spouseSex, askedForAge, clearForAge,
+  familyTag, compactFamilies, samePerson, repeatedMember, spouseSex, askedForAge, clearForAge, familyBadges,
 } from '../src/lib/household.js';
 import { blankMember } from '../src/constants.js';
 
@@ -289,5 +289,37 @@ describe('what a member is old enough for', () => {
     assert.equal(p.firstName, 'Ana');
     assert.equal(p.hasCommunion, false);
     assert.equal(p.gkkRole, '');
+  });
+});
+
+describe('familyBadges (Members list)', () => {
+  const row = (household_id, family_no, relationship, first_name, last_name) => ({ household_id, family_no, relationship, first_name, last_name });
+
+  test('each family of a multi-family household gets its surname and its own tone', () => {
+    const badges = familyBadges([
+      row(1, 1, 'Head of Household', 'Pedro', 'Enaldo'),
+      row(1, 1, 'Son', 'Juan', 'Enaldo'),
+      row(1, 2, 'Head of Family', 'Maria', 'Dayao'),
+      row(1, 2, 'Daughter', 'Ana', 'Dayao'),
+    ]);
+    assert.deepEqual(badges.get(1).get(1), { label: 'Enaldo Family', tone: 'green' });
+    assert.deepEqual(badges.get(1).get(2), { label: 'Dayao Family', tone: 'blue' });
+  });
+
+  test('single-family households get no badges', () => {
+    const badges = familyBadges([row(2, 1, 'Head of Household', 'Jose', 'Cruz'), row(2, 1, 'Wife', 'Rosa', 'Cruz')]);
+    assert.equal(badges.has(2), false);
+  });
+
+  test('heads sharing a surname are told apart by name; no head reads "Family N"', () => {
+    const badges = familyBadges([
+      row(3, 1, 'Head of Household', 'Pedro', 'Enaldo'),
+      row(3, 2, 'Head of Family', 'Juan', 'Enaldo'),
+      row(3, 4, 'Son', 'Leo', 'Ramos'),
+    ]);
+    assert.equal(badges.get(3).get(1).label, 'Pedro Enaldo Family');
+    assert.equal(badges.get(3).get(2).label, 'Juan Enaldo Family');
+    // Tones follow the families' order, not their numbers.
+    assert.deepEqual(badges.get(3).get(4), { label: 'Family 4', tone: 'gold' });
   });
 });

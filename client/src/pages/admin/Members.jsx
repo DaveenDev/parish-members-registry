@@ -1,11 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import { StatusPill, Badge, Checkbox } from '../../components/ui.jsx';
 import { ageFromDob, CIVIL_STATUSES, AGE_OPTS, DASHBOARD_AGE_OPTS } from '../../constants.js';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useDebounced, useUrlState } from '../../hooks.js';
-import { groupByGkk } from '../../lib/household.js';
+import { groupByGkk, familyNoOf } from '../../lib/household.js';
 import { bis, RELATIONSHIP_LABELS, CIVIL_STATUS_LABELS, BLOOD_UNKNOWN_LABEL } from '../../lib/bisaya.js';
 import { MEMBERSHIP_STATUSES, STATUS_TONES } from '../../lib/census.js';
 import { PRACTICE_LEVELS, PRACTICE_LEVEL_HELP, PRACTICE_TONES, isRated, trendText, practiceSourceText } from '../../lib/practice.js';
@@ -80,14 +80,28 @@ export default function Members() {
   const [selected, setSelected] = useState(() => new Set());
   const [exporting, setExporting] = useState(false);
 
+  // Family badges for the households on this page that hold two or more
+  // families: household_id → family_no → { label, tone }.
+  const [familyBadges, setFamilyBadges] = useState(() => new Map());
+  const loadSeq = useRef(0);
+
   function reload() {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError('');
     api.listMembers({ ...filters, search: debouncedSearch, sortKey, sortDir, page, pageSize, groupBy: 'gkk', memberOrder: 'name' })
-      .then((res) => { setRows(res.rows); setTotal(res.total); })
+      .then((res) => {
+        setRows(res.rows);
+        setTotal(res.total);
+        // After the list shows, so it never waits on them; a page loaded since wins.
+        api.memberFamilyBadges(res.rows.map((m) => m.household_id))
+          .then((badges) => { if (seq === loadSeq.current) setFamilyBadges(badges); })
+          .catch(() => { if (seq === loadSeq.current) setFamilyBadges(new Map()); });
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }
+  const familyBadgeOf = (m) => familyBadges.get(m.household_id)?.get(familyNoOf(m)) || null;
 
   // An empty table means something different when no filters are applied:
   // the register itself is empty, not the search.
@@ -249,6 +263,7 @@ export default function Members() {
                           <div className="text-[12.5px] text-parish-muted truncate">
                             {[m.household_name, bis(RELATIONSHIP_LABELS, m.relationship), ageFromDob(m.dob) != null && `${ageFromDob(m.dob)} yrs`].filter(Boolean).join(' · ')}
                           </div>
+                          {familyBadgeOf(m) && <div className="mt-1"><Badge tone={familyBadgeOf(m).tone}>{familyBadgeOf(m).label}</Badge></div>}
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           {m.membership_status && <Badge tone={STATUS_TONES[m.membership_status]}>{m.membership_status}</Badge>}
@@ -284,7 +299,10 @@ export default function Members() {
                         {m.membership_status && <Badge tone={STATUS_TONES[m.membership_status]} title={m.last_census_label ? `From the ${m.last_census_label}` : undefined}>{m.membership_status}</Badge>}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-[14px] text-parish-text3 whitespace-nowrap">{m.household_name}</td>
+                    <td className="px-4 py-3 text-[14px] text-parish-text3 whitespace-nowrap">
+                      {m.household_name}
+                      {familyBadgeOf(m) && <span className="block mt-1"><Badge tone={familyBadgeOf(m).tone}>{familyBadgeOf(m).label}</Badge></span>}
+                    </td>
                     <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</td>
                     <td className="px-4 py-3 text-[14px] text-parish-text3">{ageFromDob(m.dob) ?? '—'}</td>
                     <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{bis(CIVIL_STATUS_LABELS, m.civil_status) || '—'}</td>

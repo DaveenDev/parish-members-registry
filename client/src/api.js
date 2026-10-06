@@ -4,7 +4,7 @@
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
 import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, parseAgeRange } from './constants.js';
-import { familiesOf, familyHeadName, familyTitle } from './lib/household.js';
+import { familiesOf, familyHeadName, familyTitle, familyBadges } from './lib/household.js';
 import { memberFullName, inDateRange, plainLetters } from './lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
 import { toCsv, downloadCsv } from './lib/csv.js';
@@ -367,6 +367,24 @@ export const api = {
     if (error && /practice_/.test(error.message || '')) throw new Error('Run the 0017_practicing_status.sql migration in Supabase to use the Practicing Catholic status');
     if (error) throw mapError(error);
     return { rows: data, total: count, page, pageSize };
+  },
+
+  /**
+   * The families of these households, for the Members list's family badges:
+   * familyBadges() of their current members (as family_stats counts them),
+   * only for households with two or more families. One small query per page.
+   */
+  async memberFamilyBadges(householdIds) {
+    const ids = [...new Set(householdIds)].filter(Boolean);
+    if (!ids.length) return new Map();
+    const { data, error } = await supabase
+      .from('members_with_household')
+      .select('household_id, family_no, relationship, first_name, last_name, suffix')
+      .in('household_id', ids)
+      .eq('is_current', true)
+      .order('id');
+    if (error) throw mapError(error);
+    return familyBadges(data);
   },
 
   /**

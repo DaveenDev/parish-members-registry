@@ -109,6 +109,43 @@ export function familyTitle(group) {
   return group?.familyNo === 1 ? 'Household Head’s family' : `Family ${group?.familyNo ?? ''}`.trim();
 }
 
+/** Badge tones for a household's families, in family order (family 1 first). */
+export const FAMILY_TONES = ['green', 'blue', 'gold', 'gray'];
+
+/**
+ * Badges for the households that hold two or more families, from the members
+ * of those households (database rows): Map household_id → Map family_no →
+ * { label, tone }. A family is named by its head's surname ("Dayao Family");
+ * when two heads share a surname, by the head's full name; "Family 2" without
+ * a head. Each family of a household gets its own tone, the same on every
+ * one of its members. Households with a single family are left out.
+ */
+export function familyBadges(rows) {
+  const byHouse = new Map();
+  for (const m of rows || []) {
+    if (!byHouse.has(m.household_id)) byHouse.set(m.household_id, []);
+    byHouse.get(m.household_id).push(m);
+  }
+  const out = new Map();
+  for (const [hid, members] of byHouse) {
+    const families = familiesOf(members);
+    if (families.length < 2) continue;
+    const surname = (g) => String(g.head?.last_name || '').trim();
+    const taken = new Map();
+    for (const g of families) if (surname(g)) taken.set(surname(g).toLowerCase(), (taken.get(surname(g).toLowerCase()) || 0) + 1);
+    const badges = new Map();
+    families.forEach((g, i) => {
+      const last = surname(g);
+      const label = !last ? `Family ${g.familyNo}`
+        : taken.get(last.toLowerCase()) > 1 ? `${familyHeadName(g.head)} Family`
+        : `${last} Family`;
+      badges.set(g.familyNo, { label, tone: FAMILY_TONES[i % FAMILY_TONES.length] });
+    });
+    out.set(hid, badges);
+  }
+  return out;
+}
+
 /** "Family #2": a member's family, shown beside their name on the registration forms. */
 export const familyTag = (m) => `Family #${familyNoOf(m)}`;
 
