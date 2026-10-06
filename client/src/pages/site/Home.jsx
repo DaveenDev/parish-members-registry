@@ -158,7 +158,7 @@ export default function Home() {
           <QuickLink to="/serbisyo/susiha" icon="search" sub="Gamit ang reference number">Susiha ang akong rehistro</QuickLink>
           <QuickLink to="/serbisyo/hangyo/sertipiko" icon="doc" sub="Bunyag, Kumpil, Kasal">Pangayo og sertipiko</QuickLink>
           <QuickLink to="/serbisyo/dugo" icon="drop" sub="Nanginahanglan o mo-donate">Blood donor call</QuickLink>
-          <QuickLink to="/kontak" icon="phone" sub="Tawag, text, mapa">Kontak ug oras sa opisina</QuickLink>
+          <QuickLink to="/serbisyo/hangyo/pagdihog" icon="cal" sub="Pagbisita sa pari sa masakiton">Pangayo ug Dihog</QuickLink>
         </div>
       </section>
 
