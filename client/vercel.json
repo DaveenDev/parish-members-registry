@@ -1,6 +1,6 @@
 {
   "rewrites": [
-    { "source": "/media/:path*", "destination": "https://pub-19f6790c1e504085813c2f69d4e514c6.r2.dev/:path*" },
+    { "source": "/media/:path*", "destination": "https://pub-25d83e20c5f14fc0b2f81d3476651579.r2.dev/:path*" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
