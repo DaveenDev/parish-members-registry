@@ -145,7 +145,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
 
   function updateHousehold(field, value) {
     setHousehold((h) => ({ ...h, [field]: value }));
-    // Clearing the name hands it back to the "{Lastname} Family" auto-fill.
+    // Clearing the name hands it back to the "{Lastname} Household" auto-fill.
     if (field === 'householdName') setHouseholdNameTouched(!!value);
     setErr((e) => ({ ...e, [field]: '' }));
     setBanner('');
@@ -188,7 +188,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
     setBanner('');
     if (i === 0 && field === 'lastName' && !householdNameTouched) {
       const last = toNameCase(value);
-      setHousehold((h) => ({ ...h, householdName: last ? `${last} Family` : '' }));
+      setHousehold((h) => ({ ...h, householdName: last ? `${last} Household` : '' }));
       setErr((e) => ({ ...e, householdName: '' }));
     }
   }
@@ -458,7 +458,7 @@ function HouseholdNameField({ value, error, taken, onChange }) {
           id={inputId}
           aria-invalid={error ? true : undefined}
           ref={inputRef}
-          placeholder={editing ? 'e.g. Dela Cruz Family' : 'Filled in from the last name'}
+          placeholder={editing ? 'e.g. Dela Cruz Household' : 'Filled in from the last name'}
           value={value}
           readOnly={!editing}
           aria-readonly={!editing}

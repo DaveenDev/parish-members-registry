@@ -88,9 +88,9 @@ function householdNameCandidates(household, head) {
   const first = toNameCase(head.firstName);
   const barangay = String(household.barangay || '').trim();
   return [
-    first && `${first} ${last} Family`,
-    barangay && `${last} Family (${barangay})`,
-    first && barangay && `${first} ${last} Family (${barangay})`,
+    first && `${first} ${last} Household`,
+    barangay && `${last} Household (${barangay})`,
+    first && barangay && `${first} ${last} Household (${barangay})`,
   ].filter(Boolean);
 }
 
@@ -240,7 +240,7 @@ export default function RegistrationApp() {
 
   function updateHousehold(field, value) {
     setHousehold((h) => ({ ...h, [field]: value }));
-    // Clearing the name hands it back to the "{Lastname} Family" auto-fill.
+    // Clearing the name hands it back to the "{Lastname} Household" auto-fill.
     if (field === 'householdName') setHouseholdNameTouched(!!value);
     setErr((e) => ({ ...e, [field]: '' }));
     setBanner('');
@@ -281,7 +281,7 @@ export default function RegistrationApp() {
     setBanner('');
     if (mode === 'new' && i === 0 && field === 'lastName' && !householdNameTouched) {
       const last = toNameCase(value);
-      setHousehold((h) => ({ ...h, householdName: last ? `${last} Family` : '' }));
+      setHousehold((h) => ({ ...h, householdName: last ? `${last} Household` : '' }));
       setErr((e) => ({ ...e, householdName: '' }));
     }
   }
@@ -809,7 +809,7 @@ function HouseholdNameField({ value, error, status, suggestion, onChange }) {
           id={inputId}
           aria-invalid={error ? true : undefined}
           ref={inputRef}
-          placeholder={editing ? 'pananglitan: Dela Cruz Family' : 'Mapuno gikan sa apelyido'}
+          placeholder={editing ? 'pananglitan: Dela Cruz Household' : 'Mapuno gikan sa apelyido'}
           value={value}
           readOnly={!editing}
           aria-readonly={!editing}

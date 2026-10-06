@@ -203,7 +203,7 @@ to the office in person.
   Members → Sacraments → Participation → Review.
 - Step 2 of the test is refused with English messages, and the first missing
   field is focused.
-- The household name fills in as `Bautista Family` and stays locked until
+- The household name fills in as `Bautista Household` and stays locked until
   **Edit** is pressed. A name another household already uses is refused.
 - A new member starts with the head's last name. The Spouse takes the head's
   civil status.
