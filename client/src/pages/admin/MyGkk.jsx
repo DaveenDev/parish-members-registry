@@ -9,8 +9,9 @@ import { useToast } from '../../ToastContext.jsx';
 import GkkDocuments from '../../components/GkkDocuments.jsx';
 import LastYearList from '../../components/LastYearList.jsx';
 import {
-  ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProblem, gkkForm, historyPatch, photosPatch, samePhotos, useGkkPhotos,
+  ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProblem, gkkForm, historyPatch, photosPatch, sameHistory, samePhotos, useGkkPhotos,
 } from '../../components/GkkFields.jsx';
+import { useConfirm } from '../../components/ConfirmDialog.jsx';
 
 const VIEWS = [['details', 'Details'], ['history', 'History'], ['documents', 'Documents'], ['names', "Last year's list"]];
 
@@ -24,6 +25,7 @@ const VIEWS = [['details', 'Details'], ['history', 'History'], ['documents', 'Do
 export default function MyGkk() {
   const { user } = useAuth();
   const toast = useToast();
+  const confirm = useConfirm();
   const name = user?.access === 'gkk_leader' ? user.accessGkk : null;
   const [params, setParams] = useSearchParams();
   const [parish, setParish] = useState(null);
@@ -72,6 +74,21 @@ export default function MyGkk() {
       if (problem) { if (!form.chapel_address.trim()) setAddressError(problem); setError(problem); return; }
     }
     if (photos.uploading) { setError('Wait for the photos to finish uploading.'); return; }
+    if (what === 'history') {
+      if (sameHistory(form, gkkForm(gkk))) { toast.success('No changes to save'); return; }
+      // A leader's change takes a published history off the website (0045)
+      // and alerts the parish office (0060): say so before saving.
+      const live = !!gkk.history_published;
+      const ok = await confirm({
+        title: live ? 'Take the history off the website?' : 'Save the history?',
+        message: live
+          ? `${name}'s history is on the website now. Saving these changes takes it off the website until the parish office reviews and publishes it again. The office will be notified.`
+          : 'The parish office will be notified to review it and put it on the website.',
+        confirmLabel: 'Save history',
+        tone: live ? 'danger' : 'default',
+      });
+      if (!ok) return;
+    }
     // The photos only when they changed, so the details still save before the 0046 migration.
     const patch = what === 'details'
       ? { ...chapelPatch(form), ...(samePhotos(form, gkkForm(gkk)) ? {} : photosPatch(form)) }
@@ -87,7 +104,7 @@ export default function MyGkk() {
         ? ['chapel_address', 'puroks', 'year_established', 'meeting_schedule', 'meeting_place', 'photo_url', 'photos']
         : ['history', 'history_photos', 'history_published'];
       setForm((f) => ({ ...f, ...Object.fromEntries(keys.map((k) => [k, fresh[k]])) }));
-      toast.success(what === 'details' ? 'Details saved' : 'History saved. The parish office will review it for the website.');
+      toast.success(what === 'details' ? 'Details saved' : 'History saved. The parish office has been notified to review it for the website.');
     } catch (e) {
       setError(e.message || 'Could not save');
     } finally {

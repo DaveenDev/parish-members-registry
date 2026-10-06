@@ -249,8 +249,8 @@ export function HistoryFields({ form, setForm, setError, photos, canPublish }) {
       ) : (
         <div className="px-4 py-3 rounded-xl border border-parish-border bg-parish-field text-[13px] text-parish-text2">
           {form.history_published
-            ? <><strong className="text-parish-navy">On the website.</strong> If you change it, it goes back to a draft until the parish office publishes it again.</>
-            : <><strong className="text-parish-navy">Draft.</strong> The parish office reviews it and puts it on the GKK's page of the website.</>}
+            ? <><strong className="text-parish-navy">On the website.</strong> If you change it, it goes back to a draft until the parish office publishes it again; the office is notified when you save.</>
+            : <><strong className="text-parish-navy">Draft.</strong> When you save, the parish office is notified to review it and put it on the GKK's page of the website.</>}
         </div>
       )}
     </>
