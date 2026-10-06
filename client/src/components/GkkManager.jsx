@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
-import { SearchInput, Pagination, ErrorState, LoadingState, Panel } from './admin.jsx';
+import { SearchInput, Pagination, ErrorState, LoadingState, Panel, ActionMenu } from './admin.jsx';
+import { GKK_ATTENTION, attentionCounts, filterByAttention, gkkProgress } from '../lib/gkkAdmin.js';
 import { useClientList } from '../hooks.js';
 import { Field, FlagEmptyRequired, TextInput } from './ui.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -10,9 +12,29 @@ import GkkDocuments from './GkkDocuments.jsx';
 import { barangayCodeSuggestion, gkkParts } from '../lib/site.js';
 import { ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProblem, gkkForm, historyPatch, photosPatch, sameHistory, samePhotos, useGkkPhotos } from './GkkFields.jsx';
 
-// Desktop columns: name, chapel, puroks, year, last year's households, households, actions.
-const COLS = 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.4fr)_minmax(0,1.1fr)_64px_96px_96px_auto] lg:gap-4';
+// Desktop columns: name, chapel, puroks, year, households, census progress, actions.
+const COLS = 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,1fr)_56px_84px_150px_110px] lg:gap-4'; // a fixed actions column keeps the headings over their values
 const missingAddress = (g) => !String(g.chapel_address || '').trim();
+const websitePath = (name) => `/komunidad/gkk/${encodeURIComponent(name)}`;
+
+/** A GKK's census progress, as the Census page counts it: done / last year, with a bar. */
+function Progress({ p, compact = false }) {
+  if (!p) return <span className="text-parish-faint">—</span>;
+  if (p.of == null) return <span className="text-[12.5px] text-parish-muted">{p.registered} registered · no baseline</span>;
+  const done = p.pct >= 100;
+  return (
+    <span className="flex flex-col gap-1 min-w-0" title={`${p.notYet} of last year's ${p.of} household(s) not yet registered${p.fromList ? " (from last year's list)" : ''}`}>
+      <span className="text-[12.5px] text-parish-text2 whitespace-nowrap">
+        <strong className="text-parish-navy">{p.done}</strong> / {p.of} · {p.pct}%{compact && ' registered'}
+      </span>
+      {!compact && (
+        <span className="block h-1.5 rounded-full bg-parish-sunk overflow-hidden" aria-hidden>
+          <span className="block h-full rounded-full" style={{ width: `${p.pct}%`, background: done ? '#3a8a5e' : 'var(--p-blue)' }} />
+        </span>
+      )}
+    </span>
+  );
+}
 
 /**
  * The parish's GKKs with their chapel details (shown and searched in the
@@ -33,8 +55,14 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
   const [editing, setEditing] = useState(null); // null, or { id?, original?, tab, name, previous_households, ...gkkForm() }
   const confirm = useConfirm();
   const toast = useToast();
-  const list = useClientList(rows, (r) => `${r.name} ${r.chapel_address || ''} ${r.puroks || ''}`);
-  const noAddress = rows.filter(missingAddress).length;
+  const navigate = useNavigate();
+  // A "needs attention" chip ('all' shows every GKK).
+  const [show, setShow] = useState('all');
+  const gaps = attentionCounts(rows);
+  const list = useClientList(filterByAttention(rows, show), (r) => `${r.name} ${r.chapel_address || ''} ${r.puroks || ''}`);
+  useEffect(() => { list.setPage(1); }, [show]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Census progress rows by GKK (api.censusVsLastYear(), as on the Census page); null until loaded or if it fails.
+  const [progress, setProgress] = useState(null);
   const [listCounts, setListCounts] = useState(new Map());
   const [listOn, setListOn] = useState(true);
   // Each barangay's reference code by lower-case name; null before 0047.
@@ -63,6 +91,11 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
       })
       .catch((e) => setLoadError(e.message || 'Could not load the GKKs'))
       .finally(() => setLoading(false));
+    // The open census (or the latest), measured the way the Census page measures it.
+    api.listCensusCycles()
+      .then((cycles) => api.censusVsLastYear(cycles.find((c) => c.status === 'Open') || cycles[0] || null, cycles))
+      .then((res) => setProgress(res.rows))
+      .catch(() => setProgress(null));
     // Listing also gives a code to each new barangay.
     api.listBarangayRefCodes()
       .then((r) => setCodes(new Map(r.map((c) => [c.barangay.toLowerCase(), c]))))
@@ -111,9 +144,25 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
         <AddButton onClick={() => open(null)}>Add GKK</AddButton>
       </div>
 
-      {noAddress > 0 && !loading && (
-        <div className="mb-3 px-3.5 py-2.5 rounded-xl border border-[#fdba74] bg-[#fff7ed] text-[13.5px] text-[#9a3412]">
-          {noAddress === 1 ? '1 GKK still needs its' : `${noAddress} GKKs still need their`} chapel address. It's required: open each one marked “Missing” and add it.
+      {rows.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2" role="group" aria-label="Show GKKs that need attention">
+          {[['all', 'All GKKs', rows.length], ...GKK_ATTENTION.map(([key, label]) => [key, label, gaps[key]])].map(([key, label, n]) => {
+            if (key !== 'all' && !n && show !== key) return null;
+            const on = show === key;
+            // A missing chapel address is required, so its chip stays orange until it's fixed.
+            const urgent = key === 'address' && n > 0;
+            return (
+              <button
+                key={key} type="button" aria-pressed={on} onClick={() => setShow(on && key !== 'all' ? 'all' : key)}
+                className={`appearance-none cursor-pointer px-3 py-1.5 rounded-full border text-[12.5px] font-semibold transition-colors ${
+                  on ? 'border-transparent bg-parish-fill text-white'
+                    : urgent ? 'border-[#fdba74] bg-[#fff7ed] text-[#9a3412]'
+                      : 'border-parish-borderSoft bg-parish-card text-parish-text2'}`}
+              >
+                {label} <span className={on ? 'opacity-80' : 'text-parish-muted'}>{n}</span>
+              </button>
+            );
+          })}
         </div>
       )}
       {rows.length > 0 && (
@@ -123,28 +172,33 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
       )}
       {list.rows.length > 0 && (
         <div className={`hidden lg:grid ${COLS} px-3.5 pb-2 font-semibold text-[11.5px] tracking-wide uppercase text-parish-muted`}>
-          <span>GKK</span><span>Chapel address</span><span>Puroks covered</span><span>Est.</span><span>Last year</span><span>Households</span><span />
+          <span>GKK</span><span>Chapel address</span><span>Puroks covered</span><span>Est.</span><span>Households</span><span>Census</span><span />
         </div>
       )}
       <div className="flex flex-col gap-2">
         {list.rows.map((g) => {
-          const names = listNames(g.name);
-          const lastYear = names || g.previous_households;
-          const info = [g.puroks, g.year_established && `Est. ${g.year_established}`, lastYear != null && `${lastYear} household(s) last year${names ? ' (list)' : ''}`].filter(Boolean).join(' · ');
+          const p = gkkProgress(progress, g.name);
+          const info = [g.puroks, g.year_established && `Est. ${g.year_established}`, `${g.count} household(s)`].filter(Boolean).join(' · ');
           const dash = <span className="text-parish-faint">—</span>;
           const missing = <span className="font-semibold text-[#c2410c]">Missing</span>;
           return (
-            <div key={g.id} className={`flex items-center gap-2.5 lg:grid ${COLS} border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field`}>
+            // The whole row opens the GKK; its buttons and menu do their own thing.
+            <div
+              key={g.id}
+              onClick={(e) => { if (!e.target.closest('button, a')) open(g); }}
+              className={`flex items-center gap-2.5 lg:grid ${COLS} border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field cursor-pointer hover:border-parish-borderSoft hover:bg-parish-hover transition-colors`}
+            >
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-[14.5px] text-parish-navy">
-                  {g.name}
+                  <button type="button" onClick={() => open(g)} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-[14.5px] text-parish-navy text-left hover:underline">{g.name}</button>
                   {codeOf(g.name) && (
                     <span title={`Its families' reference numbers start with ${codeOf(g.name)}`} className="ml-2 align-[1px] inline-block px-1.5 py-px rounded-md bg-parish-sunk font-bold text-[11px] tracking-[.08em] text-parish-text2">{codeOf(g.name)}</span>
                   )}
                 </div>
-                <div className="text-[12.5px] text-parish-text2 truncate lg:hidden">
+                <div className="text-[12.5px] text-parish-text2 lg:hidden">
                   {missingAddress(g) ? <span className="font-semibold text-[#c2410c]">Chapel address missing</span> : `Chapel: ${g.chapel_address}`}{info && ` · ${info}`}
                 </div>
+                <div className="lg:hidden mt-0.5"><Progress p={p} compact /></div>
                 {g.history_published
                   ? <div className="text-[12px] text-parish-muted">History on the website</div>
                   : (String(g.history || '').trim() || (g.history_photos || []).length > 0) && <div className="text-[12px] font-semibold text-[#c2410c]">History draft, not published</div>}
@@ -152,27 +206,21 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{missingAddress(g) ? missing : g.chapel_address}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{g.puroks || dash}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.year_established || dash}</span>
-              <span className="hidden lg:block text-[13.5px] text-parish-text2" title={names ? "From last year's list" : undefined}>
-                {lastYear ?? dash}
-                {names > 0 && <span className="ml-1.5 text-[10.5px] font-semibold uppercase tracking-wide text-parish-muted">list</span>}
-              </span>
-              <span className="font-semibold text-[12px] text-parish-muted whitespace-nowrap">{g.count}<span className="lg:hidden"> household(s)</span></span>
-              <div className="flex items-center gap-2.5 lg:justify-end">
-              {openList && (
-                <RowButton tone="gray" onClick={() => openList(g.name)} className="px-3.5 py-2" title="Last year's household names for this GKK">
-                  Names ({listCounts.get(g.name)?.total || 0})
-                </RowButton>
-              )}
-              <RowButton onClick={() => open(g)} className="px-3.5 py-2">Edit</RowButton>
-              <RowButton
-                tone="red"
-                onClick={() => remove(g)}
-                disabled={g.count > 0}
-                title={g.count > 0 ? `In use by ${g.count} household(s), so it can't be deleted. Move them to another GKK first.` : undefined}
-                className="px-3.5 py-2 disabled:!opacity-50 disabled:cursor-not-allowed"
-              >
-                Delete
-              </RowButton>
+              <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.count}</span>
+              <span className="hidden lg:block min-w-0"><Progress p={p} /></span>
+              <div className="flex items-center gap-2 lg:justify-end">
+                <RowButton onClick={() => open(g)} className="px-3.5 py-2">Edit</RowButton>
+                <ActionMenu
+                  label={`More for ${g.name}`}
+                  items={[
+                    openList && { label: `Last year's names (${listCounts.get(g.name)?.total || 0})`, onClick: () => openList(g.name) },
+                    { label: `Households (${g.count})`, onClick: () => navigate(`/admin/households?status=All&gkk=${encodeURIComponent(g.name)}`) },
+                    { label: 'Members', onClick: () => navigate(`/admin/members?gkk=${encodeURIComponent(g.name)}`) },
+                    { label: 'View on website', onClick: () => window.open(websitePath(g.name), '_blank', 'noopener') },
+                    // A GKK with households can't be deleted (they'd lose their GKK); move them first.
+                    !g.count && { label: 'Delete GKK', tone: 'danger', onClick: () => remove(g) },
+                  ]}
+                />
               </div>
             </div>
           );
@@ -180,7 +228,12 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
         {loading && <LoadingState label="Loading…" />}
         {!loading && loadError && <ErrorState message={loadError} onRetry={reload} />}
         {!loading && !loadError && !rows.length && <div className="text-[13.5px] text-parish-muted">No GKKs yet. Add the first one.</div>}
-        {!!rows.length && !list.total && <div className="text-[13.5px] text-parish-muted">No GKK matches “{list.query}”.</div>}
+        {!!rows.length && !list.total && (
+          <div className="text-[13.5px] text-parish-muted">
+            {list.query ? <>No GKK matches “{list.query}”{show !== 'all' && ' with this filter'}.</> : 'No GKK needs this any more.'}
+            {show !== 'all' && <> <button type="button" onClick={() => setShow('all')} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue">Show all GKKs</button></>}
+          </div>
+        )}
       </div>
       <div className="-mx-6 -mb-6 mt-4">
         <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
