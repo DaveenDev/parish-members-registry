@@ -70,12 +70,17 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
     const filter = isParish
       ? { parishRole: 'Any', gkk, search: debouncedSearch }
       : { ministry: activeTab, groupColumn: column, gkk, search: debouncedSearch };
-    api.listMembers({ ...filter, page, pageSize, sortKey: 'household', sortDir: 'asc', groupBy: 'gkk', memberOrder: 'name' })
+    // Parish roles are one flat list by name; ministries/organizations group by GKK.
+    const layout = isParish
+      ? { sortKey: 'name', sortDir: 'asc' }
+      : { sortKey: 'household', sortDir: 'asc', groupBy: 'gkk', memberOrder: 'name' };
+    api.listMembers({ ...filter, page, pageSize, ...layout })
       .then((res) => { setRows(res.rows); setTotal(res.total); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
     // Full per-GKK totals for the badges, not just what's on this page.
-    api.memberCountsByGkk(filter).then(setGkkCounts).catch(() => setGkkCounts(null));
+    if (isParish) setGkkCounts(null);
+    else api.memberCountsByGkk(filter).then(setGkkCounts).catch(() => setGkkCounts(null));
   }
   useEffect(() => { reload(); }, [activeTab, gkk, debouncedSearch, page, pageSize, refreshKey]);
 
@@ -158,9 +163,9 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                     </tr>
                   </thead>
                   <tbody>
-                    {groupByGkk(rows).map((g, gi) => (
+                    {(isParish ? [{ gkk: null, members: rows, flat: true }] : groupByGkk(rows)).map((g, gi) => (
                       <React.Fragment key={g.gkk || 'no-gkk'}>
-                        <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
+                        {!g.flat && <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
                           <th scope="colgroup" colSpan={5} className="text-left px-4 py-2">
                             <span className="flex items-center gap-2 flex-wrap">
                               <span className="font-serif text-[16.5px] font-semibold text-parish-navy">{g.gkk || 'No GKK'}</span>
@@ -171,7 +176,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                               )}
                             </span>
                           </th>
-                        </tr>
+                        </tr>}
                         {g.members.map((m) => (
                       <tr key={m.id} {...rowActivationProps(() => setOpenMemberId(m.id), `Open ${m.first_name} ${m.last_name}`)} className="border-t border-parish-line cursor-pointer hover:bg-parish-hover focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-parish-blue">
                         <td className="px-4 py-2.5">
