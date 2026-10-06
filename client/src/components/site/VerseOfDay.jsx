@@ -49,7 +49,7 @@ export default function VerseOfDay({ onLoad }) {
 
         <div aria-live="polite">
           <blockquote className="m-0">
-            <p className="m-0 font-serif text-[23px] leading-[1.3] lg:text-[34px] lg:leading-[1.25] text-parish-navy">{v.text}</p>
+            <p className="m-0 font-serif text-[20px] leading-[1.35] sm:text-[23px] lg:text-[34px] lg:leading-[1.25] text-parish-navy">{v.text}</p>
             <footer className="mt-2.5 lg:mt-3.5 font-bold text-[15px] lg:text-[17px] text-[var(--p-gold-deep)]">— {v.ref}</footer>
           </blockquote>
 

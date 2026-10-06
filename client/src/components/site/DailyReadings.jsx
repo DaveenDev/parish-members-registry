@@ -85,6 +85,11 @@ export default function DailyReadings({ onLoad }) {
   const current = readings[at];
   // "Next" reads on to the next reading there is (a weekday has no second reading).
   const next = readings.slice(at + 1).find((r) => !r.none);
+  // On a phone a long reading starts folded (about nine lines), so the card
+  // doesn't push the rest of the page far down; "Read the full reading" opens it.
+  const [opened, setOpened] = useState('');
+  const long = current ? current.html.replace(/<[^>]*>/g, '').length > 650 : false;
+  const folded = long && opened !== `${iso}:${current.key}`;
 
   function choose(key, focus) {
     setPicked(key);
@@ -113,7 +118,7 @@ export default function DailyReadings({ onLoad }) {
 
   return (
     <article aria-labelledby="pagbasa-title" className="bg-parish-card border border-parish-border rounded-[20px] shadow-card overflow-hidden">
-      <div className="h-1.5 bg-parish-blue" />
+      <div className="h-1.5" style={{ background: 'var(--p-gold)' }} />
       <div className="px-4 pt-4 pb-5 lg:px-10 lg:pt-8 lg:pb-8">
         <div className="flex flex-col gap-3 mb-4 sm:flex-row sm:items-start lg:mb-6">
           <div className="min-w-0 flex-1">
@@ -218,8 +223,18 @@ export default function DailyReadings({ onLoad }) {
                   has the First Reading, the Responsorial Psalm and the Gospel.
                 </p>
               ) : current.html ? (
-                // Cleaned by toReadings (lib/readings.js): only plain formatting tags, no attributes.
-                <div className={`mt-4 ${BODY} ${current.key === 'Mass_Ps' ? PSALM : ''}`} dangerouslySetInnerHTML={{ __html: current.html }} />
+                <>
+                  <div className={`relative mt-4 ${folded ? 'max-h-[16em] overflow-hidden lg:max-h-none' : ''}`}>
+                    {/* Cleaned by toReadings (lib/readings.js): only plain formatting tags, no attributes. */}
+                    <div className={`${BODY} ${current.key === 'Mass_Ps' ? PSALM : ''}`} dangerouslySetInnerHTML={{ __html: current.html }} />
+                    {folded && <div className="lg:hidden absolute inset-x-0 bottom-0 h-20 bg-gradient-to-t from-parish-card to-transparent" aria-hidden />}
+                  </div>
+                  {folded && (
+                    <button type="button" className={`${NAV_BTN} mt-3 lg:hidden`} onClick={() => setOpened(`${iso}:${current.key}`)}>
+                      Read the full reading<Icon name="down" size={16} />
+                    </button>
+                  )}
+                </>
               ) : (
                 <p className="m-0 mt-4 text-[15px] text-parish-text2">
                   The text isn’t available here yet.{' '}
@@ -237,11 +252,16 @@ export default function DailyReadings({ onLoad }) {
         )}
       </div>
 
-      <div className="px-4 py-3.5 lg:px-10 border-t border-[#f0e8d6] text-[12px] leading-relaxed text-parish-text2">
-        Readings from{' '}
-        <a href={UNIVERSALIS_PAGE} target="_blank" rel="noopener noreferrer" className="font-bold underline text-parish-blueDeep">Universalis</a>
-        {' '}(Philippine calendar). Text from the Jerusalem Bible, a Catholic Bible, with the Grail Psalms.
-        {state.status === 'ok' && state.copyright ? ` ${state.copyright}` : ''}
+      <div className="px-4 py-3 lg:px-10 border-t border-[#f0e8d6]">
+        <p className="m-0 text-[12.5px] leading-snug text-parish-text2">
+          Readings from{' '}
+          <a href={UNIVERSALIS_PAGE} target="_blank" rel="noopener noreferrer" className="font-bold underline text-parish-blueDeep">Universalis</a>
+          {' '}(Philippine calendar). Text from the Jerusalem Bible, a Catholic Bible, with the Grail Psalms.
+        </p>
+        {/* Universalis asks for its copyright notice to stay visible: small, but always shown. */}
+        {state.status === 'ok' && state.copyright && (
+          <p className="m-0 mt-1.5 text-[10.5px] leading-snug text-parish-faint">{state.copyright}</p>
+        )}
       </div>
     </article>
   );

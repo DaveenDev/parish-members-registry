@@ -8,14 +8,17 @@ import VerseOfDay from '../../components/site/VerseOfDay.jsx';
 import DailyReadings from '../../components/site/DailyReadings.jsx';
 import { EventCard, MassRow, eventTone } from '../../components/site/cards.jsx';
 import {
-  BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, MASS_LANGUAGE_FILTERS, agendaDays, calendarMonths, eventsOnDay, fmtTime12, guideShortTitle,
+  BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, agendaDays, calendarMonths, eventsOnDay, fmtTime12, guideShortTitle,
   massKindLabel, massLocations, massSections, massShortLabel, massesOnDay, monthCells, monthLabel, parseIso,
 } from '../../lib/site.js';
 import { EVENT_TYPES, massType, todayIso } from '../../lib/website.js';
 import { listState, useAnnouncements, useEvents, useMassSchedule, useOrgCharts, useSacramentGuides } from './data.js';
 
-// The sections under Mass: the sacrament guides and the org charts, as tabs (?tab=).
-const TEACH_TABS = [['sakramento', 'Mga Sakramento ug Pormasyon'], ['organisasyon', 'Organisasyon']];
+// The sections under Mass: the sacrament guides and the org charts, as tabs
+// (?tab=): [key, title when it's the only one, label on the switch].
+const TEACH_TABS = [['sakramento', 'Mga Sakramento ug Pormasyon', 'Mga Sakramento'], ['organisasyon', 'Organisasyon', 'Organisasyon']];
+// Sideways-scrolling rows on a phone: no scrollbar under them.
+const NO_SCROLLBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
 
 /**
  * Ang Simbahan: a random Bible verse with what the Catechism teaches about
@@ -61,8 +64,8 @@ export default function Simbahan() {
         <div className={WRAP}>
           <div className="lg:flex lg:items-end lg:justify-between lg:gap-6 lg:mb-[22px]">
             <div>
-              <Eyebrow>Misa</Eyebrow>
-              <h2 id="misa-title" className="m-0 mb-3 lg:mb-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">{view === 'sched' ? 'Iskedyul sa Misa' : 'Kalendaryo'}</h2>
+              <Eyebrow>Iskedyul ug kalendaryo</Eyebrow>
+              <h2 id="misa-title" className="m-0 mb-3 lg:mb-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Misa</h2>
             </div>
             <Segmented label="Iskedyul" options={[['sched', 'Iskedyul sa Misa'], ['events', 'Kalendaryo']]} value={view} onChange={(v) => update({ view: v === 'events' ? 'kalendaryo' : null })} />
           </div>
@@ -88,13 +91,15 @@ const scrollTo = (id, behavior = 'smooth') => document.getElementById(id)?.scrol
 function PageJumps({ onTab }) {
   const guides = listState(useSacramentGuides());
   const charts = listState(useOrgCharts());
-  const btn = 'flex-none min-h-[40px] px-3.5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)]';
+  const btn = 'flex-none min-h-[40px] px-3 sm:px-3.5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)]';
+  // On a phone the icons go, so all three fit across without scrolling.
+  const icon = (name) => <Icon name={name} size={16} className="hidden sm:block" />;
   const open = (t) => { onTab(t); requestAnimationFrame(() => scrollTo('tudlo')); };
   return (
-    <nav aria-label="Niini nga panid" className="flex gap-2 overflow-x-auto -mx-3.5 px-3.5 pb-0.5 mb-3.5 lg:mb-0 lg:mx-0 lg:px-0 lg:pb-0 lg:flex-wrap">
-      <button type="button" className={btn} onClick={() => scrollTo('misa')}><Icon name="clock" size={16} /><span className="lg:hidden">Misa ↓</span><span className="hidden lg:inline">Iskedyul sa Misa ↓</span></button>
-      {guides.rows.length > 0 && <button type="button" className={btn} onClick={() => open('sakramento')}><Icon name="church" size={16} /><span className="lg:hidden">Sakramento ↓</span><span className="hidden lg:inline">Mga Sakramento ↓</span></button>}
-      {charts.rows.length > 0 && <button type="button" className={btn} onClick={() => open('organisasyon')}><Icon name="people" size={16} />Organisasyon ↓</button>}
+    <nav aria-label="Niini nga panid" className={`flex gap-2 overflow-x-auto ${NO_SCROLLBAR} -mx-3.5 px-3.5 mb-3.5 lg:mb-0 lg:mx-0 lg:px-0 lg:flex-wrap`}>
+      <button type="button" className={btn} onClick={() => scrollTo('misa')}>{icon('clock')}<span className="lg:hidden">Misa ↓</span><span className="hidden lg:inline">Iskedyul sa Misa ↓</span></button>
+      {guides.rows.length > 0 && <button type="button" className={btn} onClick={() => open('sakramento')}>{icon('church')}<span className="lg:hidden">Sakramento ↓</span><span className="hidden lg:inline">Mga Sakramento ↓</span></button>}
+      {charts.rows.length > 0 && <button type="button" className={btn} onClick={() => open('organisasyon')}>{icon('people')}Organisasyon ↓</button>}
     </nav>
   );
 }
@@ -119,10 +124,13 @@ function TeachingTabs({ tab, onTab, chart, onChart, jump }) {
       <div className={`${WRAP} ${BAND_PAD}`}>
         <div className="lg:flex lg:items-end lg:justify-between lg:gap-6 lg:mb-[22px]">
           <div>
-            <Eyebrow>{current[0] === 'sakramento' ? 'Mga giya' : 'Ang parokya'}</Eyebrow>
-            <h2 id="tudlo-section-title" className="m-0 mb-3 lg:mb-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">{current[1]}</h2>
+            <Eyebrow>Mga giya ug ang parokya</Eyebrow>
+            {/* The switch names the part shown, so the heading names the section, not the part again. */}
+            <h2 id="tudlo-section-title" className="m-0 mb-3 lg:mb-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">
+              {tabs.length > 1 ? 'Sakramento ug Organisasyon' : current[1]}
+            </h2>
           </div>
-          {tabs.length > 1 && <Segmented label="Sakramento ug Organisasyon" options={tabs} value={current[0]} onChange={onTab} />}
+          {tabs.length > 1 && <Segmented label="Sakramento ug Organisasyon" options={tabs.map(([k, , short]) => [k, short])} value={current[0]} onChange={onTab} />}
         </div>
         {current[0] === 'sakramento' ? <SacramentGuides rows={guides.rows} /> : <Organisasyon slug={chart} onPick={onChart} />}
       </div>
@@ -152,7 +160,7 @@ function SacramentGuides({ rows }) {
       {guides.length > 1 && (
         <div
           role="group" aria-label="Pili og sakramento"
-          className={`flex gap-2.5 overflow-x-auto snap-x scroll-px-3.5 -mx-3.5 px-3.5 pb-1 mb-4 lg:grid lg:gap-3.5 lg:overflow-visible lg:mx-0 lg:px-0 lg:pb-0 lg:mb-6 ${PICKER_COLS[guides.length] || 'lg:grid-cols-6'}`}
+          className={`grid grid-cols-2 gap-2.5 mb-4 sm:grid-cols-3 lg:gap-3.5 lg:mb-6 ${PICKER_COLS[guides.length] || 'lg:grid-cols-6'}`}
         >
           {guides.map((x) => <SacramentChoice key={x.key} g={x} on={x.key === g?.key} onPick={() => setKey(x.key)} />)}
         </div>
@@ -168,7 +176,7 @@ function SacramentChoice({ g, on, onPick }) {
   return (
     <button
       type="button" aria-pressed={on} onClick={onPick}
-      className={`snap-start flex-none w-[136px] lg:w-auto text-left appearance-none cursor-pointer rounded-2xl border-[1.5px] p-3 lg:p-4 transition-colors ${on ? 'bg-parish-blue border-parish-blue text-white shadow-card' : 'bg-parish-card border-parish-border text-parish-navy hover:border-[var(--p-blue-border)]'}`}
+      className={`text-left appearance-none cursor-pointer rounded-2xl border-[1.5px] p-3 lg:p-4 transition-colors ${on ? 'bg-parish-blue border-parish-blue text-white shadow-card' : 'bg-parish-card border-parish-border text-parish-navy hover:border-[var(--p-blue-border)]'}`}
     >
       <span
         className={`w-10 h-10 lg:w-12 lg:h-12 rounded-xl flex items-center justify-center mb-2 ${on ? 'bg-white/15 text-white' : 'text-parish-blue'}`}
@@ -177,7 +185,8 @@ function SacramentChoice({ g, on, onPick }) {
         <SacramentIcon sacrament={g.key} size={24} />
       </span>
       <span className="block font-serif font-bold text-[18px] lg:text-[21px] leading-tight">{guideShortTitle(g.title)}</span>
-      {docs > 0 && <span className={`block mt-0.5 text-[12.5px] lg:text-[13px] ${on ? 'text-white/80' : 'text-parish-text2'}`}>{docs} ka dokumento</span>}
+      {/* Always a second line, so the cards line up. */}
+      <span className={`block mt-0.5 text-[12.5px] lg:text-[13px] ${on ? 'text-white/80' : 'text-parish-text2'}`}>{docs > 0 ? `${docs} ka dokumento` : 'Walay dokumento'}</span>
     </button>
   );
 }
@@ -185,7 +194,8 @@ function SacramentChoice({ g, on, onPick }) {
 /**
  * One sacrament's guide. Phones: one column. Desktop: the steps and the
  * checklist of documents on the left, and a side box with the schedule,
- * donation, reminders and the office buttons on the right.
+ * donation, reminders and the office buttons on the right. With none of
+ * those to show, there's no side box: the buttons go in a row underneath.
  */
 // Guides the parish issues a certificate for (the certType in forms.js), and
 // the ones people can ask to avail of from here (the request form's id).
@@ -198,6 +208,7 @@ function GuideCard({ g }) {
   const steps = (g.steps || []).filter((s) => s.title || s.detail);
   const docs = (g.requirements || []).filter(Boolean);
   const extras = [['Iskedyul', g.schedule, 'clock'], ['Donasyon', g.fees, 'heart'], ['Pahinumdom', g.notes, 'alert']].filter(([, v]) => v);
+  const side = extras.length > 0;
   return (
     <article className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
       <header className="flex gap-3 items-start px-4 py-3.5 lg:gap-4 lg:px-6 lg:py-5 bg-[#fbf7ef] border-b border-[#f0e8d6]">
@@ -209,7 +220,7 @@ function GuideCard({ g }) {
           {g.summary && <p className="m-0 mt-1.5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636] lg:max-w-[820px]">{g.summary}</p>}
         </div>
       </header>
-      <div className="lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
+      <div className={side ? 'lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]' : ''}>
         <div className="flex flex-col gap-6 p-4 lg:p-6 lg:gap-8">
           {steps.length > 0 && (
             <section aria-labelledby={`steps-${g.key}`}>
@@ -243,14 +254,15 @@ function GuideCard({ g }) {
             </section>
           )}
         </div>
-        <aside className="flex flex-col gap-2.5 px-4 pb-4 lg:p-6 lg:border-l lg:border-[#f0e8d6] lg:bg-[#fdfaf4]">
+        <aside className={`flex flex-col gap-2.5 px-4 pb-4 ${side ? 'lg:p-6 lg:border-l lg:border-[#f0e8d6] lg:bg-[#fdfaf4]' : 'lg:px-6 lg:pb-6'}`}>
           {extras.map(([label, value, icon]) => (
             <div key={label} className="flex gap-2.5 items-start rounded-xl px-3.5 py-3 border border-[#eee3ce] bg-parish-bg">
               <Icon name={icon} size={18} className="text-[var(--p-gold-deep)] mt-px flex-none" />
               <div className="text-[14.5px] leading-normal text-[#3f3b2f]"><strong className="block text-parish-navy">{label}</strong>{value}</div>
             </div>
           ))}
-          <div className="flex flex-wrap gap-2.5 mt-1 lg:flex-col">
+          {/* Phones: one full-width button each. */}
+          <div className={`flex flex-col gap-2.5 mt-1 sm:flex-row sm:flex-wrap ${side ? 'lg:flex-col' : ''}`}>
             {GUIDE_AVAIL[g.key] && <Link to={`/serbisyo/hangyo/${GUIDE_AVAIL[g.key]}`} className={BTN_MAIN}>Request to avail</Link>}
             <Link to="/kontak" className={GUIDE_AVAIL[g.key] ? BTN_SECOND : BTN_MAIN}>Pangutana sa opisina</Link>
             {GUIDE_CERT[g.key] && <Link to={`/serbisyo/hangyo/sertipiko?certType=${GUIDE_CERT[g.key]}`} className={BTN_SECOND}>Pangayo og sertipiko</Link>}
@@ -273,9 +285,9 @@ function MassSchedule() {
   const mass = listState(useMassSchedule());
   const ann = listState(useAnnouncements());
   const [location, setLocation] = useState('all');
-  const [language, setLanguage] = useState('all');
   const locations = massLocations(mass.rows);
-  const sections = massSections(mass.rows, { location, language });
+  // No language filter: there are few Masses, and each shows its language.
+  const sections = massSections(mass.rows, { location, language: 'all' });
   // The newest "Schedule change" announcement is the special-schedule banner.
   const special = ann.rows.find((a) => a.category === 'Schedule change');
 
@@ -294,26 +306,18 @@ function MassSchedule() {
         </Link>
       )}
 
-      {mass.rows.length > 0 && (
-        <div className="flex flex-col gap-2.5 mb-[18px] lg:flex-row lg:flex-wrap lg:items-end lg:gap-5 lg:mb-[22px]">
-          {locations.length > 1 && (
-            <div>
-              <label htmlFor="f-loc" className="block font-semibold text-[13px] lg:font-bold lg:text-[13.5px] mb-[5px] lg:mb-1.5">Lugar</label>
-              <select
-                id="f-loc"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
-                className="w-full min-h-[48px] px-3.5 text-[16px] text-parish-ink bg-parish-card border-[1.5px] border-parish-borderSoft rounded-xl lg:w-[300px] lg:min-h-[46px] lg:text-[15.5px]"
-              >
-                <option value="all">Tanang simbahan ug kapilya</option>
-                {locations.map((l) => <option key={l} value={l}>{l}</option>)}
-              </select>
-            </div>
-          )}
-          <div>
-            <div className="font-semibold text-[13px] lg:font-bold lg:text-[13.5px] mb-[5px] lg:mb-1.5">Pinulongan</div>
-            <Pills options={MASS_LANGUAGE_FILTERS} value={language} onChange={setLanguage} />
-          </div>
+      {locations.length > 1 && (
+        <div className="mb-[18px] lg:mb-[22px]">
+          <label htmlFor="f-loc" className="block font-semibold text-[13px] lg:font-bold lg:text-[13.5px] mb-[5px] lg:mb-1.5">Lugar</label>
+          <select
+            id="f-loc"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
+            className="w-full min-h-[48px] px-3.5 text-[16px] text-parish-ink bg-parish-card border-[1.5px] border-parish-borderSoft rounded-xl lg:w-[300px] lg:min-h-[46px] lg:text-[15.5px]"
+          >
+            <option value="all">Tanang simbahan ug kapilya</option>
+            {locations.map((l) => <option key={l} value={l}>{l}</option>)}
+          </select>
         </div>
       )}
 
@@ -325,7 +329,7 @@ function MassSchedule() {
         emptyText="Wala pay iskedyul nga gi-publish. Tawagi ang opisina para sa oras sa Misa."
       >
         {!sections.length ? <EmptyNote>Walay Misa nga mohaum sa imong pili.</EmptyNote> : (
-          <div className={`flex flex-col gap-3.5 lg:grid lg:items-start ${SECTION_COLS[Math.min(sections.length, 4)]}`}>
+          <div className={`flex flex-col gap-3.5 lg:grid lg:items-stretch ${SECTION_COLS[Math.min(sections.length, 4)]}`}>
             {sections.map((s) => (
               <section key={s.key} className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
                 <div className="flex items-center gap-2 flex-wrap px-3.5 py-2.5 lg:px-4 lg:py-3 bg-[#fbf7ef] lg:border-b lg:border-[#f0e8d6]">
@@ -378,7 +382,12 @@ function EventsAgenda() {
   const months = calendarMonths(events.rows, today);
   const [month, setMonth] = useState('');
   useEffect(() => { if (months.length && !months.includes(month)) setMonth(months[0]); }, [months.join(), month]);
-  const days = month ? agendaDays(events.rows, masses, month, today) : [];
+  // The phone list: only the events and the special Masses (feasts). The
+  // weekly Masses are the same every week and are in Iskedyul sa Misa; listed
+  // every day they buried the rest.
+  const days = (month ? agendaDays(events.rows, masses, month, today) : [])
+    .map((g) => ({ ...g, masses: g.masses.filter((m) => massType(m) === 'Special Mass') }))
+    .filter((g) => g.events.length || g.masses.length);
   const types = EVENT_TYPES.filter((t) => events.rows.some((e) => e.type === t));
   const state = { ...events, loading: events.loading || mass.loading };
 
@@ -414,6 +423,10 @@ function EventsAgenda() {
       </div>
       {month && <MonthCalendar month={month} events={events.rows} masses={masses} today={today} />}
       <div className="flex flex-col gap-[18px] lg:hidden">
+        <p className="m-0 text-[13.5px] leading-normal text-parish-text2">
+          Mga kalihokan ug espesyal nga Misa lang ang naa dinhi. Ang regular nga Misa matag semana naa sa Iskedyul sa Misa.
+        </p>
+        {!days.length && <EmptyNote>Walay kalihokan o espesyal nga Misa niining bulana.</EmptyNote>}
         {days.map((g) => {
           const d = parseIso(g.date);
           return (
