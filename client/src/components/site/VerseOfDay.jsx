@@ -54,12 +54,13 @@ export default function VerseOfDay({ onLoad }) {
             <footer className="mt-2.5 lg:mt-3.5 font-bold text-[15px] lg:text-[17px] text-[var(--p-gold-deep)]">— {v.ref}</footer>
           </blockquote>
 
-          <section aria-labelledby="tudlo-title" className="mt-5 lg:mt-7 pt-4 lg:pt-6 border-t border-[#f0e8d6] lg:grid lg:grid-cols-[220px_minmax(0,1fr)] lg:gap-8">
-            <div className="flex lg:flex-col gap-2.5 lg:gap-1.5 items-center lg:items-start mb-2 lg:mb-0">
+          <section aria-labelledby="tudlo-title" className="mt-5 lg:mt-7 pt-4 lg:pt-6 border-t border-[#f0e8d6] lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-8">
+            {/* Icon and label side by side at every width: the icon keeps its size, the label takes the rest and wraps. */}
+            <div data-section-id="verse-cathecism-left" className="flex items-center gap-3 mb-3 lg:mb-0 lg:items-start">
               <span className="w-9 h-9 lg:w-11 lg:h-11 flex-none rounded-xl flex items-center justify-center text-parish-blue" style={{ background: 'var(--p-blue-tint)' }}>
                 <Icon name="ev-seminar" size={20} />
               </span>
-              <div>
+              <div className="min-w-0 flex-auto">
                 <h3 id="tudlo-title" className="m-0 font-bold text-[15px] lg:text-[16px] text-parish-navy">Ang gitudlo sa Simbahan</h3>
                 <div className="text-[12.5px] lg:text-[13px] text-parish-text2">Katesismo sa Simbahang Katoliko, <abbr title="Catechism of the Catholic Church" className="no-underline">CCC</abbr> {v.ccc}</div>
               </div>
