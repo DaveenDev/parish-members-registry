@@ -100,7 +100,7 @@ export default function OfficeTab() {
 
   return (
     // View-only accounts see the details with every field and button disabled.
-    <fieldset disabled={viewOnly} className="max-w-[1180px] min-w-0 border-0 p-0 m-0">
+    <fieldset disabled={viewOnly} className="min-w-0 border-0 p-0 m-0">
       {!migrated && (
         <div className="mb-[18px] px-4 py-3 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13.5px] font-medium" role="status">
           Run the <strong>0011_website_content.sql</strong> migration in Supabase to save office hours, the map and the extra contact numbers. The address, phone and email below save already.

@@ -57,7 +57,7 @@ export default function Exports() {
     <>
       <PageHeader title="Exports" subtitle="Download registry data as CSV" />
       <PageBody>
-        <div className="max-w-[980px]">
+        <div>
           {groups.map((g) => (
             <section key={g} className="mb-6" aria-label={g}>
               <h2 className="font-bold text-[11.5px] tracking-[.12em] uppercase text-[var(--p-gold-deep)] m-0 mb-2.5">{g}</h2>

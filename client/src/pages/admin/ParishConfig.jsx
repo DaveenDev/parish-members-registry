@@ -1200,7 +1200,7 @@ export default function ParishConfig() {
     <>
       <PageHeader title={title} subtitle={subtitle} />
       <PageBody>
-        <div className="max-w-[1180px]">
+        <div>
           {tabs.length > 1 && <Tabs tabs={tabs} value={tab} onChange={setTab} />}
           {tab === 'mygkk' && <MyGkk />}
           {tab === 'config' && <ProfileTab />}

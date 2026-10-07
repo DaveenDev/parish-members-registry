@@ -113,7 +113,7 @@ export default function Notifications() {
     <>
       <PageHeader title="Notifications" subtitle="Know as soon as someone sends a request from the website" />
       <PageBody>
-        <div className="max-w-[760px] flex flex-col gap-5">
+        <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
           <Section
             title="This device"
             subtitle="Get a notification on this phone or computer when a request comes in, even when the admin panel is closed."

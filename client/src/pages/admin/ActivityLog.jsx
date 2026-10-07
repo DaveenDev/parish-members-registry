@@ -36,7 +36,7 @@ export default function ActivityLog() {
         <SearchInput placeholder="Search household or member name…" aria-label="Search by name" value={url.q} onChange={(e) => setUrl({ q: e.target.value })} />
       </PageHeader>
       <PageBody>
-        <div className="max-w-[920px]">
+        <div>
           <div className="flex flex-wrap gap-2.5 items-center mb-4">
             <FilterSelect aria-label="What changed" value={url.table} onChange={(e) => setUrl({ table: e.target.value })}>
               {TABLES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}

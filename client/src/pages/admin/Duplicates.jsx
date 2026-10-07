@@ -52,7 +52,7 @@ export default function Duplicates() {
     <>
       <PageHeader title="Possible duplicates" subtitle={leaderGkk(user) ? `Members of ${leaderGkk(user)} who share a name and date of birth` : 'Members who share a name and date of birth'} />
       <PageBody>
-        <div className="max-w-[920px]">
+        <div>
           <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
             Matches ignore capital letters, extra spaces, middle names and suffixes. Members without a date of birth aren't checked.
             Open each record to compare, then delete the extra member, or the whole extra household from the Households page.

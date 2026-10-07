@@ -9,7 +9,7 @@ export default function ManageList({ title, subtitle, ...listProps }) {
     <>
       <PageHeader title={title} subtitle={subtitle} />
       <PageBody>
-        <div className="max-w-[720px]">
+        <div>
           <ManageListCard {...listProps} />
         </div>
       </PageBody>

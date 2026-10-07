@@ -15,7 +15,7 @@ export default function ManageOrgs() {
     <>
       <PageHeader title="Ministries & Organizations" subtitle="Parish ministries, parish positions and the lay organizations active in the parish" />
       <PageBody>
-        <div className="max-w-[720px]">
+        <div>
           <Tabs tabs={TABS} value={tab} onChange={(k) => setParams({ tab: k }, { replace: true })} />
           {tab === 'ministries' && (
             <ManageListCard

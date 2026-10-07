@@ -124,7 +124,7 @@ export default function MyGkk() {
   const onSubmit = (what) => (e) => { e.preventDefault(); if (!saving) save(what); };
 
   return (
-    <div className="max-w-[1120px]">
+    <div>
       <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3">{name}</div>
       <div className="grid gap-4 md:gap-6 md:grid-cols-[200px_minmax(0,1fr)] md:items-start">
       <SideTabs tabs={views} value={view} onChange={(k) => { setView(k); setError(''); }} />

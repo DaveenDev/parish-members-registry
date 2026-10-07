@@ -140,7 +140,7 @@ export default function Reports() {
     <>
       <PageHeader title="Reports" subtitle={leaderGkk(user) ? `${leaderGkk(user)}: statistics, custom reports & analysis` : 'Registry statistics, custom reports & analysis'} />
       <PageBody>
-        <div className="max-w-[920px]">
+        <div>
           <Tabs tabs={REPORT_TABS} value={tab} onChange={setTab} />
 
           {tab === 'stats' && !stats && (

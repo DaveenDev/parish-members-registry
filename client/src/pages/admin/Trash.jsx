@@ -66,7 +66,7 @@ export default function Trash() {
     <>
       <PageHeader title="Trash" subtitle={`Deleted households and members, kept for ${KEEP_DAYS} days`} />
       <PageBody>
-        <div className="max-w-[920px]">
+        <div>
           <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
             Restoring puts the record back as it was, with its members, sacrament verifications and census answers, and links it again to
             certificate requests and the blood donor list. Items are removed for good after {KEEP_DAYS} days.
