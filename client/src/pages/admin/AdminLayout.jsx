@@ -1,5 +1,5 @@
 import React, { Suspense, useCallback, useEffect, useState } from 'react';
-import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
 import { ThemePickerPopover } from '../../components/ThemePicker.jsx';
@@ -209,14 +209,14 @@ export default function AdminLayout() {
         </button>
       </div>
 
-      <a
-        href="https://daveendev.vercel.app/"
+      <Link
+        to="/developer"
         target="_blank"
-        rel="noopener noreferrer"
+        rel="noopener"
         className="px-4 py-2 text-center text-[10.5px] font-medium text-white/40 hover:text-white/70 transition"
       >
         Built For Free by DaveenDev
-      </a>
+      </Link>
     </>
   );
 
