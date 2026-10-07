@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import MaintenanceGate from './components/MaintenanceGate.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
+import Developer from './pages/site/Developer.jsx';
 import Home from './pages/site/Home.jsx';
 import Simbahan from './pages/site/Simbahan.jsx';
 import Pagbasa from './pages/site/Pagbasa.jsx';
@@ -22,7 +23,6 @@ import { EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail, Article
 // inside AdminLayout while they load.
 const RegistrationApp = React.lazy(() => import('./pages/RegistrationApp.jsx'));
 const CensusPortal = React.lazy(() => import('./pages/CensusPortal.jsx'));
-const Developer = React.lazy(() => import('./pages/Developer.jsx'));
 const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin.jsx'));
 const AdminLayout = React.lazy(() => import('./pages/admin/AdminLayout.jsx'));
 const Dashboard = React.lazy(() => import('./pages/admin/Dashboard.jsx'));
@@ -99,13 +99,13 @@ export default function App() {
           <Route path="/serbisyo/dugo" element={<Blood />} />
           <Route path="/serbisyo/hangyo/:form" element={<RequestForm />} />
           <Route path="/kontak" element={<Kontak />} />
+          <Route path="/developer" element={<Developer />} />
           {/* A mistyped or old public link says so, instead of quietly opening Home. */}
           <Route path="*" element={<SiteNotFound />} />
         </Route>
         <Route path="/register" element={<Lazy><RegistrationApp /></Lazy>} />
         <Route path="/census" element={<Lazy><CensusPortal /></Lazy>} />
         </Route>
-        <Route path="/developer" element={<Lazy><Developer /></Lazy>} />
         <Route path="/admin/login" element={<Lazy><AdminLogin /></Lazy>} />
         <Route path="/admin/change-password" element={<Lazy><ChangePassword /></Lazy>} />
         <Route
