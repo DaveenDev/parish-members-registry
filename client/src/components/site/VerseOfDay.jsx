@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from './Icons.jsx';
-import { Skeleton } from './kit.jsx';
+import { Skeleton, useShare } from './kit.jsx';
 
 const NAV_BTN = 'min-h-[44px] px-3.5 inline-flex items-center gap-1.5 rounded-xl border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)] disabled:opacity-50';
 
@@ -16,6 +16,7 @@ export default function VerseOfDay({ onLoad }) {
   const [data, setData] = useState(null);
   const [failed, setFailed] = useState(false);
   const [i, setI] = useState(0);
+  const share = useShare();
   useEffect(() => {
     let live = true;
     import('../../lib/verses.js')
@@ -34,6 +35,11 @@ export default function VerseOfDay({ onLoad }) {
   const { VERSES, PARTS } = data;
   const v = VERSES[i];
   const go = (step) => setI((i + step + VERSES.length) % VERSES.length);
+  const shareVerse = () => share(
+    `Pulong sa Dios — ${v.ref}`,
+    '/simbahan',
+    `"${v.text}" — ${v.ref}\n\nAng gitudlo sa Simbahan (CCC ${v.ccc}):\n${v.explain}`
+  );
 
   return (
     <article aria-labelledby="pulong-title" className="bg-parish-card border border-parish-border rounded-[20px] shadow-card overflow-hidden">
@@ -83,6 +89,9 @@ export default function VerseOfDay({ onLoad }) {
           >
             <Icon name="doc" size={16} />Daily Readings
           </Link>
+          <button type="button" className={NAV_BTN} onClick={shareVerse} aria-label="Ipaambit kini nga bersikulo ug pagtulon-an">
+            <Icon name="share" size={16} />Ipaambit
+          </button>
           <span className="ml-auto text-[13px] text-parish-text2">{i + 1} sa {VERSES.length}</span>
         </div>
         <p className="m-0 mt-3 text-[12px] text-parish-text2">Bibliya: World English Bible (public domain). Ang pagpasabot gikan sa Katesismo sa Simbahang Katoliko.</p>

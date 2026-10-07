@@ -238,14 +238,20 @@ export function Spin() {
 export const SiteToastContext = createContext(() => {});
 export const useSiteToast = () => useContext(SiteToastContext);
 
-/** Share a page (this one, or `path` on this site): the phone's share sheet when there is one, else copy the link. */
+/**
+ * Share a page (this one, or `path` on this site): the phone's share sheet
+ * when there is one, else copy the link. `text`, when given, rides along in
+ * the share sheet and is what gets copied (with the link appended) on the
+ * clipboard fallback — for content that changes per view (a random verse,
+ * say), the link alone wouldn't reproduce what was on screen.
+ */
 export function useShare() {
   const say = useSiteToast();
-  return async (title, path) => {
+  return async (title, path, text) => {
     const url = path ? new URL(path, window.location.origin).href : window.location.href;
     try {
-      if (navigator.share) { await navigator.share({ title, url }); return; }
-      await navigator.clipboard.writeText(url);
+      if (navigator.share) { await navigator.share(text ? { title, text, url } : { title, url }); return; }
+      await navigator.clipboard.writeText(text ? `${text}\n\n${url}` : url);
       say('Na-copy ang link. I-paste sa Messenger.');
     } catch (e) {
       if (e?.name !== 'AbortError') say('Wala ma-copy ang link.');
