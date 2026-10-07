@@ -17,7 +17,7 @@ function tokenClaims(accessToken) {
   try {
     const json = part.replace(/-/g, '+').replace(/_/g, '/');
     const padded = json + '='.repeat((4 - (json.length % 4)) % 4);
-    return JSON.parse(typeof atob === 'function' ? atob(padded) : Buffer.from(padded, 'base64').toString('binary'));
+    return JSON.parse(typeof atob === 'function' ? atob(padded) : globalThis.Buffer.from(padded, 'base64').toString('binary'));
   } catch {
     return null;
   }

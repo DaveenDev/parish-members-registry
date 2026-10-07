@@ -81,6 +81,13 @@ describe('admin nav', async () => {
     assert.ok(navAllowed(navItemFor('/admin/settings'), { access: 'read_only' }));
   });
 
+  test('a login without an access level has only its own account settings (0065)', async () => {
+    const { NAV_GROUPS, navLabel } = await import('../src/components/adminNav.js');
+    const none = { access: 'none' };
+    const shown = NAV_GROUPS.flatMap((g) => g.items).filter((i) => navAllowed(i, none));
+    assert.deepEqual(shown.map((i) => navLabel(i, none)), ['My Account']);
+  });
+
   test('GKK leaders see Parish Config as GKK Config', async () => {
     const { navLabel } = await import('../src/components/adminNav.js');
     const config = navItemFor('/admin/settings');

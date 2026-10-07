@@ -25,7 +25,7 @@ export function toCsv(rows, columns) {
   const body = rows
     .map((row) => columns.map((c) => esc(typeof c.value === 'function' ? c.value(row) : row[c.value])).join(','))
     .join('\n');
-  return `﻿${header}\n${body}`;
+  return `\uFEFF${header}\n${body}`;
 }
 
 export function triggerDownload(blob, filename) {

@@ -12,12 +12,12 @@ import { toCsv, triggerDownload, downloadCsv, parseCsv } from '../src/lib/csv.js
 describe('toCsv', () => {
   test('renders a header row from column labels', () => {
     const csv = toCsv([{ a: 1 }], [{ label: 'A', value: 'a' }]);
-    assert.equal(csv, '﻿A\n1');
+    assert.equal(csv, '\uFEFFA\n1');
   });
 
   test('starts with a byte-order mark, so Excel reads ñ as ñ', () => {
     const csv = toCsv([{ gkk: 'Sto. Niño' }], [{ label: 'GKK', value: 'gkk' }]);
-    assert.equal(csv, '﻿GKK\nSto. Niño');
+    assert.equal(csv, '\uFEFFGKK\nSto. Niño');
     assert.deepEqual(parseCsv(csv), [['GKK'], ['Sto. Niño']]);
   });
 
@@ -40,17 +40,17 @@ describe('toCsv', () => {
       { label: 'First', value: 'first' },
       { label: 'Full', value: (r) => `${r.first} ${r.last}` },
     ]);
-    assert.equal(csv, '﻿First,Full\nAna,Ana Reyes');
+    assert.equal(csv, '\uFEFFFirst,Full\nAna,Ana Reyes');
   });
 
   test('quotes values containing commas, quotes, or newlines', () => {
     const csv = toCsv([{ note: 'Says "hi", bye\nend' }], [{ label: 'Note', value: 'note' }]);
-    assert.equal(csv, '﻿Note\n"Says ""hi"", bye\nend"');
+    assert.equal(csv, '\uFEFFNote\n"Says ""hi"", bye\nend"');
   });
 
   test('renders null/undefined as an empty cell', () => {
     const csv = toCsv([{ a: null, b: undefined }], [{ label: 'A', value: 'a' }, { label: 'B', value: 'b' }]);
-    assert.equal(csv, '﻿A,B\n,');
+    assert.equal(csv, '\uFEFFA,B\n,');
   });
 });
 
@@ -86,7 +86,7 @@ describe('download helpers', () => {
     }
 
     assert.equal(dom.anchor.download, 'members.csv');
-    assert.equal(blobs[0].parts[0], '﻿Name\nAna');
+    assert.equal(blobs[0].parts[0], '\uFEFFName\nAna');
     assert.equal(blobs[0].opts.type, 'text/csv;charset=utf-8');
   });
 });

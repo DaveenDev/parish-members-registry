@@ -209,6 +209,7 @@ Run from the project root:
 | `npm run install:all` | Install root and `client/` dependencies |
 | `npm run dev` | Run the Vite client with hot reload |
 | `npm run build` | Production build of the client |
+| `npm run lint` | ESLint on the client (`client/eslint.config.js`): errors are likely bugs (hooks called conditionally, undefined names); warnings are worth a look |
 | `npm run db:demo` | Load sample households and members (see above) |
 | `npm run db:reset` | Delete all households and members |
 | `npm run db:wipe-test -- --yes` | Empty every registry table on the **test** project before a browser playbook run (needs `PLAYBOOK_TEST_PROJECT=yes`; see `.claude/playbooks/staff-journey-playbook.md`) |

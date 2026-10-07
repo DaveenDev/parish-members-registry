@@ -32,7 +32,7 @@ function LinkedMember({ member, sacrament, onUnlink, busy, onVerificationChanged
       .then((v) => setVerification(v[sacrament.key] || null))
       .catch(() => setVerification(null));
   }
-  useEffect(load, [member.id, sacrament.key]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(load, [member.id, sacrament.key]);  
 
   return (
     <div className="border-[1.5px] border-parish-focusLine rounded-xl bg-parish-fillSoft px-4 py-3 flex flex-col gap-2">

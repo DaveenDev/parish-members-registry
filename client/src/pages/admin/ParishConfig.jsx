@@ -770,8 +770,8 @@ function EmailCard() {
                   username = the Gmail address, password = the App Password, sender email and name = the ones above.
                 </li>
                 <li>
-                  In Supabase: <strong>Authentication → URL Configuration</strong>: Site URL <code>https://guadalupe-muaan.vercel.app</code>; under Redirect URLs add
-                  {' '}<code>https://guadalupe-muaan.vercel.app/**</code>{site !== 'https://guadalupe-muaan.vercel.app' && <> and <code>{site}/**</code></>}.
+                  In Supabase: <strong>Authentication → URL Configuration</strong>: Site URL <code>{'https://guadalupe-muaan.vercel.app'}</code>; under Redirect URLs add
+                  {' '}<code>{'https://guadalupe-muaan.vercel.app/**'}</code>{site !== 'https://guadalupe-muaan.vercel.app' && <> and <code>{`${site}/**`}</code></>}.
                 </li>
                 <li>Send yourself a test above. More detail in <code>docs/email-setup.md</code>.</li>
               </ol>

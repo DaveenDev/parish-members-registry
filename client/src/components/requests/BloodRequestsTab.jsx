@@ -109,7 +109,7 @@ function BloodRequestDrawer({ request: r, onClose, onSaved, onDeleted }) {
       .then(([d, c]) => { setDonors(d.rows); setContacts(Object.fromEntries(c.map((x) => [x.donor_id, x]))); })
       .catch((e) => setLoadError(e.message || 'Could not load donors'));
   }
-  useEffect(loadDonors, [r.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(loadDonors, [r.id]);  
 
   async function save(fields, message = 'Saved') {
     setBusy(true);

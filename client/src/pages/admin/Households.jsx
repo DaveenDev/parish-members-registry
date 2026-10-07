@@ -303,7 +303,7 @@ export default function Households() {
           value={status}
           onChange={(k) => setUrl({ status: k, page: 1 })}
           tabs={STATUS_TABS.map(([k, label]) => [k, (
-            <span className="inline-flex items-center gap-2">
+            <span key={k} className="inline-flex items-center gap-2">
               {label}
               {counts[k] != null && (
                 <span className={`min-w-[22px] px-1.5 py-px rounded-full text-[12px] font-bold text-center ${k === 'Pending' && counts[k] ? 'bg-parish-errorBg text-parish-error' : 'bg-parish-sunk text-parish-text2'}`}>{counts[k]}</span>

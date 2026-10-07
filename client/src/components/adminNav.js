@@ -57,6 +57,8 @@ export const NAV_GROUPS = [
 ];
 
 export function navAllowed(item, user) {
+  // A login without an access level (0065) has only its own account settings.
+  if (user?.access === 'none') return item.to === '/admin/settings';
   if (item.adminOnly && !user?.isAdmin) return false;
   if (item.notForLeaders && user?.access === 'gkk_leader') return false;
   return !item.need || can(user, item.need);

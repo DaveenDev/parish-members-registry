@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { Band, DataState, EmptyNote, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { Band, DataState, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { AnnouncementCard, EventCard } from '../../components/site/cards.jsx';
 import { ANNOUNCEMENT_LABELS, ARTICLES_PAGE, bulletinLists, fmtLong, fmtShort, paragraphs, sortAnnouncements } from '../../lib/site.js';
 import { listState, useAnnouncements, useArticles, useBulletins, useEvents } from './data.js';

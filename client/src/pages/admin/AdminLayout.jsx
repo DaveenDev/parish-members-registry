@@ -4,7 +4,8 @@ import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
 import { ThemePickerPopover } from '../../components/ThemePicker.jsx';
 import { useAdminColorMode } from '../../ThemeContext.jsx';
-import { PageHeader, PageBody, EmptyState, LoadingState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, EmptyState, LoadingState, Panel } from '../../components/admin.jsx';
+import { PrimaryButton } from '../../components/ui.jsx';
 import CommandPalette, { useCommandPaletteShortcut } from '../../components/CommandPalette.jsx';
 import IdleSignOut from '../../components/IdleSignOut.jsx';
 import NotificationBell, { useStaffNotifications } from '../../components/NotificationBell.jsx';
@@ -262,6 +263,8 @@ export default function AdminLayout() {
           <Suspense fallback={<LoadingState label="Loading the page…" />}>
             <Outlet context={{ parish, setParish, requestCounts, navCounts, refreshRequestCounts: refreshNavCounts, refreshNavCounts, bell }} />
           </Suspense>
+        ) : user?.access === 'none' ? (
+          <WaitingForAccess email={user.email} onSignOut={onLogout} />
         ) : (
           <>
             <PageHeader title={navLabel(current, user)} />
@@ -274,5 +277,31 @@ export default function AdminLayout() {
       {searchOpen && <CommandPalette onClose={() => setSearchOpen(false)} />}
       <IdleSignOut onSignOut={onIdle} />
     </div>
+  );
+}
+
+/**
+ * What a login without an access level sees (0065): a new account, or one a
+ * staff admin hasn't set up yet. The account is re-read when the person comes
+ * back to the tab, so this goes away once an admin gives it access.
+ */
+function WaitingForAccess({ email, onSignOut }) {
+  return (
+    <>
+      <PageHeader title="Waiting for access" />
+      <PageBody>
+        <Panel className="max-w-[560px] mx-auto p-6 sm:p-8 text-center">
+          <div className="font-serif text-[22px] text-parish-navy mb-2">Your account is waiting for access</div>
+          <p className="text-[14px] text-parish-text2 leading-relaxed m-0">
+            You're signed in as <strong>{email}</strong>, but a staff admin hasn't given this account an access level yet.
+            Ask the parish office to set it in <strong>Settings → Staff</strong>. Once they have, come back to this page.
+          </p>
+          <p className="text-[13px] text-parish-muted leading-relaxed mt-3 mb-5">
+            Until then you can change your password under My Account.
+          </p>
+          <PrimaryButton type="button" onClick={onSignOut} className="px-5 py-2.5 text-[14px]">Sign out</PrimaryButton>
+        </Panel>
+      </PageBody>
+    </>
   );
 }
