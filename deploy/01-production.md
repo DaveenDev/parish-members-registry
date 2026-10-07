@@ -122,7 +122,7 @@ Every other account is made in the admin panel (Settings → Staff), not here.
    | `VITE_SUPABASE_URL` | `https://<ref>.supabase.co` |
    | `VITE_SUPABASE_ANON_KEY` | Supabase → Project Settings → API → anon / publishable key |
 
-   Add `MEDIA_ORIGIN` in step 8 once the photo bucket exists.
+   Type **Config**, not Secret (they're in every visitor's page anyway).
 4. **Deploy**.
 5. Project → **Settings → Domains**: the free address is
    `<project-name>.vercel.app`; edit it to the name you want (e.g.
@@ -167,9 +167,10 @@ Full details and troubleshooting: [docs/media-storage.md](../docs/media-storage.
 4. R2 → **Manage API tokens → Create API token**: Object Read & Write, only
    this bucket. Save the Access Key ID and Secret Access Key (shown once) and
    the **Account ID** (R2 overview page).
-5. Vercel → the project → Settings → Environment Variables: add
-   `MEDIA_ORIGIN` = the r2.dev address from 2 (no trailing slash), Production
-   and Preview. **Redeploy** (Deployments → latest → ⋯ → Redeploy).
+5. [`client/vercel.json`](../client/vercel.json): in the **second** `/media`
+   rule (the one with no `has`), put the r2.dev address from 2 before
+   `/:path*`. Commit and push; the site rebuilds. (For our parish it's
+   already there.)
 6. Admin panel → **Parish Config → Photo storage**: Account ID, bucket name,
    Access Key ID, Secret Access Key, and Public URL **`<site>/media`**.
    **Test connection** → all three steps pass → **Save**.

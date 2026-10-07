@@ -52,17 +52,21 @@ What each site needs and where it goes. **Never** put the Supabase
 |---|---|---|
 | `VITE_SUPABASE_URL` | `https://<project-ref>.supabase.co` | Supabase → Project Settings → API |
 | `VITE_SUPABASE_ANON_KEY` | the anon / publishable key | Same page. Safe in the browser: the database's row level security decides what it can do |
-| `MEDIA_ORIGIN` | `https://pub-….r2.dev` | The photo bucket's public address, no trailing slash. Read by [`client/vercel.ts`](../client/vercel.ts) when the site is built |
-
-Make all three the **Config** type (plain, visible), not Secret: none of them
-is secret. The two `VITE_` values are built into the page every visitor
-downloads, and the r2.dev address is a public address. Secret is for values
-that must never be shown again, and the website has none of those.
-
-Changing any of them takes effect only after a **redeploy**.
+Make both the **Config** type (plain, visible), not Secret: they're built into
+the page every visitor downloads, so they aren't secret. Changing either takes
+effect only after a **redeploy**.
 
 Without `VITE_SUPABASE_*`, a build uses [`client/.env.production`](../client/.env.production),
 which holds the **live** project. That's why the training site must set them.
+
+### Which photo bucket `/media` uses: `client/vercel.json`
+
+Not an environment variable: [`client/vercel.json`](../client/vercel.json)
+picks the bucket by the site's address. The `/media` rule with
+`"has": [{ "type": "host", "value": { "pre": "olgqp-training" } }]` sends
+addresses starting with `olgqp-training` to the testing bucket; the next
+`/media` rule sends every other address to the live bucket. Changing a bucket
+means editing its `https://pub-….r2.dev` address there and pushing.
 
 ### Supabase (per project, in the dashboard)
 
@@ -107,7 +111,7 @@ manager, not here. Fill in the blanks the next time you're in each dashboard.
 | Vercel project / account | guadalupe-muaan, parish Hobby account | olgqp-training, account: ____ |
 | Supabase project ref | `rmlkowkbonbrtaqocsvo` | `____` |
 | Supabase account | ____ | ____ |
-| R2 photo bucket | `pub-25d83e20c5f14fc0b2f81d3476651579.r2.dev` (account ____) | testing bucket on a separate Cloudflare account: `pub-____.r2.dev` |
+| R2 photo bucket | `pub-25d83e20c5f14fc0b2f81d3476651579.r2.dev` (account ____) | testing bucket on a separate Cloudflare account: `pub-93600e56fb724c9c8fdf449acb86fcf7.r2.dev` |
 | R2 backup bucket | ____ (e.g. `parish-backups`) | none |
 | Sends email from | ____@gmail.com | ____ |
 
@@ -116,7 +120,8 @@ manager, not here. Fill in the blanks the next time you're in each dashboard.
 | Symptom | Look at |
 |---|---|
 | Training site shows **no** purple banner | It's connected to the live database. Fix its `VITE_SUPABASE_*` in Vercel and redeploy now |
-| Photos broken / "Public URL didn't find the test file" | `MEDIA_ORIGIN` in that Vercel project, then redeploy ([docs/media-storage.md](../docs/media-storage.md)) |
+| Photos broken / "Public URL didn't find the test file" | The `/media` rule for that site's address in `client/vercel.json` ([docs/media-storage.md](../docs/media-storage.md)) |
+| Vercel build: "`vercel.ts` schema validation failed" | There must be no `client/vercel.ts`; `client/vercel.json` is the config |
 | Photo upload fails in the browser | The bucket's CORS policy must list the site's address |
 | Reset email link opens the home page | Supabase → Authentication → URL Configuration |
 | "Only parish staff…" / a new login sees nothing | New logins have no access until a staff admin sets it in Settings → Staff |

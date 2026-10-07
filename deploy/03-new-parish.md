@@ -24,7 +24,7 @@ Do this in the new repository before the first deploy. Steps marked
 |---|---|---|
 | Live database (*after 01 step 2*) | [`client/src/lib/database.js`](../client/src/lib/database.js) `LIVE_PROJECT_ID` | the new live project ref. Every other project shows the training banner |
 | Live database (*after 01 step 7*) | [`client/.env.production`](../client/.env.production) | the new live `VITE_SUPABASE_URL` and anon key (keep-alive reads them) |
-| Live photo bucket (*after 01 step 8*) | [`client/vercel.ts`](../client/vercel.ts) `LIVE_MEDIA_ORIGIN` | the new live bucket's r2.dev address (used when `MEDIA_ORIGIN` isn't set) |
+| Photo buckets (*after 01 step 8 / 02 step 8*) | [`client/vercel.json`](../client/vercel.json), the two `/media` rules | first rule: the training site's name in `"pre"` and its testing bucket's r2.dev address (or delete the rule if there's no training site); second rule: the live bucket's r2.dev address |
 | Default website address | [`client/src/lib/census.js`](../client/src/lib/census.js) `DEFAULT_SITE_URL` | the new live `<site>` |
 | Page title, description, share image | [`client/index.html`](../client/index.html) | the parish's name and `<site>/icons/icon-512.png` |
 | Logo and icons | [`client/public/`](../client/public/): `olgqp-logo.svg`, `favicon.svg`, `icons/`, `admin.webmanifest` | the parish's logo (the uploaded logo in Parish Config replaces it on most pages) |
@@ -37,7 +37,7 @@ Do this in the new repository before the first deploy. Steps marked
 Then find anything left over:
 
 ```bash
-git grep -n -i -E "guadalupe|olgqp|muaan|rmlkowkbonbrtaqocsvo|pub-25d83e"
+git grep -n -i -E "guadalupe|olgqp|muaan|rmlkowkbonbrtaqocsvo|pub-25d83e|pub-93600e"
 ```
 
 What's left in `docs/`, `project/` and `client/test/` can stay. Text

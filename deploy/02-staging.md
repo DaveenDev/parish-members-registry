@@ -70,15 +70,16 @@ Use different passwords from the live site.
 A **second** Vercel project from the same repository:
 
 1. **Add New → Project** → same repository → Root Directory **`client`**.
-2. Environment Variables, for **Production and Preview**, all three:
+2. Environment Variables, for **Production and Preview**, type Config:
 
    | Name | Value |
    |---|---|
    | `VITE_SUPABASE_URL` | `https://<staging-ref>.supabase.co` |
    | `VITE_SUPABASE_ANON_KEY` | the **training** project's anon key |
-   | `MEDIA_ORIGIN` | the testing bucket's `https://pub-….r2.dev` (step 8) |
 
-3. Deploy. Settings → Domains: rename to e.g. `olgqp-training`.
+3. Deploy. Settings → Domains: rename to e.g. `olgqp-training`. The name
+   matters: `client/vercel.json` sends `/media` to the testing bucket for
+   addresses starting with `olgqp-training` (step 8).
 4. Production branch `main`, like the live site: every push to `main`
    updates both sites at once. (To try code on the training site before the
    live one, use a `staging` branch here instead and merge it into `main`
@@ -96,16 +97,18 @@ As 01 step 8, in the testing bucket:
 - R2.dev subdomain **allowed**; copy its `https://pub-….r2.dev` address.
 - CORS `AllowedOrigins`: `<staging-site>` and `http://localhost:5173`.
 - An API token for **this** bucket only.
-- `MEDIA_ORIGIN` in the **training** Vercel project = this bucket's r2.dev
-  address → **redeploy**.
+- [`client/vercel.json`](../client/vercel.json): the **first** `/media` rule
+  (the one with `"has"` … `"pre": "olgqp-training"`) points at this bucket's
+  r2.dev address. If the training site has another name, change `"pre"` to
+  the start of that name. Commit and push.
 - Training admin → Parish Config → Photo storage: the testing account's
   Account ID, bucket and keys; Public URL **`<staging-site>/media`** → Test
   connection → Save.
 
 If Test connection says *"The Public URL didn't find the test file (HTTP
-404)"*: `MEDIA_ORIGIN` is missing or wrong in the training Vercel project, or
-the site wasn't redeployed after setting it, so `/media` still shows the live
-bucket.
+404)"*: the first `/media` rule in `client/vercel.json` has the wrong r2.dev
+address, or its `"pre"` doesn't match the start of the training site's
+address, so `/media` still shows the live bucket.
 
 ## Step 9. Parish details
 

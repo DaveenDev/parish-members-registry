@@ -24,18 +24,21 @@ photos; picking a photo shows "Photo uploads aren't set up yet".
 
    **No domain of your own (e.g. free Vercel on `*.vercel.app`)?** Keep the
    r2.dev subdomain enabled and let Vercel pass photos through: the `/media`
-   rewrite in [`client/vercel.ts`](../client/vercel.ts) fetches
+   rewrite in [`client/vercel.json`](../client/vercel.json) fetches
    `https://<site>/media/<key>` from the bucket's r2.dev address on Vercel's
    servers, which providers don't block. Use
    `https://<your-site>.vercel.app/media` as the Public URL.
 
-   Each Vercel project picks its bucket with the **`MEDIA_ORIGIN`** environment
-   variable (Vercel → project → **Settings → Environment Variables**): the
-   bucket's r2.dev address, no trailing slash, e.g. `https://pub-xxxxxxxx.r2.dev`.
-   Without it, the live site's bucket is used. A training or staging site on
-   its own Cloudflare account sets `MEDIA_ORIGIN` to its testing bucket. The
-   address is read when the site is built, so **redeploy** after adding or
-   changing it.
+   Both sites build from the same `vercel.json`, so it picks the bucket by the
+   address the site is opened at. The first `/media` rule only applies to
+   addresses starting with `olgqp-training` (the training site and its preview
+   links) and points at the testing bucket; the second, for every other
+   address, points at the live bucket. Rules are tried in order. To change a
+   bucket, edit its r2.dev address there and push.
+
+   (Vercel's environment variables can't be used for this: `vercel.json` can't
+   read them, and Vercel rejected a `vercel.ts` that built the address from
+   one with "`rewrites[0]` missing required property `destination`".)
 
    **Moving off r2.dev:** connect the custom domain to the bucket (or set up
    the Vercel `/media` rewrite above), run
@@ -78,9 +81,9 @@ settings in the form, without saving them:
 1. **Upload to R2:** it writes a tiny file to `_connection-test/` in the bucket.
    This checks the Account ID, the keys, the bucket name and write permission.
 2. **Public URL:** it opens that file through the Public URL. This checks that
-   the address shows this bucket. With the website's `/media` address, that
-   site's `MEDIA_ORIGIN` on Vercel must be this bucket's r2.dev address, and the
-   site redeployed since it was set.
+   the address shows this bucket. With the website's `/media` address, the
+   `/media` rule for that site in `client/vercel.json` must point at this
+   bucket's r2.dev address.
 3. **Clean up:** it deletes the test file. If it can't, the file is harmless.
 
 Each step shows whether it passed and, if not, what to check. Saving after a

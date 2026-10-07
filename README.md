@@ -224,7 +224,7 @@ to your parish.
 
 ## Deploying
 
-Setting up the live site and the training site from scratch (Supabase, Vercel, Cloudflare R2, email, backups), and setting the site up for another parish: see [`deploy/`](deploy/README.md). In short: import the repo into Vercel with **Root Directory set to `client`**, add `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` and `MEDIA_ORIGIN` as Vercel env vars, and deploy — `client/vercel.ts` handles the SPA routing rewrite and the `/media` photo proxy.
+Setting up the live site and the training site from scratch (Supabase, Vercel, Cloudflare R2, email, backups), and setting the site up for another parish: see [`deploy/`](deploy/README.md). In short: import the repo into Vercel with **Root Directory set to `client`**, add `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` as Vercel env vars, and deploy — `client/vercel.json` handles the SPA routing rewrite and the `/media` photo proxy (one bucket for the training site's address, another for the live site).
 
 ## Testing
 
