@@ -6,6 +6,7 @@ import { BAND_PAD, Band, DataState, EmptyNote, Eyebrow, Pills, Segmented, Skelet
 import { Organisasyon } from '../../components/site/OrgCharts.jsx';
 import VerseOfDay from '../../components/site/VerseOfDay.jsx';
 import { EventCard, MassRow, eventTone } from '../../components/site/cards.jsx';
+import { CellCelebrations, ChurchYear, LiturgyLine, LiturgyNow, agendaCelebrations, dayColor } from '../../components/site/Liturgy.jsx';
 import {
   BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, agendaDays, calendarMonths, eventsOnDay, fmtTime12, guideShortTitle,
   massKindLabel, massLocations, massSections, massShortLabel, massesOnDay, monthCells, monthLabel, parseIso,
@@ -363,21 +364,36 @@ function MassTag({ tone, children }) {
   );
 }
 
+/**
+ * The phone agenda for `month`: each day from today with events, special
+ * Masses or a celebration of the Church year (Liturgy.jsx).
+ */
+function monthAgenda(events, masses, month, today) {
+  const byDate = new Map((month ? agendaDays(events, masses, month, today) : []).map((g) => [g.date, { ...g, liturgy: [] }]));
+  for (const c of month ? monthCells(month) : []) {
+    if (!c.inMonth || c.iso < today) continue;
+    const liturgy = agendaCelebrations(c.iso);
+    if (!liturgy.length) continue;
+    byDate.set(c.iso, { date: c.iso, events: [], masses: [], ...byDate.get(c.iso), liturgy });
+  }
+  // Only the special Masses (feasts): the weekly ones are in Iskedyul sa Misa.
+  return [...byDate.values()]
+    .map((g) => ({ ...g, masses: g.masses.filter((m) => massType(m) === 'Special Mass') }))
+    .filter((g) => g.events.length || g.masses.length || g.liturgy.length)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function EventsAgenda() {
   const events = listState(useEvents());
-  // The Masses go on the calendar too; if they fail to load, the events still show.
+  // The Masses go on the calendar too (not the Daily Masses: the same every
+  // weekday, they're in Iskedyul sa Misa); if they fail to load, the events still show.
   const mass = listState(useMassSchedule());
-  const masses = mass.error ? [] : mass.rows;
+  const masses = (mass.error ? [] : mass.rows).filter((m) => massType(m) !== 'Daily Mass');
   const today = todayIso();
   const months = calendarMonths(events.rows, today);
   const [month, setMonth] = useState('');
   useEffect(() => { if (months.length && !months.includes(month)) setMonth(months[0]); }, [months.join(), month]);
-  // The phone list: only the events and the special Masses (feasts). The
-  // weekly Masses are the same every week and are in Iskedyul sa Misa; listed
-  // every day they buried the rest.
-  const days = (month ? agendaDays(events.rows, masses, month, today) : [])
-    .map((g) => ({ ...g, masses: g.masses.filter((m) => massType(m) === 'Special Mass') }))
-    .filter((g) => g.events.length || g.masses.length);
+  const days = monthAgenda(events.rows, masses, month, today);
   const types = EVENT_TYPES.filter((t) => events.rows.some((e) => e.type === t));
   const state = { ...events, loading: events.loading || mass.loading };
 
@@ -386,9 +402,10 @@ function EventsAgenda() {
       state={state}
       skeleton={<><div className="lg:hidden"><Skeletons n={2} h={84} /></div><Skeleton h={560} className="hidden lg:block rounded-[18px]" /></>}
       errorText="Wala ma-load ang kalendaryo."
-      empty={events.empty && !masses.length}
-      emptyText="Walay kalihokan o Misa nga naka-iskedyul."
+      // The Church year always has something to show.
+      empty={false}
     >
+      <LiturgyNow today={today} />
       <div className="lg:flex lg:items-center lg:gap-2 lg:mb-4">
         {months.length > 1 && (
           <Pills dark className="mb-4 lg:mb-0" options={months.map((m) => [m, <>{monthLabel(m)}<span className="hidden lg:inline"> {m.slice(0, 4)}</span></>])} value={month} onChange={setMonth} />
@@ -414,7 +431,7 @@ function EventsAgenda() {
       {month && <MonthCalendar month={month} events={events.rows} masses={masses} today={today} />}
       <div className="flex flex-col gap-[18px] lg:hidden">
         <p className="m-0 text-[13.5px] leading-normal text-parish-text2">
-          Mga kalihokan ug espesyal nga Misa lang ang naa dinhi. Ang regular nga Misa matag semana naa sa Iskedyul sa Misa.
+          Mga kalihokan, espesyal nga Misa ug mga kapistahan sa Simbahan ang naa dinhi. Ang regular nga Misa matag semana naa sa Iskedyul sa Misa.
         </p>
         {!days.length && <EmptyNote>Walay kalihokan o espesyal nga Misa niining bulana.</EmptyNote>}
         {days.map((g) => {
@@ -426,6 +443,7 @@ function EventsAgenda() {
                 {g.date === today && <span className="ml-1.5 text-parish-blueDeep">· Karon</span>}
               </h3>
               <div className="flex flex-col gap-2">
+                {g.liturgy.map((c) => <LiturgyLine key={c.name} c={c} />)}
                 {g.events.map((e) => <EventCard key={e.id} e={e} />)}
                 {g.masses.length > 0 && (
                   <div className="bg-parish-card border border-parish-border rounded-[14px] shadow-cardSm overflow-hidden [&>*:first-child]:border-t-0">
@@ -437,6 +455,7 @@ function EventsAgenda() {
           );
         })}
       </div>
+      <ChurchYear today={today} />
     </DataState>
   );
 }
@@ -462,7 +481,11 @@ function CalendarMass({ m }) {
   );
 }
 
-/** Desktop month grid. Multi-day events run as one bar across the days they cover. */
+/**
+ * Desktop month grid. Each day has its liturgical color as a line along the
+ * top and its celebrations under the date (Liturgy.jsx). Multi-day events run
+ * as one bar across the days they cover.
+ */
 function MonthCalendar({ month, events, masses, today }) {
   const cells = monthCells(month);
   return (
@@ -474,11 +497,19 @@ function MonthCalendar({ month, events, masses, today }) {
         {cells.map((c) => {
           const isToday = c.iso === today;
           return (
-            <div key={c.iso} className="min-h-[108px] py-2" style={{ background: isToday ? 'var(--p-blue-tint)' : c.inMonth ? '#fffdf8' : '#f7f2e8' }}>
-              <div className={`px-2.5 mb-1.5 font-bold text-[15px] ${c.inMonth ? 'text-parish-ink' : 'text-[#b3aa94]'}`}>
+            <div
+              key={c.iso}
+              className="min-h-[108px] py-2"
+              style={{
+                background: isToday ? 'var(--p-blue-tint)' : c.inMonth ? '#fffdf8' : '#f7f2e8',
+                boxShadow: `inset 0 3px 0 ${c.inMonth ? dayColor(c.iso) : 'transparent'}`,
+              }}
+            >
+              <div className={`px-2.5 mb-1 font-bold text-[15px] ${c.inMonth ? 'text-parish-ink' : 'text-[#b3aa94]'}`}>
                 {c.day}
                 {isToday && <span className="ml-1.5 font-bold text-[10px] tracking-[.08em] uppercase text-parish-blueDeep">Karon</span>}
               </div>
+              {c.inMonth && <CellCelebrations iso={c.iso} />}
               <div className="flex flex-col gap-[3px]">
                 {eventsOnDay(events, c.iso, c.dow).map(({ e, starts, ends }) => {
                   const tone = eventTone(e);
@@ -510,7 +541,7 @@ function MonthCalendar({ month, events, masses, today }) {
           );
         })}
       </div>
-      <div className="text-[13.5px] text-parish-text2 mt-2.5">Ang daghang-adlaw nga kalihokan (sama sa Novena) makita isip usa ka taas nga bar. Ang mga oras sa Misa naa sa matag adlaw; ang espesyal nga Misa may bitoon.</div>
+      <div className="text-[13.5px] text-parish-text2 mt-2.5">Ang linya sa ibabaw sa matag adlaw mao ang kolor sa liturhiya, ug ang mga kapistahan nakasulat ilalom sa petsa. Ang daghang-adlaw nga kalihokan (sama sa Novena) makita isip usa ka taas nga bar; ang espesyal nga Misa may bitoon. Ang Misa sa adlaw-adlaw naa sa Iskedyul sa Misa.</div>
     </div>
   );
 }
