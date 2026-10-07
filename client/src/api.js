@@ -975,12 +975,19 @@ export const api = {
   async listHistory() {
     return listWebsite('history_articles', (q) => q.order('is_main', { ascending: false }).order('year', { nullsFirst: true }).order('id'), '0068_parish_history.sql');
   },
-  saveHistory: (row) => saveWebsiteRow('history_articles', row),
+  async saveHistory(row) {
+    try {
+      return await saveWebsiteRow('history_articles', row);
+    } catch (e) {
+      if (/body_photo/.test(e.message || '')) throw new Error('Run the 0069_history_body_photo.sql migration in Supabase to add a photo inside the article');
+      throw e;
+    }
+  },
   /** Delete a chapter, then (best effort) its photos on R2. The main article can't be deleted. */
   async deleteHistory(id) {
     const { data: row } = await supabase.from('history_articles').select('*').eq('id', id).maybeSingle();
     await deleteWebsiteRow('history_articles', id);
-    const urls = [row?.photo_url, ...(row?.photos || []).map((p) => p.url)].filter(Boolean);
+    const urls = [row?.photo_url, row?.body_photo_url, ...(row?.photos || []).map((p) => p.url)].filter(Boolean);
     await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
   },
 

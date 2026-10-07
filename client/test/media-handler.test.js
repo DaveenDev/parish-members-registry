@@ -279,13 +279,16 @@ describe('name', () => {
     ]);
   });
   test('renames a History page article to history<ID>_cover.jpg, history<ID>_1.jpg (0068)', async () => {
-    const db = fakeDb({ articles: [], events: [], history_articles: [{ id: 3, cover_seq: 0, photo_seq: 0, photo_url: `${BASE}/history/2026/10/c.jpg`, photos: [{ url: `${BASE}/history/2026/10/p.jpg`, caption: 'Ang kapilya' }] }] });
+    const db = fakeDb({ articles: [], events: [], history_articles: [{ id: 3, cover_seq: 0, photo_seq: 0, photo_url: `${BASE}/history/2026/10/c.jpg`, photos: [{ url: `${BASE}/history/2026/10/p.jpg`, caption: 'Ang kapilya' }], body_photo_url: `${BASE}/history/2026/10/b.jpg` }] });
     const r2 = r2WithCopy();
     const res = await run(db, { table: 'history_articles', id: 3 }, r2);
     assert.equal(res.status, 200);
     assert.equal(res.body.row.photo_url, `${BASE}/history/history3_cover.jpg`);
     assert.deepEqual(res.body.row.photos, [{ url: `${BASE}/history/history3_1.jpg`, caption: 'Ang kapilya' }]);
-    assert.deepEqual(r2.calls.map((c) => c[0]), ['copy', 'copy', 'delete', 'delete']);
+    // The photo inside the main article (0069) is numbered after the gallery.
+    assert.equal(res.body.row.body_photo_url, `${BASE}/history/history3_2.jpg`);
+    assert.equal(res.body.row.photo_seq, 2);
+    assert.deepEqual(r2.calls.map((c) => c[0]), ['copy', 'copy', 'copy', 'delete', 'delete', 'delete']);
   });
   test("keeps a cover another event still uses (Duplicate)", async () => {
     const shared = `${BASE}/events/event55_cover.jpg`;

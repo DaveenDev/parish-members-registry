@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { BAND_PAD, Band, BigButton, EmptyNote, ErrorNote, Eyebrow, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { chapterAnchor, historyWhen } from '../../lib/history.js';
+import { paragraphs } from '../../lib/site.js';
 import { Body, Gallery, Lightbox, Photo } from './Details.jsx';
 import { useSiteTitle } from './SiteLayout.jsx';
 import { useHistory } from './data.js';
@@ -46,13 +47,84 @@ export default function Kasaysayan() {
   return (
     <main className="animate-fadeUp">
       <Hero main={main} />
-      {main?.body && (
-        <section aria-label="Ang sinugdanan" className={`${WRAP} pt-7 lg:pt-12`}>
-          <div className="lg:max-w-[780px]"><Body text={main.body} /></div>
-        </section>
-      )}
-      {chapters.length > 0 && <Chapters chapters={chapters} />}
+      <Story main={main?.body ? main : null} chapters={chapters} />
     </main>
+  );
+}
+
+const MAIN_ANCHOR = 'sinugdanan';
+
+/**
+ * The main article, then the chapters, in one column; beside them on
+ * desktop, the timeline from "Sinugdanan" (the main article) through each
+ * chapter's year, following the reader. With nothing to jump between, the
+ * article has the page to itself, centred.
+ */
+function Story({ main, chapters }) {
+  const entries = [
+    main && { key: 'main', anchor: MAIN_ANCHOR, when: 'Sinugdanan', title: main.title },
+    ...chapters.map((c) => ({ key: c.id, anchor: chapterAnchor(c), when: historyWhen(c), title: c.title })),
+  ].filter(Boolean);
+  const current = useCurrentEntry(entries);
+  const { hash } = useLocation();
+  const aside = entries.length > 1;
+
+  const go = (entry, behavior = 'smooth') => {
+    document.getElementById(entry.anchor)?.scrollIntoView({ behavior, block: 'start' });
+    window.history.replaceState(window.history.state, '', `#${entry.anchor}`);
+  };
+  // A shared link to a chapter (#tuig-12): straight there once it's on the page.
+  useEffect(() => {
+    const entry = entries.find((x) => `#${x.anchor}` === hash);
+    if (entry) setTimeout(() => go(entry, 'auto'), 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className={`${WRAP} pt-7 lg:pt-12 pb-4 ${aside ? 'lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-14 lg:items-start' : ''}`}>
+      <div className={aside ? 'min-w-0' : 'lg:max-w-[860px] lg:mx-auto'}>
+        {main && <MainArticle main={main} />}
+        {chapters.length > 0 && (
+          <section aria-labelledby="panaw-title" className={main ? 'mt-8 lg:mt-14 border-t' : ''} style={{ borderColor: 'var(--p-blue-border)' }}>
+            <YearBar entries={entries} current={current} onPick={go} />
+            <div className="pt-6 lg:pt-12">
+              <Eyebrow>Sukad sa sinugdanan</Eyebrow>
+              <h2 id="panaw-title" className="m-0 mb-6 lg:mb-10 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Ang Among Panaw</h2>
+              {chapters.map((c, i) => <Chapter key={c.id} c={c} last={i === chapters.length - 1} />)}
+            </div>
+          </section>
+        )}
+      </div>
+      {aside && <Timeline entries={entries} current={current} onPick={go} />}
+    </div>
+  );
+}
+
+/**
+ * The main article's text. Its photo inside the article (when one was added)
+ * sits in the second paragraph: floated right with the text around it from
+ * a tablet up, between the first and second paragraphs on a phone.
+ */
+function MainArticle({ main }) {
+  const paras = paragraphs(main.body);
+  const [open, setOpen] = useState(false);
+  const photo = main.body_photo_url ? { url: main.body_photo_url, caption: main.body_photo_caption || '' } : null;
+  // Before the second paragraph; after the only one when there's just one.
+  const at = Math.min(1, paras.length);
+  return (
+    <section id={MAIN_ANCHOR} aria-label="Ang sinugdanan" className={`${CHAPTER_MT} flow-root`}>
+      <Body text={paras.slice(0, at).join('\n\n')} />
+      {photo && (
+        <figure className={`m-0 mb-4 lg:mb-5 ${paras.length > at ? 'sm:float-right sm:w-[46%] sm:ml-6 sm:mt-1.5 sm:mb-3 lg:ml-8' : ''}`}>
+          <button type="button" onClick={() => setOpen(true)} className="block w-full appearance-none border-none bg-transparent p-0 cursor-zoom-in" aria-label={photo.caption || 'Ablihi ang litrato'}>
+            <img src={photo.url} alt={photo.caption || ''} loading="lazy" className="block w-full rounded-[14px] lg:rounded-[16px] bg-[#efe6d3]" />
+          </button>
+          {photo.caption && <figcaption className="mt-2 text-[13.5px] lg:text-[14px] leading-snug italic text-parish-text2">{photo.caption}</figcaption>}
+        </figure>
+      )}
+      <Body text={paras.slice(at).join('\n\n')} />
+      {open && photo && <Lightbox photos={[photo]} index={0} onIndex={() => {}} onClose={() => setOpen(false)} />}
+    </section>
   );
 }
 
@@ -100,18 +172,20 @@ function Hero({ main }) {
   );
 }
 
-/** Which chapter is being read: the last one whose top has passed the reading line. */
-function useCurrentChapter(chapters) {
-  const [current, setCurrent] = useState(chapters[0]?.id ?? null);
+/** Which entry is being read: the last one whose top has passed the reading line. */
+function useCurrentEntry(entries) {
+  const anchors = entries.map((e) => e.anchor).join();
+  const [current, setCurrent] = useState(entries[0]?.anchor ?? null);
   useEffect(() => {
-    // A handful of chapters: cheap enough to check on every scroll.
+    const list = anchors ? anchors.split(',') : [];
+    // A handful of entries: cheap enough to check on every scroll.
     const update = () => {
-      let id = chapters[0]?.id ?? null;
-      for (const c of chapters) {
-        const el = document.getElementById(chapterAnchor(c));
-        if (el && el.getBoundingClientRect().top <= READING_LINE) id = c.id;
+      let at = list[0] ?? null;
+      for (const anchor of list) {
+        const el = document.getElementById(anchor);
+        if (el && el.getBoundingClientRect().top <= READING_LINE) at = anchor;
       }
-      setCurrent(id);
+      setCurrent(at);
     };
     update();
     window.addEventListener('scroll', update, { passive: true });
@@ -120,38 +194,8 @@ function useCurrentChapter(chapters) {
       window.removeEventListener('scroll', update);
       window.removeEventListener('resize', update);
     };
-  }, [chapters]);
+  }, [anchors]);
   return current;
-}
-
-function Chapters({ chapters }) {
-  const current = useCurrentChapter(chapters);
-  const { hash } = useLocation();
-
-  const go = (c, behavior = 'smooth') => {
-    document.getElementById(chapterAnchor(c))?.scrollIntoView({ behavior, block: 'start' });
-    window.history.replaceState(window.history.state, '', `#${chapterAnchor(c)}`);
-  };
-  // A shared link to a chapter (#tuig-12): straight there once it's on the page.
-  useEffect(() => {
-    const c = chapters.find((x) => `#${chapterAnchor(x)}` === hash);
-    if (c) setTimeout(() => go(c, 'auto'), 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  return (
-    <section aria-labelledby="panaw-title" className="mt-8 lg:mt-14 border-t" style={{ borderColor: 'var(--p-blue-border)' }}>
-      <YearBar chapters={chapters} current={current} onPick={go} />
-      <div className={`${WRAP} pt-6 lg:pt-12 pb-4 lg:grid lg:grid-cols-[minmax(0,1fr)_280px] lg:gap-14 lg:items-start`}>
-        <div className="min-w-0">
-          <Eyebrow>Sukad sa sinugdanan</Eyebrow>
-          <h2 id="panaw-title" className="m-0 mb-6 lg:mb-10 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Ang Among Panaw</h2>
-          {chapters.map((c, i) => <Chapter key={c.id} c={c} last={i === chapters.length - 1} />)}
-        </div>
-        <Timeline chapters={chapters} current={current} onPick={go} />
-      </div>
-    </section>
-  );
 }
 
 /** One chapter: its year, title, cover photo, text and gallery. */
@@ -172,20 +216,21 @@ function Chapter({ c, last }) {
   );
 }
 
-/** Desktop: the chapters down the right side, the one being read marked, sticking under the header. */
-function Timeline({ chapters, current, onPick }) {
+
+/** Desktop: the main article and the chapters down the right side, the one being read marked, sticking under the header. */
+function Timeline({ entries, current, onPick }) {
   return (
     <nav aria-label="Mga tuig" className="hidden lg:block sticky top-[100px] max-h-[calc(100vh-120px)] overflow-y-auto">
       <div className="font-bold text-[12px] tracking-[.18em] uppercase text-[var(--p-eyebrow)] mb-3">Mga tuig</div>
       <ol className="list-none m-0 p-0 relative">
         <span className="absolute left-[7px] top-2 bottom-2 w-0.5 bg-[var(--p-blue-border)]" aria-hidden />
-        {chapters.map((c) => {
-          const on = c.id === current;
+        {entries.map((x) => {
+          const on = x.anchor === current;
           return (
-            <li key={c.id} className="relative">
+            <li key={x.key} className="relative">
               <a
-                href={`#${chapterAnchor(c)}`}
-                onClick={(e) => { e.preventDefault(); onPick(c); }}
+                href={`#${x.anchor}`}
+                onClick={(e) => { e.preventDefault(); onPick(x); }}
                 aria-current={on ? 'location' : undefined}
                 className={`flex gap-3 items-start py-2 pr-2 rounded-lg no-underline ${on ? '' : 'hover:bg-[var(--p-blue-tint)]'}`}
               >
@@ -194,8 +239,8 @@ function Timeline({ chapters, current, onPick }) {
                   aria-hidden
                 />
                 <span className="min-w-0">
-                  <span className={`block font-serif font-bold text-[18px] leading-tight ${on ? 'text-parish-blue' : 'text-parish-navy'}`}>{historyWhen(c)}</span>
-                  <span className={`block text-[13.5px] leading-snug ${on ? 'text-parish-ink font-semibold' : 'text-parish-text2'}`}>{c.title}</span>
+                  <span className={`block font-serif font-bold text-[18px] leading-tight ${on ? 'text-parish-blue' : 'text-parish-navy'}`}>{x.when}</span>
+                  <span className={`block text-[13.5px] leading-snug ${on ? 'text-parish-ink font-semibold' : 'text-parish-text2'}`}>{x.title}</span>
                 </span>
               </a>
             </li>
@@ -206,8 +251,8 @@ function Timeline({ chapters, current, onPick }) {
   );
 }
 
-/** Phones: the years in a row under the header, the one being read kept in view. */
-function YearBar({ chapters, current, onPick }) {
+/** Phones: the years in a row under the header while reading the chapters, the one being read kept in view. */
+function YearBar({ entries, current, onPick }) {
   const row = useRef(null);
   useEffect(() => {
     const el = row.current?.querySelector('[aria-current]');
@@ -216,16 +261,17 @@ function YearBar({ chapters, current, onPick }) {
     box.scrollTo({ left: el.offsetLeft - box.clientWidth / 2 + el.offsetWidth / 2, behavior: 'smooth' });
   }, [current]);
   return (
-    <nav aria-label="Mga tuig" className="lg:hidden sticky top-[58px] z-10 border-b backdrop-blur-md" style={{ background: 'rgba(247,242,232,.95)', borderColor: 'var(--p-blue-border)' }}>
+    // Across the whole screen, out of the page's side padding.
+    <nav aria-label="Mga tuig" className="lg:hidden sticky top-[58px] z-10 -mx-3.5 border-b backdrop-blur-md" style={{ background: 'rgba(247,242,232,.95)', borderColor: 'var(--p-blue-border)' }}>
       <div ref={row} className={`flex gap-2 overflow-x-auto px-3.5 py-2.5 ${NO_SCROLLBAR}`}>
-        {chapters.map((c) => {
-          const on = c.id === current;
+        {entries.map((x) => {
+          const on = x.anchor === current;
           return (
             <button
-              key={c.id} type="button" onClick={() => onPick(c)} aria-current={on ? 'location' : undefined}
+              key={x.key} type="button" onClick={() => onPick(x)} aria-current={on ? 'location' : undefined}
               className={`flex-none min-h-[36px] px-3.5 rounded-full border-[1.5px] font-bold text-[14px] appearance-none cursor-pointer ${on ? 'bg-parish-blue border-parish-blue text-white' : 'bg-parish-card border-[var(--p-blue-border)] text-parish-blueDeep'}`}
             >
-              {historyWhen(c)}
+              {x.when}
             </button>
           );
         })}

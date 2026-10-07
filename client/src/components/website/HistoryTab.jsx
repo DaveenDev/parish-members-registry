@@ -6,7 +6,7 @@ import { fmtDateTime } from '../../constants.js';
 import { useToast } from '../../ToastContext.jsx';
 import { HISTORY_PAGE, historyWhen, openingParagraph, parseYear, sortChapters } from '../../lib/history.js';
 import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon } from './shared.jsx';
-import { useArticlePhotos, PhotoFields } from './photos.jsx';
+import { useArticlePhotos, PhotoFields, SinglePhotoField } from './photos.jsx';
 
 const describe = (r) => r.title;
 const NEW_MAIN = { is_main: true, title: 'Ang Kasaysayan sa Parokya', author: '', body: '', photo_url: '', photos: [], published: false };
@@ -170,6 +170,7 @@ function HistoryEditor({ row, onClose, onSaved }) {
   const [form, setForm] = useState({
     ...row, title: row.title || '', year: row.year ?? '', date_label: row.date_label || '', author: row.author || '',
     body: row.body || '', photo_url: row.photo_url || '', photos: row.photos || [],
+    body_photo_url: row.body_photo_url || '', body_photo_caption: row.body_photo_caption || '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -190,14 +191,20 @@ function HistoryEditor({ row, onClose, onSaved }) {
     setError('');
     try {
       const gallery = form.photos.map((p) => ({ url: p.url, caption: (p.caption || '').trim() }));
+      // The photo inside the article is the main article's (0069); left out
+      // otherwise, so chapters still save before that migration.
+      const { body_photo_url: inside, body_photo_caption: insideCaption, ...fields } = form;
+      const withInside = isMain && (inside || 'body_photo_url' in row)
+        ? { ...fields, body_photo_url: inside, body_photo_caption: inside ? insideCaption.trim() : '' }
+        : fields;
       const saved = await api.saveHistory({
-        ...form, title: form.title.trim(), author: form.author.trim(), photos: gallery,
+        ...withInside, title: form.title.trim(), author: form.author.trim(), photos: gallery,
         year: isMain ? null : year, date_label: isMain ? '' : form.date_label.trim(),
       });
       photos.saved();
       // Now that it has an ID: history<ID>_cover.jpg, history<ID>_1.jpg… on R2.
       let named = null;
-      if (saved.photo_url || saved.photos?.length) {
+      if (saved.photo_url || saved.photos?.length || saved.body_photo_url) {
         named = await api.nameImages('history_articles', saved.id).catch((e) => { toast.error(`Saved, but its photos weren't renamed: ${e.message}`); return null; });
       }
       toast.success(isMain ? 'Main article saved' : 'Chapter saved');
@@ -242,6 +249,14 @@ function HistoryEditor({ row, onClose, onSaved }) {
         coverHint={isMain ? 'The large photo at the top of the History page and on Ang Simbahan. A wide photo works best.' : 'Shown at the top of the chapter. A wide photo works best.'}
         galleryHint={isMain ? 'Shown beside the main photo at the top of the page. Pick several at once.' : 'Old photos from this period. Pick several at once.'}
       />
+
+      {isMain && (
+        <SinglePhotoField form={form} photos={photos} field="body_photo_url" label="Photo inside the article" hint="Optional. Shown in the article's second paragraph, with the text around it. Leave empty for none.">
+          {form.body_photo_url && (
+            <TextInput value={form.body_photo_caption} onChange={(e) => set('body_photo_caption')(e.target.value)} maxLength={200} placeholder="Caption (optional)" aria-label="Caption for the photo inside the article" className="w-full !py-2" />
+          )}
+        </SinglePhotoField>
+      )}
 
       <PublishSwitch checked={!!form.published} onChange={set('published')} />
     </SidePanel>

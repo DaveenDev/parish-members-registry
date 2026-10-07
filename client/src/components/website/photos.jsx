@@ -54,7 +54,9 @@ export function useArticlePhotos({ form, setForm, setError, folder }) {
     }
   }
 
-  const setCover = (url) => { discard(formRef.current.photo_url); setForm((f) => ({ ...f, photo_url: url })); };
+  /** Put `url` in a single-photo field (photo_url, or another such as body_photo_url), or clear it with ''. */
+  const setPhoto = (field, url) => { discard(formRef.current[field]); setForm((f) => ({ ...f, [field]: url })); };
+  const setCover = (url) => setPhoto('photo_url', url);
   const addPhoto = (url) => setForm((f) => ({ ...f, photos: [...f.photos, { url, caption: '' }] }));
   const updatePhoto = (i, patch) => setForm((f) => ({ ...f, photos: f.photos.map((p, j) => (j === i ? { ...p, ...patch } : p)) }));
   const movePhoto = (i, d) => setForm((f) => {
@@ -77,7 +79,29 @@ export function useArticlePhotos({ form, setForm, setError, folder }) {
     added.current.clear();
   }
 
-  return { uploading, withUploads, setCover, addPhoto, updatePhoto, movePhoto, removePhoto, cancel, saved };
+  return { uploading, withUploads, setPhoto, setCover, addPhoto, updatePhoto, movePhoto, removePhoto, cancel, saved };
+}
+
+/** One photo in `field` of the form (the cover by default): its preview, upload/replace and remove. `children` go under the buttons. */
+export function SinglePhotoField({ form, photos, field = 'photo_url', label, hint, children }) {
+  const url = form[field];
+  const name = label.toLowerCase();
+  return (
+    <>
+      <SectionLabel>{label}</SectionLabel>
+      <div className="flex items-start gap-4 flex-wrap">
+        <div className="w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
+          {url ? <img src={url} alt={label} className="w-full h-full object-cover" /> : <PhotoIcon size={32} />}
+        </div>
+        <div className="flex flex-col gap-2 items-start flex-1 min-w-[200px]">
+          <FilePick label={url ? `Replace ${name}` : `Upload ${name}`} onFiles={(files) => photos.withUploads(files.slice(0, 1), (u) => photos.setPhoto(field, u))} disabled={photos.uploading > 0} />
+          {url && <button type="button" onClick={() => photos.setPhoto(field, '')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove {name}</button>}
+          {hint && <span className="text-[12px] text-parish-muted max-w-[260px]">{hint}</span>}
+          {children}
+        </div>
+      </div>
+    </>
+  );
 }
 
 /** The cover photo and gallery sections of an editor, driven by useArticlePhotos. */
@@ -85,17 +109,7 @@ export function PhotoFields({ form, photos, coverLabel = 'Cover photo', coverHin
   const { uploading } = photos;
   return (
     <>
-      <SectionLabel>{coverLabel}</SectionLabel>
-      <div className="flex items-start gap-4 flex-wrap">
-        <div className="w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
-          {form.photo_url ? <img src={form.photo_url} alt="Cover" className="w-full h-full object-cover" /> : <PhotoIcon size={32} />}
-        </div>
-        <div className="flex flex-col gap-2 items-start">
-          <FilePick label={form.photo_url ? `Replace ${coverLabel.toLowerCase()}` : `Upload ${coverLabel.toLowerCase()}`} onFiles={(files) => photos.withUploads(files.slice(0, 1), photos.setCover)} disabled={uploading > 0} />
-          {form.photo_url && <button type="button" onClick={() => photos.setCover('')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove {coverLabel.toLowerCase()}</button>}
-          {coverHint && <span className="text-[12px] text-parish-muted max-w-[260px]">{coverHint}</span>}
-        </div>
-      </div>
+      <SinglePhotoField form={form} photos={photos} label={coverLabel} hint={coverHint} />
 
       <SectionLabel>Gallery</SectionLabel>
       {form.photos.length > 0 && (
