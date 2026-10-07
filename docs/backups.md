@@ -52,6 +52,24 @@ Then **Actions → Encrypted database backup → Run workflow** to make the firs
 backup now, and check that `database/parish-backup-<date>.tar.gz.gpg` appears
 in the bucket.
 
+## If a backup run fails
+
+Open the failed run (Actions → Encrypted database backup) and read the first
+red step:
+
+- **Check the database connection string**: `SUPABASE_DB_URL` can't be used.
+  Copy-paste slips (spaces, quotes, the `[ ]` from the template, a password
+  with `@ # / ?` in it) are fixed automatically and listed as notices; what's
+  left is said in the error, e.g. the `[YOUR-PASSWORD]` placeholder still in
+  it. Update the secret and run the workflow again.
+- **Dump roles, schema and data**, with *password authentication failed*: the
+  password in `SUPABASE_DB_URL` is wrong. Supabase → Project Settings →
+  Database → **Reset database password**, then put the new one in the secret.
+  With *could not translate host name* or a timeout: use the **Session
+  pooler** string (port 5432), not the Direct connection one.
+- **Upload to R2**: check `R2_ACCOUNT_ID`, the token's keys, the bucket name,
+  and that the token may write to that bucket.
+
 ## Restoring
 
 1. Cloudflare → R2 → `parish-backups` → `database/` → download the backup.

@@ -64,6 +64,17 @@ jobs:
           fi
           echo "R2_ENDPOINT=https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" >> "$GITHUB_ENV"
 
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: .github/scripts
+          sparse-checkout-cone-mode: false
+
+      # Fixes copy-paste slips in SUPABASE_DB_URL (spaces, quotes, the [ ],
+      # an unencoded @ or # in the password) and says which, without
+      # printing it; stops with the reason if it can't. Gives DB_URL.
+      - name: Check the database connection string
+        run: node .github/scripts/db-url.mjs
+
       - uses: supabase/setup-cli@v1
         with:
           version: latest
@@ -71,9 +82,9 @@ jobs:
       - name: Dump roles, schema and data
         run: |
           mkdir -p backup
-          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
-          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
-          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f backup/data.sql
+          supabase db dump --db-url "$DB_URL" --role-only -f backup/roles.sql
+          supabase db dump --db-url "$DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$DB_URL" --data-only --use-copy -f backup/data.sql
           # An empty dump means something went wrong, not an empty parish.
           for f in roles schema data; do [ -s "backup/$f.sql" ] || { echo "::error::backup/$f.sql is empty"; exit 1; }; done
           ls -l backup
