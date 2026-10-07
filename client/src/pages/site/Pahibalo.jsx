@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
+import Kalendaryo from '../../components/site/Kalendaryo.jsx';
 import { Band, DataState, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { AnnouncementCard, EventCard } from '../../components/site/cards.jsx';
 import { ANNOUNCEMENT_LABELS, ARTICLES_PAGE, bulletinLists, fmtLong, fmtShort, paragraphs, sortAnnouncements } from '../../lib/site.js';
-import { listState, useAnnouncements, useArticles, useBulletins, useEvents } from './data.js';
+import { listState, useAnnouncements, useArticles, useBulletins, useEvents, useMassSchedule } from './data.js';
 
 
 const CATEGORY_FILTERS = [['all', 'Tanan'], ['Parish', 'Parokya'], ['GKK', 'GKK'], ['Ministry', 'Ministry'], ['Schedule change', ANNOUNCEMENT_LABELS['Schedule change']], ['urgent', 'Urgent']];
@@ -34,9 +35,11 @@ const JUMP_TARGET = 'scroll-mt-[118px] lg:scroll-mt-[92px]';
 
 /**
  * Pahibalo ug Kalihokan: what's happening now and next. Upcoming events on
- * the blue band, the announcements below it on the page's cream, and the
- * weekly bulletin archive under its own tab. Jump links under the title go to each part. The articles (stories
- * after the fact) are on Komunidad; a line at the end points there.
+ * the blue band, the announcements below it on the page's cream, then the
+ * Kalendaryo (the month calendar with the Church year); the weekly bulletin
+ * archive is under its own tab. Jump links under the title go to each part.
+ * The articles (stories after the fact) are on Komunidad; a line at the end
+ * points there.
  */
 export default function Pahibalo() {
   const [params, setParams] = useSearchParams();
@@ -47,7 +50,9 @@ export default function Pahibalo() {
   const jumps = [
     events.rows.length > 0 && ['kalihokan', 'Kalihokan'],
     ['pahibalo', 'Pahibalo'],
+    ['kalendaryo', 'Kalendaryo'],
   ].filter(Boolean);
+  useJumpOnArrival(view === 'list');
 
   // The blue band is split around the jump bar (it can only stay stuck to the
   // top while it's a direct child of the page); the halves join seamlessly.
@@ -73,6 +78,7 @@ export default function Pahibalo() {
       {view === 'list' && (
         <div className={`${WRAP} pt-6 pb-7 lg:pt-10 lg:pb-0`}>
           <Announcements />
+          <CalendarSection />
           <ArticlesPointer />
         </div>
       )}
@@ -80,8 +86,32 @@ export default function Pahibalo() {
   );
 }
 
+const jumpTo = (id, behavior = 'smooth') => document.getElementById(id)?.scrollIntoView({ behavior, block: 'start' });
+
 /**
- * Kalihokan · Pahibalo, under the title. On phones it sticks below
+ * Arriving at /pahibalo#kalendaryo (Home's "Kalendaryo" link, old
+ * /simbahan?view=kalendaryo links): go there once everything above it has
+ * loaded, so it doesn't move down after the jump.
+ */
+function useJumpOnArrival(on) {
+  const { hash } = useLocation();
+  const id = hash.slice(1);
+  const events = useEvents();
+  const ann = useAnnouncements();
+  const mass = useMassSchedule();
+  const loading = events.loading || ann.loading || mass.loading;
+  const done = useRef(false);
+  useEffect(() => {
+    if (!on || done.current || loading || id !== 'kalendaryo') return undefined;
+    done.current = true;
+    // After the layout's scroll to the top on a new page.
+    const raf = requestAnimationFrame(() => jumpTo(id, 'auto'));
+    return () => cancelAnimationFrame(raf);
+  }, [on, id, loading]);
+}
+
+/**
+ * Kalihokan · Pahibalo · Kalendaryo, under the title. On phones it sticks below
  * the site header while scrolling, with a line under it once it's stuck.
  */
 function JumpLinks({ links }) {
@@ -98,7 +128,7 @@ function JumpLinks({ links }) {
 
   function go(e, id) {
     e.preventDefault();
-    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    jumpTo(id);
   }
 
   return (
@@ -214,6 +244,27 @@ function PinnedStrip({ rows }) {
 }
 
 /**
+ * Kalendaryo, below the announcements: the parish events, the special Masses
+ * and the Church year by month (components/site/Kalendaryo.jsx).
+ */
+function CalendarSection() {
+  return (
+    <section id="kalendaryo" aria-labelledby="kalendaryo-title" className={`mt-10 pt-8 lg:mt-14 lg:pt-12 border-t border-parish-border ${JUMP_TARGET}`}>
+      <div className="flex items-center gap-3 min-w-0 mb-3.5 lg:mb-5">
+        <span className="w-11 h-11 lg:w-12 lg:h-12 flex-none rounded-2xl flex items-center justify-center border" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)', borderColor: 'var(--p-blue-border)' }}>
+          <Icon name="cal" size={24} />
+        </span>
+        <div className="min-w-0">
+          <h2 id="kalendaryo-title" className="m-0 font-serif text-[26px] lg:text-[32px] font-bold text-parish-navy leading-tight">Kalendaryo</h2>
+          <p className="m-0 text-[14.5px] lg:text-[15.5px] text-[#4d4636]">Mga kalihokan, espesyal nga Misa ug ang tuig sa Simbahan.</p>
+        </div>
+      </div>
+      <Kalendaryo />
+    </section>
+  );
+}
+
+/**
  * The articles moved to Komunidad; this line at the end of the page points
  * there for anyone looking for them here. Hidden until there's one to read.
  */
@@ -251,9 +302,9 @@ function UpcomingEvents() {
     <section id="kalihokan" className={`mb-5 lg:mb-7 ${JUMP_TARGET}`} aria-labelledby="upcoming-events">
       <div className="flex items-baseline justify-between gap-3 mb-2.5 lg:mb-3">
         <h2 id="upcoming-events" className="m-0 font-serif text-[22px] lg:text-[26px] font-bold text-parish-navy">Umaabot nga Kalihokan</h2>
-        <Link to="/simbahan?view=kalendaryo" className="font-bold text-[14px] lg:text-[15px] text-parish-blueDeep whitespace-nowrap hover:underline">
-          <span className="lg:hidden">Kalendaryo →</span><span className="hidden lg:inline">Tan-awa ang kalendaryo →</span>
-        </Link>
+        <a href="#kalendaryo" onClick={(ev) => { ev.preventDefault(); jumpTo('kalendaryo'); }} className="font-bold text-[14px] lg:text-[15px] text-parish-blueDeep whitespace-nowrap hover:underline">
+          <span className="lg:hidden">Kalendaryo ↓</span><span className="hidden lg:inline">Tan-awa ang kalendaryo ↓</span>
+        </a>
       </div>
       <div
         role="list" aria-label="Umaabot nga kalihokan"

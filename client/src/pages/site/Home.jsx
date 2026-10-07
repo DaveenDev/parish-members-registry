@@ -4,7 +4,7 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
 import { AnnouncementCard, ArticleChip, CardShare, EventCard, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
-import { ARTICLES_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
+import { ARTICLES_PAGE, KALENDARYO_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
@@ -129,7 +129,7 @@ export default function Home() {
 
       <section className="px-3.5 pt-7 lg:p-0 lg:contents">
         <div className="lg:col-start-2 lg:row-start-1">
-          <SectionHead dark title="Umaabot nga kalihokan" to="/simbahan?view=kalendaryo" action="Kalendaryo" actionLg="Kalendaryo →" />
+          <SectionHead dark title="Umaabot nga kalihokan" to={KALENDARYO_PAGE} action="Kalendaryo" actionLg="Kalendaryo →" />
         </div>
         <div className="lg:col-start-2 lg:row-start-2">
           {events.loading ? <Skeleton h={150} /> : events.error ? (
