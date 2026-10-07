@@ -196,6 +196,9 @@ export const ANNOUNCEMENT_LABELS = { Parish: 'Parokya', GKK: 'GKK', Ministry: 'M
 // by year. Older links, /pahibalo/artikulo/:id and /komunidad/balita/:id,
 // redirect to an article's page.
 export const ARTICLES_PAGE = '/komunidad/artikulo';
+// The Kalendaryo: a section of Pahibalo ug Kalihokan, under the announcements.
+// Old /simbahan?view=kalendaryo and /misa?view=kalendaryo links redirect here.
+export const KALENDARYO_PAGE = '/pahibalo#kalendaryo';
 export const articlePath = (id) => `/komunidad/artikulo/${id}`;
 
 /** The years articles were held in, newest first, with how many: [{ year, count }]. */

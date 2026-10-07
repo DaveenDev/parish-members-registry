@@ -6,7 +6,7 @@ import {
 } from '../../lib/liturgy.js';
 import { BIS_DAYS, BIS_DAYS_SHORT, BIS_MONTHS, BIS_MONTHS_SHORT, fmtShort, parseIso } from '../../lib/site.js';
 
-// The Church year on the public calendar (Ang Simbahan → Kalendaryo): the
+// The Church year on the public calendar (Pahibalo ug Kalihokan → Kalendaryo): the
 // season now, the feasts in the month grid and the phone agenda, and the
 // great days of the year ahead. Data: data/liturgical-calendar.json.
 
