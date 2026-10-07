@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
-import { SearchInput, Pagination, ErrorState, LoadingState, Panel, ActionMenu } from './admin.jsx';
+import { SearchInput, ErrorState, LoadingState, Panel, ActionMenu } from './admin.jsx';
 import { GKK_ATTENTION, attentionCounts, filterByAttention, gkkProgress } from '../lib/gkkAdmin.js';
 import { useClientList } from '../hooks.js';
 import { Field, FlagEmptyRequired, TextInput } from './ui.jsx';
@@ -12,8 +12,11 @@ import GkkDocuments from './GkkDocuments.jsx';
 import { barangayCodeSuggestion, gkkParts } from '../lib/site.js';
 import { ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProblem, gkkForm, historyPatch, photosPatch, sameHistory, samePhotos, useGkkPhotos } from './GkkFields.jsx';
 
-// Desktop columns: name, chapel, puroks, year, households, census progress, actions.
-const COLS = 'lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_minmax(0,1fr)_56px_84px_150px_110px] lg:gap-4'; // a fixed actions column keeps the headings over their values
+// Desktop columns: name (with its reference code), chapel, year, households, census progress, actions.
+// The puroks are in the GKK's panel and the search; a column for them squeezed the names.
+const COLS = 'lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_56px_84px_150px_110px] lg:gap-4'; // a fixed actions column keeps the headings over their values
+// A parish has a few dozen GKKs at most: they all show on one page.
+const ALL_GKKS = 1000;
 const missingAddress = (g) => !String(g.chapel_address || '').trim();
 const websitePath = (name) => `/komunidad/gkk/${encodeURIComponent(name)}`;
 
@@ -59,8 +62,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
   // A "needs attention" chip ('all' shows every GKK).
   const [show, setShow] = useState('all');
   const gaps = attentionCounts(rows);
-  const list = useClientList(filterByAttention(rows, show), (r) => `${r.name} ${r.chapel_address || ''} ${r.puroks || ''}`);
-  useEffect(() => { list.setPage(1); }, [show]); // eslint-disable-line react-hooks/exhaustive-deps
+  const list = useClientList(filterByAttention(rows, show), (r) => `${r.name} ${r.chapel_address || ''} ${r.puroks || ''}`, ALL_GKKS);
   // Census progress rows by GKK (api.censusVsLastYear(), as on the Census page); null until loaded or if it fails.
   const [progress, setProgress] = useState(null);
   const [listCounts, setListCounts] = useState(new Map());
@@ -172,7 +174,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
       )}
       {list.rows.length > 0 && (
         <div className={`hidden lg:grid ${COLS} px-3.5 pb-2 font-semibold text-[11.5px] tracking-wide uppercase text-parish-muted`}>
-          <span>GKK</span><span>Chapel address</span><span>Puroks covered</span><span>Est.</span><span>Households</span><span>Census</span><span />
+          <span>GKK</span><span>Chapel address</span><span>Est.</span><span>Households</span><span>Census</span><span />
         </div>
       )}
       <div className="flex flex-col gap-2">
@@ -204,7 +206,6 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
                   : (String(g.history || '').trim() || (g.history_photos || []).length > 0) && <div className="text-[12px] font-semibold text-[#c2410c]">History draft, not published</div>}
               </div>
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{missingAddress(g) ? missing : g.chapel_address}</span>
-              <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{g.puroks || dash}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.year_established || dash}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.count}</span>
               <span className="hidden lg:block min-w-0"><Progress p={p} /></span>
@@ -234,9 +235,6 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
             {show !== 'all' && <> <button type="button" onClick={() => setShow('all')} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue">Show all GKKs</button></>}
           </div>
         )}
-      </div>
-      <div className="-mx-6 -mb-6 mt-4">
-        <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
       </div>
 
       {editing && <GkkPanel key={editing.id ?? 'new'} initial={editing} codes={codes} listNames={editing.original ? listNames(editing.original) : 0} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
