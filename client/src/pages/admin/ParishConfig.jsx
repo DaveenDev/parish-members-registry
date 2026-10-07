@@ -17,6 +17,7 @@ import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '../../components/Change
 import { resizeLogo, resizePhoto } from '../../lib/images.js';
 import { fmtDateTime } from '../../constants.js';
 import { DEFAULT_SITE_URL, normalizeSiteUrl } from '../../lib/census.js';
+import { projectIdFromUrl } from '../../lib/database.js';
 import { markPasswordResetWorking, saveEmailSettings, sendPasswordReset } from '../../emailApi.js';
 
 // The logo is shrunk before it's saved (resizeLogo), so the file picked can be big.
@@ -349,8 +350,7 @@ const linkButton = 'appearance-none border-none bg-transparent cursor-pointer fo
  */
 function DatabaseCard() {
   const url = import.meta.env.VITE_SUPABASE_URL || '';
-  let projectId = '';
-  try { projectId = /^([a-z0-9]+)\.supabase\.co$/i.exec(new URL(url).hostname)?.[1] || ''; } catch { /* not set or not a URL */ }
+  const projectId = projectIdFromUrl(url);
 
   return (
     <IntegrationCard

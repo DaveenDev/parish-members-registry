@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import MaintenanceGate from './components/MaintenanceGate.jsx';
+import TrainingBanner from './components/TrainingBanner.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Developer from './pages/site/Developer.jsx';
 import Home from './pages/site/Home.jsx';
@@ -74,6 +75,7 @@ function RequireAuth({ children }) {
 export default function App() {
   return (
     <AuthProvider>
+      <TrainingBanner />
       <Routes>
         <Route element={<MaintenanceGate />}>
         <Route element={<SiteLayout />}>
