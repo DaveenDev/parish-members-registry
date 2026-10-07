@@ -185,23 +185,20 @@ saved in `census_household_snapshots`.
 ## Staying on the free tier: keep-alive and backups
 
 Two GitHub Actions workflows in `.github/workflows/` cover what the free
-Supabase plan doesn't. Each one does nothing (and says so in its log) until
-its secrets are added under **Settings → Secrets and variables → Actions**.
+Supabase plan doesn't. A run that can't do its job fails, so GitHub emails
+the repository owner instead of showing a green tick.
 
-| Workflow | What it does | Secrets |
+| Workflow | What it does | Setup |
 |---|---|---|
-| `keep-alive.yml` | Every 3 days, calls one tiny read-only function so the free project never hits Supabase's 7-days-idle pause | `SUPABASE_URL`, `SUPABASE_ANON_KEY` (the same values as the website's) |
-| `backup.yml` | Every Sunday, dumps roles, schema and data, encrypts them with your passphrase (AES-256, `gpg`), and keeps the file as a workflow artifact for 90 days | `SUPABASE_DB_URL` (Supabase → **Connect** → *Session pooler* string, with the password), `BACKUP_PASSPHRASE` |
+| `keep-alive.yml` | Every 3 days, calls one tiny read-only function so the free project never hits Supabase's 7-days-idle pause | None: it uses the public address and key in `client/.env.production` |
+| `backup.yml` | Every Sunday, dumps roles, schema and data, encrypts them with your passphrase (AES-256, `gpg`), stores the file in a private Cloudflare R2 bucket and keeps the newest 26 | Six repository secrets: see [docs/backups.md](docs/backups.md) |
 
 Both can also be run by hand from the **Actions** tab. GitHub pauses scheduled
 workflows in repositories with no commits for 60 days. If that happens it
 emails the repository owner, and one click re-enables them.
 
-**Restoring a backup:** download the artifact from the workflow run, then run
-`gpg --decrypt parish-backup-YYYY-MM-DD.tar.gz.gpg | tar -xz`. Load
-`roles.sql`, then `schema.sql`, then `data.sql` into a new Supabase project with
-`psql "<connection string>" -f <file>`. Keep the passphrase somewhere safe
-offline: the backups can't be opened without it.
+**Restoring a backup:** see [docs/backups.md](docs/backups.md). Keep the
+passphrase somewhere safe offline: the backups can't be opened without it.
 
 ## Available scripts
 
