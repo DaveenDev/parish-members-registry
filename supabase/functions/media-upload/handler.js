@@ -124,7 +124,7 @@ export async function testConnection({ form, saved, makeR2, fetchPublic, uuid = 
       steps.push({
         step: 'public',
         ok: false,
-        message: `The Public URL didn't find the test file (HTTP ${res.status}). Check the address. If it's the website's /media address, the /media proxy in client/vercel.json must point at this bucket's public r2.dev address.`,
+        message: `The Public URL didn't find the test file (HTTP ${res.status}). Check the address. If it's the website's /media address, that site's MEDIA_ORIGIN setting on Vercel must be this bucket's public r2.dev address, and the site redeployed since (docs/media-storage.md).`,
       });
     }
   } catch (e) {
