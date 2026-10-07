@@ -108,8 +108,10 @@ export const GhostButton = React.forwardRef(function GhostButton({ className = '
   );
 });
 
-export function Spinner({ className = '' }) {
-  return <span className={`inline-block w-4 h-4 rounded-full border-2 border-white/40 border-t-white animate-spinSlow ${className}`} />;
+/** A small spinning ring: white for filled buttons, `tone="blue"` on light backgrounds. */
+export function Spinner({ className = '', tone = 'light' }) {
+  const ring = tone === 'blue' ? 'border-parish-blue/20 border-t-parish-blue' : 'border-white/40 border-t-white';
+  return <span aria-hidden="true" className={`inline-block flex-none w-4 h-4 rounded-full border-2 ${ring} animate-spinSlow ${className}`} />;
 }
 
 export function StatusPill({ status }) {

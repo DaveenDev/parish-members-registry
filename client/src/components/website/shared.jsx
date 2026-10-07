@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../api.js';
-import { Badge } from '../ui.jsx';
+import { Badge, Spinner } from '../ui.jsx';
 import { STATE_TONES } from '../../lib/website.js';
 import { useAsyncData } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
@@ -92,15 +92,65 @@ export function PhotoIcon({ size = 26 }) {
   );
 }
 
-/** A button that opens the file picker for images. */
-export function FilePick({ label, onFiles, multiple = false, disabled = false }) {
+/**
+ * A button that opens the file picker for images. While `busy` (this
+ * button's upload is running) it shows a spinner and "Uploading…" (or
+ * `busyLabel`) and can't be pressed; `disabled` alone just greys it out.
+ */
+export function FilePick({ label, onFiles, multiple = false, disabled = false, busy = false, busyLabel = 'Uploading…' }) {
+  const off = disabled || busy;
   return (
-    <label className={`cursor-pointer px-4 py-2 font-semibold text-[13.5px] text-white bg-parish-fill rounded-xl inline-block ${disabled ? 'opacity-60 pointer-events-none' : ''}`}>
-      {label}
+    <label aria-busy={busy || undefined} className={`cursor-pointer px-4 py-2 font-semibold text-[13.5px] text-white bg-parish-fill rounded-xl inline-flex items-center gap-2 ${off ? 'pointer-events-none' : ''} ${disabled && !busy ? 'opacity-60' : ''} ${busy ? 'opacity-90' : ''}`}>
+      {busy && <Spinner />}
+      {busy ? busyLabel : label}
       <input
-        type="file" accept="image/*" multiple={multiple} className="hidden" disabled={disabled}
+        type="file" accept="image/*" multiple={multiple} className="hidden" disabled={off}
         onChange={(e) => { const files = [...(e.target.files || [])]; e.target.value = ''; if (files.length) onFiles(files); }}
       />
     </label>
+  );
+}
+
+/**
+ * A spinner over a photo preview while a photo uploads into it. The preview
+ * needs `relative`; `round` for a round avatar.
+ */
+export function UploadOverlay({ busy, label = 'Uploading photo…', round = false }) {
+  if (!busy) return null;
+  return (
+    <div role="status" className={`absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-parish-card/90 backdrop-blur-[2px] ${round ? 'rounded-full' : ''}`}>
+      <Spinner tone="blue" className={round ? '!w-5 !h-5' : '!w-7 !h-7 !border-[3px]'} />
+      {round ? <span className="sr-only">{label}</span> : <span className="text-[12px] font-semibold text-parish-text2">{label}</span>}
+    </div>
+  );
+}
+
+/**
+ * How many photos one button is uploading, counting down as each lands.
+ * `run(files, upload, place)` calls `upload(files, place)` (useArticlePhotos'
+ * withUploads, useGkkPhotos' upload): the count shows a spinner on that
+ * button and preview only, though other uploads may be running.
+ */
+export function useUploadCount() {
+  const [count, setCount] = useState(0);
+  async function run(files, upload, place) {
+    setCount((n) => n + files.length);
+    try {
+      await upload(files, (url) => { setCount((n) => Math.max(0, n - 1)); place(url); });
+    } finally {
+      setCount(0);
+    }
+  }
+  return [count, run];
+}
+
+/** "Uploading 2 photos…" with a spinner, beside a gallery's Add button. */
+export function UploadingNote({ count }) {
+  if (!count) return null;
+  return (
+    <span role="status" className="inline-flex items-center gap-2 text-[13px] text-parish-muted">
+      <Spinner tone="blue" />
+      Uploading {count} photo{count === 1 ? '' : 's'}…
+    </span>
   );
 }

@@ -8,7 +8,8 @@ import LastYearList from '../../components/LastYearList.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 import { ownSettingsOnly } from '../../components/adminNav.js';
-import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
+import { Field, TextInput, PrimaryButton, GhostButton, Badge, Spinner } from '../../components/ui.jsx';
+import { UploadOverlay } from '../../components/website/shared.jsx';
 import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
 import { useTheme, THEMES } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
@@ -49,12 +50,16 @@ function ImageBlock({ title, usedOn, note, children }) {
   );
 }
 
-/** Upload / Replace and Remove for one image. */
+/** What an image's preview and button say while `busy` is 'upload' or 'remove'. */
+const IMAGE_BUSY_LABELS = { upload: 'Uploading…', remove: 'Removing…' };
+
+/** Upload / Replace and Remove for one image; `busy` is '', 'upload' or 'remove'. */
 function ImageButtons({ has, busy, noun, onFile, onRemove }) {
   return (
     <div className="flex items-center gap-3 flex-wrap">
-      <label className={`cursor-pointer px-4 py-2 font-semibold text-[13.5px] text-white bg-parish-fill rounded-xl inline-block ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
-        {busy ? 'Saving…' : has ? `Replace ${noun}` : `Upload ${noun}`}
+      <label aria-busy={!!busy || undefined} className={`cursor-pointer px-4 py-2 font-semibold text-[13.5px] text-white bg-parish-fill rounded-xl inline-flex items-center gap-2 ${busy ? 'opacity-90 pointer-events-none' : ''}`}>
+        {busy && <Spinner />}
+        {busy ? IMAGE_BUSY_LABELS[busy] : has ? `Replace ${noun}` : `Upload ${noun}`}
         <input type="file" accept="image/*" onChange={onFile} className="hidden" disabled={busy} />
       </label>
       {has && (
@@ -68,7 +73,7 @@ function ImageButtons({ has, busy, noun, onFile, onRemove }) {
 
 function LogoSection({ settings, onSaved }) {
   const toast = useToast();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState('');
 
   async function onFile(e) {
     const file = e.target.files?.[0];
@@ -84,7 +89,7 @@ function LogoSection({ settings, onSaved }) {
       return;
     }
 
-    setBusy(true);
+    setBusy('upload');
     try {
       // Stored inline as a data URL (printed sheets and the sign-in page use it
       // as is), shrunk first: every public page loads it.
@@ -94,12 +99,12 @@ function LogoSection({ settings, onSaved }) {
     } catch (err) {
       toast.error(err.message || 'Could not upload the logo');
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   }
 
   async function removeLogo() {
-    setBusy(true);
+    setBusy('remove');
     try {
       const res = await api.updateSettings({ logo: '' });
       onSaved(res.settings);
@@ -107,14 +112,15 @@ function LogoSection({ settings, onSaved }) {
     } catch (err) {
       toast.error(err.message || 'Could not remove the logo');
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   }
 
   return (
     <ImageBlock title="Logo" usedOn={['Sign-in', 'Sidebar', 'Printed sheets']} note={<>PNG or JPG, ideally square with a plain or clear background. It's resized for you.</>}>
       <div className="flex items-center gap-5 flex-wrap">
-        <div className={`w-24 h-24 rounded-[18px] bg-parish-field flex items-center justify-center overflow-hidden flex-none ${settings.logo ? 'border border-parish-line2 p-1.5' : 'border-2 border-dashed border-parish-borderStrong'}`}>
+        <div className={`relative w-24 h-24 rounded-[18px] bg-parish-field flex items-center justify-center overflow-hidden flex-none ${settings.logo ? 'border border-parish-line2 p-1.5' : 'border-2 border-dashed border-parish-borderStrong'}`}>
+          <UploadOverlay busy={!!busy} label={IMAGE_BUSY_LABELS[busy]} />
           {settings.logo ? (
             <img src={settings.logo} alt="Current parish logo" className="w-full h-full object-contain" />
           ) : (
@@ -155,7 +161,7 @@ function dropOldHero(url) {
 /** The parish's main photo, shown in the public home page's hero. */
 function HeroImageSection({ settings, onSaved }) {
   const toast = useToast();
-  const [busy, setBusy] = useState(false);
+  const [busy, setBusy] = useState('');
 
   async function onFile(e) {
     const file = e.target.files?.[0];
@@ -163,7 +169,7 @@ function HeroImageSection({ settings, onSaved }) {
     if (!file) return;
     if (!file.type.startsWith('image/')) { toast.error('Please choose an image file (JPG or PNG).'); return; }
     if (file.size > HERO_MAX_SOURCE_BYTES) { toast.error('That photo is over 15 MB. Choose a smaller one.'); return; }
-    setBusy(true);
+    setBusy('upload');
     try {
       const old = settings.hero_image;
       const res = await api.updateSettings({ hero_image: await heroImageValue(file) });
@@ -173,12 +179,12 @@ function HeroImageSection({ settings, onSaved }) {
     } catch (err) {
       toast.error(err.message || 'Could not upload the photo');
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   }
 
   async function remove() {
-    setBusy(true);
+    setBusy('remove');
     try {
       const old = settings.hero_image;
       const res = await api.updateSettings({ hero_image: '' });
@@ -188,13 +194,14 @@ function HeroImageSection({ settings, onSaved }) {
     } catch (err) {
       toast.error(err.message || 'Could not remove the photo');
     } finally {
-      setBusy(false);
+      setBusy('');
     }
   }
 
   return (
     <ImageBlock title="Parish photo" usedOn={['Website home page']} note="The church front or a parish gathering. A wide (landscape) photo works best; it's resized for you.">
-      <div className={`aspect-[16/7] w-full rounded-[14px] bg-parish-field overflow-hidden flex items-center justify-center mb-3.5 ${settings.hero_image ? 'border border-parish-line2' : 'border-2 border-dashed border-parish-borderStrong'}`}>
+      <div className={`relative aspect-[16/7] w-full rounded-[14px] bg-parish-field overflow-hidden flex items-center justify-center mb-3.5 ${settings.hero_image ? 'border border-parish-line2' : 'border-2 border-dashed border-parish-borderStrong'}`}>
+        <UploadOverlay busy={!!busy} label={IMAGE_BUSY_LABELS[busy]} />
         {settings.hero_image ? (
           <img src={settings.hero_image} alt="Current parish photo" className="w-full h-full object-cover" />
         ) : (

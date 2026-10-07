@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Field, TextInput } from './ui.jsx';
 import { RowButton, SectionLabel, TextArea } from './panels.jsx';
-import { FilePick, PhotoIcon, PublishSwitch } from './website/shared.jsx';
+import { FilePick, PhotoIcon, PublishSwitch, UploadOverlay, UploadingNote, useUploadCount } from './website/shared.jsx';
 
 // The GKK form parts that Parish Config → Parish GKK (full-access staff) and
 // My GKK (a GKK leader, 0045) share: the chapel details, the page's photos
@@ -185,16 +185,20 @@ export function PagePhotoFields({ form, setForm, photos }) {
     main.current = url;
     setForm((f) => ({ ...f, photo_url: url }));
   }
+  // This button's uploads, for their spinners (the other may be running too).
+  const [mainPending, runMain] = useUploadCount();
+  const [adding, runAdd] = useUploadCount();
   return (
     <>
       <SectionLabel>Main photo</SectionLabel>
       <div className="flex items-start gap-4 flex-wrap">
-        <div className="w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
+        <div className="relative w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
           {form.photo_url ? <img src={form.photo_url} alt="Main photo" className="w-full h-full object-cover" /> : <PhotoIcon size={32} />}
+          <UploadOverlay busy={mainPending > 0} />
         </div>
         <div className="flex flex-col gap-2 items-start">
-          <FilePick label={form.photo_url ? 'Replace photo' : 'Upload photo'} onFiles={(files) => photos.upload(files.slice(0, 1), setMain)} disabled={photos.uploading > 0} />
-          {form.photo_url && <button type="button" onClick={() => setMain('')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove photo</button>}
+          <FilePick label={form.photo_url ? 'Replace photo' : 'Upload photo'} onFiles={(files) => runMain(files.slice(0, 1), photos.upload, setMain)} busy={mainPending > 0} disabled={photos.uploading > 0} />
+          {form.photo_url && !mainPending && <button type="button" onClick={() => setMain('')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove photo</button>}
           <span className="text-[12px] text-parish-muted max-w-[260px]">Across the top of the GKK's page on the website. The chapel or the community, a wide photo works best.</span>
         </div>
       </div>
@@ -203,10 +207,10 @@ export function PagePhotoFields({ form, setForm, photos }) {
       <PhotoList form={form} setForm={setForm} field="photos" photos={photos} />
       <div className="flex items-center gap-3 flex-wrap">
         <FilePick
-          multiple label="+ Add photos" disabled={photos.uploading > 0 || room <= 0}
-          onFiles={(files) => photos.upload(files.slice(0, room), (url) => setForm((f) => (f.photos.length >= MAX_GKK_PHOTOS ? f : { ...f, photos: [...f.photos, { url, caption: '' }] })))}
+          multiple label="+ Add photos" busy={adding > 0} disabled={photos.uploading > 0 || room <= 0}
+          onFiles={(files) => runAdd(files.slice(0, room), photos.upload, (url) => setForm((f) => (f.photos.length >= MAX_GKK_PHOTOS ? f : { ...f, photos: [...f.photos, { url, caption: '' }] })))}
         />
-        {photos.uploading > 0 && <span className="text-[13px] text-parish-muted">Uploading {photos.uploading} photo(s)…</span>}
+        <UploadingNote count={adding} />
         {!photos.uploading && <span className="text-[12.5px] text-parish-muted">{room > 0 ? `3 to ${MAX_GKK_PHOTOS} photos of the GKK's life: Masses, feasts, gatherings. ${room} more can be added.` : `That's ${MAX_GKK_PHOTOS}, the most the page shows. Remove one to add another.`}</span>}
       </div>
     </>
@@ -218,6 +222,7 @@ export function PagePhotoFields({ form, setForm, photos }) {
  * the public website" switch; a GKK leader sees whether it's published.
  */
 export function HistoryFields({ form, setForm, setError, photos, canPublish }) {
+  const [adding, runAdd] = useUploadCount();
   return (
     <>
       <Field label="History of the GKK">
@@ -230,8 +235,8 @@ export function HistoryFields({ form, setForm, setError, photos, canPublish }) {
       <SectionLabel>Photos</SectionLabel>
       <PhotoList form={form} setForm={setForm} field="history_photos" photos={photos} firstLabel="Main photo" />
       <div className="flex items-center gap-3 flex-wrap">
-        <FilePick multiple label="+ Add photos" onFiles={(files) => photos.upload(files, (url) => setForm((f) => ({ ...f, history_photos: [...f.history_photos, { url, caption: '' }] })))} disabled={photos.uploading > 0} />
-        {photos.uploading > 0 && <span className="text-[13px] text-parish-muted">Uploading {photos.uploading} photo(s)…</span>}
+        <FilePick multiple label="+ Add photos" onFiles={(files) => runAdd(files, photos.upload, (url) => setForm((f) => ({ ...f, history_photos: [...f.history_photos, { url, caption: '' }] })))} busy={adding > 0} disabled={photos.uploading > 0} />
+        <UploadingNote count={adding} />
         {!photos.uploading && (
           <span className="text-[12.5px] text-parish-muted">
             {form.history_photos.length

@@ -6,7 +6,7 @@ import { FilterSelect, EmptyState, LoadingState, ErrorState } from '../admin.jsx
 import { fmtDate } from '../../constants.js';
 import { useToast } from '../../ToastContext.jsx';
 import { EVENT_TYPES, EVENT_TONES, fmtTime, toTimeInput, todayIso, addDays } from '../../lib/website.js';
-import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon, FilePick } from './shared.jsx';
+import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon, FilePick, UploadOverlay } from './shared.jsx';
 
 const describe = (r) => r.title;
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
@@ -230,11 +230,12 @@ function EventEditor({ row, gkks, onClose, onSaved }) {
 
       <SectionLabel>Cover photo (optional)</SectionLabel>
       <div className="flex items-start gap-4 flex-wrap">
-        <div className="w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
+        <div className="relative w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
           {form.photo_url ? <img src={form.photo_url} alt="Cover" className="w-full h-full object-cover" /> : <PhotoIcon size={32} />}
+          <UploadOverlay busy={uploading} />
         </div>
         <div className="flex flex-col gap-2 items-start">
-          <FilePick label={uploading ? 'Uploading…' : form.photo_url ? 'Replace cover' : 'Upload cover'} onFiles={pickCover} disabled={uploading} />
+          <FilePick label={form.photo_url ? 'Replace cover' : 'Upload cover'} onFiles={pickCover} busy={uploading} />
           {form.photo_url && !uploading && <button type="button" onClick={() => setCover('')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove cover</button>}
           <span className="text-[12px] text-parish-muted max-w-[260px]">
             A poster or photo for the event. With one, the website shows the event with its picture; without, the simple layout. A wide photo works best.

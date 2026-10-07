@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { TextInput } from '../ui.jsx';
-import { SectionLabel, RowButton, PhotoIcon, FilePick } from './shared.jsx';
+import { SectionLabel, RowButton, PhotoIcon, FilePick, UploadOverlay, UploadingNote, useUploadCount } from './shared.jsx';
 
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 
@@ -86,16 +86,20 @@ export function useArticlePhotos({ form, setForm, setError, folder }) {
 export function SinglePhotoField({ form, photos, field = 'photo_url', label, hint, children }) {
   const url = form[field];
   const name = label.toLowerCase();
+  const [pending, run] = useUploadCount();
+  const busy = pending > 0;
+  const pick = (files) => run(files.slice(0, 1), photos.withUploads, (u) => photos.setPhoto(field, u));
   return (
     <>
       <SectionLabel>{label}</SectionLabel>
       <div className="flex items-start gap-4 flex-wrap">
-        <div className="w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
+        <div className="relative w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
           {url ? <img src={url} alt={label} className="w-full h-full object-cover" /> : <PhotoIcon size={32} />}
+          <UploadOverlay busy={busy} />
         </div>
         <div className="flex flex-col gap-2 items-start flex-1 min-w-[200px]">
-          <FilePick label={url ? `Replace ${name}` : `Upload ${name}`} onFiles={(files) => photos.withUploads(files.slice(0, 1), (u) => photos.setPhoto(field, u))} disabled={photos.uploading > 0} />
-          {url && <button type="button" onClick={() => photos.setPhoto(field, '')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove {name}</button>}
+          <FilePick label={url ? `Replace ${name}` : `Upload ${name}`} onFiles={pick} busy={busy} disabled={photos.uploading > 0} />
+          {url && !busy && <button type="button" onClick={() => photos.setPhoto(field, '')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove {name}</button>}
           {hint && <span className="text-[12px] text-parish-muted max-w-[260px]">{hint}</span>}
           {children}
         </div>
@@ -107,6 +111,9 @@ export function SinglePhotoField({ form, photos, field = 'photo_url', label, hin
 /** The cover photo and gallery sections of an editor, driven by useArticlePhotos. */
 export function PhotoFields({ form, photos, coverLabel = 'Cover photo', coverHint, galleryHint }) {
   const { uploading } = photos;
+  // Photos on their way into the gallery, for its spinner.
+  const [adding, run] = useUploadCount();
+  const addPhotos = (files) => run(files, photos.withUploads, photos.addPhoto);
   return (
     <>
       <SinglePhotoField form={form} photos={photos} label={coverLabel} hint={coverHint} />
@@ -128,8 +135,8 @@ export function PhotoFields({ form, photos, coverLabel = 'Cover photo', coverHin
         </ul>
       )}
       <div className="flex items-center gap-3 flex-wrap">
-        <FilePick multiple label="+ Add photos" onFiles={(files) => photos.withUploads(files, photos.addPhoto)} disabled={uploading > 0} />
-        {uploading > 0 && <span className="text-[13px] text-parish-muted">Uploading {uploading} photo(s)…</span>}
+        <FilePick multiple label="+ Add photos" onFiles={addPhotos} busy={adding > 0} disabled={uploading > 0} />
+        <UploadingNote count={adding} />
         {!uploading && !form.photos.length && galleryHint && <span className="text-[12.5px] text-parish-muted">{galleryHint}</span>}
       </div>
     </>

@@ -4,7 +4,7 @@ import { useToast } from '../../ToastContext.jsx';
 import { Modal, Panel } from '../admin.jsx';
 import { Field, GhostButton, PrimaryButton, TextInput } from '../ui.jsx';
 import { RowButton } from '../panels.jsx';
-import { FilePick } from '../website/shared.jsx';
+import { FilePick, UploadOverlay } from '../website/shared.jsx';
 import MemberPicker, { pickedName } from './MemberPicker.jsx';
 import { HolderAvatar } from './NodePanel.jsx';
 import { usePhotoUploads } from './usePhotoUploads.js';
@@ -147,9 +147,12 @@ function OfficerEditor({ gkk, position, onClose, onSaved }) {
             </Field>
           )}
           <div className="flex items-center gap-3 flex-wrap">
-            <HolderAvatar photo={form.photoUrl} name={holder} size={52} />
-            <FilePick label={photos.uploading ? 'Uploading…' : form.photoUrl ? 'Replace photo' : 'Upload photo'} onFiles={pickPhoto} disabled={photos.uploading} />
-            {form.photoUrl && <button type="button" onClick={() => { photos.drop(form.photoUrl); set({ photoUrl: '' }); }} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove photo</button>}
+            <div className="relative flex-none">
+              <HolderAvatar photo={form.photoUrl} name={holder} size={52} />
+              <UploadOverlay busy={photos.uploading} round />
+            </div>
+            <FilePick label={form.photoUrl ? 'Replace photo' : 'Upload photo'} onFiles={pickPhoto} busy={photos.uploading} />
+            {form.photoUrl && !photos.uploading && <button type="button" onClick={() => { photos.drop(form.photoUrl); set({ photoUrl: '' }); }} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove photo</button>}
           </div>
           <Field label="Note">
             <TextInput value={form.note} maxLength={300} onChange={(e) => set({ note: e.target.value })} placeholder="e.g. 2025–2028" />

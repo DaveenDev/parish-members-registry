@@ -3,7 +3,7 @@ import { GKK_ROLES } from '../../constants.js';
 import { nameInitials } from '../../lib/orgChart.js';
 import { Field, GhostButton, Select, TextInput } from '../ui.jsx';
 import { RowButton, SectionLabel } from '../panels.jsx';
-import { FilePick } from '../website/shared.jsx';
+import { FilePick, UploadOverlay } from '../website/shared.jsx';
 import MemberPicker, { pickedName } from './MemberPicker.jsx';
 
 /** A round photo, or the holder's initials when there's none. */
@@ -115,11 +115,14 @@ export default function NodePanel({ node, scope, positions, canEdit, onChange, o
 
           <SectionLabel>Photo</SectionLabel>
           <div className="flex items-center gap-3 flex-wrap">
-            <HolderAvatar photo={d.photoUrl} name={holder} size={56} />
+            <div className="relative flex-none">
+              <HolderAvatar photo={d.photoUrl} name={holder} size={56} />
+              <UploadOverlay busy={photos.uploading} round />
+            </div>
             {canEdit && (
               <div className="flex flex-col gap-1.5 items-start">
-                <FilePick label={photos.uploading ? 'Uploading…' : d.photoUrl ? 'Replace photo' : 'Upload photo'} onFiles={pickPhoto} disabled={photos.uploading} />
-                {d.photoUrl && <button type="button" onClick={removePhoto} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove photo</button>}
+                <FilePick label={d.photoUrl ? 'Replace photo' : 'Upload photo'} onFiles={pickPhoto} busy={photos.uploading} />
+                {d.photoUrl && !photos.uploading && <button type="button" onClick={removePhoto} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove photo</button>}
               </div>
             )}
           </div>
