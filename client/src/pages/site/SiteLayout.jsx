@@ -145,6 +145,8 @@ export default function SiteLayout() {
           )}
         </div>
 
+        <ToTop />
+
         <nav aria-label="Main" className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-parish-card border-t border-parish-border">
           <div className="max-w-[560px] mx-auto h-16 grid grid-cols-5">
             {TABS.map((t) => {
@@ -166,6 +168,33 @@ export default function SiteLayout() {
         </nav>
       </TitleContext.Provider>
     </SiteToastContext.Provider>
+  );
+}
+
+/**
+ * "Balik sa ibabaw": a round button at the bottom right, above the phone tab
+ * bar, once the page is scrolled past its first screen. It jumps straight to
+ * the top (no slow scroll through a long page).
+ */
+function ToTop() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const check = () => setShow(window.scrollY > 600);
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
+  }, []);
+  if (!show) return null;
+  return (
+    <button
+      type="button"
+      aria-label="Balik sa ibabaw"
+      title="Balik sa ibabaw"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}
+      className="fixed right-4 bottom-[80px] lg:right-6 lg:bottom-6 z-30 w-12 h-12 rounded-full flex items-center justify-center text-white bg-parish-navy shadow-card border border-white/20 hover:brightness-110 animate-fadeUp"
+    >
+      <Icon name="down" size={22} className="rotate-180" />
+    </button>
   );
 }
 
