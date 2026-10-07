@@ -1,6 +1,6 @@
 // Photo uploads for the Parish Website (Blog Articles, event covers, GKK
-// history photos, the Organization Structure's holder photos and the parish
-// photo on the home page), stored on Cloudflare R2.
+// history photos, the parish History page, the Organization Structure's
+// holder photos and the parish photo on the home page), stored on Cloudflare R2.
 //
 // The R2 keys must never reach the browser, so this Edge Function hands the
 // admin a short-lived signed PUT link instead; the browser then uploads the
@@ -18,7 +18,7 @@
 const isDisabled = (user, now) => !!user?.banned_until && new Date(user.banned_until) > now;
 
 export const MAX_BYTES = 10 * 1024 * 1024;
-export const FOLDERS = ['articles', 'events', 'gkks', 'org', 'parish'];
+export const FOLDERS = ['articles', 'events', 'gkks', 'org', 'parish', 'history'];
 const TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const EDIT_WEBSITE = ['full', 'website'];
 export const NOT_CONFIGURED = "Photo storage isn't set up yet. A staff admin can add the Cloudflare R2 settings under Parish Config (see docs/media-storage.md).";
@@ -161,10 +161,12 @@ export function keyFromUrl(url, publicBase) {
 }
 
 // Readable names once a row is saved (0029 migration): article101_cover.jpg,
-// article101_1.jpg… and event55_cover.jpg. Events only have a cover.
+// article101_1.jpg…, event55_cover.jpg, and history3_cover.jpg, history3_1.jpg…
+// for the History page (0068). Events only have a cover.
 const NAMED = {
   articles: { folder: 'articles', prefix: 'article', gallery: true },
   events: { folder: 'events', prefix: 'event', gallery: false },
+  history_articles: { folder: 'history', prefix: 'history', gallery: true },
 };
 
 /**
@@ -209,7 +211,7 @@ export function namePlan(table, row, publicBase) {
   return { moves, patch };
 }
 
-/** True when any article, event or GKK history still links to `url` (or when we can't tell). */
+/** True when any article, event, History page article or GKK history still links to `url` (or when we can't tell). */
 async function inUse(admin, url) {
   const checks = await Promise.all([
     admin.from('articles').select('id').eq('photo_url', url).limit(1),
@@ -217,6 +219,13 @@ async function inUse(admin, url) {
     admin.from('events').select('id').eq('photo_url', url).limit(1),
   ]);
   if (checks.some((r) => r.error || r.data?.length)) return true;
+  // Before 0068 there's no History table, so it uses nothing.
+  const history = await Promise.all([
+    admin.from('history_articles').select('id').eq('photo_url', url).limit(1),
+    admin.from('history_articles').select('id').contains('photos', [{ url }]).limit(1),
+  ]);
+  const noTable = (e) => ['42P01', 'PGRST205'].includes(e?.code);
+  if (history.some((r) => (r.error && !noTable(r.error)) || r.data?.length)) return true;
   const gkks = await gkksUsing(admin, url);
   return gkks.error || gkks.names.length > 0;
 }
@@ -311,6 +320,7 @@ export async function handleMediaRequest({ admin, token, body, r2, saved = null,
       const { data: row, error } = await admin.from(body.table).select(cols).eq('id', id).maybeSingle();
       if (error) {
         if (/cover_seq|photo_seq/.test(error.message || '')) return fail(400, 'Run the 0029_photo_file_names.sql migration in Supabase to rename photos');
+        if (/history_articles/.test(error.message || '')) return fail(400, 'Run the 0068_parish_history.sql migration in Supabase to rename History photos');
         throw new Error(error.message);
       }
       if (!row) return fail(404, 'That article or event no longer exists');

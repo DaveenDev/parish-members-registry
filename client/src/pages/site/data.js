@@ -9,6 +9,8 @@ export const useSacramentGuides = () => usePublicData('sacraments', api.publicSa
 export const useBulletins = () => usePublicData('bulletins', api.publicBulletins);
 export const useEvents = () => usePublicData('events', () => api.publicEvents(todayIso()));
 export const useArticles = () => usePublicData('articles', api.publicArticles);
+/** The History page: { main, chapters } (0068), published only. */
+export const useHistory = () => usePublicData('history', api.publicHistory);
 export const useGkkDirectory = () => usePublicData('gkks', api.publicGkkDirectory);
 /** A GKK page's photos and published history (0046), or null. */
 export const useGkkPage = (name) => usePublicData(`gkk-page:${name}`, () => api.publicGkkPage(name));

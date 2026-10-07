@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Icon } from './Icons.jsx';
 import { DataState, EmptyNote, Pills, Skeleton, Skeletons } from './kit.jsx';
 import { EventCard, MassRow, eventTone } from './cards.jsx';
-import { CellCelebrations, ChurchYear, LiturgyLine, LiturgyNow, agendaCelebrations, dayColor } from './Liturgy.jsx';
+import { CellCelebrations, ChurchYear, ColorLegend, LiturgyLine, LiturgyNow, agendaCelebrations, dayColor } from './Liturgy.jsx';
 import {
   BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, agendaDays, calendarMonths, eventsOnDay, fmtTime12,
   massKindLabel, massShortLabel, massesOnDay, monthCells, monthLabel, parseIso,
@@ -90,6 +90,7 @@ export default function Kalendaryo() {
         <p className="m-0 text-[13.5px] leading-normal text-parish-text2">
           Mga kalihokan, espesyal nga Misa ug mga kapistahan sa Simbahan ang naa dinhi. Ang regular nga Misa matag semana naa sa <MassScheduleLink />.
         </p>
+        <ColorLegend className="mt-0" />
         {!days.length && <EmptyNote>Walay kalihokan o espesyal nga Misa niining bulana.</EmptyNote>}
         {days.map((g) => {
           const d = parseIso(g.date);
@@ -198,6 +199,7 @@ function MonthCalendar({ month, events, masses, today }) {
           );
         })}
       </div>
+      <ColorLegend />
       <div className="text-[13.5px] text-parish-text2 mt-2.5">Ang linya sa ibabaw sa matag adlaw mao ang kolor sa liturhiya, ug ang mga kapistahan nakasulat ilalom sa petsa. Ang daghang-adlaw nga kalihokan (sama sa Novena) makita isip usa ka taas nga bar; ang espesyal nga Misa may bitoon. Ang Misa sa adlaw-adlaw naa sa <MassScheduleLink />.</div>
     </div>
   );

@@ -971,6 +971,19 @@ export const api = {
     await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
   },
 
+  // The History page (0068): one main article, then chapters in order of year.
+  async listHistory() {
+    return listWebsite('history_articles', (q) => q.order('is_main', { ascending: false }).order('year', { nullsFirst: true }).order('id'), '0068_parish_history.sql');
+  },
+  saveHistory: (row) => saveWebsiteRow('history_articles', row),
+  /** Delete a chapter, then (best effort) its photos on R2. The main article can't be deleted. */
+  async deleteHistory(id) {
+    const { data: row } = await supabase.from('history_articles').select('*').eq('id', id).maybeSingle();
+    await deleteWebsiteRow('history_articles', id);
+    const urls = [row?.photo_url, ...(row?.photos || []).map((p) => p.url)].filter(Boolean);
+    await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
+  },
+
   // Article photos and event covers on Cloudflare R2, through the media-upload Edge Function.
   /**
    * After saving an article or event, rename its photos on R2 to readable
@@ -981,7 +994,7 @@ export const api = {
     const data = await callMediaFunction({ action: 'name', table, id });
     return data?.row || null;
   },
-  /** Shrink `file`, upload it to R2 under `folder` ('articles' or 'events') and return its public URL. */
+  /** Shrink `file`, upload it to R2 under `folder` ('articles', 'events', 'history'…) and return its public URL. */
   async uploadImage(file, folder = 'articles') {
     const blob = await resizePhotoBlob(file);
     const { uploadUrl, publicUrl } = await callMediaFunction({ action: 'sign', folder, contentType: 'image/jpeg', size: blob.size });
@@ -1118,6 +1131,11 @@ export const api = {
     .order('start_date').order('start_time', { nullsFirst: true })),
   // Every published article: Pahibalo ug Kalihokan lists them all (Home shows the newest two).
   publicArticles: () => listPublished('articles', (q) => q.order('held_on', { ascending: false }).order('id', { ascending: false }).limit(500)),
+  /** The published History page: { main, chapters } (chapters oldest first); empty before 0068 is run. */
+  async publicHistory() {
+    const rows = await listPublished('history_articles', (q) => q.order('year', { nullsFirst: true }).order('id')).catch(() => []);
+    return { main: rows.find((r) => r.is_main) || null, chapters: rows.filter((r) => !r.is_main) };
+  },
   /** One published item by id (for shared links to an event, announcement, bulletin or article), or null. */
   async publicItem(table, id) {
     if (!WEBSITE_TABLES.includes(table)) throw new Error('Unknown content type');
@@ -1807,7 +1825,7 @@ export const api = {
 
 const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'secretary_messenger'];
 
-const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles'];
+const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles', 'history_articles'];
 
 const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'history', 'history_photos', 'history_published', 'photo_url', 'photos'];
 

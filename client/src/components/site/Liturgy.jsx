@@ -171,7 +171,6 @@ export function ChurchYear({ today }) {
           Tan-awa ang tanan ({list.length})
         </button>
       )}
-      <ColorLegend />
     </section>
   );
 }
@@ -184,10 +183,10 @@ const COLOR_MEANING = [
   ['rose', 'Gaudete ug Laetare (Ikatulong Domingo sa Adbiyento, Ikaupat sa Kwaresma)'],
 ];
 
-/** What each liturgical color is for. */
-function ColorLegend() {
+/** What each liturgical color is for: right under the calendar, whose day lines use them. */
+export function ColorLegend({ className = 'mt-3' }) {
   return (
-    <div className="mt-4 lg:mt-5 rounded-2xl border border-parish-border bg-parish-card px-3.5 py-3 lg:px-5">
+    <div className={`${className} rounded-2xl border border-parish-border bg-parish-card px-3.5 py-3 lg:px-5`}>
       <div className="font-bold text-[11.5px] tracking-[.14em] uppercase text-[var(--p-eyebrow)] mb-1.5">Mga kolor sa liturhiya</div>
       <ul className="list-none m-0 p-0 grid gap-x-6 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
         {COLOR_MEANING.map(([color, meaning]) => (

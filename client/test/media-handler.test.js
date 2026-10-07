@@ -101,6 +101,12 @@ describe('sign', () => {
     assert.equal(res.body.publicUrl, `${BASE}/parish/2026/10/abc.jpg`);
     assert.equal((await call('token-web', { action: 'delete', url: `${BASE}/parish/2026/10/abc.jpg` }, r2)).status, 200);
   });
+  test('History page photos go under history/YYYY/MM and can be deleted', async () => {
+    const r2 = fakeR2();
+    const res = await call('token-web', sign({ folder: 'history' }), r2);
+    assert.equal(res.body.publicUrl, `${BASE}/history/2026/10/abc.jpg`);
+    assert.equal((await call('token-web', { action: 'delete', url: `${BASE}/history/2026/10/abc.jpg` }, r2)).status, 200);
+  });
   test('webp and png keep their extension', () => {
     assert.equal(objectKey('articles', 'image/webp', 'x', NOW), 'articles/2026/10/x.webp');
     assert.equal(objectKey('articles', 'image/png', 'x', NOW), 'articles/2026/10/x.png');
@@ -271,6 +277,15 @@ describe('name', () => {
       ['delete', 'articles/2026/10/c.jpg'],
       ['delete', 'articles/2026/10/p.jpg'],
     ]);
+  });
+  test('renames a History page article to history<ID>_cover.jpg, history<ID>_1.jpg (0068)', async () => {
+    const db = fakeDb({ articles: [], events: [], history_articles: [{ id: 3, cover_seq: 0, photo_seq: 0, photo_url: `${BASE}/history/2026/10/c.jpg`, photos: [{ url: `${BASE}/history/2026/10/p.jpg`, caption: 'Ang kapilya' }] }] });
+    const r2 = r2WithCopy();
+    const res = await run(db, { table: 'history_articles', id: 3 }, r2);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.row.photo_url, `${BASE}/history/history3_cover.jpg`);
+    assert.deepEqual(res.body.row.photos, [{ url: `${BASE}/history/history3_1.jpg`, caption: 'Ang kapilya' }]);
+    assert.deepEqual(r2.calls.map((c) => c[0]), ['copy', 'copy', 'delete', 'delete']);
   });
   test("keeps a cover another event still uses (Duplicate)", async () => {
     const shared = `${BASE}/events/event55_cover.jpg`;

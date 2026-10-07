@@ -123,6 +123,8 @@ in the SQL editor (adds each article's gallery and the History / Kasaysayan tag)
   | Article 101's cover | `articles/article101_cover.jpg` (a replacement: `article101_cover_2.jpg`, …) |
   | Article 101's gallery | `articles/article101_1.jpg`, `article101_2.jpg`, … |
   | Event 55's cover | `events/event55_cover.jpg` (a replacement: `event55_cover_2.jpg`, …) |
+  | History page article 3's main or cover photo | `history/history3_cover.jpg` |
+  | History page article 3's gallery | `history/history3_1.jpg`, `history3_2.jpg`, … |
 
   The ID shows as **#101** in the admin lists and on the article page. Numbers
   are never reused (photos are cached for a year, so a reused name would keep
@@ -143,7 +145,12 @@ in the SQL editor (adds each article's gallery and the History / Kasaysayan tag)
   `parish/YYYY/MM/<random>.jpg`; the old one is deleted when it's replaced or removed.
   Until the function is redeployed with the `parish` folder, the photo is saved
   inline in the database instead, as before.
-- The function only deletes files under `articles/`, `events/`, `gkks/`, `org/` and `parish/` in this bucket.
+- The History page (Parish Website → History, after
+  [`0068_parish_history.sql`](../supabase/migrations/0068_parish_history.sql)
+  and redeploying the function) works like the Blog Articles: photos go under
+  `history/YYYY/MM/<random>.jpg`, are renamed as in the table above once saved,
+  and are deleted when taken off or when their chapter is deleted.
+- The function only deletes files under `articles/`, `events/`, `gkks/`, `org/`, `parish/` and `history/` in this bucket.
 - A GKK's land titles and other documents are **not** kept on R2 (anyone with a
   photo's link can open it): they go in the private `gkk-documents` bucket of
   Supabase Storage, which 0044 creates.
