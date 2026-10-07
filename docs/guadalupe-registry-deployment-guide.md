@@ -1,5 +1,8 @@
 # Deploying the Our Lady of Guadalupe Registry to Vercel + Supabase
 
+> **Out of date.** This was the first plan, before the migrations, Edge
+> Functions and photo storage. Follow [`deploy/`](../deploy/README.md) instead.
+
 A step-by-step guide to take the Members Registry from your local machine to a live, free-tier deployment. Written for the architecture we settled on: **React frontend on Vercel**, **PostgreSQL + Auth + auto-generated APIs on Supabase**, no separate Express server needed.
 
 This guide assumes you already have the app running locally. Where it matters, notes call out what to change so the same codebase works both locally and in production.
