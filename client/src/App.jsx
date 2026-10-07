@@ -1,8 +1,6 @@
 import React, { Suspense } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
-import RegistrationApp from './pages/RegistrationApp.jsx';
-import CensusPortal from './pages/CensusPortal.jsx';
 import MaintenanceGate from './components/MaintenanceGate.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Home from './pages/site/Home.jsx';
@@ -14,34 +12,45 @@ import { ArticlesArchive } from './pages/site/Articles.jsx';
 import Serbisyo, { Kontak, Blood } from './pages/site/Serbisyo.jsx';
 import CheckStatus from './pages/site/CheckStatus.jsx';
 import RequestForm from './pages/site/RequestForm.jsx';
+import SiteNotFound from './pages/site/NotFound.jsx';
 import { EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail, ArticleRedirect } from './pages/site/Details.jsx';
-import AdminLogin from './pages/admin/AdminLogin.jsx';
-import AdminLayout from './pages/admin/AdminLayout.jsx';
-import Dashboard from './pages/admin/Dashboard.jsx';
-import Households from './pages/admin/Households.jsx';
-import Members from './pages/admin/Members.jsx';
-import Duplicates from './pages/admin/Duplicates.jsx';
-import Sacraments from './pages/admin/Sacraments.jsx';
-import BloodTypes from './pages/admin/BloodTypes.jsx';
-import Ministries from './pages/admin/Ministries.jsx';
-import Organizations from './pages/admin/Organizations.jsx';
-import Reports from './pages/admin/Reports.jsx';
-import Exports from './pages/admin/Exports.jsx';
-import ParishConfig from './pages/admin/ParishConfig.jsx';
-import Census from './pages/admin/Census.jsx';
-import Website from './pages/admin/Website.jsx';
-import Requests from './pages/admin/Requests.jsx';
-import ManageOrgs from './pages/admin/ManageOrgs.jsx';
-import ChangePassword from './pages/admin/ChangePassword.jsx';
-import ManageStaff from './pages/admin/ManageStaff.jsx';
-import AdminNotFound from './pages/admin/NotFound.jsx';
-import ActivityLog from './pages/admin/ActivityLog.jsx';
-import Trash from './pages/admin/Trash.jsx';
-import Notifications from './pages/admin/Notifications.jsx';
-import { LoadingState } from './components/admin.jsx';
 
-// The org chart editor brings React Flow: loaded only when it's opened.
+// The public website is in the main bundle. Registration, the census portal
+// and the whole admin load only when they're opened, so visitors on mobile
+// data don't download the staff pages. The admin pages show their spinner
+// inside AdminLayout while they load.
+const RegistrationApp = React.lazy(() => import('./pages/RegistrationApp.jsx'));
+const CensusPortal = React.lazy(() => import('./pages/CensusPortal.jsx'));
+const AdminLogin = React.lazy(() => import('./pages/admin/AdminLogin.jsx'));
+const AdminLayout = React.lazy(() => import('./pages/admin/AdminLayout.jsx'));
+const Dashboard = React.lazy(() => import('./pages/admin/Dashboard.jsx'));
+const Households = React.lazy(() => import('./pages/admin/Households.jsx'));
+const Members = React.lazy(() => import('./pages/admin/Members.jsx'));
+const Duplicates = React.lazy(() => import('./pages/admin/Duplicates.jsx'));
+const Sacraments = React.lazy(() => import('./pages/admin/Sacraments.jsx'));
+const BloodTypes = React.lazy(() => import('./pages/admin/BloodTypes.jsx'));
+const Ministries = React.lazy(() => import('./pages/admin/Ministries.jsx'));
+const Organizations = React.lazy(() => import('./pages/admin/Organizations.jsx'));
+const Reports = React.lazy(() => import('./pages/admin/Reports.jsx'));
+const Exports = React.lazy(() => import('./pages/admin/Exports.jsx'));
+const ParishConfig = React.lazy(() => import('./pages/admin/ParishConfig.jsx'));
+const Census = React.lazy(() => import('./pages/admin/Census.jsx'));
+const Website = React.lazy(() => import('./pages/admin/Website.jsx'));
+const Requests = React.lazy(() => import('./pages/admin/Requests.jsx'));
+const ManageOrgs = React.lazy(() => import('./pages/admin/ManageOrgs.jsx'));
+const ChangePassword = React.lazy(() => import('./pages/admin/ChangePassword.jsx'));
+const ManageStaff = React.lazy(() => import('./pages/admin/ManageStaff.jsx'));
+const AdminNotFound = React.lazy(() => import('./pages/admin/NotFound.jsx'));
+const ActivityLog = React.lazy(() => import('./pages/admin/ActivityLog.jsx'));
+const Trash = React.lazy(() => import('./pages/admin/Trash.jsx'));
+const Notifications = React.lazy(() => import('./pages/admin/Notifications.jsx'));
+// The org chart editor brings React Flow.
 const OrgStructure = React.lazy(() => import('./pages/admin/OrgStructure.jsx'));
+
+/** A page loaded on demand, outside the admin layout: the plain background while it loads. */
+function Lazy({ children }) {
+  return <Suspense fallback={<div className="min-h-screen bg-parish-bg" />}>{children}</Suspense>;
+}
 
 function ToSimbahan() {
   const { search, hash } = useLocation();
@@ -87,17 +96,19 @@ export default function App() {
           <Route path="/serbisyo/dugo" element={<Blood />} />
           <Route path="/serbisyo/hangyo/:form" element={<RequestForm />} />
           <Route path="/kontak" element={<Kontak />} />
+          {/* A mistyped or old public link says so, instead of quietly opening Home. */}
+          <Route path="*" element={<SiteNotFound />} />
         </Route>
-        <Route path="/register" element={<RegistrationApp />} />
-        <Route path="/census" element={<CensusPortal />} />
+        <Route path="/register" element={<Lazy><RegistrationApp /></Lazy>} />
+        <Route path="/census" element={<Lazy><CensusPortal /></Lazy>} />
         </Route>
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/change-password" element={<ChangePassword />} />
+        <Route path="/admin/login" element={<Lazy><AdminLogin /></Lazy>} />
+        <Route path="/admin/change-password" element={<Lazy><ChangePassword /></Lazy>} />
         <Route
           path="/admin"
           element={
             <RequireAuth>
-              <AdminLayout />
+              <Lazy><AdminLayout /></Lazy>
             </RequireAuth>
           }
         >
@@ -111,7 +122,7 @@ export default function App() {
           <Route path="blood" element={<BloodTypes />} />
           <Route path="ministries" element={<Ministries />} />
           <Route path="organizations" element={<Organizations />} />
-          <Route path="org-structure" element={<Suspense fallback={<LoadingState label="Loading the editor…" />}><OrgStructure /></Suspense>} />
+          <Route path="org-structure" element={<OrgStructure />} />
           <Route path="census" element={<Census />} />
           {/* My GKK is a tab of GKK Config now; old links still land there. */}
           <Route path="my-gkk" element={<Navigate to="/admin/settings?tab=mygkk" replace />} />
@@ -129,7 +140,6 @@ export default function App() {
           {/* A mistyped admin URL stays inside the admin, not on the public home page. */}
           <Route path="*" element={<AdminNotFound />} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AuthProvider>
   );

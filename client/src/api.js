@@ -180,7 +180,7 @@ export const api = {
     return data || null;
   },
 
-  /** The parish photo for the home page hero (a data URL), or null. Needs 0020. */
+  /** The parish photo for the home page hero (an R2 link, or an inline data URL saved before), or null. Needs 0020. */
   async publicParishHeroImage() {
     const { data, error } = await supabase.rpc('public_parish_hero_image');
     if (error) return null;

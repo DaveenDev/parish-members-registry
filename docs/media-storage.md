@@ -139,7 +139,11 @@ in the SQL editor (adds each article's gallery and the History / Kasaysayan tag)
   [`0044_gkk_history_documents.sql`](../supabase/migrations/0044_gkk_history_documents.sql)
   and redeploying the function) go under `gkks/YYYY/MM/<random>.jpg` and keep that
   name. They're deleted the same way when taken off a saved history.
-- The function only deletes files under `articles/`, `events/` and `gkks/` in this bucket.
+- The parish photo on the home page (Parish Config → Logo & photo) goes under
+  `parish/YYYY/MM/<random>.jpg`; the old one is deleted when it's replaced or removed.
+  Until the function is redeployed with the `parish` folder, the photo is saved
+  inline in the database instead, as before.
+- The function only deletes files under `articles/`, `events/`, `gkks/`, `org/` and `parish/` in this bucket.
 - A GKK's land titles and other documents are **not** kept on R2 (anyone with a
   photo's link can open it): they go in the private `gkk-documents` bucket of
   Supabase Storage, which 0044 creates.

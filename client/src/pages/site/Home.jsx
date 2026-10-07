@@ -144,7 +144,7 @@ export default function Home() {
       </div>
       </div>
 
-      <section className="px-3.5 pt-[22px] lg:hidden">
+      <section className="px-3.5 pt-[22px] lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-11">
         <MassToday mass={mass} />
       </section>
 
@@ -228,7 +228,7 @@ function CensusNotice() {
           <Link to="/census" className="census-update-cta min-h-[52px] px-6 rounded-[14px] flex items-center justify-center font-bold text-[16px] text-parish-navy hover:brightness-105" style={{ background: 'var(--p-gold-light)' }}>
             I-update ang among rekord
           </Link>
-          <Link to="/komunidad?view=gkk" className="min-h-[48px] px-5 rounded-[14px] flex items-center justify-center font-semibold text-[15px] text-white border-[1.5px] border-white/40 hover:bg-white/10">
+          <Link to="/komunidad?view=census" className="min-h-[48px] px-5 rounded-[14px] flex items-center justify-center font-semibold text-[15px] text-white border-[1.5px] border-white/40 hover:bg-white/10">
             Tan-awa ang progreso
           </Link>
         </div>
@@ -237,7 +237,7 @@ function CensusNotice() {
   );
 }
 
-/** Today's remaining Masses: a card under the hero on phones, beside it on desktop. */
+/** Today's remaining Masses: a card under the news band, the Masses side by side on desktop. */
 function MassToday({ mass }) {
   const now = new Date();
   const todays = upcomingToday(mass.rows, now);
@@ -255,7 +255,7 @@ function MassToday({ mass }) {
           {anyToday ? 'Nahuman na ang mga Misa karong adlawa.' : 'Walay Misa nga naka-iskedyul karong adlawa.'}
         </p>
       ) : (
-        <div className="flex flex-col gap-1.5 lg:gap-2">
+        <div className="flex flex-col gap-1.5 lg:grid lg:grid-cols-3 lg:gap-2">
           {todays.map((m) => <MassRow key={m.id} m={m} compact />)}
         </div>
       )}

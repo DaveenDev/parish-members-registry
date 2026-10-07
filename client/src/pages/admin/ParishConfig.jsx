@@ -13,12 +13,13 @@ import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
 import { useTheme, THEMES } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '../../components/ChangePasswordForm.jsx';
-import { resizePhoto } from '../../lib/images.js';
+import { resizeLogo, resizePhoto } from '../../lib/images.js';
 import { fmtDateTime } from '../../constants.js';
 import { DEFAULT_SITE_URL, normalizeSiteUrl } from '../../lib/census.js';
 import { markPasswordResetWorking, saveEmailSettings, sendPasswordReset } from '../../emailApi.js';
 
-const MAX_LOGO_BYTES = 500 * 1024;
+// The logo is shrunk before it's saved (resizeLogo), so the file picked can be big.
+const MAX_LOGO_BYTES = 5 * 1024 * 1024;
 
 /** A titled card on the Parish Config tab, with an optional note under the title. */
 function ConfigCard({ title, note, children, footer }) {
@@ -79,21 +80,15 @@ function LogoSection({ settings, onSaved }) {
       return;
     }
     if (file.size > MAX_LOGO_BYTES) {
-      toast.error('Logo must be under 500 KB.');
+      toast.error('Logo must be under 5 MB.');
       return;
     }
 
     setBusy(true);
     try {
-      // Stored inline as a data URL — keeps deployment simple (no object
-      // storage or static file server needed) and logos are small.
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = () => reject(new Error('Could not read that file'));
-        reader.readAsDataURL(file);
-      });
-      const res = await api.updateSettings({ logo: dataUrl });
+      // Stored inline as a data URL (printed sheets and the sign-in page use it
+      // as is), shrunk first: every public page loads it.
+      const res = await api.updateSettings({ logo: await resizeLogo(file) });
       onSaved(res.settings);
       toast.success('Logo updated');
     } catch (err) {
@@ -117,7 +112,7 @@ function LogoSection({ settings, onSaved }) {
   }
 
   return (
-    <ImageBlock title="Logo" usedOn={['Sign-in', 'Sidebar', 'Printed sheets']} note={<>PNG or JPG, ideally square with a plain or clear background, under 500&nbsp;KB.</>}>
+    <ImageBlock title="Logo" usedOn={['Sign-in', 'Sidebar', 'Printed sheets']} note={<>PNG or JPG, ideally square with a plain or clear background. It's resized for you.</>}>
       <div className="flex items-center gap-5 flex-wrap">
         <div className={`w-24 h-24 rounded-[18px] bg-parish-field flex items-center justify-center overflow-hidden flex-none ${settings.logo ? 'border border-parish-line2 p-1.5' : 'border-2 border-dashed border-parish-borderStrong'}`}>
           {settings.logo ? (
@@ -139,6 +134,24 @@ function LogoSection({ settings, onSaved }) {
 
 const HERO_MAX_SOURCE_BYTES = 15 * 1024 * 1024;
 
+/**
+ * The parish photo, saved where visitors' browsers can keep it: on R2
+ * (parish/…, a link the browser caches), else, before the media-upload
+ * function allows that folder or without photo storage, inline as before.
+ */
+async function heroImageValue(file) {
+  try {
+    return await api.uploadImage(file, 'parish');
+  } catch {
+    return resizePhoto(file, { maxWidth: 1600, quality: 0.8 });
+  }
+}
+
+/** An R2 photo the parish photo no longer uses: delete it, quietly (inline ones just go with the setting). */
+function dropOldHero(url) {
+  if (/^https?:/.test(url || '')) api.deleteImage(url).catch(() => {});
+}
+
 /** The parish's main photo, shown in the public home page's hero. */
 function HeroImageSection({ settings, onSaved }) {
   const toast = useToast();
@@ -152,8 +165,10 @@ function HeroImageSection({ settings, onSaved }) {
     if (file.size > HERO_MAX_SOURCE_BYTES) { toast.error('That photo is over 15 MB. Choose a smaller one.'); return; }
     setBusy(true);
     try {
-      const res = await api.updateSettings({ hero_image: await resizePhoto(file) });
+      const old = settings.hero_image;
+      const res = await api.updateSettings({ hero_image: await heroImageValue(file) });
       onSaved(res.settings);
+      dropOldHero(old);
       toast.success('Parish photo updated');
     } catch (err) {
       toast.error(err.message || 'Could not upload the photo');
@@ -165,8 +180,10 @@ function HeroImageSection({ settings, onSaved }) {
   async function remove() {
     setBusy(true);
     try {
+      const old = settings.hero_image;
       const res = await api.updateSettings({ hero_image: '' });
       onSaved(res.settings);
+      dropOldHero(old);
       toast.success('Parish photo removed');
     } catch (err) {
       toast.error(err.message || 'Could not remove the photo');

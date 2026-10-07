@@ -95,6 +95,12 @@ describe('sign', () => {
     assert.equal(res.body.publicUrl, `${BASE}/org/2026/10/abc.jpg`);
     assert.equal((await call('token-web', { action: 'delete', url: `${BASE}/org/2026/10/abc.jpg` }, r2)).status, 200);
   });
+  test('the parish photo goes under parish/YYYY/MM and can be deleted', async () => {
+    const r2 = fakeR2();
+    const res = await call('token-web', sign({ folder: 'parish' }), r2);
+    assert.equal(res.body.publicUrl, `${BASE}/parish/2026/10/abc.jpg`);
+    assert.equal((await call('token-web', { action: 'delete', url: `${BASE}/parish/2026/10/abc.jpg` }, r2)).status, 200);
+  });
   test('webp and png keep their extension', () => {
     assert.equal(objectKey('articles', 'image/webp', 'x', NOW), 'articles/2026/10/x.webp');
     assert.equal(objectKey('articles', 'image/png', 'x', NOW), 'articles/2026/10/x.png');

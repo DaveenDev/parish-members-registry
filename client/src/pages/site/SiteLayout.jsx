@@ -13,6 +13,8 @@ import { useCensusProgress, useOffice } from './data.js';
 
 export const PARISH_NAME = 'Our Lady of Guadalupe';
 export const PARISH_SUB = 'Quasi-Parish · Mua-an';
+// The tab title outside the site's inner pages; index.html starts with the same.
+const DOC_TITLE = `${PARISH_NAME} ${PARISH_SUB}`;
 export const PARISH_ADDRESS = 'Purok 3, Mua-an, Kidapawan City, North Cotabato';
 // The church's place in Google Maps, used until a link is saved in Parish Website → Office.
 export const PARISH_MAP_URL = 'https://www.google.com/maps/place/Our+Lady+of+Guadalupe+Quasi+Parish/@7.0464909,125.1574249,17z/data=!3m1!4b1!4m6!3m5!1s0x32f8fdfd4fe1c4cb:0x85b99a0f7d3a3e02!8m2!3d7.0464909!4d125.1619933!16s%2Fg%2F11s57y2msl';
@@ -81,6 +83,14 @@ export default function SiteLayout() {
 
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   useEffect(() => () => clearTimeout(timer.current), []);
+
+  // The browser tab (and bookmarks, history) names the page: a main page by its
+  // section, an inner page by its header title, Home by the parish alone.
+  useEffect(() => {
+    const name = isRoot ? DESK_NAV.find((t) => t.to !== '/' && t.to === pathname)?.label : title;
+    document.title = name ? `${name} · ${PARISH_NAME}` : DOC_TITLE;
+  }, [isRoot, pathname, title]);
+  useEffect(() => () => { document.title = DOC_TITLE; }, []);
 
   function back() {
     // Opened from a shared link: there's no page of ours to go back to.

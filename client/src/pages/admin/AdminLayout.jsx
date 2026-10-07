@@ -1,10 +1,10 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useState } from 'react';
 import { NavLink, Outlet, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
 import { ThemePickerPopover } from '../../components/ThemePicker.jsx';
 import { useAdminColorMode } from '../../ThemeContext.jsx';
-import { PageHeader, PageBody, EmptyState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, EmptyState, LoadingState } from '../../components/admin.jsx';
 import CommandPalette, { useCommandPaletteShortcut } from '../../components/CommandPalette.jsx';
 import IdleSignOut from '../../components/IdleSignOut.jsx';
 import NotificationBell, { useStaffNotifications } from '../../components/NotificationBell.jsx';
@@ -257,8 +257,11 @@ export default function AdminLayout() {
         </div>
 
         {/* Pages that change parish settings (logo, name) push them back here so the sidebar updates without a reload. */}
+        {/* Each admin page loads on first visit (App.jsx): the sidebar stays while it does. */}
         {allowed ? (
-          <Outlet context={{ parish, setParish, requestCounts, navCounts, refreshRequestCounts: refreshNavCounts, refreshNavCounts, bell }} />
+          <Suspense fallback={<LoadingState label="Loading the page…" />}>
+            <Outlet context={{ parish, setParish, requestCounts, navCounts, refreshRequestCounts: refreshNavCounts, refreshNavCounts, bell }} />
+          </Suspense>
         ) : (
           <>
             <PageHeader title={navLabel(current, user)} />

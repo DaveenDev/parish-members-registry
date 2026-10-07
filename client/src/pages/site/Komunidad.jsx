@@ -7,7 +7,7 @@ import { Body, Gallery, Lightbox } from './Details.jsx';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { useSiteTitle } from './SiteLayout.jsx';
-import { listState, useCensusProgress, useGkkDirectory, useGkkPage } from './data.js';
+import { listState, useArticles, useCensusProgress, useGkkDirectory, useGkkPage } from './data.js';
 import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
 
 const SMALL = 'Ubos sa 5';
@@ -52,7 +52,8 @@ function CensusAlertBadges({ label, className = '' }) {
  * Komunidad, one page: the newest articles (every article is on the articles
  * page), then, while a census is open, its full progress (with every GKK),
  * then every GKK as a card, by name. The header has a one-line census strip.
- * ?view=gkk (the old "Mga GKK" tab's link) scrolls to the GKKs.
+ * ?view=gkk (the old "Mga GKK" tab's link) scrolls to the GKKs, ?view=census
+ * to the census progress.
  * The org charts moved to Ang Simbahan; old ?view=organisasyon links go there.
  */
 export default function Komunidad() {
@@ -70,6 +71,15 @@ function KomunidadPage({ params }) {
   // The old "Mga GKK" tab's link goes to the GKKs (GkkDirectory scrolls there once they're in).
   const toGkks = params.get('view') === 'gkk';
   const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  // Home's census notice links to the progress (?view=census), under the articles:
+  // jump once both are in, after the site's own scroll to the top.
+  const toCensus = params.get('view') === 'census';
+  const articlesLoading = useArticles().loading;
+  useEffect(() => {
+    if (!toCensus || q.loading || articlesLoading) return undefined;
+    const t = setTimeout(() => document.getElementById(open ? 'census' : 'mga-gkk')?.scrollIntoView({ block: 'start' }), 350);
+    return () => clearTimeout(t);
+  }, [toCensus, q.loading, articlesLoading, open]);
 
   return (
     <main className="animate-fadeUp">
