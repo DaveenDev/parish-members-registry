@@ -7,6 +7,9 @@ import { useSiteTitle } from './SiteLayout.jsx';
 // Phones: the photo on top. Desktop: the photo on the left, the text beside it.
 const SITE = 'https://daveendev.vercel.app';
 const MESSENGER = 'https://m.me/dave.hamerson';
+// Set to false if Messenger can't be reached any more: the Messenger button is
+// hidden and a plain "Message Me" button to the contact page of the site shows instead.
+const MESSENGER_ON = true;
 const EMAIL = 'daveendev07@gmail.com';
 
 const ext = { target: '_blank', rel: 'noopener noreferrer' };
@@ -35,7 +38,9 @@ export default function Developer() {
 
           <p className="m-0 mt-7 mb-4 font-serif text-[24px] lg:text-[28px] font-semibold text-parish-navy">Naa ka pabuhat nga website?</p>
           <div className="flex flex-col gap-2.5">
-            <MessengerButton href={MESSENGER} />
+            {MESSENGER_ON
+              ? <MessengerButton href={MESSENGER} />
+              : <BigButton href={`${SITE}/contact`} {...ext}>Message Me</BigButton>}
             <BigButton href={SITE} variant="secondary" {...ext}>View Personal Site</BigButton>
           </div>
         </div>
