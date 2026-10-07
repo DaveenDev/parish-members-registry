@@ -11,6 +11,7 @@ import ArticlesTab from '../../components/website/ArticlesTab.jsx';
 import BulletinTab from '../../components/website/BulletinTab.jsx';
 import EventsTab from '../../components/website/EventsTab.jsx';
 import OfficeTab from '../../components/website/OfficeTab.jsx';
+import HistoryTab from '../../components/website/HistoryTab.jsx';
 
 // Ordered by how often the secretary updates each: weekly items first, the
 // office details (which almost never change) last. The first tab is also the
@@ -22,6 +23,7 @@ const TABS = [
   ['articles', 'Blog Articles', ArticlesTab],
   ['mass', 'Mass Schedule', MassScheduleTab],
   ['sacraments', 'Sacraments', SacramentGuidesTab],
+  ['history', 'History', HistoryTab],
   ['office', 'Office & Contact', OfficeTab],
 ];
 

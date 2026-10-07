@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import SacramentIcon from '../../components/SacramentIcon.jsx';
-import { BAND_PAD, Band, DataState, EmptyNote, Eyebrow, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, BigButton, DataState, EmptyNote, Eyebrow, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { Organisasyon } from '../../components/site/OrgCharts.jsx';
 import VerseOfDay from '../../components/site/VerseOfDay.jsx';
 import { EventCard, MassRow, eventTone } from '../../components/site/cards.jsx';
@@ -12,7 +12,8 @@ import {
   massKindLabel, massLocations, massSections, massShortLabel, massesOnDay, monthCells, monthLabel, parseIso,
 } from '../../lib/site.js';
 import { EVENT_TYPES, massType, todayIso } from '../../lib/website.js';
-import { listState, useAnnouncements, useEvents, useMassSchedule, useOrgCharts, useSacramentGuides } from './data.js';
+import { HISTORY_PAGE, openingParagraph } from '../../lib/history.js';
+import { listState, useAnnouncements, useEvents, useHistory, useMassSchedule, useOrgCharts, useSacramentGuides } from './data.js';
 
 // The sections under Mass: the sacrament guides and the org charts, as tabs
 // (?tab=): [key, title when it's the only one, label on the switch].
@@ -25,8 +26,10 @@ const NO_SCROLLBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
  * it (and a way to the day's readings, /simbahan/pagbasa), on the light-blue
  * band; then the Mass schedule (or the events agenda,
  * Kalendaryo); then the sacrament guides and the parish's organization
- * charts, as two tabs on the band again. Old /misa links land here (with
- * ?view=kalendaryo and ?view=sakramento still working).
+ * charts, as two tabs on the band again; last, the parish's history (its
+ * main article's photo and opening paragraph, on to /simbahan/kasaysayan).
+ * Old /misa links land here (with ?view=kalendaryo and ?view=sakramento
+ * still working).
  */
 export default function Simbahan() {
   const [params, setParams] = useSearchParams();
@@ -72,16 +75,19 @@ export default function Simbahan() {
       </section>
 
       <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={jump && verseIn} />
+
+      <HistoryFeature />
     </main>
   );
 }
 
 const scrollTo = (id, behavior = 'smooth') => document.getElementById(id)?.scrollIntoView({ behavior, block: 'start' });
 
-/** "On this page": the Mass schedule, the sacraments and the org charts (those that have something to show). */
+/** "On this page": the Mass schedule, the sacraments, the org charts and the history (those that have something to show). */
 function PageJumps({ onTab }) {
   const guides = listState(useSacramentGuides());
   const charts = listState(useOrgCharts());
+  const history = useHistory();
   const btn = 'flex-none min-h-[40px] px-3 sm:px-3.5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)]';
   // On a phone the icons go, so all three fit across without scrolling.
   const icon = (name) => <Icon name={name} size={16} className="hidden sm:block" />;
@@ -91,6 +97,7 @@ function PageJumps({ onTab }) {
       <button type="button" className={btn} onClick={() => scrollTo('misa')}>{icon('clock')}<span className="lg:hidden">Misa ↓</span><span className="hidden lg:inline">Iskedyul sa Misa ↓</span></button>
       {guides.rows.length > 0 && <button type="button" className={btn} onClick={() => open('sakramento')}>{icon('church')}<span className="lg:hidden">Sakramento ↓</span><span className="hidden lg:inline">Mga Sakramento ↓</span></button>}
       {charts.rows.length > 0 && <button type="button" className={btn} onClick={() => open('organisasyon')}>{icon('people')}Organisasyon ↓</button>}
+      {history.data?.main && <button type="button" className={btn} onClick={() => scrollTo('kasaysayan')}>{icon('cross')}Kasaysayan ↓</button>}
     </nav>
   );
 }
@@ -126,6 +133,38 @@ function TeachingTabs({ tab, onTab, chart, onChart, jump }) {
         {current[0] === 'sakramento' ? <SacramentGuides rows={guides.rows} /> : <Organisasyon slug={chart} onPick={onChart} />}
       </div>
     </Band>
+  );
+}
+
+/**
+ * Giunsa Kini Pagsugod: the way in to the History page, at the bottom of
+ * this one. The main history article's photo and opening paragraph, and a
+ * button to read the whole story. Only once the main article is published.
+ */
+function HistoryFeature() {
+  const { data } = useHistory();
+  const main = data?.main;
+  if (!main) return null;
+  const excerpt = openingParagraph(main.body);
+  return (
+    <section id="kasaysayan" aria-labelledby="kasaysayan-section-title" className="scroll-mt-16 lg:scroll-mt-[76px] py-8 lg:py-16">
+      <div className={WRAP}>
+        <div className={`bg-parish-card border border-parish-border rounded-[20px] lg:rounded-[26px] shadow-card overflow-hidden ${main.photo_url ? 'lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]' : ''}`}>
+          {main.photo_url && (
+            <Link to={HISTORY_PAGE} tabIndex={-1} aria-hidden className="block bg-[#efe6d3]">
+              <img src={main.photo_url} alt="" loading="lazy" className="w-full h-full aspect-[16/10] lg:aspect-auto lg:min-h-[460px] object-cover" />
+            </Link>
+          )}
+          <div className="p-5 lg:p-12 flex flex-col justify-center">
+            <Eyebrow>Kasaysayan sa Parokya</Eyebrow>
+            <h2 id="kasaysayan-section-title" className="m-0 mt-1 mb-1.5 font-serif text-[32px] lg:text-[48px] font-bold text-parish-navy leading-[1.05]">Giunsa Kini Pagsugod</h2>
+            <div className="font-serif italic text-[18px] lg:text-[21px] text-[var(--p-gold-deep)] mb-3.5 lg:mb-5">{main.title}</div>
+            {excerpt && <p className="m-0 mb-5 lg:mb-7 text-[16px] lg:text-[17.5px] leading-[1.65] text-[#3f3b2f] whitespace-pre-line line-clamp-[8]">{excerpt}</p>}
+            <BigButton to={HISTORY_PAGE} className="lg:w-auto lg:self-start lg:px-7">Basaha ang among kasaysayan →</BigButton>
+          </div>
+        </div>
+      </div>
+    </section>
   );
 }
 

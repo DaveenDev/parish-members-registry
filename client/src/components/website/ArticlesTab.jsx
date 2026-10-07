@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { api } from '../../api.js';
 import { Field, TextInput, Select, Badge } from '../ui.jsx';
 import { SearchInput, Pagination, EmptyState, LoadingState, ErrorState } from '../admin.jsx';
@@ -6,14 +6,14 @@ import { fmtDate } from '../../constants.js';
 import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { todayIso } from '../../lib/website.js';
-import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon, FilePick } from './shared.jsx';
+import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon } from './shared.jsx';
+import { useArticlePhotos, PhotoFields } from './photos.jsx';
 
 // Tag values match the articles_tag_check constraint (0021); the site shows them in Bisaya.
 const TAGS = [['Parish', 'Parish'], ['GKK', 'GKK'], ['Ministry', 'Ministry'], ['History', 'History (Kasaysayan)']];
 const TAG_LABEL = Object.fromEntries(TAGS);
 const URL_DEFAULTS = { q: '', page: 1, size: 10 };
 const URL_ALLOWED = { size: [10, 20, 50] };
-const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 const describe = (r) => r.title;
 
 /** Blog Articles: parish history and write-ups of events held, with a cover photo and a gallery (photos on R2). */
@@ -77,70 +77,18 @@ export default function ArticlesTab() {
   );
 }
 
-/**
- * Photos are uploaded to R2 as soon as they're picked. If the editor is
- * cancelled, the ones uploaded in this session are deleted again; photos
- * taken off a saved article are deleted once the article is saved.
- */
+/** One article's editor; its cover and gallery are uploaded to R2 as they're picked (photos.jsx). */
 function ArticleEditor({ row, onClose, onSaved }) {
   const toast = useToast();
   const [form, setForm] = useState({ ...row, place: row.place || '', author: row.author || '', summary: row.summary || '', body: row.body || '', photo_url: row.photo_url || '', photos: row.photos || [] });
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(0);
   const [error, setError] = useState('');
-  const added = useRef(new Set());   // uploaded in this editor session
-  const removed = useRef(new Set()); // on the saved article, taken off here
   const set = (k) => (v) => { setForm((f) => ({ ...f, [k]: v })); setError(''); };
-
-  async function upload(file) {
-    if (!file.type.startsWith('image/')) throw new Error(`${file.name} isn't an image`);
-    if (file.size > MAX_SOURCE_BYTES) throw new Error(`${file.name} is over 25 MB`);
-    const url = await api.uploadImage(file);
-    added.current.add(url);
-    return url;
-  }
-
-  async function withUploads(files, fn) {
-    setUploading((n) => n + files.length);
-    setError('');
-    for (const file of files) {
-      try {
-        fn(await upload(file));
-      } catch (e) {
-        setError(e.message || 'Could not upload the photo');
-      } finally {
-        setUploading((n) => n - 1);
-      }
-    }
-  }
-
-  function discard(url) {
-    if (!url) return;
-    if (added.current.has(url)) {
-      added.current.delete(url);
-      api.deleteImage(url).catch(() => {});
-    } else {
-      removed.current.add(url);
-    }
-  }
-
-  // Latest form for handlers that run after an upload finishes.
-  const formRef = useRef(form);
-  formRef.current = form;
-
-  const setCover = (url) => { discard(formRef.current.photo_url); setForm((f) => ({ ...f, photo_url: url })); };
-  const addPhotos = (urls) => setForm((f) => ({ ...f, photos: [...f.photos, ...urls.map((u) => ({ url: u, caption: '' }))] }));
-  const updatePhoto = (i, patch) => setForm((f) => ({ ...f, photos: f.photos.map((p, j) => (j === i ? { ...p, ...patch } : p)) }));
-  const movePhoto = (i, d) => setForm((f) => {
-    const photos = [...f.photos];
-    [photos[i], photos[i + d]] = [photos[i + d], photos[i]];
-    return { ...f, photos };
-  });
-  const removePhoto = (i) => { discard(formRef.current.photos[i].url); setForm((f) => ({ ...f, photos: f.photos.filter((_, j) => j !== i) })); };
+  const photos = useArticlePhotos({ form, setForm, setError, folder: 'articles' });
+  const { uploading } = photos;
 
   function close() {
-    // Nothing was saved: take back what this session uploaded.
-    for (const url of added.current) api.deleteImage(url).catch(() => {});
+    photos.cancel();
     onClose();
   }
 
@@ -151,13 +99,12 @@ function ArticleEditor({ row, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      const photos = form.photos.map((p) => ({ url: p.url, caption: (p.caption || '').trim() }));
+      const gallery = form.photos.map((p) => ({ url: p.url, caption: (p.caption || '').trim() }));
       // Leave the author out when there never was one, so articles still save before the 0030 migration.
       const { author, ...fields } = form;
       const withAuthor = author.trim() || 'author' in row ? { ...fields, author: author.trim() } : fields;
-      const saved = await api.saveArticle({ ...withAuthor, title: form.title.trim(), photos });
-      for (const url of removed.current) api.deleteImage(url).catch(() => {});
-      added.current.clear();
+      const saved = await api.saveArticle({ ...withAuthor, title: form.title.trim(), photos: gallery });
+      photos.saved();
       // Now that it has an ID: article<ID>_cover.jpg, article<ID>_1.jpg… on R2.
       let named = null;
       if (saved.photo_url || saved.photos?.length) {
@@ -192,39 +139,11 @@ function ArticleEditor({ row, onClose, onSaved }) {
         <TextArea rows={10} value={form.body} onChange={(e) => set('body')(e.target.value)} placeholder="The full story. Blank lines start a new paragraph." />
       </Field>
 
-      <SectionLabel>Cover photo</SectionLabel>
-      <div className="flex items-start gap-4 flex-wrap">
-        <div className="w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
-          {form.photo_url ? <img src={form.photo_url} alt="Cover" className="w-full h-full object-cover" /> : <PhotoIcon size={32} />}
-        </div>
-        <div className="flex flex-col gap-2 items-start">
-          <FilePick label={form.photo_url ? 'Replace cover' : 'Upload cover'} onFiles={(files) => withUploads(files.slice(0, 1), setCover)} disabled={uploading > 0} />
-          {form.photo_url && <button type="button" onClick={() => setCover('')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove cover</button>}
-          <span className="text-[12px] text-parish-muted max-w-[260px]">Shown on the article card. A wide photo works best.</span>
-        </div>
-      </div>
-
-      <SectionLabel>Gallery</SectionLabel>
-      {form.photos.length > 0 && (
-        <ul className="list-none m-0 p-0 flex flex-col gap-2.5">
-          {form.photos.map((p, i) => (
-            <li key={p.url} className="flex items-center gap-3 border border-parish-line2 rounded-xl p-2 bg-parish-field">
-              <img src={p.url} alt="" className="w-[88px] h-[60px] flex-none rounded-lg object-cover" />
-              <TextInput value={p.caption} onChange={(e) => updatePhoto(i, { caption: e.target.value })} placeholder="Caption (optional)" aria-label={`Caption for photo ${i + 1}`} className="flex-1 !py-2" />
-              <div className="flex gap-1">
-                <RowButton tone="gray" disabled={i === 0} onClick={() => movePhoto(i, -1)} aria-label="Move up">↑</RowButton>
-                <RowButton tone="gray" disabled={i === form.photos.length - 1} onClick={() => movePhoto(i, 1)} aria-label="Move down">↓</RowButton>
-                <RowButton tone="red" onClick={() => removePhoto(i)}>Remove</RowButton>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="flex items-center gap-3 flex-wrap">
-        <FilePick multiple label="+ Add photos" onFiles={(files) => withUploads(files, (u) => addPhotos([u]))} disabled={uploading > 0} />
-        {uploading > 0 && <span className="text-[13px] text-parish-muted">Uploading {uploading} photo(s)…</span>}
-        {!uploading && !form.photos.length && <span className="text-[12.5px] text-parish-muted">Old parish photos, the event itself, the people involved. Pick several at once.</span>}
-      </div>
+      <PhotoFields
+        form={form} photos={photos}
+        coverHint="Shown on the article card. A wide photo works best."
+        galleryHint="Old parish photos, the event itself, the people involved. Pick several at once."
+      />
 
       <PublishSwitch checked={!!form.published} onChange={set('published')} />
     </SidePanel>
