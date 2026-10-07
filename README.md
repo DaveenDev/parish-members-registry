@@ -264,4 +264,4 @@ MIT
 
 ## Credit
 
-Built by [DaveenDev](https://github.com/DaveenDev).
+Built for free by [DaveenDev](https://daveendev.vercel.app/).

@@ -209,12 +209,12 @@ export default function AdminLayout() {
       </div>
 
       <a
-        href="https://github.com/DaveenDev"
+        href="https://daveendev.vercel.app/"
         target="_blank"
         rel="noopener noreferrer"
         className="px-4 py-2 text-center text-[10.5px] font-medium text-white/40 hover:text-white/70 transition"
       >
-        Built by DaveenDev
+        Built For Free by DaveenDev
       </a>
     </>
   );
