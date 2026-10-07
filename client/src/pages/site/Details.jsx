@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BigButton, Card, EmptyNote, ErrorNote, INNER, InfoRow, Skeletons, useShare, useSiteToast } from '../../components/site/kit.jsx';
@@ -211,8 +212,19 @@ export function Gallery({ photos, title = 'Mga litrato', id = 'gallery-title', c
   );
 }
 
+/**
+ * A photo opened full screen, over whatever part of the page is in view.
+ * Portalled to <body>: the pages' fadeUp animation leaves <main> as the
+ * containing block for fixed elements, which would centre the viewer on the
+ * whole (long) page instead of the screen. The page doesn't scroll while open.
+ */
 export function Lightbox({ photos, index, onIndex, onClose }) {
   const p = photos[index];
+  useEffect(() => {
+    const overflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = overflow; };
+  }, []);
   const go = (d) => onIndex((index + d + photos.length) % photos.length);
   useEffect(() => {
     const onKey = (e) => {
@@ -224,8 +236,8 @@ export function Lightbox({ photos, index, onIndex, onClose }) {
     return () => document.removeEventListener('keydown', onKey);
   });
   const btn = 'w-12 h-12 rounded-full bg-white/15 hover:bg-white/25 text-white flex items-center justify-center text-[22px] border-none cursor-pointer';
-  return (
-    <div role="dialog" aria-modal="true" aria-label={p.caption || 'Litrato'} className="fixed inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-4" onClick={onClose}>
+  return createPortal(
+    <div role="dialog" aria-modal="true" aria-label={p.caption || 'Litrato'} className="fixed inset-0 z-[60] bg-black/90 flex flex-col items-center justify-center p-4 overscroll-contain" onClick={onClose}>
       <img src={p.url} alt={p.caption || ''} className="max-w-full max-h-[80vh] object-contain rounded-lg" onClick={(e) => e.stopPropagation()} />
       {p.caption && <p className="m-0 mt-3 max-w-[760px] text-center text-[15px] leading-normal text-white/90">{p.caption}</p>}
       <div className="mt-4 flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
@@ -234,6 +246,7 @@ export function Lightbox({ photos, index, onIndex, onClose }) {
         {photos.length > 1 && <button type="button" aria-label="Sunod" onClick={() => go(1)} className={btn}>›</button>}
         <button type="button" aria-label="Isira" onClick={onClose} className={btn}><Icon name="x" size={20} /></button>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
