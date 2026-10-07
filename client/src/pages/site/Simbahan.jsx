@@ -141,6 +141,8 @@ function HistoryFeature() {
   return (
     <section id="kasaysayan" aria-labelledby="kasaysayan-section-title" className="scroll-mt-16 lg:scroll-mt-[76px] py-8 lg:py-16">
       <div className={WRAP}>
+        {/* The section's label above the card, over the main photo on the left. */}
+        <Eyebrow className="mb-2.5 lg:mb-3.5">Kasaysayan sa Parokya</Eyebrow>
         <div className={`bg-parish-card border border-parish-border rounded-[20px] lg:rounded-[26px] shadow-card overflow-hidden ${main.photo_url ? 'lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]' : ''}`}>
           {main.photo_url && (
             <Link to={HISTORY_PAGE} tabIndex={-1} aria-hidden className="block bg-[#efe6d3]">
@@ -148,8 +150,7 @@ function HistoryFeature() {
             </Link>
           )}
           <div className="p-5 lg:p-12 flex flex-col justify-center">
-            <Eyebrow>Kasaysayan sa Parokya</Eyebrow>
-            <h2 id="kasaysayan-section-title" className="m-0 mt-1 mb-1.5 font-serif text-[32px] lg:text-[48px] font-bold text-parish-navy leading-[1.05]">Giunsa Kini Pagsugod</h2>
+            <h2 id="kasaysayan-section-title" className="m-0 mb-1.5 font-serif text-[32px] lg:text-[48px] font-bold text-parish-navy leading-[1.05]">Giunsa Kini Pagsugod</h2>
             <div className="font-serif italic text-[18px] lg:text-[21px] text-[var(--p-gold-deep)] mb-3.5 lg:mb-5">{main.title}</div>
             {excerpt && <p className="m-0 mb-5 lg:mb-7 text-[16px] lg:text-[17.5px] leading-[1.65] text-[#3f3b2f] whitespace-pre-line line-clamp-[8]">{excerpt}</p>}
             <BigButton to={HISTORY_PAGE} className="lg:w-auto lg:self-start lg:px-7">Basaha ang among kasaysayan →</BigButton>
