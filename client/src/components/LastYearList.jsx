@@ -182,12 +182,6 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
 
   return (
     <>
-      <div className="flex flex-wrap items-start gap-3 mb-4">
-        <p className="m-0 text-[13.5px] text-parish-muted max-w-[640px]">
-          The households on last year's paper census, typed in per GKK. A name counts as registered once its household is in the registry (on the verification queue or verified), found by the name of the household head or of a family head in the house, or when you tick it off; the ones left are the households not yet registered. Only parish staff and the GKK's own leader can see these names.
-        </p>
-      </div>
-
       <div className="flex flex-wrap gap-2.5 items-center mb-4">
         {ownGkk ? (
           <span className="text-[13.5px] font-semibold text-parish-navy px-1">{ownGkk}</span>

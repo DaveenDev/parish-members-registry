@@ -249,6 +249,12 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
         )}
       </div>
 
+      {listOn && rows.length > 0 && (
+        <p className="mt-4 mb-0 text-[13.5px] text-parish-muted max-w-[760px]">
+          The households on last year's paper census, typed in per GKK. A name counts as registered once its household is in the registry (on the verification queue or verified), found by the name of the household head or of a family head in the house, or when you tick it off; the ones left are the households not yet registered. Only parish staff and the GKK's own leader can see these names.
+        </p>
+      )}
+
       {editing && <GkkPanel key={editing.id ?? 'new'} initial={editing} codes={codes} listNames={editing.original ? listNames(editing.original) : 0} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
     </Panel>
     </>
