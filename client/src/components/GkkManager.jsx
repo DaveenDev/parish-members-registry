@@ -4,7 +4,7 @@ import { api } from '../api.js';
 import { SearchInput, ErrorState, LoadingState, Panel, ActionMenu } from './admin.jsx';
 import { GKK_ATTENTION, attentionCounts, filterByAttention, gkkProgress } from '../lib/gkkAdmin.js';
 import { useClientList } from '../hooks.js';
-import { Field, FlagEmptyRequired, TextInput } from './ui.jsx';
+import { Field, FlagEmptyRequired, GhostButton, TextInput } from './ui.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { AddButton, RowButton, SidePanel } from './panels.jsx';
@@ -59,6 +59,15 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
   const confirm = useConfirm();
   const toast = useToast();
   const navigate = useNavigate();
+  // Every GKK's name, one per line, for pasting into a message or a sheet.
+  async function copyNames() {
+    try {
+      await navigator.clipboard.writeText(rows.map((g) => g.name).join('\n'));
+      toast.success(`${rows.length} GKK name${rows.length === 1 ? '' : 's'} copied`);
+    } catch {
+      toast.error('Could not copy the names');
+    }
+  }
   // A "needs attention" chip ('all' shows every GKK).
   const [show, setShow] = useState('all');
   const gaps = attentionCounts(rows);
@@ -143,7 +152,10 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
           <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Basic Ecclesial Communities (GKK)</div>
           <div className="text-[13.5px] text-parish-muted">Each GKK's chapel, puroks, year established and history show in the website's GKK directory. Last year's household count is the baseline the census measures its progress against. Land titles and other documents stay private. A GKK assigned to a household, or with documents, can't be deleted.</div>
         </div>
-        <AddButton onClick={() => open(null)}>Add GKK</AddButton>
+        <div className="flex items-center gap-2 flex-wrap">
+          {rows.length > 0 && <GhostButton onClick={copyNames} className="px-[18px] py-2.5 text-[14px] whitespace-nowrap">Copy names</GhostButton>}
+          <AddButton onClick={() => open(null)}>Add GKK</AddButton>
+        </div>
       </div>
 
       {rows.length > 0 && (
