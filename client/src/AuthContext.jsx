@@ -3,7 +3,12 @@ import { supabase } from './lib/supabaseClient.js';
 
 const AuthContext = createContext(null);
 
-async function loadProfile(session) {
+/**
+ * The signed-in account with its staff profile. With `recheck` (a re-read
+ * while signed in) it gives null when the profile can't be read, so a dropped
+ * connection never takes an account's access away.
+ */
+async function loadProfile(session, { recheck = false } = {}) {
   if (!session?.user) return null;
   const byId = (cols) => supabase.from('profiles').select(cols).eq('id', session.user.id).single();
   // A GKK leader's GKK by id, with its current name (0063).
@@ -13,6 +18,7 @@ async function loadProfile(session) {
   if (error && /access_gkk_id|gkks/.test(error.message || '')) ({ data, error } = await byId('name, role, is_admin, access, access_gkk'));
   if (error && /access/.test(error.message || '')) ({ data, error } = await byId('name, role, is_admin'));
   if (error && /is_admin/.test(error.message || '')) ({ data } = await byId('name, role'));
+  if (recheck && !data) return null;
   return {
     id: session.user.id,
     email: session.user.email,
@@ -52,6 +58,22 @@ export function AuthProvider({ children }) {
 
     return () => sub.subscription.unsubscribe();
   }, [applySession]);
+
+  // Re-read the account whenever the admin comes back to the tab, so a change
+  // made meanwhile (a GKK renamed, an access level changed) shows without
+  // signing in again. Only a real change re-renders the pages.
+  useEffect(() => {
+    if (!user) return undefined;
+    async function recheck() {
+      if (document.visibilityState !== 'visible') return;
+      const seq = loadSeq.current;
+      const { data: { session } } = await supabase.auth.getSession();
+      const fresh = await loadProfile(session, { recheck: true });
+      if (fresh && seq === loadSeq.current && JSON.stringify(fresh) !== JSON.stringify(user)) setUser(fresh);
+    }
+    document.addEventListener('visibilitychange', recheck);
+    return () => document.removeEventListener('visibilitychange', recheck);
+  }, [user]);
 
   async function login(email, password) {
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });

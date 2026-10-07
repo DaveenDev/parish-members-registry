@@ -12,7 +12,27 @@ import { toCsv, triggerDownload, downloadCsv, parseCsv } from '../src/lib/csv.js
 describe('toCsv', () => {
   test('renders a header row from column labels', () => {
     const csv = toCsv([{ a: 1 }], [{ label: 'A', value: 'a' }]);
-    assert.equal(csv, 'A\n1');
+    assert.equal(csv, '﻿A\n1');
+  });
+
+  test('starts with a byte-order mark, so Excel reads ñ as ñ', () => {
+    const csv = toCsv([{ gkk: 'Sto. Niño' }], [{ label: 'GKK', value: 'gkk' }]);
+    assert.equal(csv, '﻿GKK\nSto. Niño');
+    assert.deepEqual(parseCsv(csv), [['GKK'], ['Sto. Niño']]);
+  });
+
+  test('keeps text a spreadsheet would run as a formula as plain text', () => {
+    const cols = [{ label: 'V', value: 'v' }];
+    const cell = (v) => toCsv([{ v }], cols).split('\n')[1];
+    assert.equal(cell('=HYPERLINK("http://x","y")'), '"\'=HYPERLINK(""http://x"",""y"")"');
+    assert.equal(cell('@SUM(A1)'), "'@SUM(A1)");
+    assert.equal(cell('+cmd'), "'+cmd");
+    assert.equal(cell('-2+3'), "'-2+3");
+    // Phone numbers and plain numbers stay as they are.
+    assert.equal(cell('+63 912 345 6789'), '+63 912 345 6789');
+    assert.equal(cell('-5'), '-5');
+    assert.equal(cell(-5), '-5');
+    assert.equal(cell('Juan'), 'Juan');
   });
 
   test('resolves a column value from either a key or a function', () => {
@@ -20,17 +40,17 @@ describe('toCsv', () => {
       { label: 'First', value: 'first' },
       { label: 'Full', value: (r) => `${r.first} ${r.last}` },
     ]);
-    assert.equal(csv, 'First,Full\nAna,Ana Reyes');
+    assert.equal(csv, '﻿First,Full\nAna,Ana Reyes');
   });
 
   test('quotes values containing commas, quotes, or newlines', () => {
     const csv = toCsv([{ note: 'Says "hi", bye\nend' }], [{ label: 'Note', value: 'note' }]);
-    assert.equal(csv, 'Note\n"Says ""hi"", bye\nend"');
+    assert.equal(csv, '﻿Note\n"Says ""hi"", bye\nend"');
   });
 
   test('renders null/undefined as an empty cell', () => {
     const csv = toCsv([{ a: null, b: undefined }], [{ label: 'A', value: 'a' }, { label: 'B', value: 'b' }]);
-    assert.equal(csv, 'A,B\n,');
+    assert.equal(csv, '﻿A,B\n,');
   });
 });
 
@@ -66,7 +86,7 @@ describe('download helpers', () => {
     }
 
     assert.equal(dom.anchor.download, 'members.csv');
-    assert.equal(blobs[0].parts[0], 'Name\nAna');
+    assert.equal(blobs[0].parts[0], '﻿Name\nAna');
     assert.equal(blobs[0].opts.type, 'text/csv;charset=utf-8');
   });
 });

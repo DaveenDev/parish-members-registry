@@ -2,16 +2,30 @@
 // in the browser since there's no backend left to stream a
 // Content-Disposition response from.
 
+/**
+ * Text a spreadsheet would run as a formula: starting with =, @, a tab or
+ * return, or + or - followed by more than a number (so "+63 912 345 6789"
+ * and "-5" stay as they are).
+ */
+const looksLikeFormula = (s) => /^[=@\t\r]/.test(s) || (/^[+-]/.test(s) && !/^[+-][\d\s().]*$/.test(s));
+
+/**
+ * CSV text for `rows`. It starts with a byte-order mark, so Excel reads it as
+ * UTF-8 ("Sto. Niño", not "Sto. NiÃ±o"), and a cell that would run as a
+ * formula is kept as text with a leading apostrophe: names and notes come
+ * from the public forms.
+ */
 export function toCsv(rows, columns) {
   const esc = (v) => {
-    const s = v === null || v === undefined ? '' : String(v);
+    let s = v === null || v === undefined ? '' : String(v);
+    if (looksLikeFormula(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const header = columns.map((c) => esc(c.label)).join(',');
   const body = rows
     .map((row) => columns.map((c) => esc(typeof c.value === 'function' ? c.value(row) : row[c.value])).join(','))
     .join('\n');
-  return `${header}\n${body}`;
+  return `﻿${header}\n${body}`;
 }
 
 export function triggerDownload(blob, filename) {

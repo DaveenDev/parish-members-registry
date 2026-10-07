@@ -91,6 +91,8 @@ export default function Members() {
     setError('');
     api.listMembers({ ...filters, search: debouncedSearch, sortKey, sortDir, page, pageSize, groupBy: 'gkk', memberOrder: 'name' })
       .then((res) => {
+        // Only the latest load fills the list: an earlier, slower answer would otherwise land last.
+        if (seq !== loadSeq.current) return;
         setRows(res.rows);
         setTotal(res.total);
         // After the list shows, so it never waits on them; a page loaded since wins.
@@ -98,8 +100,8 @@ export default function Members() {
           .then((badges) => { if (seq === loadSeq.current) setFamilyBadges(badges); })
           .catch(() => { if (seq === loadSeq.current) setFamilyBadges(new Map()); });
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e) => { if (seq === loadSeq.current) setError(e.message); })
+      .finally(() => { if (seq === loadSeq.current) setLoading(false); });
   }
   const familyBadgeOf = (m) => familyBadges.get(m.household_id)?.get(familyNoOf(m)) || null;
 

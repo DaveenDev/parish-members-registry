@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState, Panel, ActionMenu, Tabs } from '../../components/admin.jsx';
@@ -74,27 +74,34 @@ export default function Households() {
   const [tabChosen, setTabChosen] = useState(() => new URLSearchParams(location.search).has('status'));
 
   const [counts, setCounts] = useState({});
+  const countSeq = useRef(0);
   function loadCounts() {
+    const seq = ++countSeq.current;
     api.householdStatusCounts({ gkk, search: debouncedSearch })
       // A household is either Pending or Verified, so All is the two together.
       .then((c) => {
+        if (seq !== countSeq.current) return;
         setCounts({ ...c, All: c.Pending + c.Verified });
         if (!tabChosen) {
           if (!c.Pending && c.Verified) setUrl({ status: 'Verified' });
           setTabChosen(true);
         }
       })
-      .catch(() => { setCounts({}); setTabChosen(true); });
+      .catch(() => { if (seq === countSeq.current) setCounts({}); setTabChosen(true); });
   }
   useEffect(() => { loadCounts(); }, [gkk, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Only the latest load may fill the list: with quick filter or page
+  // changes, an earlier, slower answer would otherwise land last.
+  const loadSeq = useRef(0);
   function reload() {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError('');
     api.listHouseholds({ ...filters, sortKey: sort, sortDir: dir, groupBy: groupKey, page, pageSize })
-      .then((res) => { setRows(res.rows); setTotal(res.total); })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .then((res) => { if (seq === loadSeq.current) { setRows(res.rows); setTotal(res.total); } })
+      .catch((e) => { if (seq === loadSeq.current) setError(e.message); })
+      .finally(() => { if (seq === loadSeq.current) setLoading(false); });
   }
   function changed() {
     reload();
