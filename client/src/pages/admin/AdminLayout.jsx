@@ -211,8 +211,6 @@ export default function AdminLayout() {
 
       <Link
         to="/developer"
-        target="_blank"
-        rel="noopener"
         className="px-4 py-2 text-center text-[10.5px] font-medium text-white/40 hover:text-white/70 transition"
       >
         Built For Free by DaveenDev
