@@ -1,1 +1,2 @@
-1. from the Parish admin, click the notification about the unblished history should auto open the GKK History to Publish interface in the /admin/settings?tab=gkk
+1. make all pages in admin to be responsive and occupy 100% width on larger screen
+2. use the new svg logo on the admin login page
