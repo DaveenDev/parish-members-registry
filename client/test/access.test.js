@@ -47,6 +47,9 @@ describe('can', () => {
     assert.ok(can({ access: 'gkk_leader' }, 'editCensus'));
     assert.ok(!can({ access: 'gkk_leader' }, 'manageCensus'), 'starting or closing a census stays with full access');
     assert.ok(can({ access: 'full' }, 'manageCensus'));
+    assert.ok(can({ access: 'full' }, 'censusGkkView'), "full access opens a GKK's results as its leader sees them");
+    assert.ok(!can({ access: 'read_only' }, 'censusGkkView'));
+    assert.ok(!can({ access: 'gkk_leader' }, 'censusGkkView'));
     assert.ok(can({ access: 'read_only' }, 'census'));
     assert.ok(!can({ access: 'read_only' }, 'editCensus'));
     assert.ok(!can({ access: 'website' }, 'census'));

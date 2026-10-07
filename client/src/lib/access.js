@@ -32,6 +32,8 @@ const RULES = {
   editCensus: ['full', 'gkk_leader'],
   // Start, close or reopen a census and set its schedule: the whole parish.
   manageCensus: ['full'],
+  // Open one GKK's census results as its GKK leader sees them (Census → Results by GKK).
+  censusGkkView: ['full'],
   // Get or renew a household's census access code (0023: GKK leaders, for their GKK).
   censusCodes: ['full', 'gkk_leader'],
   verify: ['full'],

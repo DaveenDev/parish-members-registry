@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote, rowActivationProps } from '../../components/admin.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
@@ -212,7 +212,7 @@ export default function Census() {
             />
             {(tab === 'households' || (tab === 'lastYear' && !listOn)) && <HouseholdsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} />}
-            {tab === 'results' && <ResultsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} />}
+            {tab === 'results' && <ResultsTab key={cycle.id} cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} canOpenGkk={!ownGkk && can(user, 'censusGkkView')} />}
             {tab === 'lastYear' && listOn && <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />}
           </>
         )}
@@ -586,7 +586,33 @@ function NotYetList({ res, cycle, ownGkk, onPrint }) {
   );
 }
 
-function ResultsTab({ cycle, cycles, parish, ownGkk, refreshKey }) {
+/**
+ * Results by GKK. Full-access staff can open a GKK's row to see that GKK's
+ * results as its GKK leader does: its registered households, the families
+ * not yet registered (with the visit list to print) and its members by
+ * status, so the office needn't ask the leader for them.
+ */
+function ResultsTab({ canOpenGkk, ...props }) {
+  const [gkk, setGkk] = useState(null);
+  const open = (g) => { setGkk(g); window.scrollTo({ top: 0 }); };
+  if (!gkk) return <Results {...props} onOpenGkk={canOpenGkk ? open : null} />;
+  return (
+    <>
+      <div className="flex items-center gap-3 flex-wrap mb-5 px-4 py-3 rounded-xl bg-[var(--p-blue-tint)]">
+        <button type="button" onClick={() => setGkk(null)} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13.5px] text-parish-blue">← All GKKs</button>
+        <span className="text-[13.5px] text-parish-navy">Showing <strong>{gkk}</strong> as its GKK leader sees it.</span>
+      </div>
+      <Results key={gkk} {...props} ownGkk={gkk} staffView />
+    </>
+  );
+}
+
+/**
+ * The results of one census: everyone's for staff, one GKK's for its leader
+ * (`ownGkk`), or one GKK's opened by staff (`staffView`). `onOpenGkk(name)`,
+ * when given, makes each GKK's row open it.
+ */
+function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false, onOpenGkk = null }) {
   const [summary, setSummary] = useState(null);
   const [vsLastYear, setVsLastYear] = useState(null);
   const [error, setError] = useState('');
@@ -594,7 +620,8 @@ function ResultsTab({ cycle, cycles, parish, ownGkk, refreshKey }) {
 
   function load() {
     setError('');
-    api.censusSummary(cycle.id).then((r) => setSummary(summarizeCensus(r))).catch((e) => setError(e.message));
+    // A leader's members are already only their GKK's; staff opening a GKK narrow theirs here.
+    api.censusSummary(cycle.id).then((r) => setSummary(summarizeCensus(staffView ? r.filter((x) => x.gkk === ownGkk) : r))).catch((e) => setError(e.message));
     // Optional: with no baseline (no list, count or earlier census) the table just doesn't show.
     api.censusVsLastYear(cycle, cycles, ownGkk).then(setVsLastYear).catch(() => setVsLastYear(null));
   }
@@ -623,6 +650,12 @@ function ResultsTab({ cycle, cycles, parish, ownGkk, refreshKey }) {
 
   const cols = summary.columns;
   const dash = <span className="text-parish-faint">—</span>;
+  // A GKK's row opens it; not the total, nor members with no GKK (no leader to see them).
+  const opens = (label, total) => !!onOpenGkk && !total && label !== 'No GKK';
+  const rowProps = (label, total) => (opens(label, total) ? rowActivationProps(() => onOpenGkk(label), `Open ${label} as its GKK leader sees it`) : {});
+  const rowLook = (label, total) => (opens(label, total) ? 'cursor-pointer hover:bg-[var(--p-blue-tint)] focus-visible:outline-2 focus-visible:outline-parish-blue' : '');
+  const gkkCell = (label, total) => (opens(label, total) ? <span className="text-parish-blue font-semibold">{label} <span aria-hidden>›</span></span> : label);
+  const openHint = onOpenGkk && <p className="text-[12.5px] text-parish-muted mt-0 mb-2">Click a GKK to see its results as its GKK leader does, with the families not yet registered.</p>;
   return (
     <>
       {vsLastYear?.hasBaseline && (
@@ -644,6 +677,7 @@ function ResultsTab({ cycle, cycles, parish, ownGkk, refreshKey }) {
             <button onClick={exportVsLastYear} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
           </div>
           <div className="mb-6">
+            {openHint}
             <DataTable
               minWidth={760}
               columns={[
@@ -653,9 +687,9 @@ function ResultsTab({ cycle, cycles, parish, ownGkk, refreshKey }) {
               ]}
             >
               {[...vsLastYear.rows, vsLastYear.total].map((r, i) => (
-                <tr key={r.label} className={`border-t border-parish-line ${i === vsLastYear.rows.length ? 'bg-parish-sunk font-semibold' : ''}`}>
+                <tr key={r.label} {...rowProps(r.label, i === vsLastYear.rows.length)} className={`border-t border-parish-line ${i === vsLastYear.rows.length ? 'bg-parish-sunk font-semibold' : ''} ${rowLook(r.label, i === vsLastYear.rows.length)}`}>
                   <td className="px-4 py-3 text-[14px] text-parish-navy whitespace-nowrap">
-                    {r.label}
+                    {gkkCell(r.label, i === vsLastYear.rows.length)}
                     {r.fromList && <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-parish-muted">list</span>}
                   </td>
                   <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.lastYear ?? dash}</td>
@@ -705,14 +739,15 @@ function ResultsTab({ cycle, cycles, parish, ownGkk, refreshKey }) {
         </p>
         <button onClick={exportCsv} className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
       </div>
+      {!vsLastYear?.hasBaseline && openHint}
       <DataTable
         minWidth={820}
         columns={[{ label: 'GKK' }, ...cols.map((c) => ({ label: c, align: 'right' })), { label: 'Total', align: 'right' }, { label: 'Confirmed', align: 'right' }]}
         footer={!summary.rows.length && <EmptyState title="No members yet" />}
       >
         {[...summary.rows, summary.total].map((r, i) => (
-          <tr key={r.label} className={`border-t border-parish-line ${i === summary.rows.length ? 'bg-parish-sunk font-semibold' : ''}`}>
-            <td className="px-4 py-3 text-[14px] text-parish-navy whitespace-nowrap">{r.label}</td>
+          <tr key={r.label} {...rowProps(r.label, i === summary.rows.length)} className={`border-t border-parish-line ${i === summary.rows.length ? 'bg-parish-sunk font-semibold' : ''} ${rowLook(r.label, i === summary.rows.length)}`}>
+            <td className="px-4 py-3 text-[14px] text-parish-navy whitespace-nowrap">{gkkCell(r.label, i === summary.rows.length)}</td>
             {cols.map((c) => <td key={c} className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.counts[c]}</td>)}
             <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.total}</td>
             <td className="px-4 py-3 text-[14px] text-right text-parish-navy">{r.pct}%</td>
