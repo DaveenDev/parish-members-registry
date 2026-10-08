@@ -116,49 +116,119 @@ export function analyzeActiveness(members, answersFor = () => ({})) {
     .filter((m) => m.practice_level === 'Dili aktibo')
     .sort((a, b) => (Number(a.practice_score) || 0) - (Number(b.practice_score) || 0));
 
-  return { summary, byGkk, byAge, parts, involvedPct, activities, trend, mismatches, followUp, findings: keyFindings({ summary, byGkk, byAge, parts, involvedPct, activities, trend, mismatches }) };
+  const cards = findingCards({ summary, byGkk, byAge, parts, involvedPct, activities, trend, mismatches });
+  return { summary, byGkk, byAge, parts, involvedPct, activities, trend, mismatches, followUp, cards, findings: cards.map((c) => c.text) };
 }
 
-/** Plain-language findings, most important first. */
-export function keyFindings({ summary, byGkk, byAge, parts, involvedPct, activities, trend, mismatches }) {
+/** Plain-language findings, most important first: the sentence of each finding card. */
+export function keyFindings(parts) {
+  return findingCards(parts).map((c) => c.text);
+}
+
+/** good / warn / bad for a score or share, by the Aktibo (70%+) and Dili aktibo (below 40%) lines. */
+export const toneOf = (score) => (score == null ? 'info' : score >= 70 ? 'good' : score < 40 ? 'bad' : 'warn');
+
+/**
+ * The key findings as cards for the report: each has a short `title`, a
+ * headline number (`value` and `valueLabel`), the figures its chart needs,
+ * a `tone` (good / warn / bad / info) and the full sentence (`text`).
+ * `kind` says which chart: overview, gkk, parts, activities, ages, trend, or
+ * note (a sentence alone, for data-quality notes).
+ */
+export function findingCards({ summary, byGkk, byAge, parts, involvedPct, activities, trend, mismatches }) {
   const out = [];
   if (!summary.rated) {
-    out.push(summary.members
-      ? `None of the ${summary.members} member(s) in scope can be scored yet: they have no participation answers. Recording a census will give each member their own.`
-      : 'There are no current members in this scope.');
+    out.push({
+      kind: 'note', key: 'none', tone: 'info', title: 'Nothing to score yet',
+      text: summary.members
+        ? `None of the ${summary.members} member(s) in scope can be scored yet: they have no participation answers. Recording a census will give each member their own.`
+        : 'There are no current members in this scope.',
+    });
     return out;
   }
-  out.push(`${summary.aktiboPct}% of the ${summary.rated} rated member(s) are Aktibo, ${summary.panagsaPct}% Panagsa and ${summary.diliPct}% Dili aktibo; the average score is ${Math.round(summary.avgScore)}%.`);
+  out.push({
+    kind: 'overview', key: 'overview', tone: toneOf(summary.avgScore), title: 'Overall activeness',
+    value: `${Math.round(summary.avgScore)}%`, valueLabel: 'average score', score: summary.avgScore,
+    mix: { aktibo: summary.aktibo, panagsa: summary.panagsa, dili: summary.dili, aktiboPct: summary.aktiboPct, panagsaPct: summary.panagsaPct, diliPct: summary.diliPct },
+    text: `${summary.aktiboPct}% of the ${summary.rated} rated member(s) are Aktibo, ${summary.panagsaPct}% Panagsa and ${summary.diliPct}% Dili aktibo; the average score is ${Math.round(summary.avgScore)}%.`,
+  });
 
   const gkks = byGkk.filter((g) => g.rated >= MIN_GROUP && g.gkk);
   if (gkks.length >= 2) {
     const low = gkks[0];
     const high = gkks[gkks.length - 1];
-    out.push(`${high.gkk} is the most active GKK (average ${Math.round(high.avgScore)}%, ${high.aktiboPct}% Aktibo); ${low.gkk} needs the most attention (average ${Math.round(low.avgScore)}%, ${low.diliPct}% Dili aktibo).`);
+    out.push({
+      kind: 'gkk', key: 'gkk', tone: toneOf(low.avgScore), title: 'GKKs: most and least active',
+      value: `${Math.round(high.avgScore - low.avgScore)} pts`, valueLabel: 'gap between them',
+      high: { name: high.gkk, score: high.avgScore, aktiboPct: high.aktiboPct },
+      low: { name: low.gkk, score: low.avgScore, diliPct: low.diliPct },
+      text: `${high.gkk} is the most active GKK (average ${Math.round(high.avgScore)}%, ${high.aktiboPct}% Aktibo); ${low.gkk} needs the most attention (average ${Math.round(low.avgScore)}%, ${low.diliPct}% Dili aktibo).`,
+    });
   }
 
   const weakest = [...parts].sort((a, b) => a.sharePct - b.sharePct)[0];
-  if (weakest.key === 'involvement') out.push(`Involvement is the weakest part of the score: only ${involvedPct}% of rated members serve in a ministry, organization or role.`);
-  else if (weakest.key === 'sacraments') out.push(`Sacraments are the weakest part of the score (${weakest.sharePct}% of the expected sacraments recorded). Some may simply not be recorded yet; catechesis for First Communion and Confirmation may help.`);
-  else out.push(`Participation is the weakest part of the score (${weakest.sharePct}% of the possible points).`);
+  const partBars = parts.map((p) => ({ key: p.key, label: p.label, sharePct: p.sharePct }));
+  if (weakest.key === 'involvement') {
+    out.push({
+      kind: 'parts', key: 'parts', tone: toneOf(involvedPct), title: 'Weakest part: Involvement', weakest: weakest.key, parts: partBars,
+      value: `${involvedPct}%`, valueLabel: 'of members serve in a ministry, organization or role',
+      text: `Involvement is the weakest part of the score: only ${involvedPct}% of rated members serve in a ministry, organization or role.`,
+    });
+  } else if (weakest.key === 'sacraments') {
+    out.push({
+      kind: 'parts', key: 'parts', tone: toneOf(weakest.sharePct), title: 'Weakest part: Sacraments', weakest: weakest.key, parts: partBars,
+      value: `${weakest.sharePct}%`, valueLabel: 'of expected sacraments recorded',
+      text: `Sacraments are the weakest part of the score (${weakest.sharePct}% of the expected sacraments recorded). Some may simply not be recorded yet; catechesis for First Communion and Confirmation may help.`,
+    });
+  } else {
+    out.push({
+      kind: 'parts', key: 'parts', tone: toneOf(weakest.sharePct), title: 'Weakest part: Participation', weakest: weakest.key, parts: partBars,
+      value: `${weakest.sharePct}%`, valueLabel: 'of the possible points',
+      text: `Participation is the weakest part of the score (${weakest.sharePct}% of the possible points).`,
+    });
+  }
 
   const answered = activities.filter((a) => a.answered);
   const mass = answered.find((a) => a.key === 'mass');
   const others = answered.filter((a) => a.key !== 'mass');
   const lowest = [...others].sort((a, b) => a.aktiboPct - b.aktiboPct)[0];
-  if (mass && lowest) out.push(`${mass.aktiboPct}% attend Mass regularly (Aktibo); the least attended other activity is ${lowest.label} (${lowest.aktiboPct}% Aktibo, ${lowest.walaPct}% Wala).`);
-  else if (mass) out.push(`${mass.aktiboPct}% attend Mass regularly (Aktibo).`);
-  else if (lowest) out.push(`The least attended activity is ${lowest.label} (${lowest.aktiboPct}% Aktibo).`);
+  const bar = (a) => ({ label: a.label, aktiboPct: a.aktiboPct, panagsaPct: a.panagsaPct, walaPct: a.walaPct });
+  if (mass || lowest) {
+    const lead = mass || lowest;
+    out.push({
+      kind: 'activities', key: 'activities', tone: toneOf(lead.aktiboPct),
+      title: mass ? 'Mass and the least attended activity' : 'Least attended activity',
+      value: `${lead.aktiboPct}%`, valueLabel: mass ? 'attend Mass regularly' : `Aktibo in ${lowest.label}`,
+      bars: [mass, lowest].filter(Boolean).map(bar),
+      text: mass && lowest
+        ? `${mass.aktiboPct}% attend Mass regularly (Aktibo); the least attended other activity is ${lowest.label} (${lowest.aktiboPct}% Aktibo, ${lowest.walaPct}% Wala).`
+        : mass ? `${mass.aktiboPct}% attend Mass regularly (Aktibo).` : `The least attended activity is ${lowest.label} (${lowest.aktiboPct}% Aktibo).`,
+    });
+  }
 
   const ages = byAge.filter((a) => a.rated >= MIN_GROUP);
   if (ages.length >= 2) {
     const lowAge = [...ages].sort((a, b) => a.avgScore - b.avgScore)[0];
-    out.push(`By age, the ${lowAge.label} group is the least active (average ${Math.round(lowAge.avgScore)}%).`);
+    out.push({
+      kind: 'ages', key: 'ages', tone: toneOf(lowAge.avgScore), title: `Least active age group: ${lowAge.label}`,
+      value: `${Math.round(lowAge.avgScore)}%`, valueLabel: `average, ages ${lowAge.label}`, lowest: lowAge.key,
+      ages: byAge.map((a) => ({ key: a.key, label: a.label, score: a.rated >= MIN_GROUP ? a.avgScore : null })),
+      text: `By age, the ${lowAge.label} group is the least active (average ${Math.round(lowAge.avgScore)}%).`,
+    });
   }
 
-  if (trend.compared) out.push(`Since the census before, ${trend.improved} member(s) became more active and ${trend.declined} less active (${trend.compared} compared).`);
-  if (summary.estimated) out.push(`${summary.estimated} score(s) are estimates from the household's registration survey; their own census answers will make them exact.`);
-  if (summary.unassessed) out.push(`${summary.unassessed} member(s) have no participation answers yet and aren't counted above.`);
-  if (mismatches.length) out.push(`${mismatches.length} member(s) have a census status that disagrees with their score — worth a second look.`);
+  if (trend.compared) {
+    out.push({
+      kind: 'trend', key: 'trend', tone: trend.improved > trend.declined ? 'good' : trend.declined > trend.improved ? 'bad' : 'info', title: 'Since the census before',
+      value: `${trend.improved > trend.declined ? '+' : trend.improved < trend.declined ? '−' : ''}${Math.abs(trend.improved - trend.declined)}`,
+      valueLabel: trend.improved > trend.declined ? 'more members became more active than less'
+        : trend.improved < trend.declined ? 'more members became less active than more' : 'as many became more active as less',
+      improved: trend.improved, declined: trend.declined, same: trend.compared - trend.improved - trend.declined, compared: trend.compared,
+      text: `Since the census before, ${trend.improved} member(s) became more active and ${trend.declined} less active (${trend.compared} compared).`,
+    });
+  }
+  if (summary.estimated) out.push({ kind: 'note', key: 'estimated', tone: 'info', title: 'Estimated scores', value: summary.estimated, text: `${summary.estimated} score(s) are estimates from the household's registration survey; their own census answers will make them exact.` });
+  if (summary.unassessed) out.push({ kind: 'note', key: 'unassessed', tone: 'info', title: 'Not rated yet', value: summary.unassessed, text: `${summary.unassessed} member(s) have no participation answers yet and aren't counted above.` });
+  if (mismatches.length) out.push({ kind: 'note', key: 'mismatches', tone: 'warn', title: 'Worth a second look', value: mismatches.length, text: `${mismatches.length} member(s) have a census status that disagrees with their score — worth a second look.` });
   return out;
 }

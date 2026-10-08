@@ -180,10 +180,8 @@ export default function ActivenessReport({ parish }) {
           </Panel>
 
           <Panel className="px-6 py-[22px]">
-            <SectionTitle title="Key findings" />
-            <ul className="m-0 pl-5 flex flex-col gap-2 text-[14px] leading-relaxed text-parish-text3">
-              {a.findings.map((f, i) => <li key={i}>{f}</li>)}
-            </ul>
+            <SectionTitle title="Key findings" sub="Green is going well, gold could be better, red needs attention." />
+            <KeyFindings cards={a.cards} />
           </Panel>
 
           {result.scope === 'All' && (
@@ -254,6 +252,197 @@ export default function ActivenessReport({ parish }) {
         </>
       )}
     </div>
+  );
+}
+
+// The colour of each finding's tone (lib/activeness.js toneOf).
+const TONES = {
+  good: { color: 'rgb(var(--c-ok-text))', chip: 'bg-parish-okBg text-parish-okText', word: 'Going well' },
+  warn: { color: 'var(--p-gold)', chip: 'bg-parish-warnTint text-parish-warn', word: 'Could be better' },
+  bad: { color: 'rgb(var(--c-error))', chip: 'bg-parish-errorBg text-parish-error', word: 'Needs attention' },
+  info: { color: 'var(--p-blue)', chip: 'bg-[var(--p-blue-tint)] text-parish-blue', word: 'Note' },
+};
+
+const ICONS = {
+  overview: <><circle cx="12" cy="12" r="9" /><path d="M12 12l4-4" /><path d="M12 3v2M3 12h2M19 12h2" /></>,
+  gkk: <><path d="M12 21s-7-6.2-7-11.5A7 7 0 0 1 19 9.5C19 14.8 12 21 12 21z" /><circle cx="12" cy="9.5" r="2.5" /></>,
+  parts: <><rect x="3" y="4" width="18" height="4" rx="1" /><rect x="3" y="10" width="12" height="4" rx="1" /><rect x="3" y="16" width="7" height="4" rx="1" /></>,
+  activities: <><path d="M12 3v6M9 6h6" /><path d="M5 21V12l7-4 7 4v9" /><path d="M10 21v-4h4v4" /></>,
+  ages: <><circle cx="9" cy="8" r="3" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><circle cx="17" cy="9" r="2.3" /><path d="M16 14.2c2.8.2 5 2.6 5 5.8" /></>,
+  trend: <><path d="M3 17l6-6 4 4 8-8" /><path d="M15 7h6v6" /></>,
+  note: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></>,
+};
+
+/** The key findings: a card each with a headline number and a small chart, data-quality notes underneath. */
+function KeyFindings({ cards }) {
+  const main = cards.filter((c) => c.kind !== 'note');
+  const notes = cards.filter((c) => c.kind === 'note');
+  return (
+    <>
+      {main.length > 0 && (
+        <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,300px),1fr))' }}>
+          {main.map((c) => <FindingCard key={c.key} card={c} />)}
+        </div>
+      )}
+      {notes.length > 0 && (
+        <ul className={`list-none m-0 p-0 flex flex-col gap-2 ${main.length ? 'mt-4' : ''}`}>
+          {notes.map((c) => (
+            <li key={c.key} className="flex items-start gap-3 px-3.5 py-2.5 rounded-xl border border-parish-line2 bg-parish-field">
+              <span className={`flex-none min-w-[32px] h-[26px] px-2 rounded-full flex items-center justify-center font-bold text-[12.5px] ${TONES[c.tone].chip}`}>
+                {c.value ?? <Icon kind="note" size={15} />}
+              </span>
+              <span className="text-[13px] text-parish-text3 leading-snug pt-[3px]"><b className="text-parish-navy">{c.title}.</b> {c.text}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </>
+  );
+}
+
+function Icon({ kind, size = 18 }) {
+  return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>{ICONS[kind]}</svg>;
+}
+
+function FindingCard({ card: c }) {
+  const tone = TONES[c.tone];
+  return (
+    <article className="relative flex flex-col bg-parish-field border border-parish-line2 rounded-2xl overflow-hidden">
+      <div className="h-1 flex-none" style={{ background: tone.color }} aria-hidden />
+      <div className="flex flex-col gap-3 px-4 pt-3.5 pb-4 flex-1">
+        <div className="flex items-center gap-2.5">
+          <span className={`w-8 h-8 rounded-lg flex items-center justify-center flex-none ${tone.chip}`}><Icon kind={c.kind} /></span>
+          <h4 className="m-0 flex-1 min-w-0 text-[13.5px] font-bold text-parish-navy leading-tight">{c.title}</h4>
+          <span className={`text-[10.5px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full whitespace-nowrap ${tone.chip}`}>{tone.word}</span>
+        </div>
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className="font-serif text-[34px] font-semibold leading-none" style={{ color: tone.color, fontVariantNumeric: 'lining-nums' }}>{c.value}</span>
+          <span className="text-[12.5px] text-parish-muted">{c.valueLabel}</span>
+        </div>
+        <FindingChart card={c} />
+        <p className="m-0 mt-auto text-[12.5px] leading-snug text-parish-text2">{c.text}</p>
+      </div>
+    </article>
+  );
+}
+
+/** A labelled bar on a 0–100 scale. */
+function ScoreBar({ label, value, color, note, strong = false }) {
+  return (
+    <div>
+      <div className="flex justify-between gap-2 text-[12px] mb-1">
+        <span className={`truncate ${strong ? 'font-bold text-parish-navy' : 'text-parish-text3'}`} title={label}>{label}</span>
+        <span className="text-parish-muted whitespace-nowrap">{note ?? (value == null ? '—' : pctText(value))}</span>
+      </div>
+      <div className="h-2 bg-parish-track rounded-full overflow-hidden" aria-hidden>
+        <div className="h-full rounded-full" style={{ width: `${Math.max(0, Math.min(100, value || 0))}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
+function Legend({ items }) {
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1 text-[11.5px] text-parish-muted">
+      {items.map(([label, text]) => (
+        <span key={label} className="inline-flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: COLORS[label] }} aria-hidden />{label} {text}</span>
+      ))}
+    </div>
+  );
+}
+
+function FindingChart({ card: c }) {
+  const muted = 'rgb(var(--c-icon))';
+  if (c.kind === 'overview') {
+    const m = c.mix;
+    return (
+      <div className="flex items-center gap-4">
+        <Donut parts={[['Aktibo', m.aktibo], ['Panagsa', m.panagsa], ['Dili aktibo', m.dili]]} />
+        <div className="flex-1 min-w-0 flex flex-col gap-2">
+          <MixBar className="h-3" parts={[['Aktibo', m.aktiboPct], ['Panagsa', m.panagsaPct], ['Dili aktibo', m.diliPct]]} />
+          <Legend items={[['Aktibo', `${m.aktiboPct}% (${m.aktibo})`], ['Panagsa', `${m.panagsaPct}% (${m.panagsa})`], ['Dili aktibo', `${m.diliPct}% (${m.dili})`]]} />
+        </div>
+      </div>
+    );
+  }
+  if (c.kind === 'gkk') {
+    return (
+      <div className="flex flex-col gap-2.5">
+        <ScoreBar label={`▲ ${c.high.name}`} value={c.high.score} color={TONES.good.color} note={`${pctText(c.high.score)} · ${c.high.aktiboPct}% Aktibo`} />
+        <ScoreBar label={`▼ ${c.low.name}`} value={c.low.score} color={TONES[c.tone].color} note={`${pctText(c.low.score)} · ${c.low.diliPct}% Dili aktibo`} strong />
+      </div>
+    );
+  }
+  if (c.kind === 'parts') {
+    return (
+      <div className="flex flex-col gap-2">
+        <div className="text-[11px] font-bold uppercase tracking-wide text-parish-muted">Each part of the score, % of its possible points</div>
+        {c.parts.map((p) => <ScoreBar key={p.key} label={p.label} value={p.sharePct} color={p.key === c.weakest ? TONES[c.tone].color : muted} strong={p.key === c.weakest} />)}
+      </div>
+    );
+  }
+  if (c.kind === 'activities') {
+    return (
+      <div className="flex flex-col gap-2.5">
+        {c.bars.map((b) => (
+          <div key={b.label}>
+            <div className="flex justify-between gap-2 text-[12px] mb-1"><span className="text-parish-text3 truncate">{b.label}</span><span className="text-parish-muted whitespace-nowrap">{b.aktiboPct}% · {b.panagsaPct}% · {b.walaPct}%</span></div>
+            <MixBar parts={[['Aktibo', b.aktiboPct], ['Panagsa', b.panagsaPct], ['Wala', b.walaPct]]} />
+          </div>
+        ))}
+        <Legend items={[['Aktibo', ''], ['Panagsa', ''], ['Wala', '']]} />
+      </div>
+    );
+  }
+  if (c.kind === 'ages') {
+    return (
+      <div className="flex items-end gap-2.5 h-[136px] pt-1" aria-hidden>
+        {c.ages.map((g) => {
+          const low = g.key === c.lowest;
+          return (
+            <div key={g.key} className="flex-1 flex flex-col items-center justify-end h-full min-w-0">
+              <span className={`text-[11px] mb-1 ${low ? 'font-bold text-parish-navy' : 'text-parish-muted'}`}>{g.score == null ? '—' : pctText(g.score)}</span>
+              <div className="w-full max-w-[38px] rounded-t-md" style={{ height: `${Math.max(4, (g.score || 0) * 0.72)}%`, background: g.score == null ? 'transparent' : low ? TONES[c.tone].color : muted, border: g.score == null ? '1px dashed rgb(var(--c-icon))' : 'none' }} />
+              <span className={`text-[11px] mt-1 whitespace-nowrap ${low ? 'font-bold text-parish-navy' : 'text-parish-muted'}`}>{g.label}</span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+  if (c.kind === 'trend') {
+    return (
+      <div className="grid grid-cols-3 gap-2 text-center">
+        {[['▲', c.improved, 'more active', TONES.good], ['＝', c.same, 'about the same', TONES.info], ['▼', c.declined, 'less active', TONES.bad]].map(([mark, n, label, t]) => (
+          <div key={label} className={`rounded-xl px-2 py-2 ${t.chip}`}>
+            <div className="font-bold text-[18px] leading-none">{mark} {n}</div>
+            <div className="text-[11px] mt-1">{label}</div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  return null;
+}
+
+/** A donut of the level counts, the number rated in the middle. */
+function Donut({ parts, size = 80 }) {
+  const r = 30;
+  const len = 2 * Math.PI * r;
+  const total = parts.reduce((s, [, n]) => s + n, 0);
+  let offset = 0;
+  return (
+    <svg width={size} height={size} viewBox="0 0 76 76" className="flex-none" aria-hidden>
+      <circle cx="38" cy="38" r={r} fill="none" stroke="currentColor" className="text-parish-track" strokeWidth="10" />
+      {total > 0 && parts.map(([label, n]) => {
+        const seg = (len * n) / total;
+        const el = n > 0 && <circle key={label} cx="38" cy="38" r={r} fill="none" stroke={COLORS[label]} strokeWidth="10" strokeDasharray={`${seg} ${len - seg}`} strokeDashoffset={-offset} transform="rotate(-90 38 38)" />;
+        offset += seg;
+        return el;
+      })}
+      <text x="38" y="38" textAnchor="middle" fontSize="16" fontWeight="700" fill="var(--p-navy)">{total}</text>
+      <text x="38" y="50" textAnchor="middle" fontSize="9" fill="rgb(var(--c-icon))">rated</text>
+    </svg>
   );
 }
 
