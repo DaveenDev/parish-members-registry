@@ -508,7 +508,7 @@ export default function ManageStaff() {
 
         <DataTable
           minWidth={980}
-          mobile={rows.length > 0 && (
+          mobile={(
             <ul className="list-none m-0 p-0">
               {rows.map((s) => (
                 <li key={s.id} className={`border-t first:border-t-0 border-parish-line px-4 py-3 flex flex-col gap-1.5 ${s.disabled ? 'opacity-70' : ''}`}>

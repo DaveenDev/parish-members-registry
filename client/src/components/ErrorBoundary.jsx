@@ -23,7 +23,7 @@ export default class ErrorBoundary extends React.Component {
 
     return (
       <div className="min-h-screen flex items-center justify-center p-6 font-sans bg-parish-bg">
-        <div className="max-w-[440px] text-center">
+        <div className="max-w-[440px] w-full min-w-0 text-center">
           <div className="w-14 h-14 rounded-full bg-parish-errorBg text-parish-error flex items-center justify-center mx-auto mb-4 text-2xl font-bold">!</div>
           <h1 className="font-serif text-[28px] font-semibold text-parish-navy m-0 mb-2">Something went wrong</h1>
           <p className="text-[15px] leading-relaxed text-parish-text2 mb-6">

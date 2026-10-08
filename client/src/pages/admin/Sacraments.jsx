@@ -107,7 +107,7 @@ export default function Sacraments() {
         {counts && (
           <Panel className="px-4 py-3.5 mb-4">
             <div className="font-bold text-[11.5px] tracking-[.1em] uppercase text-[var(--p-gold-deep)] mb-2">Awaiting verification</div>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2">
               {SACRAMENTS.map((s) => {
                 const waiting = counts[s.key].claimed - counts[s.key].verified;
                 const active = filters[s.key] === 'Unverified';
@@ -153,6 +153,31 @@ export default function Sacraments() {
         <DataTable
           minWidth={860}
           columns={[{ label: 'Member' }, { label: 'Household' }, ...SACRAMENTS.map((s) => ({ label: s.label, align: 'center' }))]}
+          mobile={(
+            <ul className="list-none m-0 p-0 divide-y divide-parish-line" aria-label="Members">
+              {groupByGkk(rows).map((g) => (
+                <React.Fragment key={g.gkk || 'no-gkk'}>
+                  <li className="px-4 py-2 bg-parish-sunk font-serif text-[16.5px] font-semibold text-parish-navy">{g.gkk || 'No GKK'}</li>
+                  {g.members.map((m) => (
+                    <li key={m.id} className="px-4 py-3">
+                      <button type="button" onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-left w-full">
+                        <span className="block font-semibold text-[14.5px] text-parish-navy">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</span>
+                        <span className="block text-[12.5px] text-parish-muted">{[bis(RELATIONSHIP_LABELS, m.relationship), m.household_name].filter(Boolean).join(' · ') || '—'}</span>
+                      </button>
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-2.5">
+                        {SACRAMENTS.map((s) => (
+                          <div key={s.key} className="flex items-center justify-between gap-2 min-w-0">
+                            <span className="text-[12px] text-parish-text2 truncate">{s.label}</span>
+                            <SacramentChip claimed={!!m[s.has]} verified={!!m[`${s.key}_verified`]} label={s.label} onClick={() => openVerify(m, s)} />
+                          </div>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </React.Fragment>
+              ))}
+            </ul>
+          )}
           footer={
             <>
               {loading && <LoadingState label="Loading members…" />}

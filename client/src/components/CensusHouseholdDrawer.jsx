@@ -422,7 +422,7 @@ function MemberCensusRow({ member: m, family, row, former, editable, onChange, o
         ))}
       </div>
 
-      <div className="mt-3 grid gap-3" style={{ gridTemplateColumns: 'minmax(180px,1fr) minmax(180px,1.4fr)' }}>
+      <div className="mt-3 grid gap-3 grid-cols-1 sm:grid-cols-[minmax(180px,1fr)_minmax(180px,1.4fr)]">
         <Field label="Membership status">
           <Select
             value={row.status}

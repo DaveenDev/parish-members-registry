@@ -23,11 +23,15 @@ export function PageBody({ children }) {
   return <div className="p-4 sm:p-[26px] flex-1">{children}</div>;
 }
 
+/**
+ * Filter dropdown. On phones it grows to share its row with the filters next
+ * to it, so a row of filters lines up instead of leaving ragged gaps.
+ */
 export function FilterSelect({ className = '', ...props }) {
   return (
     <select
       {...props}
-      className={`px-3 py-2.5 text-[13.5px] text-parish-ink bg-parish-card border-[1.5px] border-parish-borderSoft rounded-lg outline-none cursor-pointer ${className}`}
+      className={`max-sm:flex-1 max-sm:min-w-[140px] pl-3 pr-9 py-2.5 text-[13.5px] text-parish-ink bg-parish-card border-[1.5px] border-parish-borderSoft rounded-lg outline-none cursor-pointer ${className}`}
     />
   );
 }
@@ -46,16 +50,24 @@ export function SearchInput(props) {
   );
 }
 
+// A table's first column pinned while it scrolls sideways, so a wide table of
+// numbers keeps its row names in view on a phone. Total rows (bg-parish-sunk)
+// keep their shading.
+const STICKY_FIRST = 'max-md:[&_tr>*:first-child]:sticky max-md:[&_tr>*:first-child]:left-0 max-md:[&_tr>*:first-child]:z-[1] '
+  + 'max-md:[&_tr>*:first-child]:bg-parish-card max-md:[&_tr.bg-parish-sunk>*:first-child]:bg-parish-sunk '
+  + 'max-md:[&_tr>*:first-child]:shadow-[1px_0_0_rgb(var(--c-line))]';
+
 /**
  * Table on a Panel. `mobile`, when given, replaces the table below the md
  * breakpoint (cards read better than a sideways-scrolling table on a phone).
+ * `stickyFirst` pins the first column instead, for tables of figures.
  */
-export function DataTable({ columns, children, minWidth = 700, footer, mobile }) {
+export function DataTable({ columns, children, minWidth = 700, footer, mobile, stickyFirst = false }) {
   return (
     <Panel className="overflow-hidden">
       {mobile && <div className="md:hidden">{mobile}</div>}
       <div className={`overflow-x-auto ${mobile ? 'hidden md:block' : ''}`}>
-        <table className="w-full border-collapse" style={{ minWidth }}>
+        <table className={`w-full border-collapse ${stickyFirst ? STICKY_FIRST : ''}`} style={{ minWidth }}>
           <thead>
             <tr className="bg-parish-sunk">
               {columns.map((c) => (
@@ -158,7 +170,7 @@ export function Pagination({ page, pageSize, total, onPage, onPageSize, alwaysSh
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-3.5 border-t border-parish-line flex-wrap">
       <div className="flex items-center gap-3">
-        <select value={pageSize} onChange={(e) => onPageSize(Number(e.target.value))} className="px-2.5 py-1.5 text-[13px] text-parish-ink bg-parish-card border-[1.5px] border-parish-borderSoft rounded-lg outline-none cursor-pointer">
+        <select value={pageSize} onChange={(e) => onPageSize(Number(e.target.value))} aria-label="Rows per page" className="pl-2.5 pr-8 py-1.5 text-[13px] text-parish-ink bg-parish-card border-[1.5px] border-parish-borderSoft rounded-lg outline-none cursor-pointer">
           <option value={10}>10 / page</option><option value={20}>20 / page</option><option value={50}>50 / page</option>
         </select>
         <div className="text-[13px] text-parish-muted">Showing {from}–{to} of {total}</div>
@@ -184,14 +196,26 @@ export function Pagination({ page, pageSize, total, onPage, onPageSize, alwaysSh
   );
 }
 
-/** Underlined tab bar. `tabs` is a list of [key, label]. */
+/**
+ * Underlined tab bar. `tabs` is a list of [key, label]. On phones the tabs
+ * stay on one line and the bar scrolls sideways, instead of stacking into a
+ * column that pushes the page down.
+ */
 export function Tabs({ tabs, value, onChange }) {
+  const ref = useRef(null);
+  // Keep the chosen tab in view when the bar scrolls (a deep link to the last tab).
+  useEffect(() => {
+    const bar = ref.current;
+    const tab = bar?.querySelector('[aria-selected="true"]');
+    if (!tab || bar.scrollWidth <= bar.clientWidth) return;
+    bar.scrollLeft = tab.offsetLeft - (bar.clientWidth - tab.offsetWidth) / 2;
+  }, [value]);
   return (
-    <div role="tablist" className="flex flex-wrap gap-1 mb-[22px] border-b border-parish-border">
+    <div ref={ref} role="tablist" className="relative flex gap-1 mb-[22px] border-b border-parish-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
       {tabs.map(([k, label]) => (
         <button
           key={k} role="tab" aria-selected={value === k} onClick={() => onChange(k)}
-          className="appearance-none border-none bg-none cursor-pointer px-4 py-2.5 -mb-px font-semibold text-[15px]"
+          className="appearance-none border-none bg-none cursor-pointer px-3 sm:px-4 py-2.5 -mb-px font-semibold text-[14.5px] sm:text-[15px] whitespace-nowrap shrink-0"
           style={{ color: value === k ? 'var(--p-blue)' : 'rgb(var(--c-muted))', borderBottom: `2.5px solid ${value === k ? 'var(--p-blue)' : 'transparent'}` }}
         >
           {label}
@@ -221,7 +245,7 @@ export function Modal({ title, onClose, children, maxWidth = 480, z = 'z-50' }) 
     <div className={`fixed inset-0 ${z} bg-parish-scrim/45 backdrop-blur-sm flex items-start sm:items-center justify-center p-4 sm:p-5`} onClick={onClose}>
       <div
         ref={ref} role="dialog" aria-modal="true" aria-labelledby={titleId}
-        className="bg-parish-surface rounded-2xl w-full shadow-2xl p-5 sm:p-6 max-h-[90vh] overflow-auto"
+        className="bg-parish-surface rounded-2xl w-full shadow-2xl p-5 sm:p-6 max-h-dialog overflow-auto"
         style={{ maxWidth }}
         onClick={(e) => e.stopPropagation()}
       >

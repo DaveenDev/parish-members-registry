@@ -17,7 +17,7 @@ import { FamilyHeading } from '../../components/FamilyGroups.jsx';
 function Bar({ label, right, w, color }) {
   return (
     <div>
-      <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-parish-text3 font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
+      <div className="flex justify-between gap-3 text-[13.5px] mb-1.5"><span className="text-parish-text3 font-semibold">{label}</span><span className="text-parish-muted text-right">{right}</span></div>
       <div className="h-2.5 bg-parish-track rounded-full overflow-hidden">
         <div className="h-full rounded-full" style={{ width: w, background: color }} />
       </div>
@@ -28,7 +28,7 @@ function Bar({ label, right, w, color }) {
 function SplitBar({ label, right, vw, pw }) {
   return (
     <div>
-      <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-parish-text3 font-semibold">{label}</span><span className="text-parish-muted">{right}</span></div>
+      <div className="flex justify-between gap-3 text-[13.5px] mb-1.5"><span className="text-parish-text3 font-semibold">{label}</span><span className="text-parish-muted text-right">{right}</span></div>
       <div className="h-2.5 bg-parish-track rounded-full overflow-hidden flex">
         <div className="h-full" style={{ width: vw, background: 'rgb(var(--c-ok-text))' }} />
         <div className="h-full" style={{ width: pw, background: 'var(--p-gold)' }} />
@@ -40,7 +40,7 @@ function SplitBar({ label, right, vw, pw }) {
 /** A household's members family by family, under its row in a generated report. */
 function ReportFamilies({ families }) {
   return (
-    <div className="grid gap-3 pl-3 border-l-2 border-parish-line2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))' }}>
+    <div className="grid gap-3 pl-3 border-l-2 border-parish-line2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(260px,100%),1fr))' }}>
       {families.map((f, k) => (
         <section key={k}>
           <FamilyHeading title={f.title} className="mb-1.5" />
@@ -238,8 +238,8 @@ export default function Reports() {
                 <GhostButton onClick={() => window.print()} className="px-3.5 py-2 text-[12.5px] !text-parish-text2 !border-transparent bg-parish-sunk">Print</GhostButton>
                 <button onClick={exportStats} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg">Export CSV</button>
               </div>
-              <Panel className="px-6 py-[22px]">
-                <div className="flex items-baseline justify-between gap-3 mb-1">
+              <Panel className="px-4 py-[18px] sm:px-6 sm:py-[22px]">
+                <div className="flex items-baseline justify-between gap-x-3 gap-y-0.5 mb-1 flex-wrap">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Registration Status by GKK</div>
                   <div className="text-[13px] text-parish-muted">{stats.totalVerified} verified · {stats.totalPending} pending of {stats.totalHH} households</div>
                 </div>
@@ -250,7 +250,7 @@ export default function Reports() {
               </Panel>
 
               {stats.totalFamilies !== null && (
-                <Panel className="px-6 py-[22px]">
+                <Panel className="px-4 py-[18px] sm:px-6 sm:py-[22px]">
                   <div className="flex items-baseline justify-between gap-3 mb-1 flex-wrap">
                     <div className="font-serif text-[21px] font-semibold text-parish-navy">Families in Households</div>
                     <div className="text-[13px] text-parish-muted">{stats.totalFamilies} families in {stats.totalHH} households · {multiFamilyNote(stats.multiFamilyHouseholds)}</div>
@@ -273,7 +273,7 @@ export default function Reports() {
                 </Panel>
               )}
 
-              <Panel className="px-6 py-[22px]">
+              <Panel className="px-4 py-[18px] sm:px-6 sm:py-[22px]">
                 <div className="font-serif text-[21px] font-semibold text-parish-navy mb-1">Sacramental Completion</div>
                 <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>
                   Share of the {stats.totalMembers} current members old enough for each sacrament who have received it. Children too young for it (and, for Matrimony, members under 18) don't count as missing.
@@ -283,18 +283,18 @@ export default function Reports() {
                 </div>
               </Panel>
 
-              <Panel className="px-6 py-[22px]">
-                <div className="flex items-baseline justify-between gap-3 mb-1">
+              <Panel className="px-4 py-[18px] sm:px-6 sm:py-[22px]">
+                <div className="flex items-baseline justify-between gap-x-3 gap-y-0.5 mb-1 flex-wrap">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Ministry &amp; Organization Participation</div>
                   <div className="text-[13px] text-parish-muted">{stats.anyVolunteer}% of members serve in at least one</div>
                 </div>
                 <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Full roster counts across every ministry and organization.</p>
-                <div className="grid gap-x-6 gap-y-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(380px,1fr))' }}>
+                <div className="grid gap-x-6 gap-y-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(380px,100%),1fr))' }}>
                   {stats.participation.map((p) => <Bar key={p.label} label={p.label} right={p.n} w={p.w} color={p.color} />)}
                 </div>
               </Panel>
 
-              {can(user, 'bloodTypes') && <Panel className="px-6 py-[22px]">
+              {can(user, 'bloodTypes') && <Panel className="px-4 py-[18px] sm:px-6 sm:py-[22px]">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Blood types</div>
                   <Link to="/admin/blood" className="px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg no-underline">Open Blood Types page →</Link>
@@ -311,7 +311,7 @@ export default function Reports() {
 
           {tab === 'gen' && (
             <div className="flex flex-col gap-5">
-              <Panel className="px-6 py-[22px]">
+              <Panel className="px-4 py-[18px] sm:px-6 sm:py-[22px]">
                 <div className="font-serif text-[21px] font-semibold text-parish-navy mb-1">Build a report</div>
                 <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Choose a data source, a report type, then narrow the scope before generating.</p>
 
@@ -431,7 +431,7 @@ export default function Reports() {
               </Panel>
 
               {report && (
-                <Panel className="px-6 py-[22px]">
+                <Panel className="px-4 py-[18px] sm:px-6 sm:py-[22px]">
                   <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
                     <div className="font-serif text-[21px] font-semibold text-parish-navy">{report.title}</div>
                     <div className="flex gap-2">

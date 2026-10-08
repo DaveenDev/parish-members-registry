@@ -128,7 +128,7 @@ export default function SacramentVerifyDialog({ member, sacrament, verification,
 
   return (
     <div className="fixed inset-0 z-[60] bg-parish-scrim/45 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 sm:p-5" onClick={onClose}>
-      <div role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()} className="bg-parish-surface rounded-2xl max-w-[520px] w-full shadow-2xl p-5 sm:p-7 max-h-[90vh] overflow-auto">
+      <div role="dialog" aria-modal="true" aria-labelledby={titleId} onClick={(e) => e.stopPropagation()} className="bg-parish-surface rounded-2xl max-w-[520px] w-full shadow-2xl p-5 sm:p-7 max-h-dialog overflow-auto">
         <div className="flex items-start justify-between gap-3 mb-1">
           <h3 id={titleId} className="font-serif text-[24px] font-semibold m-0 text-parish-navy leading-tight">{sacrament.label} — {name}</h3>
           <button onClick={onClose} aria-label="Close" className="appearance-none border-none bg-transparent cursor-pointer text-parish-muted text-2xl leading-none px-1">×</button>

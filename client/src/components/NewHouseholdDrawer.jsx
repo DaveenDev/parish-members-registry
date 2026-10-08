@@ -330,7 +330,7 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className="relative h-full w-[90vw] lg:w-[50vw] lg:min-w-[640px] max-w-full bg-parish-surface shadow-2xl flex flex-col animate-slideInRight"
+        className="relative h-full w-full sm:w-[90vw] lg:w-[50vw] lg:min-w-[640px] max-w-full bg-parish-surface shadow-2xl flex flex-col animate-slideInRight"
       >
         <header className="px-5 sm:px-7 pt-5 pb-4 border-b border-parish-line2">
           <div className="flex items-start justify-between gap-3">
