@@ -24,7 +24,7 @@ export default function AdminLogin() {
   const [logo, setLogo] = useState(null);
   const [parishName, setParishName] = useState('');
 
-  // The logo uploaded in Parish Config; the star emblem stays if there isn't one.
+  // The logo uploaded in Parish Config; the bundled olgqp-logo.svg shows if there isn't one.
   useEffect(() => { api.publicParishLogo().then(setLogo).catch(() => {}); }, []);
   // The name from Parish Config. Before 0013 is run this fails quietly and the default shows.
   useEffect(() => { api.publicOfficeDetails().then((d) => setParishName(d?.name || '')).catch(() => {}); }, []);

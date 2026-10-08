@@ -12,6 +12,7 @@ import NotificationBell, { useStaffNotifications } from '../../components/Notifi
 import { NAV_GROUPS, navAllowed, navCollapsible, navItemFor, navBadges, navLabel } from '../../components/adminNav.js';
 import { accessLabel } from '../../lib/access.js';
 import { keepServiceWorker } from '../../lib/push.js';
+import ChurchEmblem from '../../components/ChurchEmblem.jsx';
 
 // Lets a phone add the admin panel to its Home Screen (needed on iPhone for
 // notifications). Only on admin pages, so the public website isn't offered
@@ -135,7 +136,7 @@ export default function AdminLayout() {
           {parish?.logo ? (
             <img src={parish.logo} alt={`${parish.name || 'Parish'} logo`} className="w-full h-full object-contain" />
           ) : (
-            <svg viewBox="0 0 40 40" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinejoin="round" aria-hidden><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z" /><path d="M20 24v9M15.5 28.5h9" /></svg>
+            <ChurchEmblem size={24} strokeWidth={1.9} />
           )}
         </div>
         <div className="min-w-0">
