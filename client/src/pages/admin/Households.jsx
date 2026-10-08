@@ -5,6 +5,7 @@ import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState
 import { StatusPill, PrimaryButton, Badge, Checkbox } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import HouseholdEditDrawer from '../../components/HouseholdEditDrawer.jsx';
+import HouseholdViewDrawer from '../../components/HouseholdViewDrawer.jsx';
 import NewHouseholdDrawer from '../../components/NewHouseholdDrawer.jsx';
 import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 import PrintSheet, { printHouseholdSheet } from '../../components/PrintSheet.jsx';
@@ -54,6 +55,7 @@ export default function Households() {
   const [expanded, setExpanded] = useState({});
   const [expandedMembers, setExpandedMembers] = useState({});
   const [openMemberId, setOpenMemberId] = useState(null);
+  const [viewing, setViewing] = useState(null);
   const [editing, setEditing] = useState(null);
   // The old /admin/households/new link arrives here with the panel open.
   const [creating, setCreating] = useState(!!location.state?.newHousehold);
@@ -159,16 +161,23 @@ export default function Households() {
     }
   }
 
+  /** Verify a household, or put it back in the queue. Resolves to whether it saved. */
   async function toggleStatus(h) {
     const next = h.status === 'Verified' ? 'Pending' : 'Verified';
     try {
       await api.updateHousehold(h.id, { status: next });
       toast.success(`${h.household_name} marked ${next}`);
       changed();
+      return true;
     } catch (e) {
       toast.error(e.message || 'Could not update status');
+      return false;
     }
   }
+
+  const viewButton = (h) => (
+    <button onClick={() => setViewing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">View</button>
+  );
 
   async function print(list) {
     try {
@@ -409,12 +418,13 @@ export default function Households() {
                           </td>
                           <td className="px-4 py-3.5">
                             <div className="flex gap-2 justify-end items-center">
+                              {viewButton(h)}
                               {canEdit && (
                                 <button onClick={() => toggleStatus(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
                                   {h.status === 'Verified' ? 'Mark Pending' : 'Verify'}
                                 </button>
                               )}
-                              <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">{canEdit ? 'Edit' : 'View'}</button>
+                              {canEdit && <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">Edit</button>}
                               <ActionMenu label={`More actions for ${h.household_name}`} items={rowActions(h)} />
                             </div>
                           </td>
@@ -455,12 +465,13 @@ export default function Households() {
                       <StatusPill status={h.status} />
                     </div>
                     <div className="flex gap-2 mt-3 pl-8">
+                      {viewButton(h)}
                       {canEdit && (
                         <button onClick={() => toggleStatus(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">
                           {h.status === 'Verified' ? 'Mark Pending' : 'Verify'}
                         </button>
                       )}
-                      <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">{canEdit ? 'Edit' : 'View'}</button>
+                      {canEdit && <button onClick={() => setEditing(h)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">Edit</button>}
                       <span className="ml-auto"><ActionMenu label={`More actions for ${h.household_name}`} items={rowActions(h)} /></span>
                     </div>
                     {expanded[h.id] && <div className="mt-3 pl-8"><MemberList members={expandedMembers[h.id]} onOpen={setOpenMemberId} /></div>}
@@ -482,6 +493,16 @@ export default function Households() {
           memberId={openMemberId}
           onClose={() => setOpenMemberId(null)}
           onChanged={() => { changed(); refreshExpanded(); }}
+        />
+      )}
+      {viewing && (
+        <HouseholdViewDrawer
+          household={viewing}
+          onClose={() => setViewing(null)}
+          // Edit swaps this panel for the Edit panel; Verify closes it once saved.
+          onEdit={(h) => { setViewing(null); setEditing(h); }}
+          onToggleStatus={async (h) => { if (await toggleStatus(h)) setViewing(null); }}
+          onChanged={() => { changed(); refreshExpanded(viewing.id); }}
         />
       )}
       {editing && (

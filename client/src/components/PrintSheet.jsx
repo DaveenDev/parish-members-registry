@@ -16,7 +16,8 @@ export function printHouseholdSheet() {
   window.print();
 }
 
-function sacramentLines(m) {
+/** A member's sacraments as [label, detail] rows, for the print sheet and the household View panel. */
+export function sacramentLines(m) {
   const join = (parts) => parts.filter(Boolean).join(' · ');
   // "(verified)" once staff have checked the claim against a certificate or the register.
   const v = (key) => (m.verified?.[key] ? ' (verified)' : '');
