@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { SearchInput, ErrorState, LoadingState, Panel, ActionMenu } from './admin.jsx';
 import { GKK_ATTENTION, attentionCounts, filterByAttention, gkkProgress } from '../lib/gkkAdmin.js';
@@ -18,6 +18,8 @@ const COLS = 'lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_56px_84px_150px_110p
 // A parish has a few dozen GKKs at most: they all show on one page.
 const ALL_GKKS = 1000;
 const missingAddress = (g) => !String(g.chapel_address || '').trim();
+/** The Households page filtered to one GKK, on the All tab so Pending and Verified both show. */
+const householdsPath = (gkk) => `/admin/households?status=All&gkk=${encodeURIComponent(gkk)}`;
 const websitePath = (name) => `/komunidad/gkk/${encodeURIComponent(name)}`;
 
 /** A GKK's census progress, as the Census page counts it: done / last year, with a bar. */
@@ -192,7 +194,11 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
       <div className="flex flex-col gap-2">
         {list.rows.map((g) => {
           const p = gkkProgress(progress, g.name);
-          const info = [g.puroks, g.year_established && `Est. ${g.year_established}`, `${g.count} household(s)`].filter(Boolean).join(' · ');
+          const info = [g.puroks, g.year_established && `Est. ${g.year_established}`].filter(Boolean).join(' · ');
+          // The GKK's households: the Households page filtered to it, every status.
+          const householdsLink = (children, className = '') => (!g.count ? <span className="text-parish-text2">{children}</span> :
+            <Link to={householdsPath(g.name)} title={`Open the households of ${g.name}`} className={`font-semibold text-parish-blue hover:underline ${className}`}>{children}</Link>
+          );
           const dash = <span className="text-parish-faint">—</span>;
           const missing = <span className="font-semibold text-[#c2410c]">Missing</span>;
           return (
@@ -211,6 +217,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
                 </div>
                 <div className="text-[12.5px] text-parish-text2 lg:hidden">
                   {missingAddress(g) ? <span className="font-semibold text-[#c2410c]">Chapel address missing</span> : `Chapel: ${g.chapel_address}`}{info && ` · ${info}`}
+                  {' · '}{householdsLink(`${g.count} household(s)`)}
                 </div>
                 <div className="lg:hidden mt-0.5"><Progress p={p} compact /></div>
                 {g.history_published
@@ -219,7 +226,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
               </div>
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{missingAddress(g) ? missing : g.chapel_address}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.year_established || dash}</span>
-              <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.count}</span>
+              <span className="hidden lg:block text-[13.5px]">{householdsLink(g.count, 'inline-block min-w-[28px] px-1 -mx-1 rounded')}</span>
               <span className="hidden lg:block min-w-0"><Progress p={p} /></span>
               <div className="flex items-center gap-2 lg:justify-end">
                 <RowButton onClick={() => open(g)} className="px-3.5 py-2">Edit</RowButton>
@@ -227,7 +234,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
                   label={`More for ${g.name}`}
                   items={[
                     openList && { label: `Last year's names (${listCounts.get(g.name)?.total || 0})`, onClick: () => openList(g.name) },
-                    { label: `Households (${g.count})`, onClick: () => navigate(`/admin/households?status=All&gkk=${encodeURIComponent(g.name)}`) },
+                    { label: `Households (${g.count})`, onClick: () => navigate(householdsPath(g.name)) },
                     { label: 'Members', onClick: () => navigate(`/admin/members?gkk=${encodeURIComponent(g.name)}`) },
                     { label: 'View on website', onClick: () => window.open(websitePath(g.name), '_blank', 'noopener') },
                     // A GKK with households can't be deleted (they'd lose their GKK); move them first.
