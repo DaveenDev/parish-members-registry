@@ -167,7 +167,7 @@ export default function Dashboard() {
 
         <TodayPanel counts={layout?.navCounts} />
 
-        <div className="grid gap-[18px] mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))' }}>
+        <div className="grid gap-[18px] mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(320px,100%),1fr))' }}>
           <Panel className="px-[22px] py-5">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-0.5">Registrations over time</div>
             <div className="text-[12.5px] text-parish-muted mb-5">Members enrolled per month</div>
@@ -180,7 +180,7 @@ export default function Dashboard() {
           </Panel>
         </div>
 
-        <div className="grid gap-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))' }}>
+        <div className="grid gap-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(320px,100%),1fr))' }}>
           <Panel className="px-[22px] py-5">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-[18px]">Members by GKK</div>
             {stats.gkkBreak.length ? <BreakdownBars data={stats.gkkBreak} color1="var(--p-blue)" color2="var(--p-blue-light)" /> : <div className="text-parish-muted text-sm">No GKK data yet.</div>}

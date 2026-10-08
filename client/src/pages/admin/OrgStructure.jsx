@@ -67,11 +67,11 @@ export default function OrgStructure() {
         {!error && !charts && <Panel><LoadingState label="Loading the charts…" /></Panel>}
         {charts && (
           <>
-            <div role="tablist" aria-label="Org charts" className="flex flex-wrap items-end gap-1 mb-[18px] border-b border-parish-border">
+            <div role="tablist" aria-label="Org charts" className="flex items-end gap-1 mb-[18px] border-b border-parish-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
               {charts.map((c) => (
                 <button
                   key={c.id} type="button" role="tab" aria-selected={current?.id === c.id} onClick={() => switchTo(c.id)}
-                  className="appearance-none border-none bg-none cursor-pointer px-4 py-2.5 -mb-px font-semibold text-[15px] flex items-center gap-2"
+                  className="appearance-none border-none bg-none cursor-pointer px-3 sm:px-4 py-2.5 -mb-px font-semibold text-[14.5px] sm:text-[15px] flex items-center gap-2 whitespace-nowrap shrink-0"
                   style={{ color: current?.id === c.id ? 'var(--p-blue)' : 'rgb(var(--c-muted))', borderBottom: `2.5px solid ${current?.id === c.id ? 'var(--p-blue)' : 'transparent'}` }}
                 >
                   {c.title}
@@ -79,7 +79,7 @@ export default function OrgStructure() {
                 </button>
               ))}
               {canEdit && (
-                <button type="button" onClick={startNew} className="appearance-none border-none bg-transparent cursor-pointer px-3 py-2.5 -mb-px font-semibold text-[14px] text-parish-blue hover:underline">
+                <button type="button" onClick={startNew} className="appearance-none border-none bg-transparent cursor-pointer px-3 py-2.5 -mb-px font-semibold text-[14px] text-parish-blue hover:underline whitespace-nowrap shrink-0">
                   + New chart
                 </button>
               )}

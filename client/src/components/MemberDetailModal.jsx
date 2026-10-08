@@ -201,15 +201,15 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-parish-scrim/45 backdrop-blur-sm flex items-center justify-center p-5" onClick={onClose}>
-      <div className="bg-parish-surface rounded-2xl max-w-[720px] w-full shadow-2xl max-h-[90vh] overflow-auto" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 bg-parish-scrim/45 backdrop-blur-sm flex items-center justify-center p-3 sm:p-5" onClick={onClose}>
+      <div className="bg-parish-surface rounded-2xl max-w-[720px] w-full shadow-2xl max-h-dialog overflow-auto" onClick={(e) => e.stopPropagation()}>
         {!member ? (
           <LoadingState label="Loading member…" />
         ) : (
-          <div className="p-[26px]" style={{ padding: '28px' }}>
-            <div className="flex items-center justify-between mb-1">
-              <h3 className="font-serif text-[26px] font-semibold m-0 text-parish-navy">{member.first_name} {member.last_name}</h3>
-              <button onClick={onClose} className="appearance-none border-none bg-none cursor-pointer text-parish-muted text-2xl leading-none">×</button>
+          <div className="p-5 sm:p-7">
+            <div className="flex items-center justify-between gap-3 mb-1">
+              <h3 className="font-serif text-[23px] sm:text-[26px] font-semibold m-0 text-parish-navy min-w-0">{member.first_name} {member.last_name}</h3>
+              <button onClick={onClose} aria-label="Close" className="appearance-none border-none bg-none cursor-pointer text-parish-muted text-2xl leading-none flex-none">×</button>
             </div>
             <div className="text-[13.5px] text-parish-muted mb-5">
               {member.household_name} · {ageFromDob(member.dob) ?? '—'} yrs old · {member.household_gkk || 'No GKK'}
@@ -218,7 +218,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
 
             {error && <div className="mb-4 text-parish-error text-[13.5px] font-medium">{error}</div>}
 
-            <div className="grid gap-3.5 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
+            <div className="grid gap-3.5 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(140px,100%),1fr))' }}>
               <Field label="First name"><TextInput value={member.first_name || ''} onChange={(e) => set('first_name', e.target.value)} onBlur={tidy('first_name')} /></Field>
               <Field label="Middle name"><TextInput value={member.middle_name || ''} onChange={(e) => set('middle_name', e.target.value)} onBlur={tidy('middle_name')} /></Field>
               <Field label="Last name"><TextInput value={member.last_name || ''} onChange={(e) => set('last_name', e.target.value)} onBlur={tidy('last_name')} /></Field>
@@ -513,7 +513,7 @@ function SacRow({ label, checked, onCheck, status, children }) {
 /** `blocked(name, checked)`: true greys a choice out (men-only ministries, for women). */
 function GroupChecks({ options, selected, onToggle, blocked }) {
   return (
-    <div className="grid gap-2 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(160px,1fr))' }}>
+    <div className="grid gap-2 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(140px,100%),1fr))' }}>
       {options.map((name) => {
         const checked = selected.includes(name);
         const off = !!blocked?.(name, checked);

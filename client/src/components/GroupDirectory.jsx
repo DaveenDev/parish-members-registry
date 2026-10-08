@@ -152,7 +152,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                 </div>
                 {isParish ? (
                   // Parish roles are set on the member record, not added to a roster here.
-                  <div className="ml-auto text-[12.5px] text-parish-muted">Open a member to change their Responsibility in Parish.</div>
+                  <div className="w-full sm:w-auto sm:ml-auto text-[12.5px] text-parish-muted">Open a member to change their Responsibility in Parish.</div>
                 ) : canEdit && (
                   <PrimaryButton onClick={() => setAdding(true)} disabled={!activeTab} className="ml-auto px-4 py-2 text-[13px] flex items-center gap-1.5">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
@@ -160,7 +160,39 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                   </PrimaryButton>
                 )}
               </div>
-              <div className="overflow-x-auto">
+              {/* Phones: one line per member instead of a sideways-scrolling table. */}
+              <ul className="md:hidden list-none m-0 p-0 divide-y divide-parish-line" aria-label={`${activeLabel} members`}>
+                {(isParish ? [{ gkk: null, members: rows, flat: true }] : groupByGkk(rows)).map((g) => (
+                  <React.Fragment key={g.gkk || 'no-gkk'}>
+                    {!g.flat && (
+                      <li className="px-4 py-2 bg-parish-sunk flex items-center gap-2 flex-wrap">
+                        <span className="font-serif text-[16.5px] font-semibold text-parish-navy">{g.gkk || 'No GKK'}</span>
+                        {gkkCounts?.has(g.gkk) && <Badge tone="blue">{gkkCounts.get(g.gkk)} member{gkkCounts.get(g.gkk) === 1 ? '' : 's'}</Badge>}
+                      </li>
+                    )}
+                    {g.members.map((m) => (
+                      <li key={m.id} className="px-4 py-3 flex items-start gap-3">
+                        <button type="button" onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-left min-w-0 flex-1 flex items-start gap-2.5">
+                          <span className="w-[30px] h-[30px] rounded-full bg-parish-track text-parish-chip flex items-center justify-center font-bold text-[11px] flex-none" aria-hidden>
+                            {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-[14px] font-semibold text-parish-navy">{m.first_name} {m.last_name}</span>
+                            <span className="block text-[12px] text-parish-muted">{[m.household_name, ageFromDob(m.dob) != null && `${ageFromDob(m.dob)} yrs`, m.contact].filter(Boolean).join(' · ')}</span>
+                            {isParish && m.parish_role && <span className="block mt-1"><Badge tone="gold">{m.parish_role}</Badge></span>}
+                          </span>
+                        </button>
+                        {!isParish && canEdit && (
+                          <button type="button" onClick={() => removeFromGroup(m)} className="flex-none appearance-none border-none cursor-pointer px-3 py-1.5 font-semibold text-[12.5px] text-parish-error bg-parish-errorBg rounded-lg">
+                            Remove
+                          </button>
+                        )}
+                      </li>
+                    ))}
+                  </React.Fragment>
+                ))}
+              </ul>
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full border-collapse" style={{ minWidth: 720 }}>
                   <thead>
                     <tr className="bg-parish-sunk">

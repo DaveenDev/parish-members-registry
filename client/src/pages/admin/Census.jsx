@@ -26,9 +26,9 @@ const HOUSEHOLDS_URL_ALLOWED = { progress: ['All', ...PROGRESS], size: [10, 20, 
 
 function Tile({ label, value, note, accent }) {
   return (
-    <Panel className="px-[18px] py-4 min-w-0">
+    <Panel className="px-3.5 py-3.5 sm:px-[18px] sm:py-4 min-w-0">
       <div className="flex items-center gap-2 mb-2" style={{ color: accent }}>
-        <span className="w-2 h-2 rounded-full" style={{ background: accent }} />
+        <span className="w-2 h-2 rounded-full flex-none" style={{ background: accent }} />
         <span className="font-semibold text-[12px] tracking-wide uppercase text-parish-muted">{label}</span>
       </div>
       <div className="font-serif text-[32px] font-semibold leading-none text-parish-navy">{value}</div>
@@ -393,7 +393,7 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
 
   return (
     <>
-      <div className="grid gap-3.5 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(170px,100%),1fr))' }}>
+      <div className="grid gap-2.5 sm:gap-3.5 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(150px,100%),1fr))' }}>
         <Tile label="Members confirmed" value={t ? `${t.pct}%` : '—'} note={t ? `${t.confirmed} of ${t.total} members` : ''} accent="#34589c" />
         <Tile label="Active" value={t ? t.counts.Active : '—'} note={t ? `${t.counts.Inactive} inactive · ${t.counts['Left the Church']} left the Church` : ''} accent="rgb(var(--c-ok-text))" />
         <Tile label="Moved / deceased" value={t ? t.counts['Moved away'] + t.counts.Deceased : '—'} note={t ? `${t.counts['Moved away']} moved · ${t.counts.Deceased} deceased` : ''} accent="rgb(var(--c-chip))" />
@@ -428,7 +428,7 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
             onClick={() => print({ gkk })}
             disabled={gkk === 'All' || printing}
             title={gkk === 'All' ? 'Choose a GKK first' : undefined}
-            className="px-4 py-2.5 text-[13.5px] ml-auto"
+            className="px-4 py-2.5 text-[13.5px] ml-auto max-sm:w-full"
           >
             {printing ? 'Preparing…' : gkk === 'All' ? 'Choose a GKK to print its forms' : `Print forms for ${gkk === 'None' ? 'households without a GKK' : gkk}`}
           </GhostButton>
@@ -438,6 +438,34 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
       <DataTable
         minWidth={720}
         columns={[{ label: 'Household' }, { label: 'Family Grouping' }, { label: 'Members confirmed' }, { label: 'Progress' }, { label: '', key: 'actions' }]}
+        mobile={!loading && (
+          <ul className="list-none m-0 p-0 divide-y divide-parish-line" aria-label="Census households">
+            {groupRuns(rows, groupKey).map((g) => (
+              <React.Fragment key={g.key ?? 'none'}>
+                <li className="px-4 py-2 bg-parish-sunk font-serif text-[16.5px] font-semibold text-parish-navy">{groupHeading(g.key, groupKey)}</li>
+                {g.rows.map((r) => (
+                  <li key={r.household_id} className="px-4 py-3">
+                    <div className="font-semibold text-[14.5px] text-parish-navy">{r.household_name}</div>
+                    <div className="text-[12.5px] text-parish-muted">{[r.head_name, r.ref_no, r.family_grouping].filter(Boolean).join(' · ')}</div>
+                    <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                      {!(r.pending_update && r.progress === 'Not started') && <Badge tone={PROGRESS_TONES[r.progress]}>{r.progress}</Badge>}
+                      {r.pending_update && <Badge tone="blue">Sent online · to review</Badge>}
+                      <span className="text-[12.5px] text-parish-text2">{r.members_confirmed} of {r.members_expected} confirmed</span>
+                    </div>
+                    <div className="flex gap-2 mt-2.5">
+                      <button onClick={() => setOpenId(r.household_id)} className="flex-1 appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">
+                        {open ? 'Record census' : 'View'}
+                      </button>
+                      {open && (
+                        <button onClick={() => print({ householdIds: [r.household_id] })} className="flex-1 appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg">Print form</button>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </React.Fragment>
+            ))}
+          </ul>
+        )}
         footer={
           <>
             {loading && <LoadingState label="Loading households…" />}
@@ -534,6 +562,27 @@ function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '' }) {
       <DataTable
         minWidth={680}
         columns={[{ label: 'Household' }, { label: 'GKK' }, { label: 'Sent' }, { label: 'Changes' }, { label: '', key: 'actions' }]}
+        mobile={(
+          <ul className="list-none m-0 p-0 divide-y divide-parish-line" aria-label="Online updates">
+            {list.rows.map((r) => {
+              const d = diffSubmission(r);
+              const answered = [...d.members, ...d.newMembers].filter((m) => m.status).length;
+              return (
+                <li key={r.id} className="px-4 py-3 flex items-start gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
+                    <div className="text-[12.5px] text-parish-muted">{[r.households?.ref_no, r.households?.gkk, new Date(r.submitted_at).toLocaleString()].filter(Boolean).join(' · ')}</div>
+                    <div className="text-[13px] text-parish-text3 mt-1">{d.changeCount} change(s) · {answered} census answer(s){r.message ? ' · message' : ''}</div>
+                    {r.status !== 'Pending' && <div className="text-[12px] text-parish-muted">{r.status} by {r.reviewed_by_name || 'staff'}{r.review_note ? ` — ${r.review_note}` : ''}</div>}
+                  </div>
+                  <button onClick={() => setOpenRow(r)} className="flex-none appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
+                    {r.status === 'Pending' ? 'Review' : 'View'}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
         footer={
           <>
             {!rows && !error && <LoadingState label="Loading online updates…" />}
@@ -636,7 +685,19 @@ function NotYetList({ res, cycle, ownGkk, onPrint }) {
         </div>
       </div>
       <p className="text-[13px] text-parish-muted mt-0 mb-3">Families {what}.</p>
-      <DataTable minWidth={560} columns={res.mode !== 'census' ? [{ label: 'Head of household' }, { label: 'Purok · note' }, ...(ownGkk ? [] : [{ label: 'GKK' }])] : [{ label: 'Household' }, { label: 'Head · ref no' }, ...(ownGkk ? [] : [{ label: 'GKK' }])]}>
+      <DataTable
+        minWidth={560}
+        mobile={(
+          <ul className="list-none m-0 p-0 divide-y divide-parish-line">
+            {shown.map((n) => (
+              <li key={n.key} className="px-4 py-2.5">
+                <div className="text-[14px] text-parish-navy font-semibold">{n.title}</div>
+                <div className="text-[12.5px] text-parish-muted">{[n.detail, !ownGkk && (n.gkk || 'No GKK')].filter(Boolean).join(' · ') || '—'}</div>
+              </li>
+            ))}
+          </ul>
+        )}
+        columns={res.mode !== 'census' ? [{ label: 'Head of household' }, { label: 'Purok · note' }, ...(ownGkk ? [] : [{ label: 'GKK' }])] : [{ label: 'Household' }, { label: 'Head · ref no' }, ...(ownGkk ? [] : [{ label: 'GKK' }])]}>
         {shown.map((n) => (
           <tr key={n.key} className="border-t border-parish-line">
             <td className="px-4 py-2.5 text-[14px] text-parish-navy font-semibold">{n.title}</td>
@@ -749,6 +810,7 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
             {openHint}
             <DataTable
               minWidth={760}
+              stickyFirst
               columns={[
                 { label: 'GKK' }, { label: 'Last year', align: 'right' }, { label: 'Registered', align: 'right' },
                 ...(vsLastYear.mode === 'census' ? [{ label: 'Fully confirmed', align: 'right' }] : [{ label: 'Verified', align: 'right' }, { label: 'On the queue', align: 'right' }]),
@@ -802,8 +864,8 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
         </p>
       )}
       <NotYetPrintSheet rows={print?.rows} gkk={print?.gkk} parish={parish} placeLabel={vsLastYear?.mode === 'census' ? 'GKK' : 'Purok'} />
-      <div className="flex items-center gap-3 mb-3">
-        <p className="text-[13px] text-parish-muted m-0">
+      <div className="flex items-center gap-3 mb-3 flex-wrap">
+        <p className="text-[13px] text-parish-muted m-0 flex-1 min-w-[220px]">
           Members per status in the {cycle.label}. “Not confirmed” are current members with no answer in this census{cycle.status === 'Open' ? ' yet' : ''}.
         </p>
         <button onClick={exportCsv} className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
@@ -811,6 +873,7 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
       {!vsLastYear?.hasBaseline && openHint}
       <DataTable
         minWidth={820}
+        stickyFirst
         columns={[{ label: 'GKK' }, ...cols.map((c) => ({ label: c, align: 'right' })), { label: 'Total', align: 'right' }, { label: 'Confirmed', align: 'right' }]}
         footer={!summary.rows.length && <EmptyState title="No members yet" />}
       >

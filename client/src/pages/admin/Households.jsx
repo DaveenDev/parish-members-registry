@@ -318,19 +318,20 @@ export default function Households() {
           <FilterSelect aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} className="md:hidden">
             {SORTS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}
           </FilterSelect>
-          <div className="ml-auto flex items-center gap-2.5 flex-wrap">
+          {/* Phones: the buttons share a full-width row of their own. */}
+          <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2.5">
             {can(user, 'exports') && (
               <button
                 onClick={() => exportCsv(filters, 'households.csv')}
                 disabled={exporting || !total}
-                className="appearance-none border-[1.5px] border-parish-borderSoft bg-parish-card cursor-pointer px-3.5 py-2.5 font-semibold text-[13px] text-parish-text2 rounded-xl disabled:opacity-60"
+                className="max-sm:flex-1 appearance-none border-[1.5px] border-parish-borderSoft bg-parish-card cursor-pointer px-3.5 py-2.5 font-semibold text-[13px] text-parish-text2 rounded-xl disabled:opacity-60 whitespace-nowrap"
                 title={isFiltered ? 'Download the households matching these filters' : 'Download every household'}
               >
                 {exporting ? 'Exporting…' : isFiltered ? 'Export this view' : 'Export CSV'}
               </button>
             )}
             {canEdit && (
-              <PrimaryButton onClick={() => setCreating(true)} className="px-[18px] py-2.5 text-[13.5px] flex items-center gap-2">
+              <PrimaryButton onClick={() => setCreating(true)} className="max-sm:flex-1 px-[18px] py-2.5 text-[13.5px] flex items-center justify-center gap-2 whitespace-nowrap">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><path d="M12 5v14M5 12h14" /></svg>New Household
               </PrimaryButton>
             )}
@@ -537,8 +538,8 @@ function MemberList({ members, onOpen }) {
     // Each card starts at its content's width (name + badges), as many per line
     // as fit, then the cards on a line stretch to fill the row's width.
     <ByFamily members={members} groupGap="gap-4" listClass="flex flex-wrap gap-2" render={(m) => (
-        <button key={m.id} onClick={() => onOpen(m.id)} className="flex-auto basis-auto min-w-[min(100%,240px)] max-w-full flex items-center gap-3 px-3 py-2 bg-parish-card border border-parish-line2 rounded-xl text-left hover:border-parish-focusLine focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue min-w-0">
-          <div className="flex items-center gap-2.5 min-w-0 flex-1">
+        <button key={m.id} onClick={() => onOpen(m.id)} className="flex-auto basis-auto min-w-[min(100%,240px)] max-w-full flex flex-wrap items-center gap-x-3 gap-y-1.5 px-3 py-2 bg-parish-card border border-parish-line2 rounded-xl text-left hover:border-parish-focusLine focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue min-w-0">
+          <div className="flex items-center gap-2.5 min-w-[150px] flex-1">
             <div className="w-[30px] h-[30px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[11px] flex-none" aria-hidden>
               {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
             </div>

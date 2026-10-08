@@ -297,11 +297,11 @@ function RefCodeField({ barangay, current, code, sameBarangay, error, onChange }
 /** The panel's own tab bar: its buttons must not submit the panel's form. */
 function PanelTabs({ tabs, value, onChange }) {
   return (
-    <div role="tablist" className="flex flex-wrap gap-1 -mt-1 border-b border-parish-border">
+    <div role="tablist" className="flex gap-1 -mt-1 border-b border-parish-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap">
       {tabs.map(([k, label]) => (
         <button
           key={k} type="button" role="tab" aria-selected={value === k} onClick={() => onChange(k)}
-          className="appearance-none border-none bg-none cursor-pointer px-3.5 py-2 -mb-px font-semibold text-[14px]"
+          className="appearance-none border-none bg-none cursor-pointer px-3.5 py-2 -mb-px font-semibold text-[14px] whitespace-nowrap shrink-0"
           style={{ color: value === k ? 'var(--p-blue)' : 'rgb(var(--c-muted))', borderBottom: `2.5px solid ${value === k ? 'var(--p-blue)' : 'transparent'}` }}
         >
           {label}

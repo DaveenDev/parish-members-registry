@@ -226,7 +226,7 @@ export default function ActivenessReport({ parish }) {
 
           <Panel className="px-6 py-[22px]">
             <SectionTitle title="Participation by activity" sub="Rated members' answers for each activity: Aktibo · Panagsa · Wala." />
-            <div className="grid gap-x-6 gap-y-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(320px,1fr))' }}>
+            <div className="grid gap-x-6 gap-y-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(320px,100%),1fr))' }}>
               {a.activities.map((x) => (
                 <div key={x.key}>
                   <div className="flex justify-between text-[13.5px] mb-1.5"><span className="text-parish-text3 font-semibold">{x.label}</span><span className="text-parish-muted">{x.answered ? `${x.aktiboPct}% · ${x.panagsaPct}% · ${x.walaPct}%` : 'No answers'}</span></div>

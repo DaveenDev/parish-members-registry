@@ -93,7 +93,7 @@ export default function Trash() {
               <ul className="list-none m-0 p-0 divide-y divide-parish-line">
                 {rows.map((r) => (
                   <li key={r.id} className="px-[18px] py-3.5 flex items-center gap-3 flex-wrap">
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 basis-full sm:basis-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-[14.5px] text-parish-navy">{r.label}</span>
                         <Badge tone={r.kind === 'household' ? 'gold' : 'blue'}>{r.kind === 'household' ? 'Household' : 'Member'}</Badge>
@@ -103,8 +103,11 @@ export default function Trash() {
                       </div>
                       <div className="text-[12px] text-parish-warn font-semibold">{daysLeft(r.deleted_at)} day(s) left</div>
                     </div>
-                    <button onClick={() => restore(r)} disabled={busyId === r.id} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg disabled:opacity-60">Restore</button>
-                    <button onClick={() => purge(r)} disabled={busyId === r.id} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-error bg-parish-errorBg rounded-lg disabled:opacity-60">Delete for good</button>
+                    {/* Phones: the buttons go under the details, side by side. */}
+                    <div className="flex gap-2 max-sm:w-full">
+                      <button onClick={() => restore(r)} disabled={busyId === r.id} className="max-sm:flex-1 appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg disabled:opacity-60">Restore</button>
+                      <button onClick={() => purge(r)} disabled={busyId === r.id} className="max-sm:flex-1 appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-error bg-parish-errorBg rounded-lg disabled:opacity-60">Delete for good</button>
+                    </div>
                   </li>
                 ))}
               </ul>
