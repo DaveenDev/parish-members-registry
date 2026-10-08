@@ -37,6 +37,22 @@ function SplitBar({ label, right, vw, pw }) {
   );
 }
 
+/**
+ * Rows in two columns on large screens, split down the middle so they still
+ * read top to bottom in order (the left column gets the extra one); one
+ * column on smaller screens.
+ */
+function TwoColumns({ children }) {
+  const rows = React.Children.toArray(children);
+  const half = Math.ceil(rows.length / 2);
+  return (
+    <div className="grid gap-x-10 gap-y-3.5 lg:grid-cols-2">
+      <div className="flex flex-col gap-3.5 min-w-0">{rows.slice(0, half)}</div>
+      {rows.length > 1 && <div className="flex flex-col gap-3.5 min-w-0">{rows.slice(half)}</div>}
+    </div>
+  );
+}
+
 /** A household's members family by family, under its row in a generated report. */
 function ReportFamilies({ families }) {
   return (
@@ -244,9 +260,9 @@ export default function Reports() {
                   <div className="text-[13px] text-parish-muted">{stats.totalVerified} verified · {stats.totalPending} pending of {stats.totalHH} households</div>
                 </div>
                 <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Households confirmed vs. awaiting verification, broken down by Basic Ecclesial Community.</p>
-                <div className="flex flex-col gap-3.5">
+                <TwoColumns>
                   {stats.regByGkk.map((g) => <SplitBar key={g.label} label={g.label} right={`${g.verified} verified · ${g.pending} pending`} vw={g.vw} pw={g.pw} />)}
-                </div>
+                </TwoColumns>
               </Panel>
 
               {stats.totalFamilies !== null && (
@@ -258,7 +274,7 @@ export default function Reports() {
                   <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>
                     A household is one house; some hold more than one family, each with its own head. Families per Basic Ecclesial Community.
                   </p>
-                  <div className="flex flex-col gap-3.5">
+                  <TwoColumns>
                     {(() => {
                       const most = Math.max(1, ...stats.regByGkk.map((g) => g.families || 0));
                       return stats.regByGkk.map((g) => (
@@ -269,7 +285,7 @@ export default function Reports() {
                         />
                       ));
                     })()}
-                  </div>
+                  </TwoColumns>
                 </Panel>
               )}
 
