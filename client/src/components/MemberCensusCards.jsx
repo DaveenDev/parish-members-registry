@@ -129,29 +129,36 @@ export function MemberCensusReview({ memberViews, english = false }) {
             {note ? (
               <div className="mt-1.5 text-[12.5px] text-parish-muted">{note}</div>
             ) : (
-              <table className="w-full mt-2 border-collapse text-[13px]">
-                <thead>
-                  <tr className="text-parish-muted">
-                    <th scope="col" className="text-left font-semibold py-1 pr-2"><span className="sr-only">{t.activity}</span></th>
-                    {PARTICIPATION_LEVELS.map((level) => <th key={level} scope="col" className="w-[62px] font-semibold py-1 text-center">{level}</th>)}
-                  </tr>
-                </thead>
-                <tbody>
-                  {PARTICIPATION_ITEMS.map(([key, label]) => (
-                    <tr key={key} className="border-t border-parish-line2">
-                      <th scope="row" className="text-left font-medium text-parish-ink py-1.5 pr-2">{label}</th>
-                      {PARTICIPATION_LEVELS.map((level) => (
-                        <td key={level} className="text-center py-1.5"><CheckMark on={participation[key] === level} label={t.picked} /></td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+              <ParticipationChecklist participation={participation} activityLabel={t.activity} pickedLabel={t.picked} />
             )}
           </li>
         );
       })}
     </ul>
+  );
+}
+
+/** The six activities, each with a tick under the Aktibo, Panagsa or Wala answered. Read-only. */
+export function ParticipationChecklist({ participation = {}, activityLabel = 'Activity', pickedLabel = 'selected', className = 'mt-2' }) {
+  return (
+    <table className={`w-full border-collapse text-[13px] ${className}`}>
+      <thead>
+        <tr className="text-parish-muted">
+          <th scope="col" className="text-left font-semibold py-1 pr-2"><span className="sr-only">{activityLabel}</span></th>
+          {PARTICIPATION_LEVELS.map((level) => <th key={level} scope="col" className="w-[62px] font-semibold py-1 text-center">{level}</th>)}
+        </tr>
+      </thead>
+      <tbody>
+        {PARTICIPATION_ITEMS.map(([key, label]) => (
+          <tr key={key} className="border-t border-parish-line2">
+            <th scope="row" className="text-left font-medium text-parish-ink py-1.5 pr-2">{label}</th>
+            {PARTICIPATION_LEVELS.map((level) => (
+              <td key={level} className="text-center py-1.5"><CheckMark on={participation[key] === level} label={pickedLabel} /></td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 

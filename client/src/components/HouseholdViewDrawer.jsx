@@ -8,18 +8,14 @@ import { FamilyHeading } from './FamilyGroups.jsx';
 import { LoadingState } from './admin.jsx';
 import ActivityList from './ActivityList.jsx';
 import { familiesOf } from '../lib/household.js';
-import { STATUS_TONES } from '../lib/census.js';
-import { HELP_WAYS, PARTICIPATION_ITEMS, fmtDate, fmtDateTime, ageFromDob } from '../constants.js';
+import { ParticipationChecklist } from './MemberCensusCards.jsx';
+import { STATUS_TONES, YOUNG_CHILD_MAX_AGE, asksParticipation, cleanParticipation, isYoungChild } from '../lib/census.js';
+import { HELP_WAYS, fmtDate, fmtDateTime, ageFromDob } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, VOLUNTEER_LABELS } from '../lib/bisaya.js';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
 
 const fullName = (m) => [m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ');
-
-/** "Mass (Misa): Aktibo · Pintakasi: Wala", from a participation answer set. */
-function participationText(p) {
-  return PARTICIPATION_ITEMS.filter(([key]) => p?.[key]).map(([key, label]) => `${label}: ${p[key]}`).join(' · ');
-}
 
 /**
  * Review a household from a panel on the right, like the Edit panel: its
@@ -38,7 +34,11 @@ export default function HouseholdViewDrawer({ household: row, onClose, onEdit, o
 
   function load() {
     setError('');
-    api.getHousehold(row.id).then(setData).catch((e) => setError(e.message || 'Could not load this household'));
+    api.getHousehold(row.id)
+      // Each member's latest census answers, for their activeness checklist.
+      .then(async (res) => ({ ...res, census: await api.latestCensusAnswers(res.members.map((m) => m.id)) }))
+      .then(setData)
+      .catch((e) => setError(e.message || 'Could not load this household'));
   }
   useEffect(() => { load(); }, [row.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -118,7 +118,7 @@ export default function HouseholdViewDrawer({ household: row, onClose, onEdit, o
                   <section key={g.familyNo}>
                     {families.length > 1 && <FamilyHeading group={g} />}
                     <div className="flex flex-col gap-2.5">
-                      {g.members.map((m) => <MemberCard key={m.id} member={m} showBlood={showBlood} onOpen={() => setOpenMemberId(m.id)} />)}
+                      {g.members.map((m) => <MemberCard key={m.id} member={m} census={data.census.get(m.id)} householdParticipation={h.participation} showBlood={showBlood} onOpen={() => setOpenMemberId(m.id)} />)}
                     </div>
                   </section>
                 ))}
@@ -159,7 +159,7 @@ export default function HouseholdViewDrawer({ household: row, onClose, onEdit, o
 }
 
 /** One member, compact: who they are, their status, sacraments, groups and participation. */
-function MemberCard({ member: m, showBlood, onOpen }) {
+function MemberCard({ member: m, census, householdParticipation, showBlood, onOpen }) {
   const age = ageFromDob(m.dob);
   const facts = [
     bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), bis(CIVIL_STATUS_LABELS, m.civil_status),
@@ -174,7 +174,7 @@ function MemberCard({ member: m, showBlood, onOpen }) {
   ].filter(Boolean).join(' · ');
   const roles = [m.parish_role && `Parish: ${m.parish_role}`, m.gkk_role && `GKK: ${m.gkk_role}`].filter(Boolean);
   const serving = [...(m.ministries || []), ...(m.organizations || [])];
-  const participation = participationText(m.registration_participation);
+  const answers = answersOf(m, census, householdParticipation);
   return (
     <div className="px-3.5 py-3 bg-parish-field border border-parish-line2 rounded-xl">
       <div className="flex items-start gap-2 flex-wrap">
@@ -196,10 +196,32 @@ function MemberCard({ member: m, showBlood, onOpen }) {
         ))}
         {roles.length > 0 && <><dt className="font-semibold text-[var(--p-gold-deep)]">Roles</dt><dd className="m-0 text-parish-text3">{roles.join(' · ')}</dd></>}
         {serving.length > 0 && <><dt className="font-semibold text-[var(--p-gold-deep)]">Serving in</dt><dd className="m-0 text-parish-text3">{serving.join(', ')}</dd></>}
-        {participation && <><dt className="font-semibold text-[var(--p-gold-deep)]">Participation</dt><dd className="m-0 text-parish-text3">{participation}</dd></>}
       </dl>
+      <div className="mt-3 pt-2.5 border-t border-parish-line2">
+        <div className="flex items-baseline justify-between gap-2 flex-wrap">
+          <span className="font-bold text-[11px] tracking-[.08em] uppercase text-[var(--p-gold-deep)]">Census activeness answers</span>
+          {answers && <span className="text-[11.5px] text-parish-muted">{answers.source}</span>}
+        </div>
+        {isYoungChild(m.dob) ? <div className="mt-1 text-[12.5px] text-parish-muted">A child ({YOUNG_CHILD_MAX_AGE} or younger): nothing to answer.</div>
+          : answers ? <ParticipationChecklist participation={answers.participation} className="mt-1" />
+          : m.membership_status && !asksParticipation(m.membership_status) ? <div className="mt-1 text-[12.5px] text-parish-muted">Nothing to answer for {m.membership_status}.</div>
+          : <div className="mt-1 text-[12.5px] text-parish-muted">No answers yet.</div>}
+      </div>
     </div>
   );
+}
+
+/**
+ * The answers a member's Practicing Catholic score uses, and where they're
+ * from: their latest census answers, else their own at registration, else
+ * the household's survey (an estimate). Null when there are none.
+ */
+function answersOf(m, census, householdParticipation) {
+  const has = (p) => Object.keys(cleanParticipation(p)).length > 0;
+  if (census && has(census.participation)) return { participation: cleanParticipation(census.participation), source: census.label };
+  if (has(m.registration_participation)) return { participation: cleanParticipation(m.registration_participation), source: 'Own answers at registration' };
+  if (has(householdParticipation)) return { participation: cleanParticipation(householdParticipation), source: "Household's survey (estimate)" };
+  return null;
 }
 
 function Row({ label, children }) {

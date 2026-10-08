@@ -10,7 +10,7 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
-import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, registryVsLastYear, householdsVsPreviousCensus, previousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet } from './lib/census.js';
+import { MEMBERSHIP_STATUSES, cleanParticipation, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, registryVsLastYear, householdsVsPreviousCensus, previousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet } from './lib/census.js';
 import {
   sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows, personName, SACRAMENT_MIN_AGE, missingSacrament,
   candidatesByGkk, churchWeddingCandidates, sacramentsByYear, AGE_GROUPS, inAgeGroup, ageSexRows, breakdownRows, celebrationsInMonth, statusChanges,
@@ -1588,6 +1588,27 @@ export const api = {
     if (!cycle || !memberIds.length) return { cycle: cycle || null, byMember: new Map() };
     const { data } = await supabase.from('census_member_responses').select('member_id, status, source').eq('cycle_id', cycle.id).in('member_id', memberIds);
     return { cycle, byMember: new Map((data || []).map((r) => [r.member_id, r])) };
+  },
+  /**
+   * Each member's latest census answers with participation, the ones their
+   * Practicing Catholic score uses: member id → { participation, status, label }.
+   * Members with none are left out; before 0007 (no census) the map is empty.
+   */
+  async latestCensusAnswers(memberIds) {
+    if (!memberIds.length) return new Map();
+    const { data, error } = await supabase
+      .from('census_member_responses')
+      .select('member_id, cycle_id, status, participation, census_cycles(label)')
+      .in('member_id', memberIds)
+      .order('cycle_id', { ascending: false });
+    if (error) return new Map();
+    const latest = new Map();
+    for (const r of data) {
+      if (!latest.has(r.member_id) && Object.keys(cleanParticipation(r.participation)).length) {
+        latest.set(r.member_id, { participation: r.participation, status: r.status, label: r.census_cycles?.label || 'Census' });
+      }
+    }
+    return latest;
   },
   async getHouseholdCensus(cycleId, householdId) {
     const { household, members } = await api.getHousehold(householdId);
