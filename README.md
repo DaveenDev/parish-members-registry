@@ -221,8 +221,8 @@ Run from the project root:
 | `npm run db:demo` | Load sample households and members (see above) |
 | `npm run db:reset` | Delete all households and members |
 | `npm run db:wipe-test -- --yes` | Empty every registry table on the **test** project before a browser playbook run (needs `PLAYBOOK_TEST_PROJECT=yes`; see `.claude/playbooks/staff-journey-playbook.md`) |
-| `npm run db:seed-load` | Add 500 marked test households and the records around them to the linked project, for load testing (see [`docs/load-test-data.md`](docs/load-test-data.md)) |
-| `npm run db:clean-load` | Remove that load-test data, and nothing else |
+| `npm run db:seed-load` | Add 500 marked test households and the records around them to the **training** project (`qyoyuukpdjrwfhovtrwd`, whichever project the folder is linked to), for load testing (see [`docs/load-test-data.md`](docs/load-test-data.md)) |
+| `npm run db:clean-load` | Remove that load-test data from the training project, and nothing else |
 | `npm test` | Run the client test suite |
 | `npm run test:watch` | Client tests, watch mode |
 

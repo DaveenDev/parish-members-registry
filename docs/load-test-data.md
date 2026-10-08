@@ -6,14 +6,13 @@ households and the records that go with them. A second script,
 [`supabase/seed/load-test-clean.sql`](../supabase/seed/load-test-clean.sql),
 removes exactly that test data and nothing real.
 
-> **Seeding the training site?** Use the SQL Editor of the training project,
-> as in [deploy/02-staging.md → Practice data](../deploy/02-staging.md#practice-data).
-> The `npm run` commands below run on the *linked* project, which is the
-> live one.
+> **The `npm run` commands below run on the training project**
+> (`qyoyuukpdjrwfhovtrwd`), named in `package.json`, whichever project this
+> folder is linked to. They never touch the live registry. To use the
+> training project's SQL Editor instead, see
+> [deploy/02-staging.md → Practice data](../deploy/02-staging.md#practice-data).
 
-This page was written when there was only one Supabase project, so the test
-data went into the same database as the real records. Every test record is
-marked so it can be told apart and removed in one step.
+Every test record is marked so it can be told apart and removed in one step.
 
 ## What gets added
 
@@ -72,13 +71,11 @@ beyond Node. On the computer you run them from:
 npx supabase login
 ```
 
-```bash
-npx supabase link --project-ref cyfjuyigybnfukgtsskl
-```
-
-`login` opens the browser to sign in to Supabase. `link` points this folder
-at the parish project (the ref is the part of the Supabase URL before
-`.supabase.co`). Both are remembered, so this is needed once per computer.
+`login` opens the browser to sign in to Supabase, with an account that can
+open the training project. It's remembered, so this is needed once per
+computer. The folder must also be linked to a project (`npx supabase link`,
+as it already is to the live one); the commands then name the training
+project themselves.
 
 ## Seed
 
@@ -175,7 +172,7 @@ status. Running it again changes nothing.
 
 Before running a changed seed for real, try it without keeping anything: in a
 copy of the file, change the final `commit;` to `rollback;` and run the copy
-with `npx supabase db query --linked -f <copy>`. Errors show up the same way,
+with `npx supabase db query --linked --project-ref qyoyuukpdjrwfhovtrwd -f <copy>`. Errors show up the same way,
 and nothing is saved.
 
 ## Troubleshooting
@@ -185,7 +182,7 @@ and nothing is saved.
 | `Cannot find project ref. Have you run supabase link?` | Run the `npx supabase link …` step above. |
 | `Load-test seed is already in the database …` | Run `npm run db:clean-load` first. |
 | `Add at least one GKK before seeding.` | Add GKKs in Parish Config → Parish GKK first. |
-| Asked to log in, or an access error | Run `npx supabase login` with an account that belongs to the parish's Supabase organization. |
+| Asked to log in, or an access error | Run `npx supabase login` with an account that can open the training project. |
 
 ## Load-speed baseline
 

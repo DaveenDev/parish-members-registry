@@ -154,9 +154,10 @@ training site.
 
 ## Practice data
 
-> **Don't use `npm run db:seed-load` / `db:clean-load` for this.** They run
-> on the project this folder is *linked* to, which is the **live** one
-> (step 3 keeps it that way).
+> `npm run db:seed-load` / `db:clean-load` run on our training project
+> (`qyoyuukpdjrwfhovtrwd`), named in `package.json`, even though the folder
+> stays linked to the live one (step 3). For another training project, use
+> its SQL Editor as below.
 
 ### A full parish's worth (recommended for training)
 
