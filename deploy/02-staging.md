@@ -54,6 +54,18 @@ For our training project (`qyoyuukpdjrwfhovtrwd`) that is `npm run deploy:traini
 one function alone is `npm run deploy:training:manage-staff` (or
 `:media-upload`, `:notify-staff`).
 
+These use the Supabase account the CLI is logged in to (`npx supabase login`).
+If that account can't see the training project (`npx supabase projects list`
+doesn't show it), the deploy fails with `unexpected deploy status 403 ... does
+not have the necessary privileges`. Either invite that account to the training
+project's organization (Organization settings → Team, role Developer or
+higher), or deploy once with the training account's access token (Account →
+Access Tokens) in PowerShell:
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = "<training-account-token>"; npm run deploy:training:manage-staff; Remove-Item Env:SUPABASE_ACCESS_TOKEN
+```
+
 ## Step 5. Auth settings
 
 As 01 step 5, with the training address:
