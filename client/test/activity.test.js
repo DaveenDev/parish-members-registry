@@ -45,3 +45,26 @@ test('org chart changes read plainly', () => {
   });
   assert.deepEqual(org('delete', { positions: 3 }), { title: 'Deleted the org chart', lines: ['With 3 position(s)'] });
 });
+
+describe('describeActivity: requests, census, website, settings and staff (0075)', () => {
+  test('a request status change is the title, other fields are lines', () => {
+    assert.deepEqual(
+      describeActivity({ action: 'update', table_name: 'sacrament_requests', changes: { status: ['New', 'Done'], scheduled_on: [null, '2026-10-10'] } }),
+      { title: 'Set the sacrament request to Done', lines: ['Scheduled on: — → 2026-10-10'] },
+    );
+  });
+  test('staff accounts: a reset password and a disabled account', () => {
+    assert.equal(describeActivity({ action: 'update', table_name: 'profiles', changes: { password_reset: true } }).title, 'Reset the password');
+    assert.equal(describeActivity({ action: 'update', table_name: 'profiles', changes: { disabled: [false, true] } }).title, 'Disabled the staff account');
+  });
+  test('a merged duplicate names the record merged in', () => {
+    assert.deepEqual(
+      describeActivity({ action: 'merge', table_name: 'members', changes: { merged: 'Juan Cruz', household: 'Cruz Family' } }),
+      { title: 'Merged in a duplicate record', lines: ['Juan Cruz (Cruz Family), now in the Trash'] },
+    );
+  });
+  test('a request sent from the website has no staff name', () => {
+    assert.equal(activityActor({ table_name: 'blood_donors', actor_name: null }), 'Sent from the website');
+    assert.equal(activityActor({ table_name: 'households', actor_name: null }), 'The family (online)');
+  });
+});

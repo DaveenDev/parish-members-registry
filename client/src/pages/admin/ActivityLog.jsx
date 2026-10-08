@@ -5,26 +5,42 @@ import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState
 import { ActivityEntry } from '../../components/ActivityList.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useAsyncData, useDebounced, useUrlState } from '../../hooks.js';
+import { ACTIVITY_AREAS } from '../../lib/activity.js';
 
-const TABLES = [['All', 'Everything'], ['households', 'Households'], ['members', 'Members'], ['sacrament_verifications', 'Sacrament verifications'], ['org_charts', 'Org charts']];
+const TABLES = [['All', 'Everything'], ...ACTIVITY_AREAS.map(([k, l]) => [k, l])];
+const AREA_TABLES = Object.fromEntries(ACTIVITY_AREAS.map(([k, , tables]) => [k, tables]));
+// Where an entry opens, for the records logged since 0075 (a request by its reference number).
+const REQUEST_TABS = { certificate_requests: '', sacrament_requests: 'sacraments', blood_requests: 'blood', blood_donors: 'blood' };
+const WEBSITE_TABS = { announcements: 'announcements', articles: 'articles', bulletins: 'bulletin', events: 'events', mass_schedules: 'mass', sacrament_guides: 'sacraments', history_articles: 'history' };
+const refOf = (label) => String(label || '').split(' · ')[0];
 const URL_DEFAULTS = { table: 'All', who: 'All', q: '', page: 1, size: 20 };
 const URL_ALLOWED = { table: TABLES.map(([k]) => k), who: ['All', 'online'], size: [10, 20, 50] };
 
-/** Every recorded change to households, members and sacrament verifications, newest first. */
+/** Every recorded change, newest first: households, members and verifications, and since 0075 requests, the census, the website, settings and staff accounts. */
 export default function ActivityLog() {
   const navigate = useNavigate();
   const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
   const search = useDebounced(url.q);
   const [openMemberId, setOpenMemberId] = useState(null);
   const log = useAsyncData(
-    () => api.listActivity({ table: url.table, actor: url.who, search, page: url.page, pageSize: url.size }),
+    () => api.listActivity({ tables: AREA_TABLES[url.table], actor: url.who, search, page: url.page, pageSize: url.size }),
     [url.table, url.who, search, url.page, url.size],
   );
   const rows = log.data?.rows || [];
   const filtered = url.table !== 'All' || url.who !== 'All' || !!search;
 
   function open(e) {
-    if (e.table_name === 'org_charts') navigate(e.action === 'delete' ? '/admin/org-structure' : `/admin/org-structure?chart=${e.record_id}`);
+    const t = e.table_name;
+    if (t in REQUEST_TABS) {
+      const params = new URLSearchParams({ ...(REQUEST_TABS[t] ? { tab: REQUEST_TABS[t] } : {}), ...(t !== 'blood_donors' && t !== 'blood_requests' ? { view: t === 'sacrament_requests' ? 'All' : 'all', q: refOf(e.label) } : {}) });
+      navigate(`/admin/requests?${params}`);
+    } else if (t === 'census_cycles') navigate('/admin/census');
+    else if (t in WEBSITE_TABS) navigate(`/admin/website?tab=${WEBSITE_TABS[t]}`);
+    else if (t === 'gkks') navigate('/admin/settings?tab=gkk');
+    else if (['ministries', 'organizations', 'parish_positions'].includes(t)) navigate(`/admin/settings/organizations?tab=${{ ministries: 'ministries', organizations: 'lay', parish_positions: 'structure' }[t]}`);
+    else if (t === 'parish_settings') navigate('/admin/settings?tab=config');
+    else if (t === 'profiles') navigate('/admin/settings/staff');
+    else if (e.table_name === 'org_charts') navigate(e.action === 'delete' ? '/admin/org-structure' : `/admin/org-structure?chart=${e.record_id}`);
     else if (e.member_id && e.action !== 'trash') setOpenMemberId(e.member_id);
     else if (e.table_name === 'households' && e.action !== 'trash') navigate(`/admin/households?status=All&q=${encodeURIComponent(e.label || '')}`);
     else navigate('/admin/settings/trash');
@@ -32,8 +48,8 @@ export default function ActivityLog() {
 
   return (
     <>
-      <PageHeader title="Activity log" subtitle="Who changed which household or member, and what changed">
-        <SearchInput placeholder="Search household or member name…" aria-label="Search by name" value={url.q} onChange={(e) => setUrl({ q: e.target.value })} />
+      <PageHeader title="Activity log" subtitle="Who changed what in the registry, requests, census, website and settings">
+        <SearchInput placeholder="Search a name or reference number…" aria-label="Search by name" value={url.q} onChange={(e) => setUrl({ q: e.target.value })} />
       </PageHeader>
       <PageBody>
         <div>
@@ -42,7 +58,7 @@ export default function ActivityLog() {
               {TABLES.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
             </FilterSelect>
             <FilterSelect aria-label="Who changed it" value={url.who} onChange={(e) => setUrl({ who: e.target.value })}>
-              <option value="All">Staff and families</option><option value="online">Families, online</option>
+              <option value="All">Staff and the public</option><option value="online">Families and website forms</option>
             </FilterSelect>
             {filtered && <button onClick={() => setUrl({ table: 'All', who: 'All', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-2">Clear</button>}
             {log.data && <div className="ml-auto text-[13px] text-parish-muted">{log.data.total} change(s)</div>}
@@ -52,7 +68,7 @@ export default function ActivityLog() {
             {log.error && <ErrorState message={log.error} onRetry={log.reload} />}
             {log.data && !rows.length && (
               filtered ? <EmptyState title="No changes match" subtitle="Try another filter or name." />
-                : <EmptyState title="Nothing recorded yet" subtitle="Changes to households and members show up here from now on." />
+                : <EmptyState title="Nothing recorded yet" subtitle="Changes show up here from now on." />
             )}
             {!!rows.length && (
               <ul className="list-none m-0 px-[18px] py-1.5 divide-y divide-parish-line">

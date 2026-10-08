@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { RELATIONSHIPS, CIVIL_STATUSES, BLOOD_TYPES, WEDDING_TYPES, LEGACY_MAT_TYPES, SACRAMENTS, GKK_ROLES, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, ageFromDob, fmtDateTime } from '../constants.js';
 import { familiesOf, familyNoOf, nextFamilyNo } from '../lib/household.js';
@@ -16,6 +17,7 @@ import { useAuth } from '../AuthContext.jsx';
 import { LoadingState } from './admin.jsx';
 import { can } from '../lib/access.js';
 import ActivityList from './ActivityList.jsx';
+import { certTypeLabel, sacramentRequestLabel, STATUS_TONES as REQUEST_TONES } from '../lib/requests.js';
 
 // Stored columns for the wedding a family head and a married Spouse share.
 const WEDDING_COLUMNS = ['has_matrimony', 'mat_date', 'mat_church', 'mat_type'];
@@ -343,6 +345,8 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
             <SectionLabel>Organizations</SectionLabel>
             <GroupChecks options={orgList} selected={member.organizations || []} onToggle={(name) => toggleGroup('organizations', name)} />
 
+            {can(user, 'requests') && <MemberRequests memberId={memberId} />}
+
             {can(user, 'activity') && (
               <details className="mt-1 group">
                 <summary className="cursor-pointer list-none flex items-center gap-2.5 mb-2.5">
@@ -441,6 +445,40 @@ function PracticeBreakdown({ member, history }) {
         <div className="text-[11.5px] text-parish-muted mt-2">The census status staff chose ({member.membership_status}) is their own judgement; where it differs from the score, go by the census status.</div>
       )}
     </div>
+  );
+}
+
+/**
+ * The certificate and sacrament requests linked to this member (Requests →
+ * Link member), each opening its request. Hidden when there are none.
+ */
+function MemberRequests({ memberId }) {
+  const [data, setData] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    api.memberRequests(memberId).then((d) => { if (!cancelled) setData(d); }).catch(() => { if (!cancelled) setData(null); });
+    return () => { cancelled = true; };
+  }, [memberId]);
+  const rows = data ? [
+    ...data.sacraments.map((r) => ({ key: `s${r.id}`, ref: r.ref_no, what: sacramentRequestLabel(r.sacrament), status: r.status, at: r.created_at,
+      note: r.scheduled_on && `set for ${new Date(`${r.scheduled_on}T00:00:00`).toLocaleDateString()}`, to: `/admin/requests?tab=sacraments&view=All&q=${encodeURIComponent(r.ref_no || '')}` })),
+    ...data.certificates.map((r) => ({ key: `c${r.id}`, ref: r.ref_no, what: `${certTypeLabel(r.cert_type)} certificate`, status: r.status, at: r.created_at,
+      to: `/admin/requests?view=all&q=${encodeURIComponent(r.ref_no || '')}` })),
+  ].sort((a, b) => String(b.at).localeCompare(String(a.at))) : [];
+  if (!rows.length) return null;
+  return (
+    <>
+      <SectionLabel>Requests</SectionLabel>
+      <ul className="list-none m-0 mb-5 p-0 flex flex-col gap-1.5">
+        {rows.map((r) => (
+          <li key={r.key} className="flex items-center gap-2.5 flex-wrap text-[13.5px]">
+            <Link to={r.to} className="font-semibold text-parish-blue no-underline hover:underline">{r.what}</Link>
+            <Badge tone={REQUEST_TONES[r.status] || 'gray'}>{r.status}</Badge>
+            <span className="text-[12.5px] text-parish-muted">{[r.ref, fmtDateTime(r.at, { time: false }), r.note].filter(Boolean).join(' · ')}</span>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }
 

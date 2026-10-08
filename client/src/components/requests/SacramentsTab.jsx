@@ -8,6 +8,8 @@ import { Field, TextInput, Select, Checkbox, Badge } from '../ui.jsx';
 import { SearchInput, FilterSelect, Pagination, EmptyState, LoadingState, ErrorState } from '../admin.jsx';
 import { SidePanel, TextArea, RowButton, Panel, TabIntro, AddButton } from '../panels.jsx';
 import { useRows, StatusBadge, ContactLinks, FilterChips, receivedText, SourceNote } from './common.jsx';
+import { MemberSearch } from './MemberMatch.jsx';
+import { memberFullName } from '../../lib/util.js';
 import { SACRAMENT_REQUEST_TYPES, SACRAMENT_REQUEST_STATUSES, SACRAMENT_REQUEST_OPEN, SOURCES, sacramentRequestLabel } from '../../lib/requests.js';
 
 const TYPE_TONES = Object.fromEntries(SACRAMENT_REQUEST_TYPES.map((t) => [t.key, t.tone]));
@@ -101,6 +103,7 @@ export default function SacramentsTab({ onCountsChanged }) {
                 {r.scheduled_on && <div className="text-[13.5px] font-semibold text-parish-ok mt-0.5">Scheduled {fmtDate(r.scheduled_on)}</div>}
                 {r.message && <div className="text-[13.5px] text-parish-text3 whitespace-pre-line mt-1">{r.message}</div>}
                 {r.staff_notes && <div className="text-[12.5px] text-parish-muted italic mt-1">Note: {r.staff_notes}</div>}
+                {r.member && <div className="mt-1"><Badge tone="blue" title="Linked to this member's record">Member: {memberFullName(r.member)}{r.member.household?.household_name ? ` · ${r.member.household.household_name}` : ''}</Badge></div>}
                 <div className="text-[12.5px] text-parish-muted mt-1">
                   {[r.ref_no, `from ${r.requester_name}${r.relationship ? ` (${r.relationship})` : ''}`, receivedText(r.created_at), r.handled_by_name && `by ${r.handled_by_name}`].filter(Boolean).join(' · ')}
                 </div>
@@ -202,6 +205,26 @@ function RequestEditor({ row, onClose, onSaved }) {
       <Field label="Relationship"><TextInput value={form.relationship} onChange={set('relationship')} placeholder="e.g. Anak, Kapikas, Ako mismo" /></Field>
       <Field label="Message from the requester"><TextArea rows={3} value={form.message} onChange={set('message')} /></Field>
       <Field label="Staff notes"><TextArea rows={2} value={form.staff_notes} onChange={set('staff_notes')} placeholder="Only staff see this." /></Field>
+      {/* After 0073: link the person to their member record, which then lists this request. */}
+      {!isNew && 'member_id' in row && (
+        <div>
+          <div className="font-semibold text-[13px] text-parish-ink mb-1.5">{ocia ? 'Person joining' : 'Sick person'} in the member registry</div>
+          {form.member ? (
+            <div className="flex items-center gap-3 flex-wrap border-[1.5px] border-parish-focusLine rounded-xl bg-parish-fillSoft px-4 py-3">
+              <div className="flex-1 min-w-[180px]">
+                <div className="font-semibold text-[14.5px] text-parish-navy">{memberFullName(form.member)}</div>
+                <div className="text-[12.5px] text-parish-muted">{[form.member.household?.household_name, form.member.household?.gkk, form.member.dob && `born ${fmtDate(form.member.dob)}`].filter(Boolean).join(' · ')}</div>
+              </div>
+              <RowButton tone="gray" onClick={() => setForm((f) => ({ ...f, member_id: null, member: null }))}>Unlink</RowButton>
+            </div>
+          ) : (
+            <>
+              <div className="text-[12.5px] text-parish-muted mb-2">If they're registered, link their record: the request then shows on it. Saved with the request.</div>
+              <MemberSearch initial={form.person_name} onPick={(m) => setForm((f) => ({ ...f, member_id: m.id, member: { ...m, household: { household_name: m.household_name, gkk: m.household_gkk } } }))} />
+            </>
+          )}
+        </div>
+      )}
     </SidePanel>
   );
 }

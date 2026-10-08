@@ -1,14 +1,16 @@
 import test, { describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { handleStaffRequest, validateStaffInput, isDisabled, accessInput } from '../../supabase/functions/manage-staff/handler.js';
+import { handleStaffRequest, validateStaffInput, isDisabled, accessInput, staffChanges } from '../../supabase/functions/manage-staff/handler.js';
 
 /**
  * In-memory stand-in for a service-role Supabase client: just the calls the
  * handler makes. Tokens are "token-<user id>".
  */
-function fakeAdmin({ users, profiles, legacySchema = false }) {
+function fakeAdmin({ users, profiles, legacySchema = false, gkks = [{ id: 3, name: 'GKK San Isidro' }] }) {
   const calls = [];
+  // Activity log entries (0075), kept apart from `calls` so those stay as they were.
+  const logs = [];
   // Before 0014 there are no access columns: writing them fails like PostgREST does.
   const columnError = (row) => (legacySchema && 'access' in row ? { message: "Could not find the 'access' column of 'profiles' in the schema cache" } : null);
   const findUser = (id) => users.find((u) => u.id === id);
@@ -40,7 +42,12 @@ function fakeAdmin({ users, profiles, legacySchema = false }) {
   };
   return {
     calls,
+    logs,
     from: (table) => {
+      if (table === 'activity_log') return { insert: async (row) => { logs.push(row); return { error: null }; } };
+      if (table === 'gkks') {
+        return { select: () => ({ eq: (col, val) => ({ maybeSingle: async () => ({ data: gkks.find((g) => g[col] === val) || null, error: null }) }) }) };
+      }
       assert.equal(table, 'profiles');
       return profilesTable;
     },
@@ -240,5 +247,39 @@ describe('manage-staff: access levels', () => {
     assert.deepEqual(accessInput({ access: 'gkk_leader', access_gkk_id: 4 }), { access: 'gkk_leader', access_gkk_id: 4 });
     assert.match(accessInput({ access: 'gkk_leader', access_gkk: 'GKK X' }).error, /GKK/);
     assert.match(accessInput({ access: 'gkk_leader', access_gkk_id: 'x' }).error, /GKK/);
+  });
+});
+
+describe('manage-staff: the activity log', () => {
+  test('each change is logged under the admin who made it, never with a password', async () => {
+    await call('u1', { action: 'create', name: 'Juana', email: 'juana@parish.test', password: 'long-enough-1', access: 'gkk_leader', access_gkk_id: 3 });
+    const created = admin.logs.at(-1);
+    assert.equal(created.action, 'insert');
+    assert.equal(created.table_name, 'profiles');
+    assert.equal(created.actor_name, 'Ma. Assumpta');
+    assert.equal(created.changes.access_gkk, 'GKK San Isidro');
+    assert.ok(!JSON.stringify(admin.logs).includes('long-enough-1'));
+
+    await call('u1', { action: 'update', id: 'u2', name: 'Pedro', role: 'Encoder', access: 'read_only' });
+    assert.deepEqual(admin.logs.at(-1).changes, { access: ['none', 'read_only'] });
+
+    await call('u1', { action: 'reset_password', id: 'u2', password: 'another-long-1' });
+    assert.deepEqual(admin.logs.at(-1).changes, { password_reset: true });
+    assert.ok(!JSON.stringify(admin.logs).includes('another-long-1'));
+
+    await call('u1', { action: 'disable', id: 'u2' });
+    assert.deepEqual(admin.logs.at(-1).changes, { disabled: [false, true] });
+  });
+
+  test('an edit that changes nothing writes nothing', async () => {
+    await call('u1', { action: 'update', id: 'u1', name: 'Ma. Assumpta', role: 'Parish Secretary', is_admin: true, access: 'full' });
+    assert.equal(admin.logs.length, 0);
+  });
+
+  test('staffChanges lists only the fields that differ', () => {
+    assert.deepEqual(
+      staffChanges({ name: 'A', role: 'Encoder', is_admin: false, access: 'full', access_gkk: null }, { name: 'A', role: 'Secretary', is_admin: false, access: 'full', access_gkk: null }),
+      { role: ['Encoder', 'Secretary'] },
+    );
   });
 });

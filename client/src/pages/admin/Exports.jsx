@@ -24,7 +24,7 @@ const EXPORTS = [
   { group: 'Requests', need: 'requests', path: '/exports/sacrament-requests.csv', file: 'sacrament-requests.csv', icon: 'heart', tone: 'gold', title: 'Sacrament requests', desc: 'OCIA and Anointing of the Sick requests, with their status and the date set.' },
   { group: 'Requests', need: 'requests', path: '/exports/blood-requests.csv', file: 'blood-requests.csv', icon: 'drop', tone: 'red', title: 'Blood requests', desc: 'Every blood call with the patient, hospital, units needed and its status.' },
   { group: 'Requests', need: 'requests', path: '/exports/donors.csv', file: 'blood-donors.csv', icon: 'drop', tone: 'red', title: 'Blood donors', desc: 'People who agreed to be contacted for blood, with their last donation.' },
-  { group: 'Records', need: 'activity', path: '/exports/activity.csv', file: 'activity-log.csv', icon: 'clock', tone: 'green', title: 'Activity log', desc: 'Every recorded change to households, members and sacrament verifications.' },
+  { group: 'Records', need: 'activity', path: '/exports/activity.csv', file: 'activity-log.csv', icon: 'clock', tone: 'green', title: 'Activity log', desc: 'Every recorded change: households, members, requests, the census, the website, settings and staff accounts.' },
 ];
 
 const TONES = {

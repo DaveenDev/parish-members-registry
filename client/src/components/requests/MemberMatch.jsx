@@ -73,7 +73,8 @@ function LinkedMember({ member, sacrament, onUnlink, busy, onVerificationChanged
   );
 }
 
-function MemberSearch({ initial, sacrament, onPick, busy }) {
+/** Search the registry for a request's person and link one. `sacrament` (optional) shows that sacrament's chip on each. */
+export function MemberSearch({ initial, sacrament = null, onPick, busy }) {
   const [query, setQuery] = useState(initial);
   const debounced = useDebounced(query.trim(), 350);
   const [state, setState] = useState({ rows: [], loading: false, error: '' });
@@ -105,7 +106,7 @@ function MemberSearch({ initial, sacrament, onPick, busy }) {
               {[m.household_name, m.dob && `born ${fmtDate(m.dob)}`, m.household_gkk].filter(Boolean).join(' · ')}
             </div>
           </div>
-          <SacramentChip claimed={!!m[sacrament.has]} verified={!!m[`${sacrament.key}_verified`]} label={sacrament.label} />
+          {sacrament && <SacramentChip claimed={!!m[sacrament.has]} verified={!!m[`${sacrament.key}_verified`]} label={sacrament.label} />}
           {m.membership_status && m.membership_status !== 'Active' && <Badge tone="gray">{m.membership_status}</Badge>}
           <RowButton onClick={() => onPick(m)} disabled={busy}>Link</RowButton>
         </div>
