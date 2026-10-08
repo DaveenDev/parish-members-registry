@@ -207,7 +207,7 @@ begin
         end if;
 
         insert into members (household_id, first_name, middle_name, last_name, relationship, sex, dob, place_of_birth, civil_status,
-                             contact, occupation, religion, blood_type, tribe,
+                             contact, occupation, religion, tribe,
                              has_baptism, baptism_date, baptism_church,
                              has_communion, communion_date, communion_church,
                              has_confirmation, conf_date, conf_church, conf_name, conf_sponsor,
@@ -221,7 +221,6 @@ begin
                 case when age >= 16 and random() < 0.6 then '09' || lpad(floor(random() * 999999999)::text, 9, '0') end,
                 case when age >= 18 then occupations[1 + floor(random() * array_length(occupations, 1))::int] when age >= 5 then 'Student' end,
                 case when random() < 0.94 then 'Roman Catholic' else (array['Iglesia ni Cristo','Protestant','Born Again','Islam'])[1 + floor(random() * 4)::int] end,
-                case when random() < 0.55 then (array['A+','A-','B+','B-','AB+','AB-','O+','O-'])[1 + floor(random() * 8)::int] end,
                 tribes[1 + floor(random() * array_length(tribes, 1))::int],
                 bapt, case when bapt then dob + 60 + floor(random() * 300)::int end, case when bapt then churches[1 + floor(random() * array_length(churches, 1))::int] end,
                 comm, case when comm then dob + 8 * 365 + floor(random() * 700)::int end, case when comm then churches[1 + floor(random() * array_length(churches, 1))::int] end,
@@ -239,6 +238,12 @@ begin
                 mem_status, created, created)
         returning id into m_id;
         member_count := member_count + 1;
+
+        -- A blood type for about half (its own table since 0062).
+        if random() < 0.55 then
+          insert into member_blood_types (member_id, blood_type)
+          values (m_id, (array['A+','A-','B+','B-','AB+','AB-','O+','O-'])[1 + floor(random() * 8)::int]);
+        end if;
 
         -- Staff verified about a third of the sacraments on record.
         if bapt and random() < 0.35 then

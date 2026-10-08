@@ -25,7 +25,7 @@ select v.id as member_id,
        case v.practice_level when 'Dili aktibo' then 'Inactive' when 'Aktibo' then 'Active' when 'Panagsa' then 'Active' end as status
 from members_with_household v
 join households h on h.id = v.household_id
-where h.ref_no like 'SEED-%'
+where (h.previous_ref_no like 'SEED-%' or h.ref_no like 'SEED-%')
   and v.membership_status in ('Active', 'Inactive');
 
 delete from seed_status_fix f
@@ -51,4 +51,4 @@ select count(*) filter (where v.practice_level = 'Dili aktibo' and v.membership_
        count(*) filter (where v.membership_status = 'Inactive') as inactive
 from members_with_household v
 join households h on h.id = v.household_id
-where h.ref_no like 'SEED-%';
+where (h.previous_ref_no like 'SEED-%' or h.ref_no like 'SEED-%');
