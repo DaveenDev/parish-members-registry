@@ -2,7 +2,7 @@
 -- census, the parish website, parish settings and the lists staff keep
 -- (GKKs, ministries, organizations, parish positions). Staff account
 -- changes are logged by the manage-staff Edge Function (redeploy it). Run
--- after 0074_duplicates_merge.sql. Safe to re-run.
+-- after 0075_duplicates_merge.sql. Safe to re-run.
 --
 -- Each insert, change and delete is one entry: the record's name (a
 -- request's reference number and person, an article's title, …) and, for a

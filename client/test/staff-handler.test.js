@@ -9,7 +9,7 @@ import { handleStaffRequest, validateStaffInput, isDisabled, accessInput, staffC
  */
 function fakeAdmin({ users, profiles, legacySchema = false, gkks = [{ id: 3, name: 'GKK San Isidro' }] }) {
   const calls = [];
-  // Activity log entries (0075), kept apart from `calls` so those stay as they were.
+  // Activity log entries (0076), kept apart from `calls` so those stay as they were.
   const logs = [];
   // Before 0014 there are no access columns: writing them fails like PostgREST does.
   const columnError = (row) => (legacySchema && 'access' in row ? { message: "Could not find the 'access' column of 'profiles' in the schema cache" } : null);

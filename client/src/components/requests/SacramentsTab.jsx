@@ -205,7 +205,7 @@ function RequestEditor({ row, onClose, onSaved }) {
       <Field label="Relationship"><TextInput value={form.relationship} onChange={set('relationship')} placeholder="e.g. Anak, Kapikas, Ako mismo" /></Field>
       <Field label="Message from the requester"><TextArea rows={3} value={form.message} onChange={set('message')} /></Field>
       <Field label="Staff notes"><TextArea rows={2} value={form.staff_notes} onChange={set('staff_notes')} placeholder="Only staff see this." /></Field>
-      {/* After 0073: link the person to their member record, which then lists this request. */}
+      {/* After 0074: link the person to their member record, which then lists this request. */}
       {!isNew && 'member_id' in row && (
         <div>
           <div className="font-semibold text-[13px] text-parish-ink mb-1.5">{ocia ? 'Person joining' : 'Sick person'} in the member registry</div>

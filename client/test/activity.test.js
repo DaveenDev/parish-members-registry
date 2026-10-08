@@ -46,7 +46,7 @@ test('org chart changes read plainly', () => {
   assert.deepEqual(org('delete', { positions: 3 }), { title: 'Deleted the org chart', lines: ['With 3 position(s)'] });
 });
 
-describe('describeActivity: requests, census, website, settings and staff (0075)', () => {
+describe('describeActivity: requests, census, website, settings and staff (0076)', () => {
   test('a request status change is the title, other fields are lines', () => {
     assert.deepEqual(
       describeActivity({ action: 'update', table_name: 'sacrament_requests', changes: { status: ['New', 'Done'], scheduled_on: [null, '2026-10-10'] } }),

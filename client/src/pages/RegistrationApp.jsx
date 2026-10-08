@@ -22,6 +22,7 @@ import { formatAccessCode, registrationAnswers, censusCardPatch } from '../lib/c
 import MemberCensusCards, { MemberCensusReview } from '../components/MemberCensusCards.jsx';
 import { gkkBarangays } from '../lib/site.js';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
+import ChurchEmblem from '../components/ChurchEmblem.jsx';
 
 const STEPS = ['Pamilya ug Ulo', 'Mga Miyembro', 'Mga Sakramento', 'Pag-apil', 'Pagsusi'];
 const MEMBER_RELATIONSHIPS = RELATIONSHIPS.filter((r) => !HEADS.includes(r));
@@ -731,7 +732,7 @@ function Wizard(props) {
       <div className="sticky top-0 z-[15] bg-parish-bg/90 backdrop-blur-md border-b border-parish-border px-[18px] pt-3 pb-3 sm:pt-4 sm:pb-[18px]">
         <div className="max-w-[880px] mx-auto">
           <div className="hidden sm:flex items-center gap-2.5 justify-center mb-4 text-parish-gold">
-            <svg viewBox="0 0 40 40" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z" /><path d="M20 24v9M15.5 28.5h9" /></svg>
+            <ChurchEmblem size={26} />
             <span className="font-serif text-[20px] font-semibold text-parish-navy">OLG Quasi&#8209;Parish · Mua&#8209;an</span>
           </div>
           {/* Phones: one line instead of five wrapped step labels, to keep the form visible. */}
@@ -1595,7 +1596,7 @@ function ConfirmModal({ memberViews, onCancel, onAddMore, onSubmit }) {
         className="bg-white rounded-[22px] max-w-[460px] w-full shadow-2xl p-[clamp(22px,5vw,34px)] max-h-[90vh] overflow-auto"
       >
         <div className="flex items-center gap-2.5 mb-1.5 text-parish-gold">
-          <svg viewBox="0 0 40 40" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round"><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z" /><path d="M20 24v9M15.5 28.5h9" /></svg>
+          <ChurchEmblem size={26} />
         </div>
         <h3 id={titleId} className="font-serif text-[28px] font-semibold m-0 mb-1.5 text-parish-navy">Andam na ba ipadala?</h3>
         <p className="text-[15px] leading-relaxed text-parish-text2 mb-[18px]">

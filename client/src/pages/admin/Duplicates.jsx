@@ -26,7 +26,7 @@ export default function Duplicates() {
   const confirm = useConfirm();
   const layout = useOutletContext();
   const { data: groups, loading, error, reload: reloadGroups } = useAsyncData(() => api.findDuplicateMembers(), []);
-  // Before 0074 there's no undo, but the list still loads.
+  // Before 0075 there's no undo, but the list still loads.
   const dismissed = useAsyncData(() => api.listDismissedDuplicates().catch(() => []), []);
   const [openMemberId, setOpenMemberId] = useState(null);
   const [busyKey, setBusyKey] = useState(null);
@@ -234,7 +234,7 @@ function MergeDialog({ group, onClose, onMerged }) {
     <Modal title="Merge duplicate records" onClose={onClose} maxWidth={560}>
       <p className="text-[13.5px] text-parish-text2 leading-relaxed mt-0 mb-4">
         The record you keep gets what it's missing from the others: blank details, sacraments, ministries and organizations, blood type,
-        sacrament verifications and census answers, and every request linked to them. The others go to the Trash, where they stay for 30 days.
+        sacrament verifications, census answers and service history, and every request linked to them. The others go to the Trash, where they stay for 30 days.
       </p>
       {error && <div role="alert" className="mb-3 text-[13.5px] text-parish-error font-medium">{error}</div>}
       <fieldset className="border-none p-0 m-0 flex flex-col gap-2">

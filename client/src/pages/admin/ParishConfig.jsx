@@ -19,6 +19,7 @@ import { fmtDateTime } from '../../constants.js';
 import { DEFAULT_SITE_URL, normalizeSiteUrl } from '../../lib/census.js';
 import { projectIdFromUrl } from '../../lib/database.js';
 import { markPasswordResetWorking, saveEmailSettings, sendPasswordReset } from '../../emailApi.js';
+import ChurchEmblem from '../../components/ChurchEmblem.jsx';
 
 // The logo is shrunk before it's saved (resizeLogo), so the file picked can be big.
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
@@ -126,12 +127,12 @@ function LogoSection({ settings, onSaved }) {
             <img src={settings.logo} alt="Current parish logo" className="w-full h-full object-contain" />
           ) : (
             <span className="text-parish-gold" aria-hidden>
-              <svg viewBox="0 0 40 40" width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round"><path d="M20 6l1.9 5.7h6l-4.9 3.5 1.9 5.7-4.9-3.5-4.9 3.5 1.9-5.7-4.9-3.5h6z" /><path d="M20 24v9M15.5 28.5h9" /></svg>
+              <ChurchEmblem size={40} strokeWidth={1.7} />
             </span>
           )}
         </div>
         <div className="flex flex-col gap-2 items-start min-w-0">
-          <div className="text-[13px] text-parish-text2">{settings.logo ? 'Current logo' : 'No logo yet: a star emblem shows instead.'}</div>
+          <div className="text-[13px] text-parish-text2">{settings.logo ? 'Current logo' : 'No logo yet: a church emblem shows instead.'}</div>
           <ImageButtons has={!!settings.logo} busy={busy} noun="logo" onFile={onFile} onRemove={removeLogo} />
         </div>
       </div>

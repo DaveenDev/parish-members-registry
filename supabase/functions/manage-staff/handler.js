@@ -126,7 +126,7 @@ export function staffChanges(target, next) {
 }
 
 /**
- * One activity log entry (0075) for a change to a staff account, under the
+ * One activity log entry (0076) for a change to a staff account, under the
  * admin who made it. Best effort: the change stands even if logging fails
  * (e.g. before 0014 there's no log).
  */

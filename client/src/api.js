@@ -668,6 +668,33 @@ export const api = {
     return Object.fromEntries((data || []).map((v) => [v.sacrament, v]));
   },
 
+  // ---- service history (0071) ----------------------------------------
+  /** A member's past service, or null before the 0071 migration adds the table. */
+  async listMemberService(memberId) {
+    const { data, error } = await supabase.from('member_service').select('*').eq('member_id', memberId);
+    if (isMissingTable(error)) return null;
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async addMemberService(row) {
+    const { data, error } = await supabase.from('member_service').insert(row).select().single();
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async updateMemberService(id, patch) {
+    const { data, error } = await supabase.from('member_service').update(patch).eq('id', id).select().single();
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async deleteMemberService(id) {
+    const { error } = await supabase.from('member_service').delete().eq('id', id);
+    if (error) throw mapError(error);
+    return null;
+  },
+
   async verifySacrament(memberId, sacrament, source, reference) {
     const { data, error } = await supabase.rpc('verify_sacrament', {
       p_member_id: memberId, p_sacrament: sacrament, p_source: source, p_reference: reference || null,
@@ -742,21 +769,21 @@ export const api = {
       .filter((d) => d.members.length > 1);
   },
 
-  /** Take back "Not duplicates": the group shows on the Duplicates page again (0074). */
+  /** Take back "Not duplicates": the group shows on the Duplicates page again (0075). */
   async undismissDuplicateGroup(memberIds) {
     const { error } = await supabase.rpc('undismiss_duplicate_group', { p_member_ids: memberIds });
-    if (error) throw missingMigration(error, '0074_duplicates_merge.sql') || mapError(error);
+    if (error) throw missingMigration(error, '0075_duplicates_merge.sql') || mapError(error);
     return null;
   },
 
   /**
    * Merge `otherId` into `keepId` (two records of one person): the kept
-   * record gets what it lacks, and the other goes to the Trash (0074).
+   * record gets what it lacks, and the other goes to the Trash (0075).
    * Resolves to the trash entry's id.
    */
   async mergeMembers(keepId, otherId) {
     const { data, error } = await supabase.rpc('merge_members', { p_keep: keepId, p_other: otherId });
-    if (error) throw missingMigration(error, '0074_duplicates_merge.sql') || mapError(error);
+    if (error) throw missingMigration(error, '0075_duplicates_merge.sql') || mapError(error);
     return data;
   },
 
@@ -1240,7 +1267,7 @@ export const api = {
       try {
         return await listRequests('sacrament_requests', `*, member:members(${LINKED_MEMBER_COLUMNS})`);
       } catch (e) {
-        // Before 0073 a request has no member link.
+        // Before 0074 a request has no member link.
         if (!/relationship|member_id/i.test(e.message || '')) throw e;
         return await listRequests('sacrament_requests');
       }
@@ -1251,13 +1278,13 @@ export const api = {
   },
   async saveSacramentRequest(row) {
     const saved = await saveRequestRow('sacrament_requests', row, SACRAMENT_FIELDS);
-    // The linked member, as the list shows it (0073).
+    // The linked member, as the list shows it (0074).
     if (!saved.member_id) return { ...saved, member: null };
     const { data: member } = await supabase.from('members').select(LINKED_MEMBER_COLUMNS).eq('id', saved.member_id).maybeSingle();
     return { ...saved, member: member || null };
   },
 
-  /** The requests linked to one member: certificates, and sacrament requests from 0073. */
+  /** The requests linked to one member: certificates, and sacrament requests from 0074. */
   async memberRequests(memberId) {
     const [certs, sacs] = await Promise.all([
       supabase.from('certificate_requests').select('id, ref_no, cert_type, status, created_at').eq('member_id', memberId).order('created_at', { ascending: false }),
@@ -1329,12 +1356,12 @@ export const api = {
     return data;
   },
 
-  /** Change a census's name, start date or target end (0072). */
+  /** Change a census's name, start date or target end (0073). */
   async updateCensusCycle(id, { label, startsOn, endsOn }) {
     const { data, error } = await supabase.rpc('census_update_cycle', {
       p_cycle_id: id, p_label: label, p_starts_on: startsOn || null, p_ends_on: endsOn || null,
     });
-    if (error) throw missingMigration(error, '0072_census_edit_delete.sql') || mapError(error);
+    if (error) throw missingMigration(error, '0073_census_edit_delete.sql') || mapError(error);
     return data;
   },
 
@@ -1348,10 +1375,10 @@ export const api = {
     return { answers: answers.count || 0, updates: updates.error ? 0 : updates.count || 0 };
   },
 
-  /** Delete a census started by mistake, with its answers (0072). */
+  /** Delete a census started by mistake, with its answers (0073). */
   async deleteCensusCycle(id) {
     const { error } = await supabase.rpc('census_delete_cycle', { p_cycle_id: id });
-    if (error) throw missingMigration(error, '0072_census_edit_delete.sql') || mapError(error);
+    if (error) throw missingMigration(error, '0073_census_edit_delete.sql') || mapError(error);
     return { ok: true };
   },
 

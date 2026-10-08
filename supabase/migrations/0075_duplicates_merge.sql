@@ -1,41 +1,45 @@
 -- Possible duplicates: merge two records of the same person, and take back
--- a "Not duplicates". Also fixes restoring a member from the Trash, which
--- lost their blood type. Run after 0073_sacrament_request_member.sql. Safe
--- to re-run.
+-- a "Not duplicates". Run after 0074_sacrament_request_member.sql. Safe to
+-- re-run.
 --
 --   * merge_members(keep, other): the kept record gets what it lacks from
 --     the other one (blank details, sacraments, ministries and
---     organizations, blood type, sacrament verifications, census answers)
+--     organizations, blood type, sacrament verifications, census answers,
+--     service history)
 --     and every request, donor entry and org chart place linked to the
 --     other one; the other record then goes to the Trash. Full access only,
 --     like deleting a member.
 --   * undismiss_duplicate_group: a group marked "Not duplicates" shows on
 --     the Duplicates page again. Same rules as dismissing one (0050).
---   * The Trash keeps a member's blood type (member_blood_types, 0062) and
---     their sacrament request links, so restoring puts them back.
+--   * The Trash keeps a member's sacrament request links (0074), so
+--     restoring puts them back.
 
 do $$
 begin
-  if to_regprocedure('public.restore_deleted(bigint)') is null or to_regclass('public.member_blood_types') is null
-     or to_regprocedure('public.members_in_leader_gkk(integer[])') is null then
-    raise exception 'Run the migrations up to 0064_household_gkk_link.sql before this one';
+  if to_regclass('public.member_service') is null or to_regprocedure('public.members_in_leader_gkk(integer[])') is null then
+    raise exception 'Run the migrations up to 0071_member_service_history.sql before this one';
   end if;
   if not exists (select 1 from information_schema.columns
                  where table_schema = 'public' and table_name = 'sacrament_requests' and column_name = 'member_id') then
-    raise exception 'Run 0073_sacrament_request_member.sql before this migration';
+    raise exception 'Run 0074_sacrament_request_member.sql before this migration';
   end if;
 end;
 $$;
 
 -- ---- the Trash ----------------------------------------------------------------
 
--- As in 0014, plus blood types and sacrament request links.
-create or replace function public.trash_snapshot(p_household_ids integer[], p_member_ids integer[]) returns jsonb
-language sql stable security definer set search_path = public as $$
+-- As in 0071, plus sacrament request links.
+CREATE OR REPLACE FUNCTION public.trash_snapshot(p_household_ids integer[], p_member_ids integer[])
+ RETURNS jsonb
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
   select jsonb_build_object(
     'households', (select coalesce(jsonb_agg(to_jsonb(h) order by h.id), '[]') from households h where h.id = any(p_household_ids)),
     'members', (select coalesce(jsonb_agg(to_jsonb(m) order by m.id), '[]') from members m where m.id = any(p_member_ids)),
     'member_blood_types', (select coalesce(jsonb_agg(to_jsonb(b)), '[]') from member_blood_types b where b.member_id = any(p_member_ids)),
+    'member_service', (select coalesce(jsonb_agg(to_jsonb(s)), '[]') from member_service s where s.member_id = any(p_member_ids)),
     'sacrament_verifications', (select coalesce(jsonb_agg(to_jsonb(v)), '[]') from sacrament_verifications v where v.member_id = any(p_member_ids)),
     'census_member_responses', (select coalesce(jsonb_agg(to_jsonb(r)), '[]') from census_member_responses r where r.member_id = any(p_member_ids)),
     'census_household_snapshots', (select coalesce(jsonb_agg(to_jsonb(s)), '[]') from census_household_snapshots s where s.household_id = any(p_household_ids)),
@@ -45,9 +49,9 @@ language sql stable security definer set search_path = public as $$
     'donor_links', (select coalesce(jsonb_agg(jsonb_build_array(d.id, d.member_id)), '[]') from blood_donors d where d.member_id = any(p_member_ids)),
     'sacrament_request_links', (select coalesce(jsonb_agg(jsonb_build_array(s.id, s.member_id)), '[]') from sacrament_requests s where s.member_id = any(p_member_ids))
   );
-$$;
+$function$;
 
--- As in 0064, plus relinking sacrament requests.
+-- As in 0071, plus relinking sacrament requests.
 create or replace function public.restore_deleted(p_id bigint) returns jsonb
 language plpgsql security definer set search_path = public as $$
 declare
@@ -90,6 +94,8 @@ begin
   select (x ->> 'id')::integer, x ->> 'blood_type' from jsonb_array_elements(coalesce(d -> 'members', '[]')) x
   where coalesce(x ->> 'blood_type', '') <> ''
   on conflict (member_id) do nothing;
+  insert into member_service select * from jsonb_populate_recordset(null::member_service, coalesce(d -> 'member_service', '[]'))
+  on conflict (id) do nothing;
   insert into sacrament_verifications select * from jsonb_populate_recordset(null::sacrament_verifications, d -> 'sacrament_verifications');
   insert into census_member_responses select * from jsonb_populate_recordset(null::census_member_responses, d -> 'census_member_responses');
   insert into census_household_snapshots select * from jsonb_populate_recordset(null::census_household_snapshots, d -> 'census_household_snapshots');
@@ -189,6 +195,12 @@ begin
   where member_id = p_other and sacrament not in (select sacrament from sacrament_verifications where member_id = p_keep);
   update census_member_responses set member_id = p_keep
   where member_id = p_other and cycle_id not in (select cycle_id from census_member_responses where member_id = p_keep);
+  -- Service history (0071): the other record's past service, unless the kept one has the same entry.
+  update member_service ms set member_id = p_keep
+  where ms.member_id = p_other and not exists (
+    select 1 from member_service ks
+    where ks.member_id = p_keep and ks.kind = ms.kind and lower(ks.name) = lower(ms.name)
+      and ks.from_year is not distinct from ms.from_year and ks.to_year is not distinct from ms.to_year);
   update certificate_requests set member_id = p_keep where member_id = p_other;
   update sacrament_requests set member_id = p_keep where member_id = p_other;
   update blood_donors set member_id = p_keep where member_id = p_other;

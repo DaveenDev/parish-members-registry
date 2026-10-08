@@ -33,7 +33,7 @@ export function formatValue(v) {
 const sacramentLabel = (key) => SACRAMENTS.find((s) => s.key === key)?.label || key;
 const what = (e) => (e.table_name === 'households' ? 'household' : 'member');
 
-// Records logged since 0075, beyond households and members: what each is called in a line.
+// Records logged since 0076, beyond households and members: what each is called in a line.
 const RECORD_NOUNS = {
   certificate_requests: 'certificate request', sacrament_requests: 'sacrament request', blood_requests: 'blood request', blood_donors: 'blood donor',
   census_cycles: 'census',
@@ -64,7 +64,7 @@ const RECORD_FIELD_LABELS = {
     logo: 'Logo', hero_image: 'Home page photo', site_url: 'Website address', census_interval_months: 'Census schedule',
 };
 
-/** A requests, census, website, settings or staff entry (0075). */
+/** A requests, census, website, settings or staff entry (0076). */
 function describeRecord(e, c) {
   const noun = RECORD_NOUNS[e.table_name];
   if (e.table_name === 'profiles') {

@@ -1,7 +1,7 @@
 -- Census update notifications open Census → Online updates on that
 -- household, not the Households tab (where the update had to be found by
 -- hand). Older notifications get the same link. Run after
--- 0070_report_sacrament_ages.sql. Safe to re-run.
+-- 0071_member_service_history.sql. Safe to re-run.
 
 do $$
 begin

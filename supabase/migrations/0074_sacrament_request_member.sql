@@ -1,7 +1,7 @@
 -- Sacrament requests (OCIA, Anointing of the Sick) can be linked to the
 -- person's member record, like certificate requests (0012). The member's
 -- record then lists the request, so a finished OCIA or anointing shows
--- there. Run after 0072_census_edit_delete.sql. Safe to re-run.
+-- there. Run after 0073_census_edit_delete.sql. Safe to re-run.
 
 do $$
 begin

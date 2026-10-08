@@ -1,6 +1,6 @@
 -- Census: change a census's name, start date or target end after it has
 -- started, and delete one started by mistake. Run after
--- 0071_census_update_links.sql. Safe to re-run.
+-- 0072_census_update_links.sql. Safe to re-run.
 --
 --   * census_update_cycle: the name (still unique), start and target end.
 --   * census_delete_cycle: removes the census with its recorded answers,
