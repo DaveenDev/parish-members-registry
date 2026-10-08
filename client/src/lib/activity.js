@@ -33,6 +33,57 @@ export function formatValue(v) {
 const sacramentLabel = (key) => SACRAMENTS.find((s) => s.key === key)?.label || key;
 const what = (e) => (e.table_name === 'households' ? 'household' : 'member');
 
+// Records logged since 0076, beyond households and members: what each is called in a line.
+const RECORD_NOUNS = {
+  certificate_requests: 'certificate request', sacrament_requests: 'sacrament request', blood_requests: 'blood request', blood_donors: 'blood donor',
+  census_cycles: 'census',
+  announcements: 'announcement', articles: 'article', bulletins: 'bulletin', events: 'event', mass_schedules: 'Mass time',
+  sacrament_guides: 'sacrament guide', history_articles: 'history page',
+  parish_settings: 'parish settings', gkks: 'GKK', ministries: 'ministry', organizations: 'organization', parish_positions: 'parish position',
+  profiles: 'staff account',
+};
+// What the Activity log page's "What changed" filter offers: [key, label, tables].
+export const ACTIVITY_AREAS = [
+  ['households', 'Households', ['households']],
+  ['members', 'Members', ['members']],
+  ['sacrament_verifications', 'Sacrament verifications', ['sacrament_verifications']],
+  ['requests', 'Requests', ['certificate_requests', 'sacrament_requests', 'blood_requests', 'blood_donors']],
+  ['census', 'Census', ['census_cycles']],
+  ['website', 'Parish website', ['announcements', 'articles', 'bulletins', 'events', 'mass_schedules', 'sacrament_guides', 'history_articles']],
+  ['settings', 'Settings and lists', ['parish_settings', 'gkks', 'ministries', 'organizations', 'parish_positions']],
+  ['staff', 'Staff accounts', ['profiles']],
+  ['org_charts', 'Org charts', ['org_charts']],
+];
+// Requests and donors added from the public website: nobody signed in.
+const ONLINE_TABLES = new Set(['certificate_requests', 'sacrament_requests', 'blood_requests', 'blood_donors']);
+const RECORD_FIELD_LABELS = {
+  ref_no: 'Reference No.', status: 'Status', staff_notes: 'Staff notes', member_id: 'Linked member', fee: 'Fee', or_number: 'OR No.', released_to: 'Released to',
+    released_at: 'Released', public_note: 'Note to requester', scheduled_on: 'Scheduled on', urgent: 'Urgent', title: 'Title', body: 'Text', published: 'Published',
+    label: 'Name', starts_on: 'Starts on', ends_on: 'Target end', closed_at: 'Closed', name: 'Name', role: 'Role', is_admin: 'Staff admin', access: 'Access',
+    access_gkk: 'GKK', disabled: 'Disabled', email: 'Email', theme: 'Parish theme', maintenance_mode: 'Maintenance mode', maintenance_message: 'Maintenance note',
+    logo: 'Logo', hero_image: 'Home page photo', site_url: 'Website address', census_interval_months: 'Census schedule',
+};
+
+/** A requests, census, website, settings or staff entry (0076). */
+function describeRecord(e, c) {
+  const noun = RECORD_NOUNS[e.table_name];
+  if (e.table_name === 'profiles') {
+    if (e.action === 'insert') {
+      return { title: 'Added the staff account', lines: [c.email && `Email: ${c.email}`, c.access && `Access: ${c.access}${c.access_gkk ? ` (${c.access_gkk})` : ''}`].filter(Boolean) };
+    }
+    if (c.password_reset) return { title: 'Reset the password', lines: [] };
+    if (c.disabled) return { title: c.disabled[1] ? 'Disabled the staff account' : 'Enabled the staff account', lines: [] };
+  }
+  if (e.action === 'insert') return { title: `Added the ${noun}`, lines: [] };
+  if (e.action === 'delete') return { title: `Deleted the ${noun}`, lines: [] };
+  const lines = Object.entries(c).map(([k, v]) => {
+    const [from, to] = Array.isArray(v) && v.length === 2 ? v : [undefined, v];
+    return `${RECORD_FIELD_LABELS[k] || FIELD_LABELS[k] || k}: ${formatValue(from)} → ${formatValue(to)}`;
+  });
+  if (c.status) return { title: `Set the ${noun} to ${formatValue(c.status[1])}`, lines: lines.filter((l) => !l.startsWith('Status:')) };
+  return { title: e.table_name === 'parish_settings' ? 'Changed the parish settings' : `Updated the ${noun}`, lines };
+}
+
 /** An Organization Structure chart (0057): created, saved, renamed, published, an officer set. */
 function describeOrgChart(e, c) {
   if (e.action === 'insert') return { title: 'Added the org chart', lines: [] };
@@ -51,6 +102,10 @@ function describeOrgChart(e, c) {
 export function describeActivity(e) {
   const c = e.changes || {};
   if (e.table_name === 'org_charts') return describeOrgChart(e, c);
+  if (RECORD_NOUNS[e.table_name]) return describeRecord(e, c);
+  if (e.action === 'merge') {
+    return { title: 'Merged in a duplicate record', lines: [c.merged && `${c.merged}${c.household ? ` (${c.household})` : ''}, now in the Trash`].filter(Boolean) };
+  }
   if (e.table_name === 'sacrament_verifications') {
     const sac = sacramentLabel(c.sacrament);
     if (e.action === 'delete') return { title: `Removed the ${sac} verification`, lines: [] };
@@ -75,5 +130,6 @@ export function describeActivity(e) {
 
 /** Who made the change: a staff name, or the family themselves online. */
 export function activityActor(e) {
-  return e.actor_name || 'The family (online)';
+  if (e.actor_name) return e.actor_name;
+  return ONLINE_TABLES.has(e.table_name) ? 'Sent from the website' : 'The family (online)';
 }

@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
 import { useNavigate, useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, EmptyState, ErrorState, LoadingState, Panel } from '../../components/admin.jsx';
+import { PageHeader, PageBody, EmptyState, ErrorState, LoadingState, Panel, SearchInput, FilterSelect, Pagination } from '../../components/admin.jsx';
 import { Badge } from '../../components/ui.jsx';
-import { useAsyncData } from '../../hooks.js';
+import { useAsyncData, useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { fmtDateTime } from '../../constants.js';
 
 const KEEP_DAYS = 30;
+const URL_DEFAULTS = { kind: 'All', q: '', page: 1, size: 20 };
+const URL_ALLOWED = { kind: ['All', 'household', 'member'], size: [10, 20, 50] };
+const trashText = (r) => [r.label, r.detail, r.deleted_by_name].filter(Boolean).join(' ');
 
 function daysLeft(deletedAt, now = Date.now()) {
   return Math.max(0, KEEP_DAYS - Math.floor((now - new Date(deletedAt).getTime()) / 86400000));
@@ -22,7 +25,12 @@ export default function Trash() {
   const layout = useOutletContext();
   const trash = useAsyncData(() => api.listTrash(), []);
   const [busyId, setBusyId] = useState(null);
-  const rows = trash.data?.rows || [];
+  const all = trash.data?.rows || [];
+  // Searched, filtered and paged here; the search and page are in the address bar.
+  const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
+  const list = urlListPage(url.kind === 'All' ? all : all.filter((r) => r.kind === url.kind), trashText, url, setUrl);
+  const rows = list.rows;
+  const filtered = url.kind !== 'All' || !!url.q;
 
   async function restore(r) {
     setBusyId(r.id);
@@ -64,7 +72,12 @@ export default function Trash() {
 
   return (
     <>
-      <PageHeader title="Trash" subtitle={`Deleted households and members, kept for ${KEEP_DAYS} days`} />
+      <PageHeader title="Trash" subtitle={`Deleted households and members, kept for ${KEEP_DAYS} days`}>
+        <FilterSelect aria-label="What was deleted" value={url.kind} onChange={(e) => setUrl({ kind: e.target.value })}>
+          <option value="All">Households and members</option><option value="household">Households</option><option value="member">Members</option>
+        </FilterSelect>
+        <SearchInput placeholder="Search name or who deleted it…" aria-label="Search the trash" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
+      </PageHeader>
       <PageBody>
         <div>
           <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
@@ -74,7 +87,8 @@ export default function Trash() {
           <Panel className="overflow-hidden">
             {trash.loading && !trash.data && <LoadingState label="Loading the trash…" />}
             {trash.error && <ErrorState message={trash.error} onRetry={trash.reload} />}
-            {trash.data && !rows.length && <EmptyState title="The trash is empty" subtitle="Deleted households and members show up here." />}
+            {trash.data && !all.length && <EmptyState title="The trash is empty" subtitle="Deleted households and members show up here." />}
+            {trash.data && !!all.length && !rows.length && filtered && <EmptyState title="Nothing in the trash matches" subtitle="Try another name or clear the search." />}
             {!!rows.length && (
               <ul className="list-none m-0 p-0 divide-y divide-parish-line">
                 {rows.map((r) => (
@@ -95,6 +109,7 @@ export default function Trash() {
                 ))}
               </ul>
             )}
+            {trash.data && <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />}
           </Panel>
         </div>
       </PageBody>

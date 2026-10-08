@@ -61,6 +61,11 @@ function isMissingFunction(error) {
   return error?.code === 'PGRST202' || error?.code === '42883';
 }
 
+/** A function a migration adds isn't there yet: say which file to run, or null for any other error. */
+function missingMigration(error, file) {
+  return isMissingFunction(error) ? new Error(`Run the ${file} migration in Supabase to use this`) : null;
+}
+
 /** Before 0041 the list's table doesn't exist; say which file adds it. */
 function lastYearMissing(error) {
   if (['42P01', 'PGRST205'].includes(error?.code) || /census_last_year_list/.test(error?.message || '') && /does not exist|schema cache/.test(error?.message || '')) {
@@ -329,6 +334,14 @@ export const api = {
     return data.length;
   },
 
+  /** The Blood Types page's list as it is filtered (GKK, age, blood type, search), for the blood directory CSV. */
+  async exportBloodCsv(params, filename = 'blood-directory.csv') {
+    const data = await fetchAll(() => applyMemberFilters(supabase.from('members_with_household').select('*'), params)
+      .order('blood_type', { nullsFirst: false }).order('id'));
+    downloadCsv(filename, data, BLOOD_CSV_COLUMNS);
+    return data.length;
+  },
+
   async updateHousehold(id, patch) {
     const { data, error } = await supabase.from('households').update(cleanPatch(patch)).eq('id', id).select().single();
     if (error) throw mapError(error, { fallback: 'Household not found' });
@@ -515,12 +528,13 @@ export const api = {
    * (a staff name, or 'online' for the family's own changes) and search
    * (the household or member name).
    */
-  async listActivity({ householdId, memberId, table, actor, search, page = 1, pageSize = 20 } = {}) {
+  async listActivity({ householdId, memberId, table, tables, actor, search, page = 1, pageSize = 20 } = {}) {
     const p = clampPaging({ page, pageSize });
     let q = supabase.from('activity_log').select('*', { count: 'exact' });
     if (householdId) q = q.eq('household_id', householdId);
     if (memberId) q = q.eq('member_id', memberId);
-    if (table && table !== 'All') q = q.eq('table_name', table);
+    if (tables?.length) q = q.in('table_name', tables);
+    else if (table && table !== 'All') q = q.eq('table_name', table);
     if (actor === 'online') q = q.is('actor_name', null);
     else if (actor && actor !== 'All') q = q.eq('actor_name', actor);
     if (search && search.trim()) q = q.ilike('label', `%${search.trim().replace(/[%_,()]/g, ' ')}%`);
@@ -738,6 +752,39 @@ export const api = {
     const { error } = await supabase.rpc('dismiss_duplicate_group', { p_member_ids: memberIds });
     if (error) throw mapError(error);
     return null;
+  },
+
+  /** Groups marked "Not duplicates", newest first, each with its members' names: [{ member_ids, members, dismissed_by_name, dismissed_at }]. */
+  async listDismissedDuplicates() {
+    const { data, error } = await supabase.from('duplicate_dismissals').select('*').order('dismissed_at', { ascending: false });
+    if (error) throw mapError(error);
+    const ids = [...new Set((data || []).flatMap((d) => d.member_ids))];
+    if (!ids.length) return [];
+    const { data: members, error: mErr } = await supabase.from('members_with_household')
+      .select('id, first_name, middle_name, last_name, suffix, dob, household_name').in('id', ids);
+    if (mErr) throw mapError(mErr);
+    const byId = new Map((members || []).map((m) => [m.id, m]));
+    // A group whose members have since been deleted has nothing left to show.
+    return (data || []).map((d) => ({ ...d, members: d.member_ids.map((id) => byId.get(id)).filter(Boolean) }))
+      .filter((d) => d.members.length > 1);
+  },
+
+  /** Take back "Not duplicates": the group shows on the Duplicates page again (0075). */
+  async undismissDuplicateGroup(memberIds) {
+    const { error } = await supabase.rpc('undismiss_duplicate_group', { p_member_ids: memberIds });
+    if (error) throw missingMigration(error, '0075_duplicates_merge.sql') || mapError(error);
+    return null;
+  },
+
+  /**
+   * Merge `otherId` into `keepId` (two records of one person): the kept
+   * record gets what it lacks, and the other goes to the Trash (0075).
+   * Resolves to the trash entry's id.
+   */
+  async mergeMembers(keepId, otherId) {
+    const { data, error } = await supabase.rpc('merge_members', { p_keep: keepId, p_other: otherId });
+    if (error) throw missingMigration(error, '0075_duplicates_merge.sql') || mapError(error);
+    return data;
   },
 
   // ---- ministry / organization membership (admin) -------------------
@@ -1217,13 +1264,35 @@ export const api = {
 
   async listSacramentRequests() {
     try {
-      return await listRequests('sacrament_requests');
+      try {
+        return await listRequests('sacrament_requests', `*, member:members(${LINKED_MEMBER_COLUMNS})`);
+      } catch (e) {
+        // Before 0074 a request has no member link.
+        if (!/relationship|member_id/i.test(e.message || '')) throw e;
+        return await listRequests('sacrament_requests');
+      }
     } catch (e) {
       if (/0012_requests/.test(e.message || '')) throw new Error('Run the 0032_sacrament_requests.sql migration in Supabase to use this tab');
       throw e;
     }
   },
-  saveSacramentRequest: (row) => saveRequestRow('sacrament_requests', row, SACRAMENT_FIELDS),
+  async saveSacramentRequest(row) {
+    const saved = await saveRequestRow('sacrament_requests', row, SACRAMENT_FIELDS);
+    // The linked member, as the list shows it (0074).
+    if (!saved.member_id) return { ...saved, member: null };
+    const { data: member } = await supabase.from('members').select(LINKED_MEMBER_COLUMNS).eq('id', saved.member_id).maybeSingle();
+    return { ...saved, member: member || null };
+  },
+
+  /** The requests linked to one member: certificates, and sacrament requests from 0074. */
+  async memberRequests(memberId) {
+    const [certs, sacs] = await Promise.all([
+      supabase.from('certificate_requests').select('id, ref_no, cert_type, status, created_at').eq('member_id', memberId).order('created_at', { ascending: false }),
+      supabase.from('sacrament_requests').select('id, ref_no, sacrament, status, scheduled_on, created_at').eq('member_id', memberId).order('created_at', { ascending: false }),
+    ]);
+    if (certs.error) throw requestsError(certs.error);
+    return { certificates: certs.data || [], sacraments: sacs.error ? [] : sacs.data || [] };
+  },
 
   async listBloodRequests() {
     return listRequests('blood_requests');
@@ -1285,6 +1354,32 @@ export const api = {
     const { data, error } = await supabase.rpc('census_reopen_cycle', { p_cycle_id: id });
     if (error) throw mapError(error);
     return data;
+  },
+
+  /** Change a census's name, start date or target end (0073). */
+  async updateCensusCycle(id, { label, startsOn, endsOn }) {
+    const { data, error } = await supabase.rpc('census_update_cycle', {
+      p_cycle_id: id, p_label: label, p_starts_on: startsOn || null, p_ends_on: endsOn || null,
+    });
+    if (error) throw missingMigration(error, '0073_census_edit_delete.sql') || mapError(error);
+    return data;
+  },
+
+  /** What deleting a census takes with it: members' recorded answers and online updates. */
+  async censusCycleUsage(id) {
+    const [answers, updates] = await Promise.all([
+      supabase.from('census_member_responses').select('member_id', { count: 'exact', head: true }).eq('cycle_id', id),
+      supabase.from('census_submissions').select('id', { count: 'exact', head: true }).eq('cycle_id', id),
+    ]);
+    if (answers.error) throw mapError(answers.error);
+    return { answers: answers.count || 0, updates: updates.error ? 0 : updates.count || 0 };
+  },
+
+  /** Delete a census started by mistake, with its answers (0073). */
+  async deleteCensusCycle(id) {
+    const { error } = await supabase.rpc('census_delete_cycle', { p_cycle_id: id });
+    if (error) throw missingMigration(error, '0073_census_edit_delete.sql') || mapError(error);
+    return { ok: true };
   },
 
   async setCensusInterval(months) {
@@ -2138,8 +2233,10 @@ const BLOOD_REQUEST_FIELDS = [
 ];
 const SACRAMENT_FIELDS = [
   'sacrament', 'person_name', 'baptism_status', 'location', 'preferred_date', 'urgent',
-  'requester_name', 'requester_mobile', 'relationship', 'message', 'status', 'source', 'scheduled_on', 'staff_notes',
+  'requester_name', 'requester_mobile', 'relationship', 'message', 'status', 'source', 'scheduled_on', 'staff_notes', 'member_id',
 ];
+// A request's linked member, as the Requests page shows them.
+const LINKED_MEMBER_COLUMNS = 'id, first_name, middle_name, last_name, suffix, dob, household:households(household_name, gkk)';
 const DONOR_FIELDS = ['full_name', 'mobile', 'blood_type', 'gkk', 'member_id', 'last_donated_on', 'source', 'opted_out_at', 'notes'];
 
 function requestsError(error) {
@@ -2527,6 +2624,26 @@ export async function downloadWithAuth(path, filename) {
       { label: 'Purpose', value: 'purpose' }, { label: 'Copies', value: 'copies' }, { label: 'Fee', value: 'fee' }, { label: 'OR No.', value: 'or_number' },
       { label: 'Received', value: (r) => r.created_at?.slice(0, 10) }, { label: 'Released', value: (r) => r.released_at?.slice(0, 10) || '' },
       { label: 'Released to', value: 'released_to' }, { label: 'Handled by', value: 'handled_by_name' },
+    ]);
+  } else if (path === '/exports/sacrament-requests.csv') {
+    const data = await fetchAll(() => supabase.from('sacrament_requests').select('*').order('created_at').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Reference No.', value: 'ref_no' }, { label: 'Sacrament', value: (r) => sacramentRequestLabel(r.sacrament) },
+      { label: 'Status', value: 'status' }, { label: 'Urgent', value: (r) => (r.urgent ? 'Yes' : '') }, { label: 'Source', value: 'source' },
+      { label: 'Person', value: 'person_name' }, { label: 'Where', value: 'location' }, { label: 'Baptized?', value: 'baptism_status' },
+      { label: 'Requested by', value: 'requester_name' }, { label: 'Relationship', value: 'relationship' }, { label: 'Mobile', value: 'requester_mobile' },
+      { label: 'Preferred date', value: (r) => r.preferred_date || '' }, { label: 'Scheduled on', value: (r) => r.scheduled_on || '' },
+      { label: 'Received', value: (r) => r.created_at?.slice(0, 10) }, { label: 'Handled by', value: 'handled_by_name' },
+    ]);
+  } else if (path === '/exports/blood-requests.csv') {
+    const data = await fetchAll(() => supabase.from('blood_requests').select('*').order('created_at').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Reference No.', value: 'ref_no' }, { label: 'Status', value: 'status' }, { label: 'Source', value: 'source' },
+      { label: 'Patient', value: 'patient_name' }, { label: 'Blood type', value: 'blood_type' }, { label: 'Units', value: 'units' },
+      { label: 'Hospital', value: 'hospital' }, { label: 'Needed by', value: (r) => r.needed_by || '' },
+      { label: 'Contact person', value: 'contact_name' }, { label: 'Relationship', value: 'relationship' }, { label: 'Mobile', value: 'contact_mobile' },
+      { label: 'Received', value: (r) => r.created_at?.slice(0, 10) }, { label: 'Status changed', value: (r) => r.status_changed_at?.slice(0, 10) || '' },
+      { label: 'Handled by', value: 'handled_by_name' },
     ]);
   } else if (path === '/exports/donors.csv') {
     const data = await fetchAll(() => supabase.from('blood_donors').select('*').order('full_name').order('id'));

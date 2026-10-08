@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { BLOOD_TYPES, AGE_OPTS } from '../../constants.js';
-import { useDebounced, useCsvExport, useUrlState } from '../../hooks.js';
+import { useDebounced, useUrlState } from '../../hooks.js';
+import { useToast } from '../../ToastContext.jsx';
+import { useAuth } from '../../AuthContext.jsx';
+import { can } from '../../lib/access.js';
 
 const URL_DEFAULTS = { gkk: 'All', age: 'All', blood: 'Recorded', q: '', sort: 'blood', dir: 'asc', page: 1, size: 20 };
 const URL_ALLOWED = {
@@ -37,7 +40,11 @@ export default function BloodTypes() {
   const setPage = (p) => setUrl({ page: p });
   const setPageSize = (size) => setUrl({ size });
   const debouncedSearch = useDebounced(search);
-  const csvExport = useCsvExport();
+  const toast = useToast();
+  // The directory holds every member's contact number: a download, like the
+  // Exports page, is for full access only (lib/access.js).
+  const canExport = can(useAuth().user, 'exports');
+  const [exporting, setExporting] = useState(false);
   const [openMemberId, setOpenMemberId] = useState(null);
 
   // Everything except the blood type itself, so the tiles show how each type
@@ -46,13 +53,16 @@ export default function BloodTypes() {
 
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, []);
 
+  // Only the latest load fills the list (an earlier, slower answer would otherwise land last).
+  const loadSeq = useRef(0);
   function reload() {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError('');
     api.listMembers({ ...scope, blood, sortKey, sortDir, page, pageSize })
-      .then((res) => { setRows(res.rows); setTotal(res.total); })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .then((res) => { if (seq === loadSeq.current) { setRows(res.rows); setTotal(res.total); } })
+      .catch((e) => { if (seq === loadSeq.current) setError(e.message); })
+      .finally(() => { if (seq === loadSeq.current) setLoading(false); });
   }
   function reloadCounts() {
     api.bloodTypeCounts(scope).then(setCounts).catch(() => setCounts(null));
@@ -65,6 +75,18 @@ export default function BloodTypes() {
     else setUrl({ sort: key, dir: 'asc' });
   }
   const arrow = (key) => (sortKey === key ? (sortDir === 'asc' ? '↑' : '↓') : '');
+
+  async function exportCsv() {
+    setExporting(true);
+    try {
+      const n = await api.exportBloodCsv({ ...scope, blood }, 'blood-directory.csv');
+      toast.success(`Exported ${n} member(s)`);
+    } catch (e) {
+      toast.error(e.message || 'Could not export');
+    } finally {
+      setExporting(false);
+    }
+  }
 
   const recorded = counts ? BLOOD_TYPES.reduce((n, t) => n + counts[t], 0) : null;
   const isFiltered = gkk !== 'All' || age !== 'All' || !!debouncedSearch || !['Recorded'].includes(blood);
@@ -111,13 +133,16 @@ export default function BloodTypes() {
           {isFiltered && (
             <button onClick={() => setUrl({ gkk: 'All', age: 'All', blood: 'Recorded', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1.5 py-1">Clear</button>
           )}
-          <button
-            onClick={() => csvExport.run('/exports/blood.csv', 'blood-directory.csv')}
-            disabled={!!csvExport.busy}
-            className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg disabled:opacity-60"
-          >
-            {csvExport.busy ? 'Exporting…' : 'Export CSV'}
-          </button>
+          {canExport && (
+            <button
+              onClick={exportCsv}
+              disabled={exporting || !total}
+              title={isFiltered ? 'Download the members matching these filters' : 'Download every member with a blood type on file'}
+              className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg disabled:opacity-60"
+            >
+              {exporting ? 'Exporting…' : isFiltered ? 'Export this view' : 'Export CSV'}
+            </button>
+          )}
         </div>
 
         <DataTable

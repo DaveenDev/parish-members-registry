@@ -112,6 +112,45 @@ async function loadStaff(admin) {
 const activeAdmins = (staff) => staff.filter((s) => s.is_admin && !s.disabled);
 
 /**
+ * What an edit changes on an account, as the activity log keeps changes:
+ * { field: [old, new] }, only the fields that differ. `next` holds name,
+ * role, is_admin, access and access_gkk (the GKK's name).
+ */
+export function staffChanges(target, next) {
+  const out = {};
+  for (const [field, before] of [['name', target.name], ['role', target.role], ['is_admin', !!target.is_admin], ['access', target.access], ['access_gkk', target.access_gkk]]) {
+    const after = next[field] ?? null;
+    if ((before ?? null) !== after) out[field] = [before ?? null, after];
+  }
+  return out;
+}
+
+/**
+ * One activity log entry (0076) for a change to a staff account, under the
+ * admin who made it. Best effort: the change stands even if logging fails
+ * (e.g. before 0014 there's no log).
+ */
+async function logStaff(admin, actor, action, target, changes = null) {
+  try {
+    await admin.from('activity_log').insert({
+      actor: actor.id, actor_name: actor.name, action, table_name: 'profiles',
+      record_id: target.id, label: target.name || target.email || null, changes,
+    });
+  } catch { /* the log is a record, not a gate */ }
+}
+
+/** A GKK's name from its id, for the log; null if it can't be read. */
+async function gkkName(admin, id) {
+  if (!id) return null;
+  try {
+    const { data } = await admin.from('gkks').select('name').eq('id', id).maybeSingle();
+    return data?.name || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Handle one request. `admin` is a service-role Supabase client, `token` the
  * caller's access token, `body` the parsed JSON body ({ action, … }).
  * Resolves to { status, body } for index.ts to send back.
@@ -125,8 +164,10 @@ export async function handleStaffRequest({ admin, token, body }) {
   // an hour), so check the account itself, not just the token.
   if (isDisabled(caller)) return fail(403, 'This account has been disabled');
 
-  const { data: me } = await admin.from('profiles').select('is_admin').eq('id', caller.id).maybeSingle();
+  const { data: me } = await admin.from('profiles').select('is_admin, name').eq('id', caller.id).maybeSingle();
   if (!me?.is_admin) return fail(403, 'Only staff admins can manage staff accounts');
+  // Who the activity log names for each change.
+  const actor = { id: caller.id, name: (me.name || '').trim() || caller.email || null };
 
   const action = body?.action;
   try {
@@ -158,6 +199,10 @@ export async function handleStaffRequest({ admin, token, body }) {
         await admin.auth.admin.deleteUser(created.user.id);
         return fail(400, pErr.message || 'Could not save the staff profile');
       }
+      await logStaff(admin, actor, 'insert', { id: created.user.id, name: input.name, email: input.email }, {
+        email: input.email, role: clean(body.role) || 'Parish Staff', is_admin: !!body.is_admin,
+        access: access.access, access_gkk: await gkkName(admin, access.access_gkk_id),
+      });
       return ok({ id: created.user.id });
     }
 
@@ -187,6 +232,11 @@ export async function handleStaffRequest({ admin, token, body }) {
         access: access.access, access_gkk_id: access.access_gkk_id,
       });
       if (error) return fail(400, error.message || 'Could not save the changes');
+      const changes = staffChanges(target, {
+        name: input.name, role: clean(body.role) || 'Parish Staff', is_admin: makeAdmin,
+        access: access.access, access_gkk: access.access === 'gkk_leader' ? await gkkName(admin, access.access_gkk_id) : null,
+      });
+      if (Object.keys(changes).length) await logStaff(admin, actor, 'update', target, changes);
       return ok({});
     }
 
@@ -196,6 +246,8 @@ export async function handleStaffRequest({ admin, token, body }) {
       }
       const { error } = await admin.auth.admin.updateUserById(id, { password: body.password, user_metadata: MUST_CHANGE });
       if (error) return fail(400, error.message || 'Could not reset the password');
+      // That it was reset, never the password itself.
+      await logStaff(admin, actor, 'update', target, { password_reset: true });
       return ok({});
     }
 
@@ -204,12 +256,14 @@ export async function handleStaffRequest({ admin, token, body }) {
       if (lastAdmin) return fail(400, 'This is the only active admin. Make someone else an admin first.');
       const { error } = await admin.auth.admin.updateUserById(id, { ban_duration: DISABLE_FOR });
       if (error) return fail(400, error.message || 'Could not disable the account');
+      await logStaff(admin, actor, 'update', target, { disabled: [false, true] });
       return ok({});
     }
 
     // enable
     const { error } = await admin.auth.admin.updateUserById(id, { ban_duration: 'none' });
     if (error) return fail(400, error.message || 'Could not enable the account');
+    await logStaff(admin, actor, 'update', target, { disabled: [true, false] });
     return ok({});
   } catch (e) {
     return fail(500, e?.message || 'Something went wrong');

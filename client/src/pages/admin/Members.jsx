@@ -231,6 +231,7 @@ export default function Members() {
         {selectedRows.length > 0 && (
           <div role="region" aria-label="Selected members" className="mb-3 flex items-center gap-2.5 flex-wrap px-4 py-3 rounded-xl bg-parish-navy text-white shadow-card">
             <span className="font-semibold text-[13.5px] mr-1">{selectedRows.length} selected</span>
+            {!allSelected && <button onClick={() => setSelected(new Set(rows.map((m) => m.id)))} className="appearance-none border-none cursor-pointer px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 font-semibold text-[13px] text-white">Select all {rows.length} on this page</button>}
             {canExport && <button onClick={() => exportCsv({ ids: selectedRows.map((m) => m.id), membership: 'All' }, 'selected-members.csv')} disabled={exporting} className="appearance-none border-none cursor-pointer px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 font-semibold text-[13px] text-white disabled:opacity-60">Export CSV</button>}
             <button onClick={() => setSelected(new Set())} className="ml-auto appearance-none border-none cursor-pointer px-2 py-1.5 bg-transparent font-semibold text-[13px] text-white/80 hover:text-white">Clear selection</button>
           </div>
@@ -255,8 +256,10 @@ export default function Members() {
                 <React.Fragment key={g.gkk || 'no-gkk'}>
                   <li className="px-4 py-2 bg-parish-sunk font-serif text-[16.5px] font-semibold text-parish-navy">{g.gkk || 'No GKK'}</li>
                   {g.members.map((m) => (
-                    <li key={m.id} className="border-t border-parish-line">
-                      <button type="button" onClick={() => setOpenMemberId(m.id)} className="w-full appearance-none border-none bg-transparent cursor-pointer text-left px-4 py-3 flex items-center gap-3">
+                    <li key={m.id} className={`border-t border-parish-line flex items-center ${canExport ? 'pl-4' : ''} ${selected.has(m.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
+                      {/* On phones too, accounts that may export can pick members to export. */}
+                      {canExport && <Checkbox checked={selected.has(m.id)} onChange={() => toggleSelect(m.id)} aria-label={`Select ${fullName(m)}`} />}
+                      <button type="button" onClick={() => setOpenMemberId(m.id)} className={`flex-1 min-w-0 appearance-none border-none bg-transparent cursor-pointer text-left ${canExport ? 'pl-3' : 'pl-4'} pr-4 py-3 flex items-center gap-3`}>
                         <div className="w-[34px] h-[34px] rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[12.5px] flex-none" aria-hidden>
                           {(m.first_name?.[0] || '') + (m.last_name?.[0] || '')}
                         </div>

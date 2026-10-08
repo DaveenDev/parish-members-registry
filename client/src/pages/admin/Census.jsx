@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote, rowActivationProps } from '../../components/admin.jsx';
@@ -14,12 +14,15 @@ import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, vsL
 import { groupRuns, groupHeading } from '../../lib/household.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
-import { useClientList, useDebounced } from '../../hooks.js';
+import { useClientList, useDebounced, useUrlState } from '../../hooks.js';
 
 const PROGRESS = ['Not started', 'Partly confirmed', 'Confirmed'];
 const PROGRESS_TONES = { 'Not started': 'gray', 'Partly confirmed': 'gold', Confirmed: 'green' };
 const INTERVALS = [[6, 'Every 6 months'], [12, 'Every year'], [24, 'Every 2 years'], [36, 'Every 3 years']];
 const today = () => new Date().toISOString().slice(0, 10);
+const CENSUS_TABS = ['households', 'updates', 'results', 'lastYear'];
+const HOUSEHOLDS_URL_DEFAULTS = { gkk: 'All', progress: 'All', q: '', page: 1, size: 20 };
+const HOUSEHOLDS_URL_ALLOWED = { progress: ['All', ...PROGRESS], size: [10, 20, 50] };
 
 function Tile({ label, value, note, accent }) {
   return (
@@ -47,10 +50,15 @@ export default function Census() {
   const [cycleId, setCycleId] = useState(null);
   const [parish, setParish] = useState(null);
   const [starting, setStarting] = useState(false);
-  // ?tab=lastYear&gkk=… (the link from Parish Config → Parish GKK) opens that GKK's list.
-  const [params] = useSearchParams();
+  const [editing, setEditing] = useState(false);
+  // The tab is in the address bar: ?tab=lastYear&gkk=… (the link from Parish
+  // Config → Parish GKK) opens that GKK's list, and ?tab=updates&q=<ref no>
+  // (the Dashboard and census update notifications) that household's update.
+  const [params, setParams] = useSearchParams();
   const linkedGkk = params.get('gkk') || '';
-  const [tab, setTab] = useState(params.get('tab') === 'lastYear' ? 'lastYear' : 'households');
+  const linkedQuery = params.get('q') || '';
+  const tab = CENSUS_TABS.includes(params.get('tab')) ? params.get('tab') : 'households';
+  const setTab = (k) => setParams(k === 'households' ? {} : { tab: k, ...(k === 'lastYear' && linkedGkk ? { gkk: linkedGkk } : {}) }, { replace: true });
   // Parish Config → Last year's list can turn the list off (0048); then the
   // census measures itself against the previous census instead.
   const listOn = listEnabled(parish);
@@ -111,6 +119,33 @@ export default function Census() {
     }
   }
 
+  /** Delete a census started by mistake, saying first what goes with it. */
+  async function deleteCycle() {
+    let usage = { answers: 0, updates: 0 };
+    try { usage = await api.censusCycleUsage(cycle.id); } catch { /* the confirm still warns in general terms */ }
+    const parts = [
+      usage.answers && `${usage.answers} member answer(s)`,
+      usage.updates && `${usage.updates} online update(s) from families`,
+    ].filter(Boolean);
+    const ok = await confirm({
+      title: `Delete the ${cycle.label}?`,
+      message: `${parts.length ? `Its ${parts.join(' and ')} are deleted with it. ` : 'Nothing has been recorded in it yet. '}`
+        + "Members' records keep what was saved to them. This can't be undone; to stop a census that is going ahead, close it instead.",
+      confirmLabel: 'Delete census',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await api.deleteCensusCycle(cycle.id);
+      toast.success(`${cycle.label} deleted`);
+      setEditing(false);
+      loadCycles();
+      refresh();
+    } catch (e) {
+      toast.error(e.message || 'Could not delete the census');
+    }
+  }
+
   async function changeInterval(months) {
     try {
       await api.setCensusInterval(months);
@@ -134,7 +169,7 @@ export default function Census() {
     <>
       <PageHeader title="Parish Census" subtitle="Re-confirm every member and their standing in the parish">
         {cycles.length > 0 && (
-          <FilterSelect aria-label="Census" value={cycleId ?? ''} onChange={(e) => setCycleId(Number(e.target.value))}>
+          <FilterSelect aria-label="Census" value={cycleId ?? ''} onChange={(e) => { setCycleId(Number(e.target.value)); setEditing(false); }}>
             {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
           </FilterSelect>
         )}
@@ -168,7 +203,7 @@ export default function Census() {
         </Panel>
 
         {starting && (
-          <StartCensusForm
+          <CensusCycleForm
             onCancel={() => setStarting(false)}
             onStarted={(c) => { setStarting(false); toast.success(`${c.label} started`); loadCycles(c.id); }}
           />
@@ -200,10 +235,21 @@ export default function Census() {
                 {cycle.closed_at && ` · closed ${new Date(cycle.closed_at).toLocaleDateString()}`}
               </span>
               <div className="ml-auto flex gap-2">
+                {canManage && !editing && <GhostButton onClick={() => setEditing(true)} className="px-4 py-2 text-[13.5px]">Edit</GhostButton>}
                 {canManage && cycle.status === 'Open' && <GhostButton onClick={closeCycle} className="px-4 py-2 text-[13.5px]">Close census</GhostButton>}
                 {canManage && cycle.status === 'Closed' && !openCycle && <GhostButton onClick={reopenCycle} className="px-4 py-2 text-[13.5px]">Reopen</GhostButton>}
               </div>
             </div>
+
+            {editing && (
+              <CensusCycleForm
+                key={cycle.id}
+                cycle={cycle}
+                onCancel={() => setEditing(false)}
+                onSaved={(c) => { setEditing(false); toast.success(`${c.label} saved`); loadCycles(c.id); }}
+                onDelete={deleteCycle}
+              />
+            )}
 
             <Tabs
               tabs={[['households', 'Households'], ['updates', `Online updates${pendingCount ? ` (${pendingCount})` : ''}`], ['results', 'Results by GKK'], ...(listOn ? [['lastYear', "Last year's list"]] : [])]}
@@ -211,7 +257,7 @@ export default function Census() {
               onChange={setTab}
             />
             {(tab === 'households' || (tab === 'lastYear' && !listOn)) && <HouseholdsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
-            {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} />}
+            {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} initialQuery={linkedQuery} />}
             {tab === 'results' && <ResultsTab key={cycle.id} cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} canOpenGkk={!ownGkk && can(user, 'censusGkkView')} />}
             {tab === 'lastYear' && listOn && <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />}
           </>
@@ -221,10 +267,14 @@ export default function Census() {
   );
 }
 
-function StartCensusForm({ onCancel, onStarted }) {
-  const [label, setLabel] = useState(defaultCensusLabel());
-  const [startsOn, setStartsOn] = useState(today());
-  const [endsOn, setEndsOn] = useState('');
+/**
+ * Start a new census, or with `cycle` change one's name and dates (and
+ * delete it, through `onDelete`).
+ */
+function CensusCycleForm({ cycle = null, onCancel, onStarted, onSaved, onDelete }) {
+  const [label, setLabel] = useState(cycle?.label || defaultCensusLabel());
+  const [startsOn, setStartsOn] = useState(cycle?.starts_on || today());
+  const [endsOn, setEndsOn] = useState(cycle?.ends_on || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -233,9 +283,10 @@ function StartCensusForm({ onCancel, onStarted }) {
     if (!label.trim()) { setError('Give the census a name.'); return; }
     setSaving(true);
     try {
-      onStarted(await api.openCensusCycle({ label: label.trim(), startsOn, endsOn }));
+      if (cycle) onSaved(await api.updateCensusCycle(cycle.id, { label: label.trim(), startsOn, endsOn }));
+      else onStarted(await api.openCensusCycle({ label: label.trim(), startsOn, endsOn }));
     } catch (e) {
-      setError(e.message || 'Could not start the census');
+      setError(e.message || (cycle ? 'Could not save the census' : 'Could not start the census'));
     } finally {
       setSaving(false);
     }
@@ -243,9 +294,11 @@ function StartCensusForm({ onCancel, onStarted }) {
 
   return (
     <div className="bg-parish-fillSoft border-[1.5px] border-parish-focusLine rounded-2xl px-5 py-5 mb-5">
-      <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">Start a new census</div>
+      <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{cycle ? `Edit the ${cycle.label}` : 'Start a new census'}</div>
       <p className="text-[13px] text-parish-muted mt-0 mb-4">
-        Every current member starts as “not confirmed”. Nothing changes in the records until staff save a household's answers.
+        {cycle
+          ? 'Change its name or dates. Recorded answers stay as they are.'
+          : 'Every current member starts as “not confirmed”. Nothing changes in the records until staff save a household\'s answers.'}
       </p>
       {error && <div className="mb-3 text-parish-error text-[13.5px]" role="alert">{error}</div>}
       <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
@@ -253,9 +306,16 @@ function StartCensusForm({ onCancel, onStarted }) {
         <Field label="Starts on"><TextInput type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} /></Field>
         <Field label="Target end (optional)"><TextInput type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} /></Field>
       </div>
-      <div className="flex gap-2.5 justify-end mt-4">
+      <div className="flex gap-2.5 justify-end items-center flex-wrap mt-4">
+        {cycle && onDelete && (
+          <button type="button" onClick={onDelete} disabled={saving} className="mr-auto appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error disabled:opacity-60">
+            Delete this census…
+          </button>
+        )}
         <GhostButton onClick={onCancel} className="px-4 py-2 text-[13.5px]">Cancel</GhostButton>
-        <PrimaryButton onClick={start} disabled={saving} className="px-5 py-2 text-[13.5px]">{saving ? 'Starting…' : 'Start census'}</PrimaryButton>
+        <PrimaryButton onClick={start} disabled={saving} className="px-5 py-2 text-[13.5px]">
+          {cycle ? (saving ? 'Saving…' : 'Save') : (saving ? 'Starting…' : 'Start census')}
+        </PrimaryButton>
       </div>
     </div>
   );
@@ -268,13 +328,18 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  // A GKK leader starts on (and can only pick) their own GKK, so "Print forms" works at once.
-  const [gkk, setGkk] = useState(ownGkk || 'All');
-  const [progress, setProgress] = useState('All');
-  const [search, setSearch] = useState('');
+  // Filters, search and page live in the address bar (see useUrlState), so a
+  // refresh or a shared link keeps them. A GKK leader always has their own
+  // GKK, so "Print forms" works at once.
+  const [url, setUrl] = useUrlState(HOUSEHOLDS_URL_DEFAULTS, HOUSEHOLDS_URL_ALLOWED);
+  const gkk = ownGkk || url.gkk;
+  const { progress, q: search, page, size: pageSize } = url;
+  const setGkk = (v) => setUrl({ gkk: v });
+  const setProgress = (v) => setUrl({ progress: v });
+  const setSearch = (v) => setUrl({ q: v });
+  const setPage = (p) => setUrl({ page: p });
+  const setPageSize = (size) => setUrl({ size });
   const debouncedSearch = useDebounced(search);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [counts, setCounts] = useState(null);
   const [summary, setSummary] = useState(null);
@@ -283,13 +348,16 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
   const [printForms, setPrintForms] = useState(null);
   const [printing, setPrinting] = useState(false);
 
+  // Only the latest load fills the list (an earlier, slower answer would otherwise land last).
+  const loadSeq = useRef(0);
   function reload() {
+    const seq = ++loadSeq.current;
     setLoading(true);
     setError('');
     api.listCensusHouseholds(cycle.id, { gkk, progress, search: debouncedSearch, page, pageSize })
-      .then((res) => { setRows(res.rows); setTotal(res.total); })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .then((res) => { if (seq === loadSeq.current) { setRows(res.rows); setTotal(res.total); } })
+      .catch((e) => { if (seq === loadSeq.current) setError(e.message); })
+      .finally(() => { if (seq === loadSeq.current) setLoading(false); });
   }
   // The tiles cover the whole census, so paging and searching don't reload them.
   function reloadTiles() {
@@ -300,7 +368,6 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
 
   useEffect(() => { reload(); }, [cycle.id, gkk, progress, debouncedSearch, page, pageSize, refreshKey]);
   useEffect(() => { reloadTiles(); }, [cycle.id, refreshKey, listEnabled(parish)]);
-  useEffect(() => { setPage(1); }, [cycle.id, gkk, progress, debouncedSearch]);
   useEffect(() => { if (!ownGkk) api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, [ownGkk]);
 
   async function print(args) {
@@ -435,13 +502,15 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
 /** What the Online updates search looks in. */
 const updateSearchText = (r) => [r.households?.household_name, r.households?.ref_no, r.households?.gkk, r.reviewed_by_name, r.review_note, r.message].filter(Boolean).join(' ');
 
-function UpdatesTab({ cycle, refreshKey, onChanged }) {
+function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '' }) {
   const [status, setStatus] = useState('Pending');
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [openRow, setOpenRow] = useState(null);
   // All of a cycle's updates in one status are loaded, then searched and paged here.
   const list = useClientList(rows, updateSearchText, 20);
+  // A notification's link names the household: show its update.
+  useEffect(() => { if (initialQuery) list.setQuery(initialQuery); }, [initialQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function load() {
     setError('');

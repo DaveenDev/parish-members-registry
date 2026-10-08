@@ -16,9 +16,10 @@ export function todayItems({ user, counts, census, events = [], bulletins = [], 
     push({ key: 'ready', label: 'Certificates ready for pick-up', detail: 'Let the requester know, then mark them released', n: r.ready, to: '/admin/requests?view=ready', tone: 'gold' });
     push({ key: 'certs', label: 'Certificate requests to prepare', n: r.certificates, to: '/admin/requests', tone: 'blue' });
     push({ key: 'blood', label: 'Open blood calls', detail: 'Someone needs blood: contact compatible donors', n: r.blood, to: '/admin/requests?tab=blood', tone: 'red' });
+    push({ key: 'sacrament-requests', label: 'New OCIA and Anointing requests', detail: 'Call or text the family; urgent anointing requests are listed first', n: r.sacraments, to: '/admin/requests?tab=sacraments', tone: 'blue' });
   }
   if (can(user, 'census') && counts?.census_updates) {
-    push({ key: 'census-updates', label: 'Census updates from families to review', n: counts.census_updates, to: '/admin/census', tone: 'gold' });
+    push({ key: 'census-updates', label: 'Census updates from families to review', n: counts.census_updates, to: '/admin/census?tab=updates', tone: 'gold' });
   }
   if (can(user, 'census') && census) {
     const { label, counts: c } = census;

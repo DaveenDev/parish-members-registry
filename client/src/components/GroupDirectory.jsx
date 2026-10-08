@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, EmptyState, ErrorState, LoadingState, Pagination, rowActivationProps, Panel } from './admin.jsx';
 import { ageFromDob } from '../constants.js';
@@ -10,6 +10,8 @@ import MemberDetailModal from './MemberDetailModal.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { useDebounced } from '../hooks.js';
+import { useAuth } from '../AuthContext.jsx';
+import { can } from '../lib/access.js';
 
 // Key of the "Responsibility in Parish" tab; can't clash with a group name.
 const PARISH_TAB = '__parish_roles__';
@@ -24,6 +26,8 @@ const PARISH_LABEL = 'Responsibility in Parish';
 export default function GroupDirectory({ title, subtitle, listFn, column, noun, parishRolesTab = false }) {
   const toast = useToast();
   const confirm = useConfirm();
+  // Read-only and Website & requests accounts see the rosters but don't change them.
+  const canEdit = can(useAuth().user, 'editRegistry');
   const [tabs, setTabs] = useState([]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [gkk, setGkk] = useState('All');
@@ -60,9 +64,13 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, []);
   useEffect(() => { setPage(1); }, [gkk, activeTab, debouncedSearch]);
 
+  // Only the latest load fills the roster: switching groups quickly would
+  // otherwise let an earlier, slower answer land last.
+  const loadSeq = useRef(0);
   // Roster for the active group — filtered and paginated server-side, so this
   // stays correct no matter how large the parish grows.
   function reload() {
+    const seq = ++loadSeq.current;
     if (!activeTab) { setRows([]); setTotal(0); setLoading(false); return; }
     setLoading(true);
     setError('');
@@ -75,12 +83,12 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
       ? { sortKey: 'name', sortDir: 'asc' }
       : { sortKey: 'household', sortDir: 'asc', groupBy: 'gkk', memberOrder: 'name' };
     api.listMembers({ ...filter, page, pageSize, ...layout })
-      .then((res) => { setRows(res.rows); setTotal(res.total); })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .then((res) => { if (seq === loadSeq.current) { setRows(res.rows); setTotal(res.total); } })
+      .catch((e) => { if (seq === loadSeq.current) setError(e.message); })
+      .finally(() => { if (seq === loadSeq.current) setLoading(false); });
     // Full per-GKK totals for the badges, not just what's on this page.
     if (isParish) setGkkCounts(null);
-    else api.memberCountsByGkk(filter).then(setGkkCounts).catch(() => setGkkCounts(null));
+    else api.memberCountsByGkk(filter).then((c) => { if (seq === loadSeq.current) setGkkCounts(c); }).catch(() => { if (seq === loadSeq.current) setGkkCounts(null); });
   }
   useEffect(() => { reload(); }, [activeTab, gkk, debouncedSearch, page, pageSize, refreshKey]);
 
@@ -145,7 +153,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                 {isParish ? (
                   // Parish roles are set on the member record, not added to a roster here.
                   <div className="ml-auto text-[12.5px] text-parish-muted">Open a member to change their Responsibility in Parish.</div>
-                ) : (
+                ) : canEdit && (
                   <PrimaryButton onClick={() => setAdding(true)} disabled={!activeTab} className="ml-auto px-4 py-2 text-[13px] flex items-center gap-1.5">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden><path d="M12 5v14M5 12h14" /></svg>
                     Add member
@@ -159,7 +167,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                       {columns.map((h) => (
                         <th key={h} className="text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2">{h}</th>
                       ))}
-                      {!isParish && <th className="px-4 py-3.5"><span className="sr-only">Actions</span></th>}
+                      {!isParish && canEdit && <th className="px-4 py-3.5"><span className="sr-only">Actions</span></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -194,7 +202,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                         <td className="px-4 py-3 text-[14px] text-parish-text3">{ageFromDob(m.dob) ?? '—'}</td>
                         <td className="px-4 py-3 text-[14px] text-parish-text2">{[m.street, m.barangay, m.city].filter(Boolean).join(', ')}</td>
                         <td className="px-4 py-3 text-[14px] text-parish-text3 whitespace-nowrap">{m.contact || '—'}</td>
-                        {!isParish && <td className="px-4 py-3 text-right">
+                        {!isParish && canEdit && <td className="px-4 py-3 text-right">
                           <button
                             onClick={(e) => { e.stopPropagation(); removeFromGroup(m); }}
                             onKeyDown={(e) => e.stopPropagation()}
@@ -217,7 +225,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                   ? <EmptyState title={`No members match “${debouncedSearch}”`} subtitle="Try a different name, household, or contact number." />
                   : isParish
                     ? <EmptyState title="No members have a Responsibility in Parish yet" subtitle="Open a member's record and set their Responsibility in Parish." />
-                    : <EmptyState title="No members in this group yet" subtitle={`Use “Add member” to put someone on this ${noun}'s roster.`} />
+                    : <EmptyState title="No members in this group yet" subtitle={canEdit ? `Use “Add member” to put someone on this ${noun}'s roster.` : undefined} />
               )}
               <Pagination page={page} pageSize={pageSize} total={total} onPage={setPage} onPageSize={setPageSize} />
             </Panel>
