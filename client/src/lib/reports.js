@@ -602,12 +602,49 @@ export function censusComparisonRows(prev, cur) {
 
 // ---- Report Stats print and CSV --------------------------------------------
 
-/** The Report Stats tab as printable sections ({ title, meta, columns, rows: [{ cells }] }). */
-export function statsSections(stats, { blood = true } = {}) {
+/**
+ * Registration against the households expected, from api.censusVsLastYear()
+ * (last year's list, last year's household count, or the census before, as
+ * Parish Config -> Last year's list says), as the Census page and Parish GKK
+ * show it: `total` and `byGkk` (GKK name -> row) with { expected, done, pct,
+ * notYet, fromList }, null for a GKK with no baseline. `against` names the
+ * baseline ("last year's list"). Null when no GKK has a baseline.
+ */
+export function registrationProgress(baseline, againstText) {
+  if (!baseline?.hasBaseline) return null;
+  const of = (r) => (r.lastYear == null ? null : { expected: r.lastYear, done: r.lastYear - r.notYet, pct: r.pct, notYet: r.notYet, fromList: !!r.fromList });
+  return {
+    mode: baseline.mode,
+    against: againstText,
+    total: of(baseline.total),
+    byGkk: new Map(baseline.rows.map((r) => [r.label, of(r)])),
+  };
+}
+
+/** "20 of 30 expected households registered (67%), against last year's list". */
+export function progressText(p) {
+  if (!p?.total) return '';
+  const what = p.mode === 'census' ? 'households have taken part' : 'expected households registered';
+  return `${p.total.done} of ${p.total.expected} ${what} (${p.total.pct}%), against ${p.against}`;
+}
+
+/**
+ * The Report Stats tab as printable sections ({ title, meta, columns, rows: [{ cells }] }).
+ * With `progress` (registrationProgress()), registration also shows against the households expected.
+ */
+export function statsSections(stats, { blood = true, progress = null } = {}) {
   const t = (title, meta, columns, rows) => ({ title, meta, columns, rows: rows.map((cells) => ({ cells })) });
+  const status = `${stats.totalVerified} verified · ${stats.totalPending} pending of ${stats.totalHH} households`;
   const sections = [
-    t('Registration status by GKK', `${stats.totalVerified} verified · ${stats.totalPending} pending of ${stats.totalHH} households`,
-      ['GKK', 'Verified', 'Pending', 'Households'], stats.regByGkk.map((g) => [g.label, g.verified, g.pending, g.verified + g.pending])),
+    progress
+      ? t('Registration status by GKK', `${progressText(progress)} · ${status}`,
+        ['GKK', 'Verified', 'Pending', 'Households', 'Expected', 'Registered of expected', 'Registered %'],
+        stats.regByGkk.map((g) => {
+          const p = progress.byGkk.get(g.label);
+          return [g.label, g.verified, g.pending, g.verified + g.pending, p ? p.expected : '', p ? p.done : '', p ? `${p.pct}%` : ''];
+        }))
+      : t('Registration status by GKK', status,
+        ['GKK', 'Verified', 'Pending', 'Households'], stats.regByGkk.map((g) => [g.label, g.verified, g.pending, g.verified + g.pending])),
   ];
   if (stats.totalFamilies !== null && stats.totalFamilies !== undefined) {
     sections.push(t('Families in households', `${stats.totalFamilies} families in ${stats.totalHH} households`,

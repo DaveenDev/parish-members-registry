@@ -5,7 +5,7 @@ import {
   sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows, missingSacrament, candidatesByGkk, churchWeddingCandidates,
   weddingSituation, sacramentsByYear, ageSexRows, breakdownRows, inAgeGroup, celebrationsInMonth, statusChanges, waitingForVerification, volunteerPool,
   helpWayLabel, verificationsByStaff, groupMakeupRows, busyMembers, gkkOfficerRows, parishRoleRows, requestOutcomeRows, parseFee, feesByMonth, peso,
-  missingDetails, dataQualityByGkk, householdProblems, censusComparisonRows, statsSections, sectionsCsv,
+  missingDetails, dataQualityByGkk, householdProblems, censusComparisonRows, statsSections, sectionsCsv, registrationProgress, progressText,
 } from '../src/lib/reports.js';
 import { HEAD } from '../src/constants.js';
 
@@ -349,4 +349,32 @@ test('statsSections and sectionsCsv put the Report Stats tables in one file', ()
   const csv = sectionsCsv(sections);
   assert.ok(csv.startsWith('\uFEFFRegistration status by GKK\nGKK,Verified,Pending,Households\nGKK A,1,1,2\n\nSacramental completion\n'));
   assert.equal(csv.match(/\uFEFF/g).length, 1);
+});
+
+test('registrationProgress: registration against the households expected, per GKK', () => {
+  assert.equal(registrationProgress(null, 'x'), null);
+  assert.equal(registrationProgress({ hasBaseline: false, rows: [], total: {} }, 'x'), null);
+  const baseline = {
+    mode: 'list', hasBaseline: true,
+    rows: [
+      { label: 'GKK A', lastYear: 30, notYet: 10, pct: 67, fromList: true },
+      { label: 'GKK B', lastYear: null, notYet: null, pct: null },
+    ],
+    total: { label: 'All GKKs', lastYear: 30, notYet: 10, pct: 67 },
+  };
+  const p = registrationProgress(baseline, "last year's list");
+  assert.deepEqual(p.total, { expected: 30, done: 20, pct: 67, notYet: 10, fromList: false });
+  assert.deepEqual(p.byGkk.get('GKK A'), { expected: 30, done: 20, pct: 67, notYet: 10, fromList: true });
+  assert.equal(p.byGkk.get('GKK B'), null);
+  assert.equal(progressText(p), "20 of 30 expected households registered (67%), against last year's list");
+
+  const stats = {
+    totalHH: 26, totalVerified: 20, totalPending: 6, totalMembers: 90, totalFamilies: null, anyVolunteer: 0, unknownBlood: 0,
+    regByGkk: [{ label: 'GKK A', verified: 15, pending: 6 }, { label: 'GKK B', verified: 5, pending: 0 }],
+    sacCompletion: [], participation: [], bloodCounts: [],
+  };
+  const [reg] = statsSections(stats, { blood: false, progress: p });
+  assert.deepEqual(reg.columns, ['GKK', 'Verified', 'Pending', 'Households', 'Expected', 'Registered of expected', 'Registered %']);
+  assert.deepEqual(reg.rows.map((r) => r.cells), [['GKK A', 15, 6, 21, 30, 20, '67%'], ['GKK B', 5, 0, 5, '', '', '']]);
+  assert.match(reg.meta, /^20 of 30 expected households registered \(67%\)/);
 });

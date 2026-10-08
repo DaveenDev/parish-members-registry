@@ -10,7 +10,8 @@ import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
 import { multiFamilyNote } from '../../lib/stats.js';
-import { statsSections, sectionsCsv, AGE_GROUPS, MISSING_FIELDS } from '../../lib/reports.js';
+import { statsSections, sectionsCsv, registrationProgress, AGE_GROUPS, MISSING_FIELDS } from '../../lib/reports.js';
+import { vsLastYearBaseline } from '../../lib/census.js';
 import { SACRAMENTS } from '../../constants.js';
 import { FamilyHeading } from '../../components/FamilyGroups.jsx';
 
@@ -32,6 +33,49 @@ function SplitBar({ label, right, vw, pw }) {
       <div className="h-2.5 bg-parish-track rounded-full overflow-hidden flex">
         <div className="h-full" style={{ width: vw, background: 'rgb(var(--c-ok-text))' }} />
         <div className="h-full" style={{ width: pw, background: 'var(--p-gold)' }} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * A GKK's registration row. With `p` (registrationProgress()), the bar is the
+ * households expected: filled to the share registered (green verified, gold
+ * pending, in proportion), the rest of the track not yet. In census mode the
+ * census numbers don't split into verified and pending, so the fill is one
+ * colour. Without a baseline, verified against pending as before.
+ */
+function RegistrationRow({ g, p, mode }) {
+  const status = `${g.verified} verified · ${g.pending} pending`;
+  const head = (right) => (
+    <div className="flex justify-between gap-3 text-[13.5px] mb-1.5">
+      <span className="text-parish-text3 font-semibold min-w-0">{g.label}</span>
+      <span className="text-parish-muted text-right flex-none">{right}<span className="block text-[12px] whitespace-nowrap">{status}</span></span>
+    </div>
+  );
+  // No baseline: nothing to measure against, so an empty track rather than a bar that reads as complete.
+  if (!p) {
+    return (
+      <div>
+        {head(<span className="italic">no baseline</span>)}
+        <div className="h-2.5 rounded-full border border-dashed border-parish-borderSoft" aria-hidden />
+      </div>
+    );
+  }
+  const has = g.verified + g.pending;
+  const fill = Math.min(p.pct, 100);
+  const vw = mode === 'census' || !has ? 0 : (fill * g.verified) / has;
+  const done = p.pct >= 100;
+  return (
+    <div title={`${p.notYet} of ${p.expected} expected household(s) not yet registered`}>
+      {head(<><strong className="text-parish-navy">{p.done}</strong> of {p.expected} · <span className={done ? 'text-parish-okText font-semibold' : ''}>{p.pct}%</span></>)}
+      <div className="h-2.5 bg-parish-track rounded-full overflow-hidden flex">
+        {mode === 'census'
+          ? <div className="h-full" style={{ width: `${fill}%`, background: done ? 'rgb(var(--c-ok-text))' : 'var(--p-blue)' }} />
+          : <>
+            <div className="h-full" style={{ width: `${vw}%`, background: 'rgb(var(--c-ok-text))' }} />
+            <div className="h-full" style={{ width: `${fill - vw}%`, background: 'var(--p-gold)' }} />
+          </>}
       </div>
     </div>
   );
@@ -172,6 +216,15 @@ export default function Reports() {
   const tab = REPORT_TABS.some(([k]) => k === params.get('tab')) ? params.get('tab') : REPORT_TABS[0][0];
   const setTab = (k) => setParams(k === REPORT_TABS[0][0] ? {} : { tab: k }, { replace: true });
   const { data: stats, loading: statsLoading, error: statsError, reload: reloadStats } = useAsyncData(() => api.reportStats(), []);
+  const { user } = useAuth();
+  // Registration against the households expected, measured as the Census page and Parish GKK measure it
+  // (last year's list, the household counts, or the census before); the open census, else the latest.
+  // Null without a baseline or if it fails: the card then shows verified and pending alone.
+  const { data: progress } = useAsyncData(async () => {
+    const cycles = await api.listCensusCycles().catch(() => []);
+    const res = await api.censusVsLastYear(cycles.find((c) => c.status === 'Open') || cycles[0] || null, cycles, leaderGkk(user) || null);
+    return registrationProgress(res, vsLastYearBaseline(res));
+  }, []);
 
   // "?source=Families" (the Dashboard's Families card) opens that source.
   const [genSource, setGenSource] = useState(() => (REPORTS[params.get('source')] ? params.get('source') : ''));
@@ -182,7 +235,6 @@ export default function Reports() {
   });
   const set = (key) => (e) => setScope((s) => ({ ...s, [key]: e.target.value }));
   const [cycles, setCycles] = useState([]);
-  const { user } = useAuth();
   const [ministryOptions, setMinistryOptions] = useState([]);
   const [gkkOptions, setGkkOptions] = useState([]);
   const [report, setReport] = useState(null);
@@ -225,7 +277,7 @@ export default function Reports() {
   }
 
   // The Report Stats tab as one printable, exportable report.
-  const statsReport = stats && { title: 'Report statistics', meta: `${stats.totalHH} households · ${stats.totalMembers} current members`, sections: statsSections(stats, { blood: can(user, 'bloodTypes') }) };
+  const statsReport = stats && { title: 'Report statistics', meta: `${stats.totalHH} households · ${stats.totalMembers} current members`, sections: statsSections(stats, { blood: can(user, 'bloodTypes'), progress }) };
   function exportStats() {
     triggerDownload(new Blob([sectionsCsv(statsReport.sections)], { type: 'text/csv;charset=utf-8' }), 'report-statistics.csv');
   }
@@ -259,9 +311,31 @@ export default function Reports() {
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Registration Status by GKK</div>
                   <div className="text-[13px] text-parish-muted">{stats.totalVerified} verified · {stats.totalPending} pending of {stats.totalHH} households</div>
                 </div>
-                <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Households confirmed vs. awaiting verification, broken down by Basic Ecclesial Community.</p>
+                {progress?.total ? (
+                  <div className="flex items-center gap-4 flex-wrap my-3 px-4 py-3 rounded-xl bg-parish-field border border-parish-line2">
+                    <div className="font-serif text-[30px] font-semibold leading-none text-parish-navy" style={{ fontVariantNumeric: 'lining-nums' }}>
+                      {progress.total.done}<span className="text-[18px] text-parish-muted"> of {progress.total.expected}</span>
+                    </div>
+                    <div className="flex-1 min-w-[200px]">
+                      <div className="text-[13.5px] text-parish-text3 font-semibold">
+                        {progress.mode === 'census' ? 'expected households have taken part' : 'expected households registered'} · {progress.total.pct}%
+                      </div>
+                      <div className="text-[12.5px] text-parish-muted">Against {progress.against}; {progress.total.notYet} not yet. GKKs with no baseline aren't counted.</div>
+                      <div className="h-2 mt-1.5 bg-parish-track rounded-full overflow-hidden" aria-hidden>
+                        <div className="h-full rounded-full" style={{ width: `${Math.min(progress.total.pct, 100)}%`, background: progress.total.pct >= 100 ? 'rgb(var(--c-ok-text))' : 'var(--p-blue)' }} />
+                      </div>
+                    </div>
+                  </div>
+                ) : null}
+                <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>
+                  {progress
+                    ? <>Each GKK's households registered against those expected ({progress.against}): green verified, gold awaiting verification, the empty part not yet registered.</>
+                    : <>Households confirmed vs. awaiting verification, broken down by Basic Ecclesial Community. Set each GKK's households last year in Parish Config → Parish GKK, or add last year's list, to see them against the households expected.</>}
+                </p>
                 <TwoColumns>
-                  {stats.regByGkk.map((g) => <SplitBar key={g.label} label={g.label} right={`${g.verified} verified · ${g.pending} pending`} vw={g.vw} pw={g.pw} />)}
+                  {stats.regByGkk.map((g) => (progress
+                    ? <RegistrationRow key={g.label} g={g} p={progress.byGkk.get(g.label)} mode={progress.mode} />
+                    : <SplitBar key={g.label} label={g.label} right={`${g.verified} verified · ${g.pending} pending`} vw={g.vw} pw={g.pw} />))}
                 </TwoColumns>
               </Panel>
 
