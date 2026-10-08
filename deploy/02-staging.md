@@ -163,8 +163,14 @@ in the lists.
 2. Supabase dashboard → the **training** project (check its name at the top
    of the page) → **SQL Editor** → New query.
 3. Paste the whole of `supabase/seed/load-test.sql` → **Run**. It takes
-   about 20 seconds and lists what it added. It runs as one transaction and
-   refuses to run a second time.
+   about 20 seconds and lists what it added. It's all or nothing, and
+   refuses to run a second time. If it stops with "already in the database"
+   (or a run before October 2026 stopped halfway), run the cleanup below
+   first, then the seed again.
+
+   The SQL Editor runs each statement as its own transaction and ignores
+   `begin; … commit;`, so a script for it that must be all or nothing has to
+   be a single `do $$ … $$;` statement, as these are.
 
 To remove it (e.g. before a fresh training round): the same, with
 [`supabase/seed/load-test-clean.sql`](../supabase/seed/load-test-clean.sql).

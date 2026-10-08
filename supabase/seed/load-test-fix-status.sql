@@ -15,10 +15,11 @@
 -- (load-test.sql does the same at its end, so a fresh seed needs no fix.)
 -- Safe to run again: a second run changes nothing.
 
-begin;
+do $$
+begin
 
 -- No activity-log entries for test data, as in load-test.sql.
-set local app.audit_skip = 'on';
+  perform set_config('app.audit_skip', 'on', true);  -- this statement only: kept out of the activity log
 
 create temp table seed_status_fix on commit drop as
 select v.id as member_id,
@@ -42,7 +43,8 @@ set status = f.status
 from seed_status_fix f
 where r.member_id = f.member_id and r.status in ('Active', 'Inactive') and r.status <> f.status;
 
-commit;
+end;
+$$;
 
 -- What the test members look like now (the last statement's rows are what the CLI prints).
 select count(*) filter (where v.practice_level = 'Dili aktibo' and v.membership_status = 'Active') as dili_aktibo_but_active,

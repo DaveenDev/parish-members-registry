@@ -12,8 +12,9 @@
 -- site's: deploy/02-staging.md). npm run db:clean-load runs it on the linked
 -- (live) project. The GKKs the seed added stay.
 
-begin;
-set local app.audit_skip = 'on';
+do $$
+begin
+  perform set_config('app.audit_skip', 'on', true);  -- this statement only: kept out of the activity log
 
 -- Donor links first, then donors, and requests before households, because
 -- donors and certificate requests can point at a seeded member.
@@ -30,9 +31,17 @@ delete from articles where title like '[Test] %';
 delete from bulletins where title like '[Test] %';
 delete from events where title like '[Test] %';
 
+-- Activity-log entries for the test households. A seed run in the SQL Editor
+-- before October 2026 wasn't kept out of the log; those entries have no staff
+-- account (actor), unlike anything a staff member did.
+delete from activity_log
+where actor is null
+  and household_id in (select id from households where previous_ref_no like 'SEED-%' or ref_no like 'SEED-%');
+
 delete from households where previous_ref_no like 'SEED-%' or ref_no like 'SEED-%';
 
-commit;
+end;
+$$;
 
 select (select count(*) from households where previous_ref_no like 'SEED-%' or ref_no like 'SEED-%') as households_left,
        (select count(*) from certificate_requests where ref_no like 'SEED-%')

@@ -31,12 +31,11 @@
 --   blood donors          notes 'Load-test seed'
 --   website content       title starting '[Test] '
 --
--- One transaction: if anything fails, nothing is kept. The activity log is
+-- Everything is one `do $$ … $$` statement, so it's one transaction even in
+-- Supabase's SQL Editor (which runs statements one at a time and ignores
+-- begin; … commit;): if anything fails, nothing is kept. The activity log is
 -- skipped (app.audit_skip). Staff get no notifications: those only fire for
 -- anonymous public submissions. Refuses to run twice.
-
-begin;
-set local app.audit_skip = 'on';
 
 do $$
 declare
@@ -77,6 +76,7 @@ declare
   helps text[];
   part_key text;
 begin
+  perform set_config('app.audit_skip', 'on', true);  -- this statement only: kept out of the activity log
   if exists (select 1 from households where previous_ref_no like 'SEED-%' or ref_no like 'SEED-%') then
     raise exception 'Load-test seed is already in the database. Run the cleanup (load-test-clean.sql) first.';
   end if;
@@ -286,8 +286,6 @@ begin
   end loop;
 
   raise notice 'Seeded 500 households and % members.', member_count;
-end;
-$$;
 
 -- ---------------------------------------------------------------------------
 -- Requests
@@ -432,7 +430,8 @@ set status = f.status
 from seed_status_fix f
 where r.member_id = f.member_id and r.status in ('Active', 'Inactive') and r.status <> f.status;
 
-commit;
+end;
+$$;
 
 -- What was added (the last statement's rows are what the CLI prints).
 select (select count(*) from households where previous_ref_no like 'SEED-%') as households,
