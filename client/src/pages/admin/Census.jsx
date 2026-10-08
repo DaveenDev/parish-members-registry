@@ -20,6 +20,7 @@ const PROGRESS = ['Not started', 'Partly confirmed', 'Confirmed'];
 const PROGRESS_TONES = { 'Not started': 'gray', 'Partly confirmed': 'gold', Confirmed: 'green' };
 const INTERVALS = [[6, 'Every 6 months'], [12, 'Every year'], [24, 'Every 2 years'], [36, 'Every 3 years']];
 const today = () => new Date().toISOString().slice(0, 10);
+const CENSUS_TABS = ['households', 'updates', 'results', 'lastYear'];
 
 function Tile({ label, value, note, accent }) {
   return (
@@ -47,10 +48,14 @@ export default function Census() {
   const [cycleId, setCycleId] = useState(null);
   const [parish, setParish] = useState(null);
   const [starting, setStarting] = useState(false);
-  // ?tab=lastYear&gkk=… (the link from Parish Config → Parish GKK) opens that GKK's list.
-  const [params] = useSearchParams();
+  // The tab is in the address bar: ?tab=lastYear&gkk=… (the link from Parish
+  // Config → Parish GKK) opens that GKK's list, and ?tab=updates&q=<ref no>
+  // (the Dashboard and census update notifications) that household's update.
+  const [params, setParams] = useSearchParams();
   const linkedGkk = params.get('gkk') || '';
-  const [tab, setTab] = useState(params.get('tab') === 'lastYear' ? 'lastYear' : 'households');
+  const linkedQuery = params.get('q') || '';
+  const tab = CENSUS_TABS.includes(params.get('tab')) ? params.get('tab') : 'households';
+  const setTab = (k) => setParams(k === 'households' ? {} : { tab: k, ...(k === 'lastYear' && linkedGkk ? { gkk: linkedGkk } : {}) }, { replace: true });
   // Parish Config → Last year's list can turn the list off (0048); then the
   // census measures itself against the previous census instead.
   const listOn = listEnabled(parish);
@@ -211,7 +216,7 @@ export default function Census() {
               onChange={setTab}
             />
             {(tab === 'households' || (tab === 'lastYear' && !listOn)) && <HouseholdsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
-            {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} />}
+            {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} initialQuery={linkedQuery} />}
             {tab === 'results' && <ResultsTab key={cycle.id} cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} canOpenGkk={!ownGkk && can(user, 'censusGkkView')} />}
             {tab === 'lastYear' && listOn && <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />}
           </>
@@ -435,13 +440,15 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
 /** What the Online updates search looks in. */
 const updateSearchText = (r) => [r.households?.household_name, r.households?.ref_no, r.households?.gkk, r.reviewed_by_name, r.review_note, r.message].filter(Boolean).join(' ');
 
-function UpdatesTab({ cycle, refreshKey, onChanged }) {
+function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '' }) {
   const [status, setStatus] = useState('Pending');
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [openRow, setOpenRow] = useState(null);
   // All of a cycle's updates in one status are loaded, then searched and paged here.
   const list = useClientList(rows, updateSearchText, 20);
+  // A notification's link names the household: show its update.
+  useEffect(() => { if (initialQuery) list.setQuery(initialQuery); }, [initialQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function load() {
     setError('');

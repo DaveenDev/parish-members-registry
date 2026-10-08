@@ -140,11 +140,16 @@ export function EmptyState({ title, subtitle }) {
 }
 
 export function Pagination({ page, pageSize, total, onPage, onPageSize, alwaysShow = false }) {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  // Deleting the last row of the last page (or a smaller list after a
+  // change) would leave an empty page past the end: go back to the last one.
+  useEffect(() => {
+    if (total > 0 && page > pageCount) onPage(pageCount);
+  }, [total, page, pageCount]); // eslint-disable-line react-hooks/exhaustive-deps
   // Hide only when everything fits on the smallest page size; otherwise keep
   // the size picker reachable even if the current size shows it all.
   // `alwaysShow` keeps the bar (count + size picker) for any non-empty list.
   if (total === 0 || (!alwaysShow && total <= Math.min(pageSize, 10))) return null;
-  const pageCount = Math.max(1, Math.ceil(total / pageSize));
   const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const to = Math.min(total, page * pageSize);
   // 1 … 4 5 [6] 7 8 … 60 rather than a button for every page.

@@ -329,6 +329,14 @@ export const api = {
     return data.length;
   },
 
+  /** The Blood Types page's list as it is filtered (GKK, age, blood type, search), for the blood directory CSV. */
+  async exportBloodCsv(params, filename = 'blood-directory.csv') {
+    const data = await fetchAll(() => applyMemberFilters(supabase.from('members_with_household').select('*'), params)
+      .order('blood_type', { nullsFirst: false }).order('id'));
+    downloadCsv(filename, data, BLOOD_CSV_COLUMNS);
+    return data.length;
+  },
+
   async updateHousehold(id, patch) {
     const { data, error } = await supabase.from('households').update(cleanPatch(patch)).eq('id', id).select().single();
     if (error) throw mapError(error, { fallback: 'Household not found' });
@@ -2500,6 +2508,26 @@ export async function downloadWithAuth(path, filename) {
       { label: 'Purpose', value: 'purpose' }, { label: 'Copies', value: 'copies' }, { label: 'Fee', value: 'fee' }, { label: 'OR No.', value: 'or_number' },
       { label: 'Received', value: (r) => r.created_at?.slice(0, 10) }, { label: 'Released', value: (r) => r.released_at?.slice(0, 10) || '' },
       { label: 'Released to', value: 'released_to' }, { label: 'Handled by', value: 'handled_by_name' },
+    ]);
+  } else if (path === '/exports/sacrament-requests.csv') {
+    const data = await fetchAll(() => supabase.from('sacrament_requests').select('*').order('created_at').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Reference No.', value: 'ref_no' }, { label: 'Sacrament', value: (r) => sacramentRequestLabel(r.sacrament) },
+      { label: 'Status', value: 'status' }, { label: 'Urgent', value: (r) => (r.urgent ? 'Yes' : '') }, { label: 'Source', value: 'source' },
+      { label: 'Person', value: 'person_name' }, { label: 'Where', value: 'location' }, { label: 'Baptized?', value: 'baptism_status' },
+      { label: 'Requested by', value: 'requester_name' }, { label: 'Relationship', value: 'relationship' }, { label: 'Mobile', value: 'requester_mobile' },
+      { label: 'Preferred date', value: (r) => r.preferred_date || '' }, { label: 'Scheduled on', value: (r) => r.scheduled_on || '' },
+      { label: 'Received', value: (r) => r.created_at?.slice(0, 10) }, { label: 'Handled by', value: 'handled_by_name' },
+    ]);
+  } else if (path === '/exports/blood-requests.csv') {
+    const data = await fetchAll(() => supabase.from('blood_requests').select('*').order('created_at').order('id'));
+    downloadCsv(filename, data, [
+      { label: 'Reference No.', value: 'ref_no' }, { label: 'Status', value: 'status' }, { label: 'Source', value: 'source' },
+      { label: 'Patient', value: 'patient_name' }, { label: 'Blood type', value: 'blood_type' }, { label: 'Units', value: 'units' },
+      { label: 'Hospital', value: 'hospital' }, { label: 'Needed by', value: (r) => r.needed_by || '' },
+      { label: 'Contact person', value: 'contact_name' }, { label: 'Relationship', value: 'relationship' }, { label: 'Mobile', value: 'contact_mobile' },
+      { label: 'Received', value: (r) => r.created_at?.slice(0, 10) }, { label: 'Status changed', value: (r) => r.status_changed_at?.slice(0, 10) || '' },
+      { label: 'Handled by', value: 'handled_by_name' },
     ]);
   } else if (path === '/exports/donors.csv') {
     const data = await fetchAll(() => supabase.from('blood_donors').select('*').order('full_name').order('id'));

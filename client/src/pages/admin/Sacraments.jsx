@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps, Panel } from '../../components/admin.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
@@ -46,13 +46,17 @@ export default function Sacraments() {
   // The sacrament filters are applied server-side; filtering a single page
   // client-side would make both the row list and the total incorrect.
   // `quiet` refreshes behind the rows already on screen, without the spinner.
+  // Only the latest load fills the list: with quick filter or page changes,
+  // an earlier, slower answer would otherwise land last.
+  const loadSeq = useRef(0);
   function reload({ quiet = false } = {}) {
+    const seq = ++loadSeq.current;
     if (!quiet) setLoading(true);
     setError('');
     api.listMembers({ ...filters, search: debouncedSearch, page, pageSize, sortKey: 'household', sortDir: 'asc', groupBy: 'gkk' })
-      .then((res) => { setRows(res.rows); setTotal(res.total); })
-      .catch((e) => { if (!quiet) setError(e.message); })
-      .finally(() => { if (!quiet) setLoading(false); });
+      .then((res) => { if (seq === loadSeq.current) { setRows(res.rows); setTotal(res.total); } })
+      .catch((e) => { if (!quiet && seq === loadSeq.current) setError(e.message); })
+      .finally(() => { if (seq === loadSeq.current) setLoading(false); });
   }
   function reloadCounts() {
     api.sacramentVerificationCounts({ gkk: filters.gkk }).then(setCounts).catch(() => setCounts(null));
