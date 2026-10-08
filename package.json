@@ -19,6 +19,10 @@
     "deploy:media-upload": "npx supabase functions deploy media-upload --use-api",
     "deploy:manage-staff": "npx supabase functions deploy manage-staff --use-api",
     "deploy:notify-staff": "npx supabase functions deploy notify-staff --no-verify-jwt --use-api",
+    "deploy:training": "npx supabase functions deploy --project-ref qyoyuukpdjrwfhovtrwd --use-api",
+    "deploy:training:manage-staff": "npx supabase functions deploy manage-staff --project-ref qyoyuukpdjrwfhovtrwd --use-api",
+    "deploy:training:media-upload": "npx supabase functions deploy media-upload --project-ref qyoyuukpdjrwfhovtrwd --use-api",
+    "deploy:training:notify-staff": "npx supabase functions deploy notify-staff --no-verify-jwt --project-ref qyoyuukpdjrwfhovtrwd --use-api",
     "install:all": "npm install && npm install --prefix client",
     "test": "node --test \"client/test/**/*.test.js\"",
     "test:watch": "node --test --watch \"client/test/**/*.test.js\""

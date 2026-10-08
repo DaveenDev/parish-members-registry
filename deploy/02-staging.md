@@ -50,6 +50,10 @@ Check: `npx supabase migration list --db-url "<staging-db-url>"`.
 npx supabase functions deploy --project-ref <staging-ref> --use-api
 ```
 
+For our training project (`qyoyuukpdjrwfhovtrwd`) that is `npm run deploy:training`;
+one function alone is `npm run deploy:training:manage-staff` (or
+`:media-upload`, `:notify-staff`).
+
 ## Step 5. Auth settings
 
 As 01 step 5, with the training address:
@@ -225,6 +229,8 @@ on practice data and never on the live registry.
    ```bash
    npx supabase functions deploy --project-ref <staging-ref> --use-api
    ```
+
+   (our training project: `npm run deploy:training`)
 
    ```bash
    npx supabase functions deploy --project-ref <ref> --use-api

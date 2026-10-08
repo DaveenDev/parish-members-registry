@@ -15,6 +15,17 @@ repository root, with the CLI linked to the project (`npx supabase link`):
 | all of them | `npx supabase functions deploy --use-api` |
 
 Without a linked CLI, add `--project-ref <project-ref>` (the live project is
-`rmlkowkbonbrtaqocsvo`; see `deploy/` for the training site).
+`rmlkowkbonbrtaqocsvo`).
+
+The training site (project `qyoyuukpdjrwfhovtrwd`) has its own shortcuts,
+which name the project, so they work whichever project the CLI is linked to.
+Give these too, for trying a change there first:
+
+| Function | Training site |
+| --- | --- |
+| `manage-staff` | `npm run deploy:training:manage-staff` |
+| `media-upload` | `npm run deploy:training:media-upload` |
+| `notify-staff` | `npm run deploy:training:notify-staff` |
+| all of them | `npm run deploy:training` |
 
 Give the migrations to run in the same summary, in order.
