@@ -6,9 +6,14 @@ households and the records that go with them. A second script,
 [`supabase/seed/load-test-clean.sql`](../supabase/seed/load-test-clean.sql),
 removes exactly that test data and nothing real.
 
-There is only one Supabase project, the live one, so the test data goes into
-the same database as the real records. Every test record is marked so it can
-be told apart and removed in one step.
+> **Seeding the training site?** Use the SQL Editor of the training project,
+> as in [deploy/02-staging.md → Practice data](../deploy/02-staging.md#practice-data).
+> The `npm run` commands below run on the *linked* project, which is the
+> live one.
+
+This page was written when there was only one Supabase project, so the test
+data went into the same database as the real records. Every test record is
+marked so it can be told apart and removed in one step.
 
 ## What gets added
 

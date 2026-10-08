@@ -109,7 +109,7 @@ manager, not here. Fill in the blanks the next time you're in each dashboard.
 |---|---|---|
 | Website | https://guadalupe-muaan.vercel.app | https://olgqp-training.vercel.app |
 | Vercel project / account | guadalupe-muaan, parish Hobby account | olgqp-training, account: ____ |
-| Supabase project ref | `rmlkowkbonbrtaqocsvo` | `____` |
+| Supabase project ref | `rmlkowkbonbrtaqocsvo` | `qyoyuukpdjrwfhovtrwd` |
 | Supabase account | ____ | ____ |
 | R2 photo bucket | `pub-25d83e20c5f14fc0b2f81d3476651579.r2.dev` (account ____) | testing bucket on a separate Cloudflare account: `pub-93600e56fb724c9c8fdf449acb86fcf7.r2.dev` |
 | R2 backup bucket | ____ (e.g. `parish-backups`) | none |

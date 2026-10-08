@@ -138,6 +138,40 @@ training site.
 
 ## Practice data
 
+> **Don't use `npm run db:seed-load` / `db:clean-load` for this.** They run
+> on the project this folder is *linked* to, which is the **live** one
+> (step 3 keeps it that way).
+
+### A full parish's worth (recommended for training)
+
+[`supabase/seed/load-test.sql`](../supabase/seed/load-test.sql): 500
+households and 2,000 members spread over every GKK, with sacraments,
+requests, blood donors and website posts. Every record is marked (`SEED-…`
+reference numbers, **[Test]** titles) and can be removed in one step.
+Details: [docs/load-test-data.md](../docs/load-test-data.md).
+
+1. Training admin: if trainees will practise the census, **start a census
+   first** (Census → Start a census). The seed then also adds census answers
+   and online updates waiting for review. Without an open census it skips
+   those.
+2. Supabase dashboard → the **training** project (check its name at the top
+   of the page) → **SQL Editor** → New query.
+3. Paste the whole of `supabase/seed/load-test.sql` → **Run**. It takes
+   about 20 seconds and lists what it added. It runs as one transaction and
+   refuses to run a second time.
+
+To remove it (e.g. before a fresh training round): the same, with
+[`supabase/seed/load-test-clean.sql`](../supabase/seed/load-test-clean.sql).
+It removes only the marked records. Then the seed can be run again.
+
+From the command line instead (needs the training database password):
+
+```bash
+npx supabase db query --db-url "<staging-db-url>" -f supabase/seed/load-test.sql
+```
+
+### Six sample households (quick check)
+
 Root `.env` (gitignored, see [`.env.example`](../.env.example)) with the
 **training** project's `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY`
 (Project Settings → API), then:
@@ -146,10 +180,19 @@ Root `.env` (gitignored, see [`.env.example`](../.env.example)) with the
 npm run db:demo
 ```
 
-Six sample households. `npm run db:reset` deletes every household again. For
-a full parish's worth, see [docs/load-test-data.md](../docs/load-test-data.md).
+`npm run db:reset` deletes **every** household in that project again, seeded
+or not, so check `.env` points at the training project first.
+
+### Not seeded
+
+Staff and trainee logins (make them in Settings → Staff), parish settings,
+photo storage and email settings. The seed uses the GKK, ministry and
+organization lists already in Parish Config.
+
+### Local development
+
 Point `client/.env.local` at the training project too, so `npm run dev` works
-on practice data.
+on practice data and never on the live registry.
 
 ## Releasing a change: training first, then live
 
