@@ -152,7 +152,6 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
       <div className="flex items-start justify-between gap-3 flex-wrap mb-[18px]">
         <div className="min-w-0 max-w-[640px]">
           <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Basic Ecclesial Communities (GKK)</div>
-          <div className="text-[13.5px] text-parish-muted">Each GKK's chapel, puroks, year established and history show in the website's GKK directory. Last year's household count is the baseline the census measures its progress against. Land titles and other documents stay private. A GKK assigned to a household, or with documents, can't be deleted.</div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {rows.length > 0 && <GhostButton onClick={copyNames} className="px-[18px] py-2.5 text-[14px] whitespace-nowrap">Copy names</GhostButton>}
@@ -255,6 +254,8 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
           </div>
         )}
       </div>
+
+      <p className="mt-4 mb-0 text-[13px] text-parish-muted">Each GKK's chapel, puroks, year established and history show in the website's GKK directory. Last year's household count is the baseline the census measures its progress against. Land titles and other documents stay private. A GKK assigned to a household, or with documents, can't be deleted.</p>
 
       {editing && <GkkPanel key={editing.id ?? 'new'} initial={editing} codes={codes} listNames={editing.original ? listNames(editing.original) : 0} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
     </Panel>
