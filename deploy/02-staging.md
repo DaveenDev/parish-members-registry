@@ -199,6 +199,23 @@ From the command line instead (needs the training database password):
 npx supabase db query --db-url "<staging-db-url>" -f supabase/seed/load-test.sql
 ```
 
+### A first census with last year's list (after the load test)
+
+[`supabase/seed/first-census-san-roque.sql`](../supabase/seed/first-census-san-roque.sql)
+turns GKK Sr. San Roque -Meohao into a GKK's first census in the registry:
+last year's paper list of 30 heads, 12 of them registered on the website
+since the census opened (7 waiting to be verified, 5 verified), 2 new
+families not on the list, and 18 names still to visit. It also includes a
+wife who registered in her husband's place ("Choose household") and a name
+registered in another GKK. Needs an open census and the load-test data.
+It deletes the GKK's other load-test households. Run it the same way as the
+load test, or with the Supabase CLI logged in to an account that can see
+the training project:
+
+```bash
+npx supabase db query --linked --project-ref qyoyuukpdjrwfhovtrwd -f supabase/seed/first-census-san-roque.sql
+```
+
 ### Six sample households (quick check)
 
 Root `.env` (gitignored, see [`.env.example`](../.env.example)) with the

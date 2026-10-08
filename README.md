@@ -65,7 +65,8 @@ supabase/functions/   Edge Functions: manage-staff (staff accounts), media-uploa
                        so they can't run in the browser
 scripts/               Local demo/reset seeding against a Supabase project
 supabase/seed/         500-household load-test data and its cleanup — see
-                       docs/load-test-data.md
+                       docs/load-test-data.md — and a first-census scenario
+                       for one GKK (deploy/02-staging.md)
 client/                React + Tailwind frontend (Vite), with its own package.json
 docs/                  Testing guide and browser beta-testing playbooks
 project/               Original Claude Design source files this app was built from
