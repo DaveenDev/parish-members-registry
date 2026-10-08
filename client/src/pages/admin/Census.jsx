@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote, rowActivationProps } from '../../components/admin.jsx';
 import { useAuth } from '../../AuthContext.jsx';
@@ -204,6 +204,9 @@ export default function Census() {
 
         {starting && (
           <CensusCycleForm
+            // A census was already held here, yet the paper list from before it is still in use.
+            listStillOn={listOn && latest ? latest : null}
+            canChangeList={can(user, 'settings')}
             onCancel={() => setStarting(false)}
             onStarted={(c) => { setStarting(false); toast.success(`${c.label} started`); loadCycles(c.id); }}
           />
@@ -269,18 +272,32 @@ export default function Census() {
 
 /**
  * Start a new census, or with `cycle` change one's name and dates (and
- * delete it, through `onDelete`).
+ * delete it, through `onDelete`). `listStillOn` is the last census held here
+ * when last year's (paper) list is still switched on: starting then warns,
+ * since the new census would be measured against that old list rather than
+ * the census before it.
  */
-function CensusCycleForm({ cycle = null, onCancel, onStarted, onSaved, onDelete }) {
+function CensusCycleForm({ cycle = null, listStillOn = null, canChangeList = false, onCancel, onStarted, onSaved, onDelete }) {
+  const confirm = useConfirm();
   const [label, setLabel] = useState(cycle?.label || defaultCensusLabel());
   const [startsOn, setStartsOn] = useState(cycle?.starts_on || today());
   const [endsOn, setEndsOn] = useState(cycle?.ends_on || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const warnList = !cycle && listStillOn;
 
   async function start() {
     setError('');
     if (!label.trim()) { setError('Give the census a name.'); return; }
+    if (warnList) {
+      const ok = await confirm({
+        title: "Start with last year's list still on?",
+        message: `The ${label.trim()} will be measured against last year's paper list, not the ${listStillOn.label} held in this registry. `
+          + `If the list is out of date, cancel and turn it off first in Parish Config → Last year's list.`,
+        confirmLabel: 'Start anyway',
+      });
+      if (!ok) return;
+    }
     setSaving(true);
     try {
       if (cycle) onSaved(await api.updateCensusCycle(cycle.id, { label: label.trim(), startsOn, endsOn }));
@@ -300,6 +317,17 @@ function CensusCycleForm({ cycle = null, onCancel, onStarted, onSaved, onDelete 
           ? 'Change its name or dates. Recorded answers stay as they are.'
           : 'Every current member starts as “not confirmed”. Nothing changes in the records until staff save a household\'s answers.'}
       </p>
+      {warnList && (
+        <div role="note" className="mb-4 px-4 py-3 rounded-xl border border-[#fdba74] bg-[#fff7ed] text-[13.5px] text-[#9a3412] leading-relaxed">
+          <strong>Last year's household list is still on.</strong> The {listStillOn.label} was held in this registry, so last year's
+          paper list is probably out of date. With the list on, this census is measured against those old names instead of the
+          families in the {listStillOn.label}.{' '}
+          {canChangeList
+            ? <Link to="/admin/settings?tab=lastyear" className="font-semibold text-[#9a3412] underline">Turn it off in Parish Config → Last year's list</Link>
+            : <>Ask a staff admin to turn it off in Parish Config → Last year's list</>}
+          {' '}before starting, unless you mean to keep using it.
+        </div>
+      )}
       {error && <div className="mb-3 text-parish-error text-[13.5px]" role="alert">{error}</div>}
       <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
         <Field label="Name" required><TextInput value={label} onChange={(e) => setLabel(e.target.value)} /></Field>
