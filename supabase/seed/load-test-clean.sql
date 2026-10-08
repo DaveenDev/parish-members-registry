@@ -9,8 +9,8 @@
 -- The activity log is skipped, as when seeding.
 --
 -- Run: paste into the SQL Editor of the project that was seeded (the training
--- site's: deploy/02-staging.md). npm run db:clean-load runs it on the linked
--- (live) project. The GKKs the seed added stay.
+-- site's: deploy/02-staging.md). npm run db:clean-load runs it on the
+-- training project. The GKKs the seed added stay.
 
 do $$
 begin

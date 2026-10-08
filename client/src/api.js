@@ -2118,21 +2118,29 @@ export const api = {
    * Practicing Catholic status (0017), and the participation answers behind
    * each score — the member's latest census answers, else the household's
    * registration survey. `gkk` narrows it to one GKK ('None' = no GKK).
+   * activeness_members() (0077) works each score out once; before it, the
+   * view works it out once per column and times out for a whole parish.
    */
   async activenessData({ gkk = 'All' } = {}) {
-    const cols = 'id, first_name, last_name, suffix, household_id, household_name, household_gkk, age, sex, contact, membership_status, last_census_label, '
-      + 'practice_level, practice_score, practice_participation, practice_sacraments, practice_involvement, practice_source, practice_source_label, practice_trend';
     let members;
-    try {
-      members = await fetchAll(() => {
-        let q = supabase.from('members_with_household').select(cols).eq('is_current', true);
-        if (gkk === 'None') q = q.is('household_gkk', null);
-        else if (gkk !== 'All') q = q.eq('household_gkk', gkk);
-        return q.order('id');
-      });
-    } catch (e) {
-      if (/practice_/.test(e.message || '')) throw new Error('Run the 0017_practicing_status.sql migration in Supabase to use the activeness analysis');
-      throw e;
+    const { data, error } = await fetchAllPages((from, to) => supabase.rpc('activeness_members', { p_gkk: gkk }).order('id').range(from, to));
+    if (!error) members = data;
+    else if (!isMissingFunction(error)) throw mapError(error);
+    else {
+      const cols = 'id, first_name, last_name, suffix, household_id, household_name, household_gkk, age, sex, contact, membership_status, '
+        + 'practice_level, practice_score, practice_participation, practice_sacraments, practice_involvement, practice_source, practice_source_label, practice_trend';
+      try {
+        members = await fetchAll(() => {
+          let q = supabase.from('members_with_household').select(cols).eq('is_current', true);
+          if (gkk === 'None') q = q.is('household_gkk', null);
+          else if (gkk !== 'All') q = q.eq('household_gkk', gkk);
+          return q.order('id');
+        });
+      } catch (e) {
+        if (/practice_/.test(e.message || '')) throw new Error('Run the 0017_practicing_status.sql migration in Supabase to use the activeness analysis');
+        if (/statement timeout/.test(e.message || '')) throw new Error('Run the 0077_faster_activeness_report.sql migration in Supabase to analyse this many members');
+        throw e;
+      }
     }
     const householdIds = [...new Set(members.map((m) => m.household_id))];
     const [households, responses] = await Promise.all([

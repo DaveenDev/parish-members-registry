@@ -109,6 +109,20 @@ describe('analyzeActiveness', () => {
     assert.ok(massOnly.findings.some((f) => f === '100% attend Mass regularly (Aktibo).'));
   });
 
+  test('finding cards: one per finding, with a chart kind, a tone and the same sentence', () => {
+    assert.equal(a.cards.length, a.findings.length);
+    assert.deepEqual(a.cards.map((c) => c.text), a.findings);
+    const byKey = Object.fromEntries(a.cards.map((c) => [c.key, c]));
+    assert.equal(byKey.overview.kind, 'overview');
+    assert.equal(byKey.overview.mix.aktibo + byKey.overview.mix.panagsa + byKey.overview.mix.dili, 9);
+    assert.deepEqual([byKey.gkk.high.name, byKey.gkk.low.name], ['GKK A', 'GKK B']);
+    assert.equal(byKey.gkk.tone, 'bad'); // GKK B averages below 40%
+    assert.equal(byKey.parts.weakest, 'involvement');
+    assert.deepEqual([byKey.trend.improved, byKey.trend.declined, byKey.trend.tone], [1, 1, 'info']);
+    assert.deepEqual(a.cards.filter((c) => c.kind === 'note').map((c) => c.key), ['estimated', 'mismatches']);
+    for (const c of a.cards) assert.ok(['good', 'warn', 'bad', 'info'].includes(c.tone), c.key);
+  });
+
   test('nobody rated: a single explanatory finding', () => {
     const none = analyzeActiveness([m({ practice_level: 'Wala pa matino', practice_score: null })]);
     assert.equal(none.findings.length, 1);

@@ -50,6 +50,22 @@ Check: `npx supabase migration list --db-url "<staging-db-url>"`.
 npx supabase functions deploy --project-ref <staging-ref> --use-api
 ```
 
+For our training project (`qyoyuukpdjrwfhovtrwd`) that is `npm run deploy:training`;
+one function alone is `npm run deploy:training:manage-staff` (or
+`:media-upload`, `:notify-staff`).
+
+These use the Supabase account the CLI is logged in to (`npx supabase login`).
+If that account can't see the training project (`npx supabase projects list`
+doesn't show it), the deploy fails with `unexpected deploy status 403 ... does
+not have the necessary privileges`. Either invite that account to the training
+project's organization (Organization settings → Team, role Developer or
+higher), or deploy once with the training account's access token (Account →
+Access Tokens) in PowerShell:
+
+```powershell
+$env:SUPABASE_ACCESS_TOKEN = "<training-account-token>"; npm run deploy:training:manage-staff; Remove-Item Env:SUPABASE_ACCESS_TOKEN
+```
+
 ## Step 5. Auth settings
 
 As 01 step 5, with the training address:
@@ -138,9 +154,10 @@ training site.
 
 ## Practice data
 
-> **Don't use `npm run db:seed-load` / `db:clean-load` for this.** They run
-> on the project this folder is *linked* to, which is the **live** one
-> (step 3 keeps it that way).
+> `npm run db:seed-load` / `db:clean-load` run on our training project
+> (`qyoyuukpdjrwfhovtrwd`), named in `package.json`, even though the folder
+> stays linked to the live one (step 3). For another training project, use
+> its SQL Editor as below.
 
 ### A full parish's worth (recommended for training)
 
@@ -180,6 +197,23 @@ From the command line instead (needs the training database password):
 
 ```bash
 npx supabase db query --db-url "<staging-db-url>" -f supabase/seed/load-test.sql
+```
+
+### A first census with last year's list (after the load test)
+
+[`supabase/seed/first-census-san-roque.sql`](../supabase/seed/first-census-san-roque.sql)
+turns GKK Sr. San Roque -Meohao into a GKK's first census in the registry:
+last year's paper list of 30 heads, 12 of them registered on the website
+since the census opened (7 waiting to be verified, 5 verified), 2 new
+families not on the list, and 18 names still to visit. It also includes a
+wife who registered in her husband's place ("Choose household") and a name
+registered in another GKK. Needs an open census and the load-test data.
+It deletes the GKK's other load-test households. Run it the same way as the
+load test, or with the Supabase CLI logged in to an account that can see
+the training project:
+
+```bash
+npx supabase db query --linked --project-ref qyoyuukpdjrwfhovtrwd -f supabase/seed/first-census-san-roque.sql
 ```
 
 ### Six sample households (quick check)
@@ -226,9 +260,13 @@ on practice data and never on the live registry.
    npx supabase functions deploy --project-ref <staging-ref> --use-api
    ```
 
+   (our training project: `npm run deploy:training`)
+
    ```bash
    npx supabase functions deploy --project-ref <ref> --use-api
    ```
+
+   (our live project: `npm run deploy:live`)
 
 ## Checklist
 

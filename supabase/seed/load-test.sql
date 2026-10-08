@@ -4,8 +4,8 @@
 -- public site with realistic volumes.
 --
 -- Training site: paste this file into the training project's SQL Editor
--- (deploy/02-staging.md). `npm run db:seed-load` runs it on the *linked*
--- project, which is the live one.
+-- (deploy/02-staging.md), or run `npm run db:seed-load`, which names the
+-- training project (never the live one, whatever the folder is linked to).
 -- Remove:  load-test-clean.sql, the same way.
 --
 -- GKKs: the parish's 16 GKKs (as on the live registry, October 2026) are
