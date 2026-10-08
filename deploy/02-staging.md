@@ -144,11 +144,17 @@ training site.
 
 ### A full parish's worth (recommended for training)
 
-[`supabase/seed/load-test.sql`](../supabase/seed/load-test.sql): 500
-households and 2,000 members spread over every GKK, with sacraments,
-requests, blood donors and website posts. Every record is marked (`SEED-…`
-reference numbers, **[Test]** titles) and can be removed in one step.
-Details: [docs/load-test-data.md](../docs/load-test-data.md).
+[`supabase/seed/load-test.sql`](../supabase/seed/load-test.sql): the
+parish's 16 GKKs (added if missing), then 500 households and 2,000 members
+spread evenly over them, with sacraments, requests, blood donors and website
+posts. Every record is marked (old reference number `SEED-…`, **[Test]**
+titles) and can be removed in one step; the GKKs stay. Details:
+[docs/load-test-data.md](../docs/load-test-data.md).
+
+The 4 starter GKKs from `0001_init.sql` (GKK San Lorenzo Ruiz, San Pedro
+Calungsod, San Isidro, Sto. Niño, with no barangay) get no households. Delete
+them in the training admin (Parish Config → Parish GKK) if you don't want them
+in the lists.
 
 1. Training admin: if trainees will practise the census, **start a census
    first** (Census → Start a census). The seed then also adds census answers
@@ -186,7 +192,7 @@ or not, so check `.env` points at the training project first.
 ### Not seeded
 
 Staff and trainee logins (make them in Settings → Staff), parish settings,
-photo storage and email settings. The seed uses the GKK, ministry and
+photo storage and email settings. The seed uses the ministry and
 organization lists already in Parish Config.
 
 ### Local development

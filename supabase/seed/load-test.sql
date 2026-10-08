@@ -1,18 +1,31 @@
--- Load-test seed: 500 households with members and everything that hangs off
--- them, plus requests and website content, so list pages, reports and the
--- public site can be timed with realistic volumes.
+-- Load-test seed: the parish's GKKs, then 500 households with members and
+-- everything that hangs off them, plus requests and website content. For the
+-- training site (practice data) and for timing list pages, reports and the
+-- public site with realistic volumes.
 --
--- Run:     npm run db:seed-load     (supabase db query --linked -f supabase/seed/load-test.sql)
--- Remove:  npm run db:clean-load    (supabase/seed/load-test-clean.sql)
+-- Training site: paste this file into the training project's SQL Editor
+-- (deploy/02-staging.md). `npm run db:seed-load` runs it on the *linked*
+-- project, which is the live one.
+-- Remove:  load-test-clean.sql, the same way.
+--
+-- GKKs: the parish's 16 GKKs (as on the live registry, October 2026) are
+-- added if missing, and the households are spread evenly over them. Other
+-- GKKs already in the database are left alone and get no households. The
+-- GKKs stay after the cleanup.
 --
 -- Not seeded: settings (parish, media, email, notifications), staff accounts,
 -- the activity log / trash, rate-limit logs, census access codes and the
--- reference lists (GKKs, ministries, organizations, positions), which are
--- used as they are.
+-- other lists (ministries, organizations, positions), which are used as
+-- they are.
+--
+-- Households get ordinary reference numbers (e.g. MEO-2025-0001): since
+-- 0047 the database numbers every new household itself. They use up those
+-- numbers, which is one more reason to seed the training site, not the live
+-- one.
 --
 -- Every seeded row is marked so the cleanup removes exactly these and nothing
 -- real:
---   households            ref_no 'SEED-0001' … (members, sacrament
+--   households            previous_ref_no 'SEED-0001' … (members, sacrament
 --                         verifications and census rows go with them)
 --   requests              ref_no 'SEED-CR-…' / 'SEED-SR-…' / 'SEED-BR-…'
 --   blood donors          notes 'Load-test seed'
@@ -64,17 +77,38 @@ declare
   helps text[];
   part_key text;
 begin
-  if exists (select 1 from households where ref_no like 'SEED-%') then
-    raise exception 'Load-test seed is already in the database. Run the cleanup (npm run db:clean-load) first.';
+  if exists (select 1 from households where previous_ref_no like 'SEED-%' or ref_no like 'SEED-%') then
+    raise exception 'Load-test seed is already in the database. Run the cleanup (load-test-clean.sql) first.';
   end if;
 
   perform setseed(0.4242);
-  select array_agg(name order by name) into gkk_list from gkks;
+
+  -- The parish's GKKs. The barangay is the part after " -" (it gives the
+  -- reference number code, e.g. MEO for Meohao).
+  gkk_list := array[
+    'GKK Birhen sa Fatima -Mua-an',
+    'GKK Birhen sa Lourdes -Mua-an',
+    'GKK Immaculada Conception -Mua-an',
+    'GKK Inahan sa Kanunayng Panabang -Lumot',
+    'GKK INAHAN SA KANUNAYNG PANABANG Sto. Niño Chapel - Birada Martinez',
+    'GKK Sagrada Pamilya -Ilomavis',
+    'GKK San Isidro Labrador -Birada Center',
+    'GKK San Jose -Ginatilan',
+    'GKK San Juan Bautista -Meohao',
+    'GKK San Pedro Calungsod -Balabag',
+    'GKK Santa Monica -Birada Martinez',
+    'GKK Santo Rosario -Meohao',
+    'GKK Sr. San Roque -Birada Center',
+    'GKK Sr. San Roque -Meohao',
+    'GKK STA. FILOMENA Sto. Niño Chapel -Balabag',
+    'GKK STA. RITA DE CASCIA Sto. Niño Chapel -Ginatilan'
+  ];
+  insert into gkks (name) select unnest(gkk_list) on conflict (name) do nothing;
+
   select coalesce(array_agg(name order by name), '{}') into ministry_list from ministries;
   select coalesce(array_agg(name order by name), '{}') into org_list from organizations;
   select coalesce(array_agg(name order by name), '{}') into position_list from parish_positions;
   select id into open_cycle from census_cycles where status = 'Open' order by id desc limit 1;
-  if gkk_list is null then raise exception 'Add at least one GKK before seeding.'; end if;
 
   -- -------------------------------------------------------------------------
   -- Households and members
@@ -104,11 +138,11 @@ begin
     select coalesce(array_agg(x), '{}') into helps from unnest(help_keys) x where random() < 0.4;
 
     insert into households (household_name, street, barangay, city, province, zip, contact, email, gkk, family_grouping,
-                            status, volunteer, notify_optin, consent, ref_no, created_at, updated_at, participation, help_ways,
+                            status, volunteer, notify_optin, consent, previous_ref_no, created_at, updated_at, participation, help_ways,
                             verified_at, verified_by_name)
     values (hh_name,
             streets[1 + floor(random() * array_length(streets, 1))::int],
-            coalesce(nullif(trim(split_part(gkk_name, '-', 2)), ''), 'Mua-an'),
+            coalesce(gkk_barangay(gkk_name), 'Mua-an'),
             'Kidapawan City', 'North Cotabato', '9400',
             '09' || lpad((100000000 + i * 7919 % 899999999)::text, 9, '0'),
             case when random() < 0.25 then lower(replace(head_first, ' ', '')) || '.' || lower(replace(last_name, ' ', '')) || i || '@example.com' end,
@@ -272,7 +306,7 @@ select 'SEED-CR-' || lpad(g::text, 4, '0'),
        c, c, c
 from generate_series(1, 150) g
 cross join lateral (select now() - random() * interval '365 days' as c) t
-cross join lateral (select * from members where household_id in (select id from households where ref_no like 'SEED-%')
+cross join lateral (select * from members where household_id in (select id from households where previous_ref_no like 'SEED-%')
                     order by md5(g::text || id::text) limit 1) m;
 
 -- Sacrament requests (40): OCIA enrolments and Anointing of the Sick.
@@ -298,7 +332,7 @@ insert into blood_donors (full_name, mobile, blood_type, gkk, last_donated_on, s
 select (array['Mark','Jessa','Paolo','Grace','Ramon','Liezel','Junrey','Analyn'])[1 + g % 8] || ' ' || (array['Cabahug','Lumacad','Tampos','Gumapac','Bacus','Yap','Zamora','Ebarle','Pepito','Sabado'])[1 + g % 10],
        '0998' || lpad((7000000 + g)::text, 7, '0'),
        (array['A+','A-','B+','B-','AB+','AB-','O+','O-'])[1 + floor(random() * 8)::int],
-       (select name from gkks order by md5(g::text || name) limit 1),
+       (select name from gkks where gkk_barangay(name) is not null order by md5(g::text || name) limit 1),
        case when random() < 0.6 then (current_date - floor(random() * 500)::int) end,
        (array['Online','Added by staff'])[1 + floor(random() * 2)::int],
        c, 'Load-test seed', c, c
@@ -379,7 +413,7 @@ select v.id as member_id,
        case v.practice_level when 'Dili aktibo' then 'Inactive' when 'Aktibo' then 'Active' when 'Panagsa' then 'Active' end as status
 from members_with_household v
 join households h on h.id = v.household_id
-where h.ref_no like 'SEED-%'
+where h.previous_ref_no like 'SEED-%'
   and v.membership_status in ('Active', 'Inactive');
 
 delete from seed_status_fix f
@@ -396,11 +430,11 @@ where r.member_id = f.member_id and r.status in ('Active', 'Inactive') and r.sta
 commit;
 
 -- What was added (the last statement's rows are what the CLI prints).
-select (select count(*) from households where ref_no like 'SEED-%') as households,
-       (select count(*) from members m join households h on h.id = m.household_id where h.ref_no like 'SEED-%') as members,
-       (select count(*) from sacrament_verifications v join members m on m.id = v.member_id join households h on h.id = m.household_id where h.ref_no like 'SEED-%') as verifications,
-       (select count(*) from census_member_responses r join members m on m.id = r.member_id join households h on h.id = m.household_id where h.ref_no like 'SEED-%') as census_answers,
-       (select count(*) from census_submissions s join households h on h.id = s.household_id where h.ref_no like 'SEED-%') as census_submissions,
+select (select count(*) from households where previous_ref_no like 'SEED-%') as households,
+       (select count(*) from members m join households h on h.id = m.household_id where h.previous_ref_no like 'SEED-%') as members,
+       (select count(*) from sacrament_verifications v join members m on m.id = v.member_id join households h on h.id = m.household_id where h.previous_ref_no like 'SEED-%') as verifications,
+       (select count(*) from census_member_responses r join members m on m.id = r.member_id join households h on h.id = m.household_id where h.previous_ref_no like 'SEED-%') as census_answers,
+       (select count(*) from census_submissions s join households h on h.id = s.household_id where h.previous_ref_no like 'SEED-%') as census_submissions,
        (select count(*) from certificate_requests where ref_no like 'SEED-%') as certificate_requests,
        (select count(*) from sacrament_requests where ref_no like 'SEED-%') as sacrament_requests,
        (select count(*) from blood_requests where ref_no like 'SEED-%') as blood_requests,

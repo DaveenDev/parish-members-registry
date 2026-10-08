@@ -19,7 +19,8 @@ marked so it can be told apart and removed in one step.
 
 | | About |
 |---|---|
-| Households | 500, spread evenly over every GKK, registered over the past two years (about 65% Verified) |
+| GKKs | The parish's 16 GKKs, added if missing (they stay after the cleanup) |
+| Households | 500, spread evenly over those 16 GKKs (other GKKs get none), registered over the past two years (about 65% Verified) |
 | Members | 2,000: a head, often a spouse, children, sometimes a parent or grandchild, with sacraments, blood types, tribes, ministries, organizations and a few GKK roles and parish positions |
 | Sacrament verifications | 1,100, "verified" by *Seed data* |
 | Census | 800 answers and about 50 online updates waiting for review, in the census that is open (skipped if none is open) |
@@ -29,14 +30,17 @@ marked so it can be told apart and removed in one step.
 
 Not touched: settings (parish, photo storage, email, notifications), staff
 accounts, the activity log and trash, the rate-limit log, census access
-codes, and the GKK, ministry, organization and parish position lists. The
-seed uses whatever is in those lists.
+codes, and the ministry, organization and parish position lists. The seed
+uses whatever is in those lists.
+
+The 16 GKK names are written in `load-test.sql` (as on the live registry in
+October 2026). If GKKs are added or renamed, update that list.
 
 ## How test records are marked
 
 | Records | Marker |
 |---|---|
-| Households | reference number `SEED-0001` to `SEED-0500` |
+| Households | old reference number (`previous_ref_no`) `SEED-0001` to `SEED-0500`. Their own reference number is an ordinary one (e.g. `MEO-2025-0001`): the database numbers every new household itself since migration 0047 |
 | Members, sacrament verifications, census answers and updates | belong to a `SEED-` household (removed with it) |
 | Certificate, sacrament and blood requests | reference number starting `SEED-` |
 | Blood donors | notes *Load-test seed* |
