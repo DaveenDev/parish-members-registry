@@ -263,14 +263,57 @@ function HouseholdRecord({ data, parish }) {
   );
 }
 
+/** One report table, every row (households in a Families report with their members under them). */
+function PrintTable({ report }) {
+  const cell = { padding: '5px 8px', borderBottom: '1px solid #e6dcc7', fontSize: 11, textAlign: 'left' };
+  // A long report must be allowed to run across pages.
+  return (
+    <table style={{ width: '100%', borderCollapse: 'collapse', breakInside: 'auto' }}>
+      <thead>
+        <tr>{report.columns.map((c) => <th key={c} style={{ ...cell, fontWeight: 700, textTransform: 'uppercase', fontSize: 10, color: '#6b6552', borderBottom: '1.5px solid #1a2b4a' }}>{c}</th>)}</tr>
+      </thead>
+      <tbody>
+        {report.rows.map((row, i) => (
+          <React.Fragment key={i}>
+            <tr style={{ breakInside: 'avoid', breakAfter: row.families ? 'avoid' : 'auto' }}>
+              {row.cells.map((c, j) => <td key={j} style={{ ...cell, ...(row.families && { fontWeight: 700, borderBottom: 'none' }) }}>{c}</td>)}
+            </tr>
+            {/* A household's members, family by family. */}
+            {row.families && (
+              <tr style={{ breakInside: 'avoid' }}>
+                <td colSpan={report.columns.length} style={{ ...cell, paddingLeft: 20 }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 28px' }}>
+                    {row.families.map((f, k) => (
+                      <div key={k} style={{ minWidth: 200 }}>
+                        <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#8a6d1f', marginBottom: 2 }}>{f.title}</div>
+                        {f.members.map((m, j) => (
+                          <div key={j} style={{ fontSize: 10.5 }}>
+                            {m.name}<span style={{ color: '#6b6552' }}> — {[m.relationship, m.age !== '—' && `${m.age} yrs`, m.note].filter(Boolean).join(' · ')}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                </td>
+              </tr>
+            )}
+          </React.Fragment>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+
+
 /**
  * Off-screen copy of a generated report (Reports → Generate Report) for
  * printing: every row, not just the page shown on screen. Uses the same
- * #print-sheet print rules as the household record.
+ * #print-sheet print rules as the household record. A report with
+ * `sections` (Report Stats) prints each as its own titled table.
  */
 export function ReportPrintSheet({ report, parish }) {
   if (!report || report.empty) return null;
-  const cell = { padding: '5px 8px', borderBottom: '1px solid #e6dcc7', fontSize: 11, textAlign: 'left' };
   return createPortal(
     <div id="print-sheet" aria-hidden>
       <header style={{ display: 'flex', alignItems: 'center', gap: 16, borderBottom: '2px solid #1a2b4a', paddingBottom: 12, marginBottom: 16 }}>
@@ -283,40 +326,13 @@ export function ReportPrintSheet({ report, parish }) {
           <div style={{ fontSize: 11, color: '#6b6552' }}>{report.meta} · Printed {new Date().toLocaleDateString()}</div>
         </div>
       </header>
-      {/* A long report must be allowed to run across pages. */}
-      <table style={{ width: '100%', borderCollapse: 'collapse', breakInside: 'auto' }}>
-        <thead>
-          <tr>{report.columns.map((c) => <th key={c} style={{ ...cell, fontWeight: 700, textTransform: 'uppercase', fontSize: 10, color: '#6b6552', borderBottom: '1.5px solid #1a2b4a' }}>{c}</th>)}</tr>
-        </thead>
-        <tbody>
-          {report.rows.map((row, i) => (
-            <React.Fragment key={i}>
-              <tr style={{ breakInside: 'avoid', breakAfter: row.families ? 'avoid' : 'auto' }}>
-                {row.cells.map((c, j) => <td key={j} style={{ ...cell, ...(row.families && { fontWeight: 700, borderBottom: 'none' }) }}>{c}</td>)}
-              </tr>
-              {/* A household's members, family by family. */}
-              {row.families && (
-                <tr style={{ breakInside: 'avoid' }}>
-                  <td colSpan={report.columns.length} style={{ ...cell, paddingLeft: 20 }}>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px 28px' }}>
-                      {row.families.map((f, k) => (
-                        <div key={k} style={{ minWidth: 200 }}>
-                          <div style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase', color: '#8a6d1f', marginBottom: 2 }}>{f.title}</div>
-                          {f.members.map((m, j) => (
-                            <div key={j} style={{ fontSize: 10.5 }}>
-                              {m.name}<span style={{ color: '#6b6552' }}> — {[m.relationship, m.age !== '—' && `${m.age} yrs`, m.note].filter(Boolean).join(' · ')}</span>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </React.Fragment>
-          ))}
-        </tbody>
-      </table>
+      {report.sections ? report.sections.map((s) => (
+        <section key={s.title} style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#1a2b4a' }}>{s.title}</div>
+          {s.meta && <div style={{ fontSize: 10.5, color: '#6b6552', marginBottom: 4 }}>{s.meta}</div>}
+          <PrintTable report={s} />
+        </section>
+      )) : <PrintTable report={report} />}
     </div>,
     document.body
   );

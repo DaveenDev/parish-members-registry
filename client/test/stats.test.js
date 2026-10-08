@@ -90,9 +90,18 @@ describe('shapeReport', () => {
 
   test('sacrament completion and participation are shares of all members', () => {
     const r = shapeReport(raw);
-    assert.deepEqual(r.sacCompletion[0], { label: 'Baptism', n: 30, missing: 10, w: '75%' });
+    assert.deepEqual(r.sacCompletion[0], { label: 'Baptism', n: 30, missing: 10, of: 40, w: '75%' });
     assert.equal(r.participation[0].w, '25%');
     assert.equal(r.anyVolunteer, 30);
+  });
+
+  test('with 0070, sacraments count against members old enough for them', () => {
+    const r = shapeReport({
+      ...raw,
+      sacrament_eligible: { baptism: 40, communion: 30, confirmation: 30, matrimony: 20 },
+      sacrament_missing: { baptism: 10, communion: 12, confirmation: 15, matrimony: 15 },
+    });
+    assert.deepEqual(r.sacCompletion[2], { label: 'Confirmation', n: raw.sacraments.confirmation, missing: 15, of: 30, w: '50%' });
   });
 
   test('blood counts come out in the usual order, skipping types nobody has', () => {

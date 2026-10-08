@@ -11,8 +11,13 @@ import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
 import { MEMBERSHIP_STATUSES, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, registryVsLastYear, householdsVsPreviousCensus, previousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet } from './lib/census.js';
-import { sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows } from './lib/reports.js';
-import { certTypeLabel } from './lib/requests.js';
+import {
+  sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows, personName, SACRAMENT_MIN_AGE, missingSacrament,
+  candidatesByGkk, churchWeddingCandidates, sacramentsByYear, AGE_GROUPS, inAgeGroup, ageSexRows, breakdownRows, celebrationsInMonth, statusChanges,
+  waitingForVerification, helpWayLabel, volunteerPool, verificationsByStaff, groupMakeupRows, busyMembers, gkkOfficerRows, parishRoleRows,
+  requestOutcomeRows, feesByMonth, byGkk, peso, missingDetails, dataQualityByGkk, householdProblems, censusComparisonRows,
+} from './lib/reports.js';
+import { certTypeLabel, sacramentRequestLabel, SACRAMENT_REQUEST_OPEN, BLOOD_OPEN } from './lib/requests.js';
 import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
 import { MEN_ONLY_FALLBACK, menOnlyBlocked, menOnlyMessage } from './lib/ministries.js';
 import { resizePhotoBlob } from './lib/images.js';
@@ -1612,20 +1617,25 @@ export const api = {
     return shapeReport({ ...data, family_stats: families });
   },
 
-  async reportSources() {
-    const types = {
-      Members: { types: ['By GKK', 'By Sacrament', 'By Ministry / Organization'] },
-      Households: { types: ['By Status', 'By GKK', 'By registration month'] },
-      Sacraments: { types: ['Verification progress by GKK'] },
-      Census: { types: ['Results by GKK', 'Households vs last year', 'Not yet registered', 'Members not confirmed'] },
-      Requests: { types: ['Certificate turnaround'] },
-    };
-    return { sources: Object.keys(types), types };
-  },
-
-  async generateReport({ source, type, gkk = 'All', status = 'All', dateFrom, dateTo, sacrament, group, cycleId }) {
+  /**
+   * One report from Reports → Generate Report: { title, meta, columns, rows:
+   * [{ cells, families?, csvLines? }], empty, csvColumns }. Reports/lib
+   * reports.js do the counting; this fetches the rows (every page of them).
+   * `blood` is false for accounts that can't see blood types.
+   */
+  async generateReport({ source, type, gkk = 'All', status = 'All', dateFrom, dateTo, sacrament, received = 'Received', group, cycleId, ageGroup, month, volunteer = 'All', missing = 'Any', blood = true }) {
     const table = (title, meta, columns, rows) => ({ title, meta, columns, rows: rows.map((cells) => ({ cells })), empty: rows.length === 0, csvColumns: columns });
     const range = [dateFrom && `from ${dateFrom}`, dateTo && `to ${dateTo}`].filter(Boolean).join(' ');
+    const where = gkk && gkk !== 'All' ? ` · ${gkk}` : '';
+    const days = (n) => (n === null || n === undefined ? '—' : `${n} day(s)`);
+    const date = (v) => (v ? new Date(v).toLocaleDateString() : '—');
+    const members = (opts) => reportMembers({ gkk, ...opts });
+    // A member's line in the member lists.
+    const memberColumns = ['Name', 'Household', 'GKK', 'Sex', 'Age', 'Birth date', 'Civil status', 'Relationship', 'Contact'];
+    const memberCells = (m) => [
+      personName(m), m.household_name, m.household_gkk || '—', bis(SEX_LABELS, m.sex) || '—', m.age ?? '—', m.dob || '—',
+      bis(CIVIL_STATUS_LABELS, m.civil_status) || '—', bis(RELATIONSHIP_LABELS, m.relationship) || '—', m.contact || '—',
+    ];
 
     if (source === 'Households' && type === 'By registration month') {
       const list = await fetchAll(() => householdQuery(supabase.from('households_with_count').select('id, created_at, status, member_count, gkk'), { gkk, sortKey: 'registered', sortDir: 'asc' }));
@@ -1635,16 +1645,70 @@ export const api = {
         rows.map((r) => [monthName(r.month), r.households, r.members, r.verified]));
     }
 
+    if (source === 'Households') {
+      let list = await fetchAll(() => householdQuery(supabase.from('households_with_count')
+        .select('id, ref_no, household_name, head_name, gkk, family_grouping, member_count, status, contact, volunteer, help_ways, created_at, verified_at, verified_by_name'),
+      { gkk, sortKey: 'name', sortDir: 'asc' }));
+      if (type === 'Waiting for verification') {
+        const rows = waitingForVerification(list);
+        const oldest = rows[0];
+        return table('Households waiting for verification', rows.length ? `${rows.length} pending household(s), the longest waiting ${oldest.days} day(s)${where}` : `No household is waiting${where}`,
+          ['Household', 'Ref no', 'Head', 'GKK', 'Members', 'Registered', 'Days waiting'],
+          rows.map((h) => [h.household_name, h.ref_no || '—', h.head_name || '—', h.gkk || '—', h.member_count, date(h.created_at), h.days]));
+      }
+      if (type === 'Volunteer pool') {
+        const rows = volunteerPool(list, volunteer);
+        const yes = rows.filter((h) => h.volunteer === 'Yes').length;
+        return table('Volunteer pool', `${yes} household(s) said Yes · ${rows.length - yes} said Maybe${where}`,
+          ['Household', 'GKK', 'Volunteer', 'Ways they can help', 'Head', 'Contact'],
+          rows.map((h) => [h.household_name, h.gkk || '—', h.volunteer, (h.help_ways || []).map(helpWayLabel).join(', ') || '—', h.head_name || '—', h.contact || '—']));
+      }
+      if (type === 'Verifications by staff') {
+        const rows = verificationsByStaff(list, { dateFrom, dateTo });
+        const total = rows.reduce((n, r) => n + r.verified, 0);
+        return table('Verifications by staff', `${total} household(s) verified ${range || 'so far'}${where}`.replace('  ', ' '),
+          ['Month', 'Verified by', 'Households verified', 'Average days from registration'],
+          rows.map((r) => [monthName(r.month), r.staff, r.verified, days(r.avgDays)]));
+      }
+      if (type === 'By Status' && status && status !== 'All') list = list.filter((h) => h.status === status);
+      if (dateFrom || dateTo) list = list.filter((h) => inDateRange(h.created_at, dateFrom, dateTo));
+      if (type === 'By GKK') list = [...list].sort(byGkk((h) => h.gkk, (a, b) => a.household_name.localeCompare(b.household_name)));
+      const gkks = new Set(list.map((h) => h.gkk || ''));
+      return table(`Households — ${type}`, `${list.length} household(s)${type === 'By GKK' ? ` in ${gkks.size} GKK(s)` : ''}${where}`,
+        ['Ref no', 'Household', 'Head', 'GKK', 'Grouping', 'Members', 'Status', 'Registered', 'Verified by'],
+        list.map((h) => [h.ref_no || '—', h.household_name, h.head_name || '—', h.gkk || '—', h.family_grouping || '—', h.member_count, h.status, date(h.created_at), h.verified_by_name || '—']));
+    }
+
     if (source === 'Sacraments') {
-      let list = await fetchAll(() => supabase.from('members_with_household')
-        .select('id, household_gkk, has_baptism, has_communion, has_confirmation, has_matrimony, baptism_verified, communion_verified, confirmation_verified, matrimony_verified')
-        .eq('is_current', true).order('id'));
-      if (gkk !== 'All') list = list.filter((m) => m.household_gkk === gkk);
-      const rows = sacramentProgressRows(list);
-      const cell = (x) => `${x.verified} of ${x.claimed}`;
-      return table('Sacrament verification progress', `Verified of claimed, for ${list.length} current member(s)`,
-        ['GKK', 'Members', ...SACRAMENTS.map((x) => x.label), 'Waiting'],
-        rows.map((r) => [r.label, r.members, ...SACRAMENTS.map((x) => cell(r[x.key])), r.waiting]));
+      if (type === 'Verification progress by GKK') {
+        const list = await members({ columns: 'id, household_gkk, has_baptism, has_communion, has_confirmation, has_matrimony, baptism_verified, communion_verified, confirmation_verified, matrimony_verified' });
+        const rows = sacramentProgressRows(list);
+        const cell = (x) => `${x.verified} of ${x.claimed}`;
+        return table('Sacrament verification progress', `Verified of claimed, for ${list.length} current member(s)`,
+          ['GKK', 'Members', ...SACRAMENTS.map((x) => x.label), 'Waiting'],
+          rows.map((r) => [r.label, r.members, ...SACRAMENTS.map((x) => cell(r[x.key])), r.waiting]));
+      }
+      const list = await members();
+      if (type === 'Candidates by GKK') {
+        const { rows, total } = candidatesByGkk(list);
+        const line = (r) => [r.label, r.members, r.baptism, r.communion, r.confirmation];
+        return table('Sacrament candidates by GKK',
+          `Members old enough who haven't received each sacrament (First Communion and Confirmation from ${SACRAMENT_MIN_AGE.communion}). For their names: Members → By Sacrament → Not yet received${where}`,
+          ['GKK', 'Members', 'Not baptized', 'No First Communion', 'Not confirmed'], rows.length ? [...rows.map(line), ...(rows.length > 1 ? [line(total)] : [])] : []);
+      }
+      if (type === 'Couples for a church wedding') {
+        const rows = churchWeddingCandidates(list);
+        return table('Couples for a church wedding', `${rows.length} couple(s) or member(s) living together, or married without a church wedding on record${where}`,
+          ['Couple', 'Situation', 'Married on', 'Household', 'GKK', 'Contact'],
+          rows.map((r) => [r.names, r.situation, r.married || '—', r.household, r.gkk, r.contact]));
+      }
+      if (type === 'Received by year') {
+        const { rows, undated } = sacramentsByYear(list);
+        const missingDates = Object.values(undated).reduce((a, b) => a + b, 0);
+        return table('Sacraments received by year', `From the dates on members' records; a wedding counts once per couple. ${missingDates} sacrament(s) have no date on record${where}`,
+          ['Year', 'Baptisms', 'First Communions', 'Confirmations', 'Weddings'],
+          rows.map((r) => [r.year, r.baptism, r.communion, r.confirmation, r.matrimony]));
+      }
     }
 
     if (source === 'Census') {
@@ -1654,7 +1718,6 @@ export const api = {
       // Against last year's list or the previous census, as Parish Config -> Last year's list says (0048).
       if (type === 'Households vs last year' || type === 'Not yet registered') {
         const res = await api.censusVsLastYear(cycle, cycles, gkk === 'All' ? null : gkk);
-        const where = gkk === 'All' ? '' : ` · ${gkk}`;
         const baseline = vsLastYearBaseline(res);
         const noBaseline = res.mode === 'count'
           ? `No baseline to compare with: type each GKK's households last year in Parish GKK, or turn the list on${where}`
@@ -1681,38 +1744,195 @@ export const api = {
         return table(`${cycle?.label || 'Census'} — results by GKK`, `${sum.total.total} member(s)`,
           ['GKK', ...sum.columns, 'Total', 'Confirmed %'], sum.rows.length ? [...sum.rows.map(row), row(sum.total)] : []);
       }
-      let q = supabase.from('members_with_household').select('*').eq('is_current', true).eq('census_confirmed', false);
-      if (gkk !== 'All') q = q.eq('household_gkk', gkk);
-      const list = await fetchAll(() => q.order('household_gkk').order('household_name').order('id'));
-      return table(`${cycle?.label || 'Census'} — not confirmed yet`, `${list.length} current member(s) not confirmed in the latest census`,
+      if (type === 'Compared with the census before') {
+        const before = cycle && previousCensus(cycles, cycle);
+        if (!before) return table(`${cycle?.label || 'Census'} — compared with the census before`, 'There is no earlier census to compare with', [], []);
+        const scoped = (rows) => (gkk === 'All' ? rows : rows.filter((r) => r.gkk === gkk));
+        const [prev, cur] = await Promise.all([api.censusSummary(before.id), api.censusSummary(cycleId)]);
+        const { rows, total } = censusComparisonRows(summarizeCensus(scoped(prev)), summarizeCensus(scoped(cur)));
+        const line = (r) => [r.label, r.before, r.now, r.change > 0 ? `+${r.change}` : r.change, r.deceased, r.movedAway, r.left, r.notConfirmed];
+        return table(`${cycle.label} — compared with ${before.label}`,
+          `Members counted (confirmed and still in the parish): ${total.before} in ${before.label}, ${total.now} in ${cycle.label}${where}`,
+          ['GKK', `Counted in ${before.label}`, `Counted in ${cycle.label}`, 'Change', 'Deceased', 'Moved away', 'Left the Church', 'Not confirmed yet'],
+          rows.length ? [...rows.map(line), ...(rows.length > 1 ? [line(total)] : [])] : []);
+      }
+      // Members not confirmed in the chosen census (not always the latest one).
+      const [list, confirmed] = await Promise.all([
+        members({ columns: 'id, first_name, last_name, suffix, household_name, household_gkk, age, contact' }),
+        fetchAll(() => supabase.from('census_member_responses').select('member_id').eq('cycle_id', Number(cycleId)).order('member_id')),
+      ]);
+      const done = new Set(confirmed.map((r) => r.member_id));
+      const rows = list.filter((m) => !done.has(m.id))
+        .sort(byGkk((m) => m.household_gkk, (a, b) => a.household_name.localeCompare(b.household_name)));
+      return table(`${cycle?.label || 'Census'} — not confirmed yet`, `${rows.length} current member(s) not confirmed in ${cycle?.label || 'this census'}${where}`,
         ['Name', 'Household', 'GKK', 'Age', 'Contact'],
-        list.map((m) => [memberFullName(m), m.household_name, m.household_gkk || '—', m.age ?? '—', m.contact || '—']));
+        rows.map((m) => [personName(m), m.household_name, m.household_gkk || '—', m.age ?? '—', m.contact || '—']));
     }
 
     if (source === 'Requests') {
-      const list = await fetchAll(() => supabase.from('certificate_requests').select('id, cert_type, status, created_at, released_at').order('id'));
-      const rows = turnaroundRows(list, { dateFrom, dateTo, typeLabel: certTypeLabel });
-      const days = (n) => (n === null ? '—' : `${n} day(s)`);
-      return table('Certificate turnaround', `Requests received ${range || 'so far'}`.trim(),
-        ['Certificate', 'Received', 'Released', 'Average to release', 'Longest', 'Still open', 'Oldest open'],
-        rows.map((r) => [r.label, r.received, r.released, days(r.avgDays), days(r.maxDays), r.open, r.open ? days(r.oldestOpen) : '—']));
+      if (type === 'Certificate turnaround') {
+        const list = await fetchAll(() => supabase.from('certificate_requests').select('id, cert_type, status, created_at, released_at').order('id'));
+        const rows = turnaroundRows(list, { dateFrom, dateTo, typeLabel: certTypeLabel });
+        return table('Certificate turnaround', `Requests received ${range || 'so far'}`.trim(),
+          ['Certificate', 'Received', 'Released', 'Average to release', 'Longest', 'Still open', 'Oldest open'],
+          rows.map((r) => [r.label, r.received, r.released, days(r.avgDays), days(r.maxDays), r.open, r.open ? days(r.oldestOpen) : '—']));
+      }
+      if (type === 'Certificate fees by month') {
+        const list = await fetchAll(() => supabase.from('certificate_requests').select('id, fee, or_number, released_at').not('released_at', 'is', null).order('id'));
+        const rows = feesByMonth(list, { dateFrom, dateTo });
+        const sum = rows.reduce((n, r) => n + r.total, 0);
+        return table('Certificate fees by month', `${peso(sum)} from ${rows.reduce((n, r) => n + r.released, 0)} certificate(s) released ${range || 'so far'}`.trim(),
+          ['Month', 'Released', 'With a fee', 'Fees', 'No OR number'],
+          rows.map((r) => [monthName(r.month), r.released, r.paid, peso(r.total), r.noOr]));
+      }
+      if (type === 'Sacrament requests') {
+        const list = await fetchAll(() => supabase.from('sacrament_requests').select('id, sacrament, status, created_at, status_changed_at').order('id'));
+        const rows = requestOutcomeRows(list, {
+          dateFrom, dateTo, groupOf: (r) => r.sacrament, labelOf: sacramentRequestLabel,
+          done: 'Done', closed: ['Cancelled'], open: SACRAMENT_REQUEST_OPEN,
+        });
+        return table('Sacrament requests', `Requests received ${range || 'so far'}; days to done run to when each was marked Done`.trim(),
+          ['Request', 'Received', 'Done', 'Cancelled', 'Still open', 'Average to done', 'Oldest open'],
+          rows.map((r) => [r.label, r.received, r.done, r.closed, r.open, days(r.avgDays), r.open ? days(r.oldestOpen) : '—']));
+      }
+      if (type === 'Blood requests') {
+        const list = await fetchAll(() => supabase.from('blood_requests').select('id, blood_type, units, status, created_at, status_changed_at').order('id'));
+        const rows = requestOutcomeRows(list, {
+          dateFrom, dateTo, groupOf: (r) => r.blood_type, units: (r) => r.units,
+          done: 'Fulfilled', closed: ['Closed'], open: BLOOD_OPEN,
+        }).sort((a, b) => BLOOD_TYPES.indexOf(a.label) - BLOOD_TYPES.indexOf(b.label));
+        return table('Blood requests', `Requests received ${range || 'so far'}, by the blood type asked for`.trim(),
+          ['Blood type', 'Requests', 'Units asked', 'Fulfilled', 'Closed unfulfilled', 'Still open', 'Average to fulfilled', 'Oldest open'],
+          rows.map((r) => [r.label, r.received, r.units, r.done, r.closed, r.open, days(r.avgDays), r.open ? days(r.oldestOpen) : '—']));
+      }
+    }
+
+    if (source === 'Celebrations') {
+      const kind = type === 'Birthdays' ? 'birthday' : 'anniversary';
+      const m = Number(month) || new Date().getMonth() + 1;
+      const monthLabel = new Date(2000, m - 1, 1).toLocaleDateString('en-US', { month: 'long' });
+      const rows = celebrationsInMonth(await members(), m, kind);
+      if (kind === 'birthday') {
+        return table(`Birthdays in ${monthLabel}`, `${rows.length} member(s)${where}`,
+          ['Day', 'Name', 'Turns', 'Household', 'GKK', 'Contact'],
+          rows.map((r) => [r.day, r.name, r.years, r.household, r.gkk, r.contact]));
+      }
+      return table(`Wedding anniversaries in ${monthLabel}`, `${rows.length} couple(s)${where}`,
+        ['Day', 'Couple', 'Years', 'Wedding', 'Household', 'GKK', 'Contact'],
+        rows.map((r) => [r.day, r.name, r.years, bis(WEDDING_TYPE_LABELS, r.type) || '—', r.household, r.gkk, r.contact]));
+    }
+
+    if (source === 'Ministries & organizations') {
+      if (type === 'GKK officers') {
+        const names = gkk === 'All' ? (await api.listGkks()).rows.map((g) => g.name) : [gkk];
+        const rows = gkkOfficerRows(await members({ columns: 'id, first_name, last_name, suffix, household_gkk, gkk_role, contact' }), names);
+        const vacant = rows.filter((r) => r.vacant).length;
+        return table('GKK officers', `${rows.length - vacant} officer(s) · ${vacant} vacant role(s)${where}`,
+          ['GKK', 'Role', 'Officer', 'Contact'], rows.map((r) => [r.gkk, r.role, r.name, r.contact]));
+      }
+      const list = await members();
+      if (type === 'Parish roles') {
+        const rows = parishRoleRows(list);
+        return table('Parish roles', `${rows.length} member(s) with a Katungdanan sa Parish${where}`,
+          ['Role', 'Member', 'GKK', 'Contact'], rows.map((r) => [r.role, r.name, r.gkk, r.contact]));
+      }
+      if (type === 'Members in 3 or more groups') {
+        const rows = busyMembers(list, 3);
+        return table('Members in 3 or more groups', `${rows.length} member(s) serving in three or more ministries and organizations${where}`,
+          ['Name', 'Groups', 'Ministries & organizations', 'GKK', 'Age', 'Contact'],
+          rows.map((m) => [personName(m), m.groups.length, m.groups.join(', '), m.household_gkk || '—', m.age ?? '—', m.contact || '—']));
+      }
+      const [mins, orgs] = await Promise.all([api.listMinistries(), api.listOrganizations()]);
+      const groups = [...mins.rows.map((g) => ({ name: g.name, kind: 'Ministry' })), ...orgs.rows.map((g) => ({ name: g.name, kind: 'Organization' }))];
+      let rows = groupMakeupRows(list, groups);
+      const small = type === 'Small or empty groups';
+      if (small) rows = rows.filter((r) => r.members < SMALL_GROUP).sort((a, b) => a.members - b.members || a.name.localeCompare(b.name));
+      return table(small ? 'Small or empty groups' : 'Make-up of each group',
+        small ? `${rows.length} group(s) with fewer than ${SMALL_GROUP} current members${where}` : `${groups.length} ministries and organizations, current members only${where}`,
+        ['Group', 'Kind', 'Members', 'Male', 'Female', 'Under 18', '18–30', '31–59', '60 and up', 'No birth date', 'GKKs'],
+        rows.map((r) => [r.name, r.kind, r.members, r.male, r.female, r.under18, r.y18, r.y31, r.y60, r.noAge, r.gkks]));
+    }
+
+    if (source === 'Data quality') {
+      if (type === 'Households with problems') {
+        const houses = await fetchAll(() => householdQuery(supabase.from('households').select('id, ref_no, household_name, gkk, contact'), { gkk, sortKey: 'name', sortDir: 'asc' }));
+        const people = houses.length ? await fetchAll(() => {
+          let q = supabase.from('members_with_household').select('id, household_id, relationship, contact, is_current');
+          if (gkk !== 'All') q = q.eq('household_gkk', gkk);
+          return q.order('id');
+        }) : [];
+        const rows = householdProblems(houses, people);
+        return table('Households with problems', `${rows.length} of ${houses.length} household(s) need fixing${where}`,
+          ['Household', 'Ref no', 'GKK', 'Problems'], rows.map((h) => [h.household_name, h.ref_no || '—', h.gkk || '—', h.problems.join(', ')]));
+      }
+      const list = await members();
+      if (type === 'Missing details by GKK') {
+        const { fields, rows, total } = dataQualityByGkk(list, { blood });
+        const line = (r) => [r.label, r.members, ...fields.map((f) => r[f.key]), r.completePct];
+        return table('Missing details by GKK', `${total.complete} of ${total.members} current member(s) have nothing missing${where}`,
+          ['GKK', 'Members', ...fields.map((f) => `No ${f.label.toLowerCase()}`), 'Complete'],
+          rows.length ? [...rows.map(line), ...(rows.length > 1 ? [line(total)] : [])] : []);
+      }
+      const rows = list.map((m) => ({ m, missing: missingDetails(m, { blood }) }))
+        .filter((r) => r.missing.length && (missing === 'Any' || r.missing.includes(missing)))
+        .sort(byGkk((r) => r.m.household_gkk, (a, b) => a.m.household_name.localeCompare(b.m.household_name)));
+      return table('Members with missing details', `${rows.length} current member(s)${missing === 'Any' ? '' : ` with no ${missing.toLowerCase()}`}${where}`,
+        ['Name', 'Household', 'GKK', 'Relationship', 'Age', 'Missing'],
+        rows.map(({ m, missing: miss }) => [personName(m), m.household_name, m.household_gkk || '—', bis(RELATIONSHIP_LABELS, m.relationship) || '—', m.age ?? '—', miss.join(', ')]));
     }
 
     if (source === 'Members') {
-      let list = await fetchAll(() => supabase.from('members_with_household').select('*').eq('is_current', true).order('household_name').order('id'));
-      if (gkk && gkk !== 'All') list = list.filter((m) => m.household_gkk === gkk);
+      if (type === 'Deceased' || type === 'Moved away or left the Church') {
+        const statuses = type === 'Deceased' ? ['Deceased'] : ['Moved away', 'Left the Church'];
+        const rows = statusChanges(await members({ current: false }), statuses, { dateFrom, dateTo });
+        return table(type === 'Deceased' ? 'Deceased members' : 'Members who moved away or left the Church',
+          `${rows.length} member(s)${range ? `, status recorded ${range}` : ''}${where}`,
+          ['Name', 'Status', 'Recorded', 'Household', 'GKK', 'Age', 'Contact'],
+          rows.map((m) => [personName(m), m.membership_status, date(m.status_updated_at), m.household_name, m.household_gkk || '—', m.age ?? '—', m.contact || '—']));
+      }
+      const list = await members();
+      if (type === 'Age and sex') {
+        const { rows, total } = ageSexRows(list);
+        const line = (r) => [r.label, r.male, r.female, r.other, r.total, r.share];
+        return table('Members by age and sex', `${total.total} current member(s)${where}`,
+          ['Age', 'Male', 'Female', 'Sex not recorded', 'Total', 'Share'], total.total ? [...rows.map(line), line(total)] : []);
+      }
+      const BREAKDOWNS = {
+        'By civil status': ['civil_status', 'Civil status', { adultsOnly: true, label: (v) => bis(CIVIL_STATUS_LABELS, v) }, 'Members 18 and up (or with no birth date)'],
+        'By tribe': ['tribe', 'Tribe', {}, 'Current members'],
+        'By religion': ['religion', 'Religion', {}, 'Current members; other religions show mixed-faith households'],
+      };
+      if (BREAKDOWNS[type]) {
+        const [field, label, opts, note] = BREAKDOWNS[type];
+        const { rows, total } = breakdownRows(list, field, opts);
+        return table(`Members ${type.toLowerCase()}`, `${note}: ${total}${where}`,
+          [label, 'Male', 'Female', 'Total', 'Share'], rows.map((r) => [r.label, r.male, r.female, r.total, r.share]));
+      }
+      let rows = list;
+      let title = `Members — ${type}`;
+      if (type === 'By GKK') {
+        rows = [...list].sort(byGkk((m) => m.household_gkk, (a, b) => a.household_name.localeCompare(b.household_name)));
+      }
       if (type === 'By Sacrament' && sacrament) {
-        const key = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' }[sacrament];
-        if (key) list = list.filter((m) => m[key]);
+        const s = SACRAMENTS.find((x) => x.key === sacrament);
+        const notYet = received === 'Not yet';
+        rows = list.filter((m) => (notYet ? missingSacrament(m, s.key) : m[s.has]))
+          .sort(byGkk((m) => m.household_gkk, (a, b) => (a.age ?? 999) - (b.age ?? 999)));
+        title = notYet ? `Not yet received: ${s.label}` : `Received: ${s.label}`;
       }
       if (type === 'By Ministry / Organization' && group) {
-        list = list.filter((m) => (m.ministries || []).includes(group) || (m.organizations || []).includes(group));
+        rows = list.filter((m) => (m.ministries || []).includes(group) || (m.organizations || []).includes(group));
+        title = `Members — ${group}`;
       }
-      const columns = ['Name', 'Household', 'GKK', 'Age', 'Relationship', 'Contact'];
-      const rowsOut = list.map((m) => ({
-        cells: [memberFullName(m), m.household_name, m.household_gkk || '—', m.age ?? '—', bis(RELATIONSHIP_LABELS, m.relationship) || '—', m.contact || '—'],
-      }));
-      return { title: `Members — ${type}`, meta: `${rowsOut.length} member(s)`, columns, rows: rowsOut, empty: rowsOut.length === 0, csvColumns: columns };
+      if (type === 'By age group') {
+        const g = AGE_GROUPS.find((x) => x.key === ageGroup) || AGE_GROUPS[0];
+        rows = list.filter((m) => inAgeGroup(m, g.key)).sort((a, b) => a.age - b.age || personName(a).localeCompare(personName(b)));
+        title = `Members — ${g.label}`;
+      }
+      const gkks = new Set(rows.map((m) => m.household_gkk || ''));
+      const minAge = type === 'By Sacrament' && received === 'Not yet' && SACRAMENT_MIN_AGE[sacrament]
+        ? `, ${SACRAMENT_MIN_AGE[sacrament]} and up or with no birth date` : '';
+      return table(title, `${rows.length} current member(s)${minAge}${type === 'By GKK' ? ` in ${gkks.size} GKK(s)` : ''}${where}`, memberColumns, rows.map(memberCells));
     }
 
     if (source === 'Families') {
@@ -1763,18 +1983,6 @@ export const api = {
         return { cells, families, csvLines };
       });
       return { ...table('Households with more than one family', `${multi.length} household(s), members grouped by family`, columns, []), rows, empty: !rows.length, csvColumns: [...columns, ...detail] };
-    }
-
-    if (source === 'Households') {
-      let list = await fetchAll(() => supabase.from('households').select('*').order('household_name').order('id'));
-      if (gkk && gkk !== 'All') list = list.filter((h) => h.gkk === gkk);
-      if (type === 'By Status' && status && status !== 'All') list = list.filter((h) => h.status === status);
-      if (dateFrom || dateTo) list = list.filter((h) => inDateRange(h.created_at, dateFrom, dateTo));
-      const columns = ['Household', 'GKK', 'Grouping', 'Status', 'Registered'];
-      const rowsOut = list.map((h) => ({
-        cells: [h.household_name, h.gkk || '—', h.family_grouping || '—', h.status, new Date(h.created_at).toLocaleDateString()],
-      }));
-      return { title: `Households — ${type}`, meta: `${rowsOut.length} household(s)`, columns, rows: rowsOut, empty: rowsOut.length === 0, csvColumns: columns };
     }
 
     throw new Error('Unsupported source');
@@ -2235,6 +2443,28 @@ function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, memb
   q = q.order(col, { ascending, nullsFirst: false });
   if (col !== 'household_name') q = q.order('household_name', { ascending: true });
   return q.order('id', { ascending: true });
+}
+
+// Reports → Generate Report: a ministry or organization with fewer current members than this is "small".
+const SMALL_GROUP = 5;
+
+// The member columns the reports read (not select('*'), which works out
+// every member's Practicing Catholic score).
+const REPORT_MEMBER_COLUMNS = 'id, household_id, family_no, first_name, last_name, suffix, relationship, sex, dob, age, civil_status, contact, religion, tribe, '
+  + 'blood_type, has_baptism, baptism_date, has_communion, communion_date, has_confirmation, conf_date, has_matrimony, mat_date, mat_type, '
+  + 'ministries, organizations, gkk_role, parish_role, membership_status, status_updated_at, is_current, household_name, household_gkk';
+
+/**
+ * Every member for a report: current members only (not Moved away or
+ * Deceased) unless `current` is false, in one GKK unless `gkk` is 'All'.
+ */
+async function reportMembers({ gkk = 'All', columns = REPORT_MEMBER_COLUMNS, current = true } = {}) {
+  return fetchAll(() => {
+    let q = supabase.from('members_with_household').select(columns);
+    if (current) q = q.eq('is_current', true);
+    if (gkk && gkk !== 'All') q = q.eq('household_gkk', gkk);
+    return q.order('household_name').order('id');
+  });
 }
 
 /** Build and download one of the CSV exports. Rejects if the data can't be read. */

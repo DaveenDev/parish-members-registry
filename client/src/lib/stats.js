@@ -109,8 +109,18 @@ export function shapeReport(raw = {}) {
     return { ...row, families: f ? f.families : 0, multi: f ? f.multi : 0 };
   });
 
-  const sacCompletion = [['Baptism', sac.baptism], ['First Communion', sac.communion], ['Confirmation', sac.confirmation], ['Matrimony', sac.matrimony]]
-    .map(([label, n]) => ({ label, n: num(n), missing: members - num(n), w: pct(num(n), members) }));
+  // From 0070: members old enough for each sacrament, and how many of them
+  // haven't received it, so infants don't count as missing Confirmation.
+  // Before it, every member counts.
+  const eligible = raw.sacrament_eligible || null;
+  const notYet = raw.sacrament_missing || null;
+  const sacCompletion = [['baptism', 'Baptism'], ['communion', 'First Communion'], ['confirmation', 'Confirmation'], ['matrimony', 'Matrimony']]
+    .map(([key, label]) => {
+      const n = num(sac[key]);
+      const of = eligible ? num(eligible[key]) : members;
+      const missing = notYet ? num(notYet[key]) : members - n;
+      return { label, n, missing, of, w: pct(Math.max(0, of - missing), of) };
+    });
 
   const participation = (raw.participation || []).map((g, i) => ({
     label: g.label, n: num(g.n), w: pct(num(g.n), members), color: GROUP_COLORS[i % GROUP_COLORS.length],
