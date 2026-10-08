@@ -10,6 +10,8 @@ import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
 import { multiFamilyNote } from '../../lib/stats.js';
+import { statsSections, sectionsCsv, AGE_GROUPS, MISSING_FIELDS } from '../../lib/reports.js';
+import { SACRAMENTS } from '../../constants.js';
 import { FamilyHeading } from '../../components/FamilyGroups.jsx';
 
 function Bar({ label, right, w, color }) {
@@ -58,25 +60,94 @@ function ReportFamilies({ families }) {
 
 const REPORT_TABS = [['stats', 'Report Stats'], ['gen', 'Generate Report'], ['analysis', 'Analysis Report']];
 
-// Each data source, its reports, and which scope controls a report shows.
+// Each data source (and the access it needs, lib/access.js), its reports,
+// and the scope controls each report shows: gkk, cycle (census), status,
+// dates (with `date` naming what the dates are), sacrament, received, group,
+// ageGroup, month, volunteer, missing.
+const R = (controls, extra = {}) => ({ controls, ...extra });
 const REPORTS = {
-  Members: { types: ['By GKK', 'By Sacrament', 'By Ministry / Organization'] },
-  Households: { types: ['By Status', 'By GKK', 'By registration month'] },
-  Families: { types: ['By GKK', 'Households with more than one family'] },
-  Sacraments: { types: ['Verification progress by GKK'] },
-  Census: { types: ['Results by GKK', 'Households vs last year', 'Not yet registered', 'Members not confirmed'], need: 'census' },
-  Requests: { types: ['Certificate turnaround'], need: 'requests' },
+  Members: {
+    types: {
+      'By GKK': R(['gkk']),
+      'By Sacrament': R(['gkk', 'sacrament', 'received']),
+      'By Ministry / Organization': R(['gkk', 'group']),
+      'By age group': R(['gkk', 'ageGroup']),
+      'Age and sex': R(['gkk']),
+      'By civil status': R(['gkk']),
+      'By tribe': R(['gkk']),
+      'By religion': R(['gkk']),
+      Deceased: R(['gkk', 'dates'], { date: 'Status recorded' }),
+      'Moved away or left the Church': R(['gkk', 'dates'], { date: 'Status recorded' }),
+    },
+  },
+  Celebrations: { types: { Birthdays: R(['gkk', 'month']), 'Wedding anniversaries': R(['gkk', 'month']) } },
+  Households: {
+    types: {
+      'By Status': R(['gkk', 'status', 'dates'], { date: 'Registered' }),
+      'By GKK': R(['gkk', 'dates'], { date: 'Registered' }),
+      'By registration month': R(['gkk', 'dates'], { date: 'Registered' }),
+      'Waiting for verification': R(['gkk']),
+      'Volunteer pool': R(['gkk', 'volunteer']),
+      'Verifications by staff': R(['gkk', 'dates'], { date: 'Verified' }),
+    },
+  },
+  Families: { types: { 'By GKK': R(['gkk']), 'Households with more than one family': R(['gkk']) } },
+  Sacraments: {
+    types: {
+      'Verification progress by GKK': R(['gkk']),
+      'Candidates by GKK': R(['gkk']),
+      'Couples for a church wedding': R(['gkk']),
+      'Received by year': R(['gkk']),
+    },
+  },
+  'Ministries & organizations': {
+    types: {
+      'Make-up of each group': R(['gkk']),
+      'Small or empty groups': R(['gkk']),
+      'Members in 3 or more groups': R(['gkk']),
+      'GKK officers': R(['gkk']),
+      'Parish roles': R(['gkk']),
+    },
+  },
+  Census: {
+    need: 'census',
+    types: {
+      'Results by GKK': R(['cycle']),
+      'Compared with the census before': R(['cycle', 'gkk']),
+      'Households vs last year': R(['cycle', 'gkk']),
+      'Not yet registered': R(['cycle', 'gkk']),
+      'Members not confirmed': R(['cycle', 'gkk']),
+    },
+  },
+  Requests: {
+    need: 'requests',
+    types: {
+      'Certificate turnaround': R(['dates'], { date: 'Received' }),
+      'Certificate fees by month': R(['dates'], { date: 'Released' }),
+      'Sacrament requests': R(['dates'], { date: 'Received' }),
+      'Blood requests': R(['dates'], { date: 'Received' }),
+    },
+  },
+  'Data quality': {
+    types: {
+      'Missing details by GKK': R(['gkk']),
+      'Members with missing details': R(['gkk', 'missing']),
+      'Households with problems': R(['gkk']),
+    },
+  },
 };
-function scopeFor(source, type) {
-  return {
-    gkk: ['Members', 'Households', 'Families', 'Sacraments'].includes(source) || ['Members not confirmed', 'Households vs last year', 'Not yet registered'].includes(type),
-    status: type === 'By Status',
-    dateRange: source === 'Households' || source === 'Requests',
-    sacrament: type === 'By Sacrament',
-    group: type === 'By Ministry / Organization',
-    cycle: source === 'Census',
-  };
+const MONTHS = Array.from({ length: 12 }, (_, i) => [i + 1, new Date(2000, i, 1).toLocaleDateString('en-US', { month: 'long' })]);
+
+function Control({ label, children }) {
+  return (
+    <div>
+      <div className="font-semibold text-[11px] text-parish-muted mb-1.5">{label}</div>
+      {children}
+    </div>
+  );
 }
+
+const dateInput = 'px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none';
 
 export default function Reports() {
   const toast = useToast();
@@ -89,7 +160,11 @@ export default function Reports() {
   // "?source=Families" (the Dashboard's Families card) opens that source.
   const [genSource, setGenSource] = useState(() => (REPORTS[params.get('source')] ? params.get('source') : ''));
   const [genType, setGenType] = useState('');
-  const [scope, setScope] = useState({ gkk: 'All', status: 'All', dateFrom: '', dateTo: '', sacrament: 'Baptism', group: '', cycleId: '' });
+  const [scope, setScope] = useState({
+    gkk: 'All', status: 'All', dateFrom: '', dateTo: '', sacrament: 'baptism', received: 'Received', group: '', cycleId: '',
+    ageGroup: AGE_GROUPS[0].key, month: String(new Date().getMonth() + 1), volunteer: 'All', missing: 'Any',
+  });
+  const set = (key) => (e) => setScope((s) => ({ ...s, [key]: e.target.value }));
   const [cycles, setCycles] = useState([]);
   const { user } = useAuth();
   const [ministryOptions, setMinistryOptions] = useState([]);
@@ -115,8 +190,8 @@ export default function Reports() {
   async function generate() {
     setGenerating(true);
     try {
-      // A GKK leader's reports cover their own GKK.
-      setReport(await api.generateReport({ source: genSource, type: genType, ...scope, gkk: leaderGkk(user) || scope.gkk }));
+      // A GKK leader's reports cover their own GKK; blood types only for those who may see them.
+      setReport(await api.generateReport({ source: genSource, type: genType, ...scope, gkk: leaderGkk(user) || scope.gkk, blood: can(user, 'bloodTypes') }));
     } catch (e) {
       toast.error(e.message || 'Could not generate this report');
     } finally {
@@ -133,8 +208,16 @@ export default function Reports() {
     }
   }
 
-  const meta = scopeFor(genSource, genType);
+  // The Report Stats tab as one printable, exportable report.
+  const statsReport = stats && { title: 'Report statistics', meta: `${stats.totalHH} households · ${stats.totalMembers} current members`, sections: statsSections(stats, { blood: can(user, 'bloodTypes') }) };
+  function exportStats() {
+    triggerDownload(new Blob([sectionsCsv(statsReport.sections)], { type: 'text/csv;charset=utf-8' }), 'report-statistics.csv');
+  }
+
+  const spec = REPORTS[genSource]?.types[genType];
+  const has = (c) => !!spec?.controls.includes(c);
   const sources = Object.keys(REPORTS).filter((k) => !REPORTS[k].need || can(user, REPORTS[k].need));
+  const missingOptions = MISSING_FIELDS.filter((f) => !f.blood || can(user, 'bloodTypes'));
 
   return (
     <>
@@ -151,6 +234,10 @@ export default function Reports() {
 
           {tab === 'stats' && stats && (
             <div className="flex flex-col gap-5">
+              <div className="flex justify-end gap-2 -mb-1">
+                <GhostButton onClick={() => window.print()} className="px-3.5 py-2 text-[12.5px] !text-parish-text2 !border-transparent bg-parish-sunk">Print</GhostButton>
+                <button onClick={exportStats} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg">Export CSV</button>
+              </div>
               <Panel className="px-6 py-[22px]">
                 <div className="flex items-baseline justify-between gap-3 mb-1">
                   <div className="font-serif text-[21px] font-semibold text-parish-navy">Registration Status by GKK</div>
@@ -188,9 +275,11 @@ export default function Reports() {
 
               <Panel className="px-6 py-[22px]">
                 <div className="font-serif text-[21px] font-semibold text-parish-navy mb-1">Sacramental Completion</div>
-                <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>Share of all {stats.totalMembers} registered members who have received each sacrament.</p>
+                <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>
+                  Share of the {stats.totalMembers} current members old enough for each sacrament who have received it. Children too young for it (and, for Matrimony, members under 18) don't count as missing.
+                </p>
                 <div className="flex flex-col gap-3.5">
-                  {stats.sacCompletion.map((s) => <Bar key={s.label} label={s.label} right={`${s.n} received · ${s.missing} not yet recorded`} w={s.w} color="linear-gradient(90deg,var(--p-blue),var(--p-blue-light))" />)}
+                  {stats.sacCompletion.map((s) => <Bar key={s.label} label={s.label} right={`${s.n} received · ${s.missing} old enough, not yet recorded`} w={s.w} color="linear-gradient(90deg,var(--p-blue),var(--p-blue-light))" />)}
                 </div>
               </Panel>
 
@@ -229,7 +318,7 @@ export default function Reports() {
                 <div className="grid gap-3.5 mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
                   <div>
                     <div className="font-semibold text-[12px] text-parish-ink mb-1.5">1. Data source</div>
-                    <FilterSelect value={genSource} onChange={(e) => { setGenSource(e.target.value); setGenType(''); setReport(null); }} className="w-full">
+                    <FilterSelect value={genSource} onChange={(e) => { setGenSource(e.target.value); setGenType(''); setReport(null); }} className="w-full" aria-label="Data source">
                       <option value="">Select a data source…</option>
                       {sources.map((k) => <option key={k} value={k}>{k}</option>)}
                     </FilterSelect>
@@ -237,71 +326,108 @@ export default function Reports() {
                   {genSource && (
                     <div>
                       <div className="font-semibold text-[12px] text-parish-ink mb-1.5">2. Report</div>
-                      <FilterSelect value={genType} onChange={(e) => { setGenType(e.target.value); setReport(null); }} className="w-full">
+                      <FilterSelect value={genType} onChange={(e) => { setGenType(e.target.value); setReport(null); }} className="w-full" aria-label="Report">
                         <option value="">Select a report…</option>
-                        {(REPORTS[genSource]?.types || []).map((t) => <option key={t} value={t}>{t}</option>)}
+                        {Object.keys(REPORTS[genSource]?.types || {}).map((t) => <option key={t} value={t}>{t}</option>)}
                       </FilterSelect>
                     </div>
                   )}
                 </div>
 
-                {genType && (
+                {spec && (
                   <div className="border-t border-parish-line2 pt-4 mb-4">
                     <div className="font-semibold text-[12px] text-parish-ink mb-2.5">3. Scope</div>
                     <div className="flex flex-wrap gap-3.5 items-end">
-                      {meta.gkk && (
-                        <div>
-                          <div className="font-semibold text-[11px] text-parish-muted mb-1.5">GKK</div>
-                          <FilterSelect value={scope.gkk} onChange={(e) => setScope((s) => ({ ...s, gkk: e.target.value }))}>
-                            <option value="All">All GKKs</option>
-                            {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
-                          </FilterSelect>
-                        </div>
+                      {has('gkk') && (
+                        <Control label="GKK">
+                          {/* A GKK leader's reports always cover their own GKK. */}
+                          {leaderGkk(user)
+                            ? <div className="px-3 py-2.5 text-[13.5px] font-semibold text-parish-text3">{leaderGkk(user)}</div>
+                            : (
+                              <FilterSelect value={scope.gkk} onChange={set('gkk')} aria-label="GKK">
+                                <option value="All">All GKKs</option>
+                                {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+                              </FilterSelect>
+                            )}
+                        </Control>
                       )}
-                      {meta.cycle && (
-                        <div>
-                          <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Census</div>
-                          <FilterSelect value={scope.cycleId} onChange={(e) => setScope((s) => ({ ...s, cycleId: e.target.value }))}>
+                      {has('cycle') && (
+                        <Control label="Census">
+                          <FilterSelect value={scope.cycleId} onChange={set('cycleId')} aria-label="Census">
                             {!cycles.length && <option value="">No census yet</option>}
                             {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
                           </FilterSelect>
-                        </div>
+                        </Control>
                       )}
-                      {meta.status && (
-                        <div>
-                          <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Status</div>
-                          <FilterSelect value={scope.status} onChange={(e) => setScope((s) => ({ ...s, status: e.target.value }))}>
+                      {has('status') && (
+                        <Control label="Status">
+                          <FilterSelect value={scope.status} onChange={set('status')} aria-label="Status">
                             <option value="All">All statuses</option><option value="Verified">Verified</option><option value="Pending">Pending</option>
                           </FilterSelect>
-                        </div>
+                        </Control>
                       )}
-                      {meta.dateRange && (
+                      {has('dates') && (
                         <>
-                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">{genSource === 'Requests' ? 'Received from' : 'Registered from'}</div><input type="date" value={scope.dateFrom} onChange={(e) => setScope((s) => ({ ...s, dateFrom: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
-                          <div><div className="font-semibold text-[11px] text-parish-muted mb-1.5">{genSource === 'Requests' ? 'Received to' : 'Registered to'}</div><input type="date" value={scope.dateTo} onChange={(e) => setScope((s) => ({ ...s, dateTo: e.target.value }))} className="px-3 py-2.5 text-[13.5px] bg-parish-field border-[1.5px] border-parish-borderSoft rounded-lg outline-none" /></div>
+                          <Control label={`${spec.date} from`}><input type="date" value={scope.dateFrom} onChange={set('dateFrom')} className={dateInput} aria-label={`${spec.date} from`} /></Control>
+                          <Control label={`${spec.date} to`}><input type="date" value={scope.dateTo} onChange={set('dateTo')} className={dateInput} aria-label={`${spec.date} to`} /></Control>
                         </>
                       )}
-                      {meta.sacrament && (
-                        <div>
-                          <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Sacrament</div>
-                          <FilterSelect value={scope.sacrament} onChange={(e) => setScope((s) => ({ ...s, sacrament: e.target.value }))}>
-                            {['Baptism', 'Communion', 'Confirmation', 'Matrimony'].map((s) => <option key={s} value={s}>{s}</option>)}
+                      {has('sacrament') && (
+                        <Control label="Sacrament">
+                          <FilterSelect value={scope.sacrament} onChange={set('sacrament')} aria-label="Sacrament">
+                            {SACRAMENTS.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
                           </FilterSelect>
-                        </div>
+                        </Control>
                       )}
-                      {meta.group && (
-                        <div>
-                          <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Ministry / Organization</div>
-                          <FilterSelect value={scope.group} onChange={(e) => setScope((s) => ({ ...s, group: e.target.value }))}>
+                      {has('received') && (
+                        <Control label="Show">
+                          <FilterSelect value={scope.received} onChange={set('received')} aria-label="Received or not">
+                            <option value="Received">Received it</option>
+                            <option value="Not yet">Not yet received (old enough)</option>
+                          </FilterSelect>
+                        </Control>
+                      )}
+                      {has('group') && (
+                        <Control label="Ministry / Organization">
+                          <FilterSelect value={scope.group} onChange={set('group')} aria-label="Ministry or organization">
                             <option value="">Select…</option>{ministryOptions.map((g) => <option key={g} value={g}>{g}</option>)}
                           </FilterSelect>
-                        </div>
+                        </Control>
+                      )}
+                      {has('ageGroup') && (
+                        <Control label="Age group">
+                          <FilterSelect value={scope.ageGroup} onChange={set('ageGroup')} aria-label="Age group">
+                            {AGE_GROUPS.map((g) => <option key={g.key} value={g.key}>{g.label}</option>)}
+                          </FilterSelect>
+                        </Control>
+                      )}
+                      {has('month') && (
+                        <Control label="Month">
+                          <FilterSelect value={scope.month} onChange={set('month')} aria-label="Month">
+                            {MONTHS.map(([n, label]) => <option key={n} value={n}>{label}</option>)}
+                          </FilterSelect>
+                        </Control>
+                      )}
+                      {has('volunteer') && (
+                        <Control label="Volunteer">
+                          <FilterSelect value={scope.volunteer} onChange={set('volunteer')} aria-label="Volunteer answer">
+                            <option value="All">Yes and Maybe</option><option value="Yes">Yes</option><option value="Maybe">Maybe</option>
+                          </FilterSelect>
+                        </Control>
+                      )}
+                      {has('missing') && (
+                        <Control label="Missing">
+                          <FilterSelect value={scope.missing} onChange={set('missing')} aria-label="Missing detail">
+                            <option value="Any">Anything</option>
+                            {missingOptions.map((f) => <option key={f.key} value={f.label}>{f.label}</option>)}
+                          </FilterSelect>
+                        </Control>
                       )}
                     </div>
                   </div>
                 )}
 
-                <PrimaryButton onClick={generate} disabled={!genType || generating} className="px-[22px] py-2.5 text-[14px]">{generating ? 'Generating…' : 'Generate Report'}</PrimaryButton>
+                <PrimaryButton onClick={generate} disabled={!spec || generating || (has('group') && !scope.group)} className="px-[22px] py-2.5 text-[14px]">{generating ? 'Generating…' : 'Generate Report'}</PrimaryButton>
               </Panel>
 
               {report && (
@@ -354,6 +480,7 @@ export default function Reports() {
         </div>
       </PageBody>
       {tab === 'gen' && <ReportPrintSheet report={report} parish={layout?.parish} />}
+      {tab === 'stats' && <ReportPrintSheet report={statsReport} parish={layout?.parish} />}
     </>
   );
 }
