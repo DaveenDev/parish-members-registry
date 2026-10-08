@@ -16,6 +16,7 @@ import { useAuth } from '../AuthContext.jsx';
 import { LoadingState } from './admin.jsx';
 import { can } from '../lib/access.js';
 import ActivityList from './ActivityList.jsx';
+import ServiceHistory from './ServiceHistory.jsx';
 
 // Stored columns for the wedding a family head and a married Spouse share.
 const WEDDING_COLUMNS = ['has_matrimony', 'mat_date', 'mat_church', 'mat_type'];
@@ -342,6 +343,9 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
 
             <SectionLabel>Organizations</SectionLabel>
             <GroupChecks options={orgList} selected={member.organizations || []} onToggle={(name) => toggleGroup('organizations', name)} />
+
+            <SectionLabel>Service history</SectionLabel>
+            <ServiceHistory memberId={memberId} canEdit={canEdit} ministryList={ministryList} orgList={orgList} parishRoleList={parishRoleList} />
 
             {can(user, 'activity') && (
               <details className="mt-1 group">

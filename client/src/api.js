@@ -654,6 +654,33 @@ export const api = {
     return Object.fromEntries((data || []).map((v) => [v.sacrament, v]));
   },
 
+  // ---- service history (0071) ----------------------------------------
+  /** A member's past service, or null before the 0071 migration adds the table. */
+  async listMemberService(memberId) {
+    const { data, error } = await supabase.from('member_service').select('*').eq('member_id', memberId);
+    if (isMissingTable(error)) return null;
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async addMemberService(row) {
+    const { data, error } = await supabase.from('member_service').insert(row).select().single();
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async updateMemberService(id, patch) {
+    const { data, error } = await supabase.from('member_service').update(patch).eq('id', id).select().single();
+    if (error) throw mapError(error);
+    return data;
+  },
+
+  async deleteMemberService(id) {
+    const { error } = await supabase.from('member_service').delete().eq('id', id);
+    if (error) throw mapError(error);
+    return null;
+  },
+
   async verifySacrament(memberId, sacrament, source, reference) {
     const { data, error } = await supabase.rpc('verify_sacrament', {
       p_member_id: memberId, p_sacrament: sacrament, p_source: source, p_reference: reference || null,
