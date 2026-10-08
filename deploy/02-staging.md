@@ -236,6 +236,8 @@ on practice data and never on the live registry.
    npx supabase functions deploy --project-ref <ref> --use-api
    ```
 
+   (our live project: `npm run deploy:live`)
+
 ## Checklist
 
 - [ ] Purple banner on every page of `<staging-site>`.

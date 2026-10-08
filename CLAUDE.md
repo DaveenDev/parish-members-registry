@@ -5,17 +5,19 @@
 Whenever a change touches anything under `supabase/functions/`, the summary
 to the user must include the exact command to redeploy each changed
 function, ready to paste. Never just say "redeploy the function". From the
-repository root, with the CLI linked to the project (`npx supabase link`):
+repository root:
 
-| Function | Command |
+| Function | Live site |
 | --- | --- |
-| `manage-staff` | `npm run deploy:manage-staff` (or `npx supabase functions deploy manage-staff --use-api`) |
-| `media-upload` | `npm run deploy:media-upload` (or `npx supabase functions deploy media-upload --use-api`) |
-| `notify-staff` | `npm run deploy:notify-staff` (or `npx supabase functions deploy notify-staff --no-verify-jwt --use-api`) |
-| all of them | `npx supabase functions deploy --use-api` |
+| `manage-staff` | `npm run deploy:manage-staff` |
+| `media-upload` | `npm run deploy:media-upload` |
+| `notify-staff` | `npm run deploy:notify-staff` |
+| all of them | `npm run deploy:live` |
 
-Without a linked CLI, add `--project-ref <project-ref>` (the live project is
-`rmlkowkbonbrtaqocsvo`).
+These name the live project (`rmlkowkbonbrtaqocsvo`), so they deploy there
+whichever project the CLI is linked to. The long form is
+`npx supabase functions deploy <name> --project-ref rmlkowkbonbrtaqocsvo --use-api`
+(add `--no-verify-jwt` for `notify-staff`).
 
 The training site (project `qyoyuukpdjrwfhovtrwd`) has its own shortcuts,
 which name the project, so they work whichever project the CLI is linked to.

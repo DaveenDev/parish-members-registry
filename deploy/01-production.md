@@ -73,6 +73,10 @@ REMOTE.
 npx supabase functions deploy --project-ref <ref> --use-api
 ```
 
+For our live project (`rmlkowkbonbrtaqocsvo`) that is `npm run deploy:live`;
+one function alone is `npm run deploy:manage-staff` (or `deploy:media-upload`,
+`deploy:notify-staff`).
+
 This deploys `manage-staff` (Settings → Staff), `media-upload` (photos) and
 `notify-staff` (phone notifications), with the right JWT setting for each from
 [`supabase/config.toml`](../supabase/config.toml). No secrets to set:
