@@ -257,19 +257,6 @@ export default function Dashboard() {
 
         <div className="grid gap-[18px] mb-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(320px,100%),1fr))' }}>
           <Panel className="px-[22px] py-5">
-            <div className="font-serif text-[20px] font-semibold text-parish-navy mb-0.5">Registrations over time</div>
-            <div className="text-[12.5px] text-parish-muted mb-5">Members enrolled per month</div>
-            <Bars data={stats.regMonths} color1="var(--p-blue-light)" color2="var(--p-blue)" />
-          </Panel>
-          <Panel className="px-[22px] py-5">
-            <div className="font-serif text-[20px] font-semibold text-parish-navy mb-0.5">Age distribution</div>
-            <div className="text-[12.5px] text-parish-muted mb-5">All registered members</div>
-            <Bars data={stats.ageBuckets} color1="#e0bd6d" color2="var(--p-gold)" linkLabel={(b) => `Ages ${b.label}: ${b.n} members. Open the members list`} />
-          </Panel>
-        </div>
-
-        <div className="grid gap-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(320px,100%),1fr))' }}>
-          <Panel className="px-[22px] py-5">
             {/* Members per GKK from 0078; before it, the household counts the dashboard stats give. */}
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-[18px]">{stats.gkkMembers ? 'Members by GKK' : 'Households by GKK'}</div>
             <GkkDonut
@@ -282,6 +269,19 @@ export default function Dashboard() {
           <Panel className="px-[22px] py-5">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-[18px]">Top ministries &amp; organizations</div>
             {stats.ministryBreak.length ? <BreakdownBars data={stats.ministryBreak} color1="var(--p-gold)" color2="#e0bd6d" /> : <div className="text-parish-muted text-sm">No participation data yet.</div>}
+          </Panel>
+        </div>
+
+        <div className="grid gap-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(320px,100%),1fr))' }}>
+          <Panel className="px-[22px] py-5">
+            <div className="font-serif text-[20px] font-semibold text-parish-navy mb-0.5">Registrations over time</div>
+            <div className="text-[12.5px] text-parish-muted mb-5">Members enrolled per month</div>
+            <Bars data={stats.regMonths} color1="var(--p-blue-light)" color2="var(--p-blue)" />
+          </Panel>
+          <Panel className="px-[22px] py-5">
+            <div className="font-serif text-[20px] font-semibold text-parish-navy mb-0.5">Age distribution</div>
+            <div className="text-[12.5px] text-parish-muted mb-5">All registered members</div>
+            <Bars data={stats.ageBuckets} color1="#e0bd6d" color2="var(--p-gold)" linkLabel={(b) => `Ages ${b.label}: ${b.n} members. Open the members list`} />
           </Panel>
         </div>
 
