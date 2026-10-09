@@ -2727,6 +2727,7 @@ async function withMemberMatches(params = {}) {
 
 // groupBy: 'gkk' or 'family_grouping' sorts by that first, so the Households
 // page can show the rows in groups; the chosen sort applies within a group.
+// Without it (the verification queue) the rows are in the chosen order alone.
 // family_grouping orders FG 1, FG 2 … FG 10 (family_grouping_no, 0057).
 function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir, groupBy } = {}) {
   if (status !== 'All') q = q.eq('status', status);

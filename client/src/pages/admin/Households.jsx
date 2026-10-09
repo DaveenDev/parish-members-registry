@@ -66,9 +66,11 @@ export default function Households() {
   const [exporting, setExporting] = useState(false);
 
   const filters = { status, gkk, search: debouncedSearch };
-  // Every tab lists the households grouped by GKK, or by Family Grouping when
-  // the list covers one GKK (filtered to it, or a GKK leader's own).
-  const groupKey = gkk === 'All' && !leaderGkk(user) ? 'gkk' : 'family_grouping';
+  // The verification queue is one list in the chosen order, newest registration
+  // first by default, so the latest families are seen first. The other tabs
+  // group the households by GKK, or by Family Grouping when the list covers
+  // one GKK (filtered to it, or a GKK leader's own).
+  const groupKey = status === 'Pending' ? null : gkk === 'All' && !leaderGkk(user) ? 'gkk' : 'family_grouping';
 
   // Opened without a tab in the link: start on the queue, but go straight to
   // Verified when nothing is waiting. The list waits for that choice, so an
@@ -379,11 +381,13 @@ export default function Households() {
               <tbody>
                 {groupRuns(rows, groupKey).map((g, gi) => (
                   <React.Fragment key={g.key ?? 'none'}>
-                    <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
-                      <th scope="colgroup" colSpan={8} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
-                        {groupHeading(g.key, groupKey)}
-                      </th>
-                    </tr>
+                    {groupKey && (
+                      <tr className={`bg-parish-sunk ${gi ? 'border-t-2 border-parish-borderStrong' : ''}`}>
+                        <th scope="colgroup" colSpan={8} className="text-left px-4 py-2 font-serif text-[16.5px] font-semibold text-parish-navy">
+                          {groupHeading(g.key, groupKey)}
+                        </th>
+                      </tr>
+                    )}
                     {g.rows.map((h) => (
                       <React.Fragment key={h.id}>
                         <tr className={`border-t border-parish-line ${selected.has(h.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
@@ -409,6 +413,7 @@ export default function Households() {
                           <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.family_count > 1 && <span className="block mb-1"><Badge tone="gold">{h.family_count} families</Badge></span>}{h.member_count} member(s)</td>
                           <td className="px-4 py-3.5 text-[13px] text-parish-text2 whitespace-nowrap" title={fmtDateTime(h.created_at)}>
                             {daysAgo(h.created_at)}
+                            <div className="text-[12px] text-parish-muted">{fmtDateTime(h.created_at)}</div>
                             {sort === 'updated' && h.updated_at && <div className="text-[12px] text-parish-muted">updated {daysAgo(h.updated_at)}</div>}
                           </td>
                           <td className="px-4 py-3.5 align-top"><StatusPill status={h.status} /></td>
@@ -449,7 +454,7 @@ export default function Households() {
           <ul className="md:hidden list-none m-0 p-0 divide-y divide-parish-line" aria-label="Registered households">
             {groupRuns(rows, groupKey).map((g) => (
               <React.Fragment key={g.key ?? 'none'}>
-                <li className="px-4 py-2 bg-parish-sunk font-serif text-[16.5px] font-semibold text-parish-navy">{groupHeading(g.key, groupKey)}</li>
+                {groupKey && <li className="px-4 py-2 bg-parish-sunk font-serif text-[16.5px] font-semibold text-parish-navy">{groupHeading(g.key, groupKey)}</li>}
                 {g.rows.map((h) => (
                   <li key={h.id} className={`px-4 py-3.5 ${selected.has(h.id) ? 'bg-[var(--p-blue-tint)]' : ''}`}>
                     <div className="flex items-start gap-3">
