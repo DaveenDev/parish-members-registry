@@ -6,6 +6,7 @@ import { useAsyncData } from '../../hooks.js';
 import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
 import { todayItems } from '../../lib/today.js';
+import { gkkSlices } from '../../lib/stats.js';
 import { todayIso } from '../../lib/website.js';
 
 const CARD = 'bg-parish-card border border-parish-border rounded-2xl shadow-cardSm';
@@ -66,6 +67,93 @@ function BreakdownBars({ data, color1, color2 }) {
           ? <Link key={g.label} to={g.to} className={`block rounded-lg -mx-1.5 px-1.5 py-1 hover:bg-parish-hover ${LINK_FOCUS}`}>{bar}</Link>
           : <div key={g.label}>{bar}</div>;
       })}
+    </div>
+  );
+}
+
+const SLICE_COLORS = ['var(--viz-1)', 'var(--viz-2)', 'var(--viz-3)', 'var(--viz-4)', 'var(--viz-5)', 'var(--viz-6)', 'var(--viz-7)', 'var(--viz-8)'];
+
+/**
+ * Members by GKK as a donut: the eight largest GKKs and "Other", each in a
+ * legend with its count and share (so no slice relies on colour alone), and
+ * every GKK in the list under it. Hovering or focusing a slice or legend row
+ * shows it in the middle. `unit` is "members", or "households" before 0078.
+ */
+function GkkDonut({ rows, unit }) {
+  const [active, setActive] = useState(null);
+  const { total, slices, all } = gkkSlices(rows, SLICE_COLORS.length);
+  if (!total) return <div className="text-parish-muted text-sm">No GKK data yet.</div>;
+  const colorOf = (i, s) => (s.other ? 'var(--viz-other)' : SLICE_COLORS[i % SLICE_COLORS.length]);
+  const R = 70;
+  const C = 2 * Math.PI * R;
+  const gap = slices.length > 1 ? 2 : 0; // a 2px surface gap between slices
+  let start = 0;
+  const arcs = slices.map((s, i) => {
+    const len = (C * s.n) / total;
+    const arc = { s, i, from: start, len: Math.max(0, len - gap) };
+    start += len;
+    return arc;
+  });
+  const shown = active == null ? null : slices[active];
+  const on = (i) => ({ onMouseEnter: () => setActive(i), onMouseLeave: () => setActive(null), onFocus: () => setActive(i), onBlur: () => setActive(null) });
+
+  return (
+    <div>
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-4">
+        <svg viewBox="0 0 180 180" width="180" height="180" className="flex-none mx-auto sm:mx-0" role="img" aria-label={`${unit} by GKK: ${slices.map((s) => `${s.label} ${s.n}`).join(', ')}`}>
+          <circle cx="90" cy="90" r={R} fill="none" stroke="rgb(var(--c-track))" strokeWidth="26" />
+          {arcs.map(({ s, i, from, len }) => (
+            <circle
+              key={s.label} cx="90" cy="90" r={R} fill="none" stroke={colorOf(i, s)} strokeWidth={active === i ? 30 : 26}
+              strokeDasharray={`${len} ${C - len}`} strokeDashoffset={-from} transform="rotate(-90 90 90)"
+              style={{ opacity: active == null || active === i ? 1 : 0.35, transition: 'opacity .15s, stroke-width .15s', cursor: 'pointer' }}
+              {...on(i)}
+            >
+              <title>{`${s.label}: ${s.n} ${unit} (${s.share}%)`}</title>
+            </circle>
+          ))}
+          <text x="90" y={shown ? 84 : 88} textAnchor="middle" fontSize="26" fontWeight="700" fill="rgb(var(--c-ink))" style={{ fontVariantNumeric: 'lining-nums' }}>{shown ? shown.n : total}</text>
+          <text x="90" y={shown ? 102 : 108} textAnchor="middle" fontSize="11" fill="rgb(var(--c-muted))">{shown ? `${shown.share}% of ${unit}` : unit}</text>
+        </svg>
+
+        <ol className="list-none m-0 p-0 flex-1 min-w-[220px] flex flex-col gap-0.5">
+          {slices.map((s, i) => {
+            const row = (
+              <span className={`flex items-center gap-2.5 px-2 py-1.5 rounded-lg ${active === i ? 'bg-parish-hover' : ''}`}>
+                <span className="w-3 h-3 rounded-[3px] flex-none" style={{ background: colorOf(i, s) }} aria-hidden />
+                <span className="flex-1 min-w-0 text-[13px] leading-snug text-parish-text3 font-semibold" title={s.other ? s.other.join(', ') : s.label}>{s.label}</span>
+                <span className="text-[13px] text-parish-ink font-semibold tabular-nums">{s.n}</span>
+                <span className="w-[38px] text-right text-[12px] text-parish-muted tabular-nums">{s.share}%</span>
+              </span>
+            );
+            return (
+              <li key={s.label} {...on(i)}>
+                {s.to ? <Link to={s.to} className={`block rounded-lg ${LINK_FOCUS}`} aria-label={`${s.label}: ${s.n} ${unit}, ${s.share}%. Open the list`}>{row}</Link> : <div tabIndex={0} className={`rounded-lg ${LINK_FOCUS}`}>{row}</div>}
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+
+      {slices.some((s) => s.other) && (
+        <details className="mt-3 group">
+          <summary className="cursor-pointer text-[12.5px] font-semibold text-parish-blue list-none">
+            <span className="group-open:hidden">Show all {all.length} GKKs</span><span className="hidden group-open:inline">Hide the full list</span>
+          </summary>
+          <ol className="list-none m-0 mt-2 p-0 grid grid-cols-1 gap-x-6 gap-y-0.5 sm:grid-cols-2">
+            {all.map((g, k) => (
+              <li key={g.label} className="min-w-0">
+                <Link to={g.to} className={`flex items-baseline gap-2 px-2 py-1 rounded-lg hover:bg-parish-hover text-[12.5px] ${LINK_FOCUS}`}>
+                  <span className="w-5 text-right text-parish-muted tabular-nums">{k + 1}.</span>
+                  <span className="flex-1 min-w-0 truncate text-parish-text3" title={g.label}>{g.label}</span>
+                  <span className="font-semibold text-parish-ink tabular-nums">{g.n}</span>
+                  <span className="w-[34px] text-right text-parish-muted tabular-nums">{g.share}%</span>
+                </Link>
+              </li>
+            ))}
+          </ol>
+        </details>
+      )}
     </div>
   );
 }
@@ -182,8 +270,14 @@ export default function Dashboard() {
 
         <div className="grid gap-[18px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(320px,100%),1fr))' }}>
           <Panel className="px-[22px] py-5">
-            <div className="font-serif text-[20px] font-semibold text-parish-navy mb-[18px]">Members by GKK</div>
-            {stats.gkkBreak.length ? <BreakdownBars data={stats.gkkBreak} color1="var(--p-blue)" color2="var(--p-blue-light)" /> : <div className="text-parish-muted text-sm">No GKK data yet.</div>}
+            {/* Members per GKK from 0078; before it, the household counts the dashboard stats give. */}
+            <div className="font-serif text-[20px] font-semibold text-parish-navy mb-[18px]">{stats.gkkMembers ? 'Members by GKK' : 'Households by GKK'}</div>
+            <GkkDonut
+              unit={stats.gkkMembers ? 'members' : 'households'}
+              rows={stats.gkkMembers
+                ? stats.gkkMembers.map((g) => ({ ...g, to: `/admin/members?gkk=${encodeURIComponent(g.label)}` }))
+                : stats.gkkBreak}
+            />
           </Panel>
           <Panel className="px-[22px] py-5">
             <div className="font-serif text-[20px] font-semibold text-parish-navy mb-[18px]">Top ministries &amp; organizations</div>

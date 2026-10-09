@@ -1,7 +1,26 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { shapeDashboard, shapeReport, multiFamilyNote } from '../src/lib/stats.js';
+import { shapeDashboard, shapeReport, multiFamilyNote, gkkSlices } from '../src/lib/stats.js';
+
+describe('gkkSlices', () => {
+  const g = (label, n) => ({ label, n, to: `/x/${label}` });
+  test('largest first; past the limit the rest fold into Other', () => {
+    const res = gkkSlices([g('A', 10), g('B', 40), g('C', 20), g('D', 5), g('E', 15), g('F', 0)], 3);
+    assert.equal(res.total, 90);
+    assert.deepEqual(res.slices.map((s) => [s.label, s.n, s.share]), [['B', 40, 44], ['C', 20, 22], ['E', 15, 17], ['Other (2 GKKs)', 15, 17]]);
+    assert.deepEqual(res.slices[3].other, ['A', 'D']);
+    assert.equal(res.slices[3].to, null);
+    assert.deepEqual(res.all.map((s) => s.label), ['B', 'C', 'E', 'A', 'D']); // F (no members) left out
+  });
+  test('one GKK over the limit is shown as itself, not as Other', () => {
+    const res = gkkSlices([g('A', 3), g('B', 2), g('C', 1)], 2);
+    assert.deepEqual(res.slices.map((s) => s.label), ['A', 'B', 'C']);
+  });
+  test('nothing to show', () => {
+    assert.deepEqual(gkkSlices([]), { total: 0, slices: [], all: [] });
+  });
+});
 
 describe('shapeDashboard', () => {
   const raw = {

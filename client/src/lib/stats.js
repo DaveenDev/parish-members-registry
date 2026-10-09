@@ -25,6 +25,28 @@ function withHeights(items) {
   return items.map((b) => ({ ...b, h: `${Math.max(6, Math.round((b.n / max) * 100))}%` }));
 }
 
+/**
+ * A part-to-whole chart of GKKs ([{ label, n, to? }]): the `max` largest as
+ * their own slices, the rest folded into one "Other" slice, so the colours
+ * stay few enough to tell apart. Returns { total, slices: [{ label, n, share,
+ * to, other? }], all } with `all` every GKK largest first, for the full list.
+ * `share` is a whole-number percentage of the total.
+ */
+export function gkkSlices(rows, max = 6) {
+  const all = (rows || []).filter((r) => r.n > 0).sort((a, b) => b.n - a.n || String(a.label).localeCompare(String(b.label)));
+  const total = all.reduce((s, r) => s + r.n, 0);
+  const share = (n) => (total ? Math.round((n / total) * 100) : 0);
+  // Folding a single GKK into "Other" saves nothing: show it as itself.
+  const own = all.length <= max + 1 ? all : all.slice(0, max);
+  const rest = all.slice(own.length);
+  const slices = own.map((r) => ({ ...r, share: share(r.n) }));
+  if (rest.length) {
+    const n = rest.reduce((s, r) => s + r.n, 0);
+    slices.push({ label: `Other (${rest.length} GKKs)`, n, share: share(n), to: null, other: rest.map((r) => r.label) });
+  }
+  return { total, slices, all: all.map((r) => ({ ...r, share: share(r.n) })) };
+}
+
 /** Bar widths for a horizontal chart, relative to the largest. */
 function withWidths(items) {
   const max = Math.max(1, ...items.map((b) => b.n));

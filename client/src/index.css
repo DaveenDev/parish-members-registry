@@ -61,6 +61,25 @@
   --p-eyebrow: color-mix(in srgb, var(--p-gold-deep) 78%, black);
 }
 
+/* ===== Chart series colours =====
+   Categorical slots for part-to-whole charts (the Dashboard's GKK donut), in
+   this fixed order, validated for colour-blind separation on the card surface
+   in each mode (dataviz palette, checked with validate_palette.js). Three
+   light slots are pale against the card, so a chart using them also labels
+   every slice in text. --viz-other is the folded "Other" slice. */
+:root {
+  --viz-1: #2a78d6; --viz-2: #eb6834; --viz-3: #1baf7a;
+  --viz-4: #eda100; --viz-5: #e87ba4; --viz-6: #008300;
+  --viz-7: #4a3aa7; --viz-8: #e34948;
+  --viz-other: #b9b4a6;
+}
+:root[data-mode='dark'] {
+  --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70;
+  --viz-4: #c98500; --viz-5: #d55181; --viz-6: #008300;
+  --viz-7: #9085e9; --viz-8: #e66767;
+  --viz-other: #5d6676;
+}
+
 /* ===== Neutral and status tokens =====
    "r g b" channels, used through the parish-* Tailwind colors. The light
    values are the parchment palette; the admin panel's dark mode

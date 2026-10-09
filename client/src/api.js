@@ -1734,9 +1734,22 @@ export const api = {
   // ---- dashboard ---------------------------------------------------------
   async dashboardStats() {
     const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
-    const [{ data, error }, families] = await Promise.all([supabase.rpc('admin_dashboard_stats', { p_tz: tz }), api.familyStats()]);
+    const [{ data, error }, families, gkkMembers] = await Promise.all([supabase.rpc('admin_dashboard_stats', { p_tz: tz }), api.familyStats(), api.membersByGkk()]);
     if (error) throw mapError(error);
-    return shapeDashboard({ ...data, family_stats: families });
+    return { ...shapeDashboard({ ...data, family_stats: families }), gkkMembers };
+  },
+
+  /**
+   * Current members per GKK, largest first (0078): [{ label, n }], or null
+   * before the migration (the Dashboard then shows households per GKK).
+   */
+  async membersByGkk() {
+    const { data, error } = await supabase.rpc('members_by_gkk');
+    if (error) {
+      if (isMissingFunction(error)) return null;
+      throw mapError(error);
+    }
+    return (data || []).map((r) => ({ label: r.gkk, n: Number(r.members) || 0 }));
   },
 
   /**
