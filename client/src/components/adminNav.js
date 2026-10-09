@@ -4,13 +4,15 @@ import { can } from '../lib/access.js';
  * The admin sidebar, in groups. `need` is the lib/access.js permission a
  * page requires; `notForLeaders` hides it from GKK leaders; `leaderLabel` is its name for GKK leaders; `badge`
  * names a count from api.navCounts(). A `collapsible` group stays open for
- * GKK leaders, who have only a few pages.
+ * GKK leaders, who have only a few pages. A `whileCensusOpen` item is a
+ * shortcut shown only while a census is open and not hidden (censusMenuShown).
  */
 export const NAV_GROUPS = [
   {
     label: 'Main',
     items: [
       { to: '/admin/website', label: 'Parish Website', need: 'website' },
+      { to: '/admin/census', label: 'CENSUS', need: 'census', badge: 'census', badgeLabel: 'online updates to review', whileCensusOpen: true },
     ],
   },
   {
@@ -64,6 +66,15 @@ export function navAllowed(item, user) {
   return !item.need || can(user, item.need);
 }
 
+/**
+ * Whether the sidebar shows the CENSUS shortcut under Main: while a census is
+ * open, unless staff hid it on the Census page (parish_settings
+ * .census_in_main_menu, 0088; shown before that migration).
+ */
+export function censusMenuShown(parish, openCensus) {
+  return !!openCensus && parish?.census_in_main_menu !== false;
+}
+
 /** Whether the group folds away for this account (not for GKK leaders). */
 export function navCollapsible(group, user) {
   return !!group.collapsible && user?.access !== 'gkk_leader';
@@ -85,11 +96,12 @@ export function ownSettingsOnly(user) {
   return user?.access !== 'gkk_leader' && !can(user, 'settings') && !user?.isAdmin;
 }
 
-/** The nav item a path belongs to (the longest matching link), or null. */
+/** The nav item a path belongs to (the longest matching link), or null. Shortcuts don't count. */
 export function navItemFor(pathname) {
   let best = null;
   for (const g of NAV_GROUPS) {
     for (const item of g.items) {
+      if (item.whileCensusOpen) continue;
       const match = item.end ? pathname === item.to || pathname === `${item.to}/` : pathname === item.to || pathname.startsWith(`${item.to}/`);
       if (match && (!best || item.to.length > best.to.length)) best = item;
     }

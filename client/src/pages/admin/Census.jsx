@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote, rowActivationProps } from '../../components/admin.jsx';
 import { useAuth } from '../../AuthContext.jsx';
@@ -44,6 +44,8 @@ export default function Census() {
   const toast = useToast();
   const confirm = useConfirm();
   const { user } = useAuth();
+  // The sidebar: its CENSUS shortcut under Main follows the open census and the switch here.
+  const layout = useOutletContext();
   const canEdit = can(user, 'editCensus');
   const canManage = can(user, 'manageCensus');
   // GKK leaders see and record only their GKK (0024 migration).
@@ -83,6 +85,8 @@ export default function Census() {
     setCyclesError('');
     return api.listCensusCycles()
       .then((list) => {
+        // After a census starts, closes, reopens or is deleted, not on the first load.
+        if (cycles) layout?.refreshNavCounts?.();
         setCycles(list);
         const open = list.find((c) => c.status === 'Open');
         setCycleId((current) => selectId ?? (list.some((c) => c.id === current) ? current : (open || list[0])?.id ?? null));
@@ -214,13 +218,14 @@ export default function Census() {
               <span className="text-[13.5px] text-parish-navy">{INTERVALS.find(([v]) => Number(v) === Number(interval))?.[1] || `Every ${interval} months`}</span>
             )}
           </div>
-          <div className="text-[13.5px] text-parish-muted">
+          <div className="text-[13.5px] text-parish-muted flex-1 min-w-[220px]">
             {openCycle
               ? <>The <strong className="text-parish-navy">{openCycle.label}</strong> is open.</>
               : due
                 ? <>Next census due around <strong className="text-parish-navy">{fmtDate(due)}</strong>{due <= today() && ' — it is time to start one.'}</>
                 : 'No census has been held yet.'}
           </div>
+          {openCycle && canSwitch && parish && <CensusMenuSwitch parish={parish} onChanged={(p) => { setParish(p); layout?.setParish?.(p); }} />}
         </Panel>
 
         {starting && (
@@ -288,6 +293,40 @@ export default function Census() {
         )}
       </PageBody>
     </>
+  );
+}
+
+/**
+ * Whether the open census shows as CENSUS under Main in the sidebar (0088),
+ * for staff who can change settings. `onChanged` gets the saved settings.
+ */
+function CensusMenuSwitch({ parish, onChanged }) {
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const on = parish.census_in_main_menu !== false;
+
+  async function toggle(next) {
+    setBusy(true);
+    try {
+      const res = await api.updateSettings({ census_in_main_menu: next });
+      onChanged(res.settings);
+      toast.success(next ? 'CENSUS is shown in the Main menu' : 'CENSUS is hidden from the Main menu');
+    } catch (e) {
+      toast.error(e.message || 'Could not change this');
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <label className={`flex items-center gap-2.5 cursor-pointer select-none ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
+      <span className="text-[13.5px] text-parish-text2 font-semibold">Show CENSUS in the Main menu</span>
+      <span className="relative inline-flex">
+        <input type="checkbox" role="switch" aria-label="Show CENSUS in the Main menu" checked={on} disabled={busy} onChange={(e) => toggle(e.target.checked)} className="peer sr-only" />
+        <span className="w-12 h-7 rounded-full bg-parish-sunk border border-parish-border transition peer-checked:bg-parish-fill peer-checked:border-transparent peer-focus-visible:ring-4 peer-focus-visible:ring-parish-blue/20" />
+        <span className="absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
+      </span>
+    </label>
   );
 }
 

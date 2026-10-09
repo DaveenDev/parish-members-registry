@@ -133,6 +133,22 @@ describe('admin nav', async () => {
     assert.equal(navItemFor('/admin/my-gkk'), null);
   });
 
+  test('CENSUS shows under Main only while a census is open and not hidden (0088)', async () => {
+    const { NAV_GROUPS, censusMenuShown, navLabel } = await import('../src/components/adminNav.js');
+    const main = NAV_GROUPS.find((g) => g.label === 'Main');
+    const shortcut = main.items.find((i) => i.whileCensusOpen);
+    assert.equal(shortcut.label, 'CENSUS');
+    assert.equal(shortcut.to, '/admin/census');
+    const open = { id: 3, label: '2026 Census' };
+    assert.ok(censusMenuShown({ census_in_main_menu: true }, open));
+    assert.ok(censusMenuShown({}, open)); // before 0088
+    assert.ok(!censusMenuShown({ census_in_main_menu: false }, open));
+    assert.ok(!censusMenuShown({ census_in_main_menu: true }, null));
+    // The Census page is still the one under Registry.
+    assert.equal(navLabel(navItemFor('/admin/census'), { access: 'full' }), 'Census');
+    assert.ok(!navAllowed(shortcut, { access: 'website' }));
+  });
+
   test('adds up the request queues for one badge', () => {
     assert.deepEqual(navBadges({ pending_households: 2, requests: { certificates: 1, ready: 2, blood: 0, sacraments: 3 } }),
       { pending: 2, duplicates: 0, sacraments: 0, census: 0, requests: 6 });

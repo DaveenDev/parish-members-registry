@@ -9,7 +9,7 @@ import { PrimaryButton } from '../../components/ui.jsx';
 import CommandPalette, { useCommandPaletteShortcut } from '../../components/CommandPalette.jsx';
 import IdleSignOut from '../../components/IdleSignOut.jsx';
 import NotificationBell, { useStaffNotifications } from '../../components/NotificationBell.jsx';
-import { NAV_GROUPS, navAllowed, navCollapsible, navItemFor, navBadges, navLabel } from '../../components/adminNav.js';
+import { NAV_GROUPS, censusMenuShown, navAllowed, navCollapsible, navItemFor, navBadges, navLabel } from '../../components/adminNav.js';
 import { accessLabel } from '../../lib/access.js';
 import { keepServiceWorker } from '../../lib/push.js';
 import ChurchEmblem from '../../components/ChurchEmblem.jsx';
@@ -86,6 +86,7 @@ export default function AdminLayout() {
   const [parish, setParish] = useState(null);
 
   const [navCounts, setNavCounts] = useState(null);
+  const [openCensus, setOpenCensus] = useState(null);
   const [searchOpen, setSearchOpen] = useState(false);
   const [openGroups, setOpenGroups] = useState({});
   const openSearch = useCallback(() => { setDrawerOpen(false); setSearchOpen(true); }, []);
@@ -95,15 +96,18 @@ export default function AdminLayout() {
 
   // What's waiting, for the sidebar badges: refreshed on every page change
   // and whenever a page changes something counted (refreshNavCounts). Fails
-  // quietly, leaving the badges off.
+  // quietly, leaving the badges off. The open census, if any, for the CENSUS
+  // shortcut under Main, is checked with them.
   const refreshNavCounts = useCallback(() => {
     api.navCounts().then(setNavCounts).catch(() => {});
+    api.openCensus().then(setOpenCensus).catch(() => {});
   }, []);
   useEffect(refreshNavCounts, [location.pathname, refreshNavCounts]);
   const bell = useStaffNotifications({ onNew: refreshNavCounts });
   useAdminAppLinks();
   useNotificationTaps(navigate);
   const badges = navBadges(navCounts);
+  const showCensusMenu = censusMenuShown(parish, openCensus);
   const requestCounts = navCounts?.requests || null;
   const current = navItemFor(location.pathname);
   const allowed = !current || navAllowed(current, user);
@@ -160,7 +164,7 @@ export default function AdminLayout() {
 
       <nav className="px-3 py-1.5 flex flex-col flex-1 overflow-auto" aria-label="Admin sections">
         {NAV_GROUPS.map((g) => {
-          const items = g.items.filter((n) => navAllowed(n, user)).map((n) => ({ ...n, label: navLabel(n, user) }));
+          const items = g.items.filter((n) => navAllowed(n, user) && (!n.whileCensusOpen || showCensusMenu)).map((n) => ({ ...n, label: navLabel(n, user) }));
           if (!items.length) return null;
           if (navCollapsible(g, user)) {
             // Collapsed by default; opens on its own while one of its pages is showing.
