@@ -10,7 +10,7 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
-import { MEMBERSHIP_STATUSES, cleanParticipation, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, registryVsLastYear, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, previousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet } from './lib/census.js';
+import { MEMBERSHIP_STATUSES, cleanParticipation, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, censusVsLastYearFrom, censusBaselineMode, previousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet } from './lib/census.js';
 import {
   sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows, personName, SACRAMENT_MIN_AGE, missingSacrament,
   candidatesByGkk, churchWeddingCandidates, sacramentsByYear, AGE_GROUPS, inAgeGroup, ageSexRows, breakdownRows, celebrationsInMonth, statusChanges,
@@ -1382,8 +1382,15 @@ export const api = {
     return data;
   },
 
-  async closeCensusCycle(id) {
-    const { data, error } = await supabase.rpc('census_close_cycle', { p_cycle_id: id });
+  /**
+   * Close a census, keeping its results as they stand (0082): worked out
+   * here, then saved with the close in one step. Before 0082 it closes
+   * without them.
+   */
+  async closeCensusCycle(cycle, cycles) {
+    const results = await api.buildCensusResults(cycle, cycles);
+    let { data, error } = await supabase.rpc('census_close_cycle', { p_cycle_id: cycle.id, p_results: results });
+    if (isMissingFunction(error)) ({ data, error } = await supabase.rpc('census_close_cycle', { p_cycle_id: cycle.id }));
     if (error) throw mapError(error);
     return data;
   },
@@ -1495,45 +1502,78 @@ export const api = {
     return rows.map(({ id, ...m }) => ({ member_id: id, ...m }));
   },
   /**
-   * Households registered against last year, as the Census page and Reports
-   * show it, following the switch on Census -> Last year's list (0048):
-   * - list on: registryVsLastYear(): the GKK's names on last year's list (or
-   *   its typed count) against the households in the registry, queued or verified;
-   * - list off: householdsVsPreviousCensus(): the households that took part
-   *   in the census before `cycle` against this one;
-   * - list off and no earlier census yet: registryVsLastYear() on the
-   *   household counts typed in Parish GKK alone (mode 'count'), the one-time
-   *   baseline until a census is recorded (`noPrevious` when no GKK has one).
-   * All give { mode, rows, total, hasBaseline, notYet: [{ key, title, detail, gkk }], previous }.
+   * Households (and families) against last year or the previous census, as
+   * the Census page, Reports and Parish GKK show it: censusVsLastYearFrom()
+   * in lib/census.js. A closed census shows the results kept when it closed
+   * (0082), with `kept: { savedAt, savedBy }`; an open one, or one closed
+   * before 0082, is worked out from the registry now.
    */
   async censusVsLastYear(cycle, cycles, ownGkk = null) {
-    // Families (0079) against the count typed in Parish GKK; null before 0054/0079.
-    const familiesVsTyped = async (details) => {
-      const stats = await api.familyStats().catch(() => null);
-      return stats ? familiesVsCount(details.rows, stats.by_gkk, ownGkk) : null;
-    };
-    if (await api.lastYearListEnabled()) {
-      const [details, heads, list, families] = await Promise.all([
-        api.listGkkDetails(), api.registryHeads(), api.listLastYear('All').catch(() => []), api.registryFamilyHeads().catch(() => []),
+    const kept = cycle ? await api.keptCensusResults(cycle.id, ownGkk) : null;
+    if (kept?.vs_last_year) return { ...kept.vs_last_year, kept: { savedAt: kept.saved_at, savedBy: kept.saved_by_name } };
+    return censusVsLastYearFrom(await api.censusVsLastYearInputs(cycle, cycles), ownGkk);
+  },
+  /**
+   * What censusVsLastYearFrom() works from, fetched once: the households
+   * that answered this census and the one before (mode 'census', once an
+   * earlier census was held here), else the registry against last year's
+   * list or the counts typed in Parish GKK (censusBaselineMode()).
+   */
+  async censusVsLastYearInputs(cycle, cycles) {
+    // The switch only matters for the first census, so it's read only then.
+    const first = !(cycle && previousCensus(cycles, cycle));
+    const mode = censusBaselineMode(cycles, cycle, first && await api.lastYearListEnabled());
+    if (mode === 'census') {
+      const previous = previousCensus(cycles, cycle);
+      const [before, now, famBefore, famNow] = await Promise.all([
+        api.censusHouseholdProgressRows(previous.id), api.censusHouseholdProgressRows(cycle.id),
+        api.censusFamilyProgressRows(previous.id), api.censusFamilyProgressRows(cycle.id),
       ]);
-      return { mode: 'list', previous: null, ...registryVsLastYear(details.rows, heads, list, ownGkk, families), families: await familiesVsTyped(details) };
+      return { mode, previous, before, now, famBefore, famNow };
     }
-    const previous = cycle ? previousCensus(cycles, cycle) : null;
-    if (!previous) {
-      const [details, heads] = await Promise.all([api.listGkkDetails(), api.registryHeads()]);
-      const res = registryVsLastYear(details.rows, heads, [], ownGkk);
-      return { mode: 'count', previous: null, noPrevious: !res.hasBaseline, ...res, families: await familiesVsTyped(details) };
-    }
-    const [before, now, famBefore, famNow] = await Promise.all([
-      api.censusHouseholdProgressRows(previous.id), api.censusHouseholdProgressRows(cycle.id),
-      api.censusFamilyProgressRows(previous.id), api.censusFamilyProgressRows(cycle.id),
+    // Families (0079) against the count typed in Parish GKK; null before 0054/0079.
+    const [details, heads, list, familyHeads, stats] = await Promise.all([
+      api.listGkkDetails(), api.registryHeads(),
+      mode === 'list' ? api.listLastYear('All').catch(() => []) : [],
+      mode === 'list' ? api.registryFamilyHeads().catch(() => []) : [],
+      api.familyStats().catch(() => null),
     ]);
-    const res = householdsVsPreviousCensus(before, now, ownGkk);
-    const notYet = res.notYetHouseholds.map((h) => ({
-      key: `h${h.household_id}`, title: h.household_name, detail: [h.head_name, h.ref_no].filter(Boolean).join(' · '), gkk: h.gkk, purok: '', note: [h.head_name, h.ref_no].filter(Boolean).join(' · '),
-    }));
-    const families = famBefore && famNow ? familiesVsPreviousCensus(famBefore, famNow, ownGkk) : null;
-    return { mode: 'census', previous, ...res, notYet, families };
+    return { mode, previous: null, gkks: details.rows, heads, list, familyHeads, familyStats: stats ? stats.by_gkk : null };
+  },
+  /**
+   * The results a closed census kept (0082) for the whole parish (`gkk`
+   * null) or one GKK: { summary, vs_last_year, saved_at, saved_by_name }, or
+   * null (none kept, or before 0082). A GKK leader only reads their GKK's.
+   */
+  async keptCensusResults(cycleId, gkk = null) {
+    let q = supabase.from('census_results').select('summary, vs_last_year, saved_at, saved_by_name').eq('cycle_id', cycleId);
+    q = gkk ? q.eq('gkk', gkk) : q.is('gkk', null);
+    const { data, error } = await q.maybeSingle();
+    return error ? null : data;
+  },
+  /**
+   * A census's results to keep (0082), worked out from the registry now:
+   * [{ gkk: null, summary, vsLastYear }] for the whole parish, then one per
+   * GKK, from one fetch.
+   */
+  async buildCensusResults(cycle, cycles) {
+    const [inputs, rows, details] = await Promise.all([
+      api.censusVsLastYearInputs(cycle, cycles), api.liveCensusSummary(cycle.id), api.listGkkDetails(),
+    ]);
+    // Plain data only, as it's stored as JSON.
+    const plain = (v) => JSON.parse(JSON.stringify(v));
+    return [
+      { gkk: null, summary: rows, vsLastYear: plain(censusVsLastYearFrom(inputs, null)) },
+      ...details.rows.map((g) => ({ gkk: g.name, summary: rows.filter((r) => r.gkk === g.name), vsLastYear: plain(censusVsLastYearFrom(inputs, g.name)) })),
+    ];
+  },
+  /** Full access: keep the results of a census closed before 0082, worked out now. */
+  async recordCensusResults(cycle, cycles) {
+    const results = await api.buildCensusResults(cycle, cycles);
+    const { data, error } = await supabase.rpc('census_record_results', { p_cycle_id: cycle.id, p_results: results });
+    if (isMissingFunction(error)) throw new Error('Run the 0082_census_results_snapshot.sql migration in Supabase to keep each census’s results');
+    if (error) throw mapError(error);
+    return data;
   },
   /** Every family's part in one census (0079): [{ household_id, family_no, gkk, took_part }], or null before 0079. */
   async censusFamilyProgressRows(cycleId) {
@@ -1616,8 +1656,19 @@ export const api = {
     if (error) throw lastYearMissing(error);
   },
 
-  /** census_summary() rows: { gkk, status, members }. */
+  /**
+   * census_summary() rows: { gkk, status, members }. A closed census gives
+   * the ones kept when it closed (0082): the whole parish's for staff, their
+   * GKK's for its leader (the only ones they can read).
+   */
   async censusSummary(cycleId) {
+    const { data: kept } = await supabase.from('census_results').select('gkk, summary').eq('cycle_id', cycleId);
+    const row = (kept || []).find((r) => r.gkk == null) || (kept?.length === 1 ? kept[0] : null);
+    if (row) return row.summary || [];
+    return api.liveCensusSummary(cycleId);
+  },
+  /** census_summary() rows worked out from the registry now, kept results or not. */
+  async liveCensusSummary(cycleId) {
     const { data, error } = await supabase.rpc('census_summary', { p_cycle_id: cycleId });
     if (error) throw mapError(error);
     return data || [];
@@ -1927,13 +1978,16 @@ export const api = {
       if (!cycleId) throw new Error('Choose a census');
       const cycles = await api.listCensusCycles();
       const cycle = cycles.find((c) => c.id === Number(cycleId));
-      // Against last year's list or the previous census, as the switch on Census -> Last year's list says (0048).
+      // Against the previous census once there is one; for the first, last year's list or counts (censusBaselineMode()).
+      // A closed census gives the results kept when it closed (0082).
       if (type === 'Households vs last year' || type === 'Not yet registered') {
         const res = await api.censusVsLastYear(cycle, cycles, gkk === 'All' ? null : gkk);
         const baseline = vsLastYearBaseline(res);
         const noBaseline = res.mode === 'count'
           ? `No baseline to compare with: type each GKK's households last year in Parish GKK, or turn the list on${where}`
-          : `No baseline to compare with (${baseline}): add last year's names or counts, or turn the list off once there's an earlier census${where}`;
+          : res.mode === 'census'
+            ? `No baseline to compare with: nobody answered ${baseline}${where}`
+            : `No baseline to compare with (${baseline}): add last year's names or counts${where}`;
         if (type === 'Households vs last year') {
           const t = vsLastYearTable(res, cycle);
           const fam = res.families?.hasBaseline ? res.families.total : null;

@@ -132,6 +132,32 @@ checks matter.
   the total, and the share confirmed. The numbers match the tiles.
 - The CSV has the same rows and columns.
 
+### CE-10 — A closed census keeps its results
+**Steps**
+1. With the census closed (CE-08), note the numbers on **Results by GKK**.
+2. Add a new household with members in one GKK, and move another household to a
+   different GKK.
+3. Go back to **Results by GKK** for the closed census.
+
+**Expected**
+- A grey note says these are the results as they stood when it closed.
+- The numbers are the same as in step 1: the new household doesn't show as
+  "not started", and the moved household's answers stay with its old GKK.
+- After **Reopen**, the note is gone and the numbers follow the registry again.
+
+### CE-11 — The second census is measured against the first
+**Steps**
+1. With the first census closed, click **Start a census**.
+2. Open **Results by GKK** for the new census.
+
+**Expected**
+- The start form says the new census is measured against the first one.
+- The table is "Households that answered the census, by GKK", with "Last census"
+  (households that answered the first census) and "Answered", even with last
+  year's list switched on.
+- A family whose online update is still waiting in **Online updates** is not
+  counted as answered until it's approved.
+
 ### CE-10 — Dashboard
 **Steps**
 1. Open **Dashboard**.

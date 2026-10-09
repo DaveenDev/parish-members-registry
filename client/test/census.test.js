@@ -6,7 +6,7 @@ import {
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
-  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, vsLastYearTable, familiesTable, statusTable, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
+  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, vsLastYearTable, familiesTable, statusTable, censusBaselineMode, censusVsLastYearFrom, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
 
@@ -395,6 +395,71 @@ describe('householdsVsPreviousCensus (0048: no last year list)', () => {
   });
 });
 
+describe('which baseline a census is measured against', () => {
+  const cycles = [{ id: 2, label: '2027 Census' }, { id: 1, label: '2026 Census' }];
+
+  test('from the second census on, the census before, whatever the list switch says', () => {
+    assert.equal(censusBaselineMode(cycles, cycles[0], true), 'census');
+    assert.equal(censusBaselineMode(cycles, cycles[0], false), 'census');
+  });
+
+  test('the first census: last year\'s list while it\'s on, else the typed counts', () => {
+    assert.equal(censusBaselineMode(cycles, cycles[1], true), 'list');
+    assert.equal(censusBaselineMode(cycles, cycles[1], false), 'count');
+    assert.equal(censusBaselineMode([], null, true), 'list');
+  });
+});
+
+describe('censusVsLastYearFrom', () => {
+  // Households that answered the 2026 census, and their progress in 2027.
+  const before = [
+    { household_id: 1, household_name: 'Cruz', gkk: 'A', progress: 'Confirmed' },
+    { household_id: 2, household_name: 'Reyes', gkk: 'A', progress: 'Partly confirmed' },
+    { household_id: 3, household_name: 'Santos', gkk: 'B', progress: 'Confirmed' },
+    { household_id: 4, household_name: 'Yap', gkk: 'B', progress: 'Not started' },
+  ];
+  const now = [
+    { household_id: 1, household_name: 'Cruz', gkk: 'A', progress: 'Confirmed' },
+    { household_id: 2, household_name: 'Reyes', gkk: 'A', progress: 'Not started' },
+    { household_id: 3, household_name: 'Santos', gkk: 'B', progress: 'Partly confirmed' },
+    { household_id: 4, household_name: 'Yap', gkk: 'B', progress: 'Confirmed' },
+  ];
+  const inputs = { mode: 'census', previous: { id: 1, label: '2026 Census' }, before, now, famBefore: null, famNow: null };
+
+  test('households that answered this census against those that answered the one before', () => {
+    const res = censusVsLastYearFrom(inputs);
+    assert.equal(res.mode, 'census');
+    assert.equal(res.previous.label, '2026 Census');
+    const a = res.rows.find((r) => r.label === 'A');
+    assert.deepEqual([a.lastYear, a.registered, a.notYet], [2, 1, 1]);
+    // Yap didn't answer in 2026, so isn't in "last census", but answered now.
+    const b = res.rows.find((r) => r.label === 'B');
+    assert.deepEqual([b.lastYear, b.registered, b.notYet], [1, 2, 0]);
+    assert.deepEqual(res.notYet.map((n) => n.title), ['Reyes']);
+  });
+
+  test('one GKK\'s results are its rows of the whole parish\'s, from the same fetch', () => {
+    const all = censusVsLastYearFrom(inputs);
+    for (const g of ['A', 'B']) {
+      const mine = censusVsLastYearFrom(inputs, g);
+      assert.deepEqual(mine.rows, all.rows.filter((r) => r.label === g));
+      assert.ok(mine.notYet.every((n) => n.gkk === g));
+    }
+  });
+
+  test('plain data, so a closed census can keep it as JSON', () => {
+    const list = censusVsLastYearFrom({
+      mode: 'list', gkks: [{ name: 'A', previous_households: 2 }], heads: [{ household_id: 1, gkk: 'A', status: 'Verified', first_name: 'Juan', last_name: 'Cruz' }],
+      list: [{ id: 1, gkk: 'A', head_name: 'Cruz, Juan', status: 'Not yet' }], familyHeads: [], familyStats: null,
+    });
+    assert.equal(list.matches, undefined, 'no Map in the results');
+    for (const res of [list, censusVsLastYearFrom(inputs)]) {
+      assert.deepEqual(JSON.parse(JSON.stringify(res)), res);
+      assert.ok(!Object.values(res).some((v) => v instanceof Map || v instanceof Set));
+    }
+  });
+});
+
 describe('vsLastYearTable', () => {
   test('list mode: verified and on-the-queue columns, and the total', () => {
     const res = registryVsLastYear([{ name: 'A', previous_households: 4 }], [{ household_id: 1, gkk: 'A', status: 'Verified' }, { household_id: 2, gkk: 'A', status: 'Pending' }], []);
@@ -419,6 +484,12 @@ describe('vsLastYearTable', () => {
     assert.equal(vsLastYearTable({ mode: 'list', ...res, families: familiesVsCount([{ name: 'A' }], []) }, null).columns.length, 8);
     // The printed households report leaves the families to their own report.
     assert.equal(vsLastYearTable({ mode: 'list', ...res, families }, null, { withFamilies: false }).columns.length, 8);
+  });
+
+  test('a census compared with the one before reads "answered", not "registered"', () => {
+    const t = vsLastYearTable({ mode: 'census', previous: { label: '2026 Census' }, ...householdsVsPreviousCensus([], []) }, { label: '2027 Census' });
+    assert.deepEqual(t.columns, ['GKK', 'Last census', 'Answered', 'Fully confirmed', 'Not yet', 'Answered %']);
+    assert.deepEqual(familiesTable({ mode: 'census', previous: { label: '2026 Census' }, families: null }, null).columns.slice(1, 3), ['Last census', 'Answered']);
   });
 
   test('the families report: one row per GKK and the total', () => {

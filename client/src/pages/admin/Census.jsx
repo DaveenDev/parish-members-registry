@@ -70,7 +70,7 @@ export default function Census() {
   const showListTab = listOn || canSwitch;
   const listPart = (
     <>
-      {canSwitch && parish && <LastYearListSwitch parish={parish} cycles={cycles} onChanged={setParish} />}
+      {canSwitch && parish && <LastYearListSwitch parish={parish} onChanged={setParish} />}
       {listOn
         ? <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />
         : <Panel className="p-6 text-[13.5px] text-parish-muted">The list is off: its names are kept but not used or shown. Turn it on to see them, or to type or upload last year's names.</Panel>}
@@ -110,12 +110,12 @@ export default function Census() {
   async function closeCycle() {
     const ok = await confirm({
       title: `Close the ${cycle.label}?`,
-      message: 'No member data changes. Members nobody confirmed will show as “not confirmed” in this census. You can reopen it later if forms are still coming in.',
+      message: 'No member data changes. Members nobody confirmed will show as “not confirmed” in this census. Its results by GKK are kept as they stand now, so they stay the same later on. You can reopen it later if forms are still coming in.',
       confirmLabel: 'Close census',
     });
     if (!ok) return;
     try {
-      await api.closeCensusCycle(cycle.id);
+      await api.closeCensusCycle(cycle, cycles);
       toast.success(`${cycle.label} closed`);
       loadCycles(cycle.id);
     } catch (e) {
@@ -218,9 +218,8 @@ export default function Census() {
 
         {starting && (
           <CensusCycleForm
-            // A census was already held here, yet the paper list from before it is still in use.
-            listStillOn={listOn && latest ? latest : null}
-            canChangeList={can(user, 'settings')}
+            // A census was already held here: the new one is measured against it.
+            previous={latest || null}
             onCancel={() => setStarting(false)}
             onStarted={(c) => { setStarting(false); toast.success(`${c.label} started`); loadCycles(c.id); }}
           />
@@ -255,7 +254,7 @@ export default function Census() {
                 {canManage && !editing && <GhostButton onClick={() => setEditing(true)} className="px-4 py-2 text-[13.5px]">Edit</GhostButton>}
                 {canManage && cycle.status === 'Open' && <GhostButton onClick={closeCycle} className="px-4 py-2 text-[13.5px]">Close census</GhostButton>}
                 {canManage && cycle.status === 'Closed' && !openCycle && <GhostButton onClick={reopenCycle} className="px-4 py-2 text-[13.5px]">Reopen</GhostButton>}
-                {cycle.status === 'Closed' && <AnalysisLink gkk={ownGkk} className="px-4 py-2 text-[13.5px]" />}
+                {cycle.status === 'Closed' && <AnalysisLink cycle={cycle} gkk={ownGkk}className="px-4 py-2 text-[13.5px]" />}
               </div>
             </div>
 
@@ -276,7 +275,7 @@ export default function Census() {
             />
             {(tab === 'households' || (tab === 'lastYear' && !showListTab)) && <HouseholdsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} initialQuery={linkedQuery} initialStatus={linkedStatus} />}
-            {tab === 'results' && <ResultsTab key={cycle.id} cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} canOpenGkk={!ownGkk && can(user, 'censusGkkView')} />}
+            {tab === 'results' && <ResultsTab key={cycle.id} cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} canOpenGkk={!ownGkk && can(user, 'censusGkkView')} canRecord={canManage} />}
             {tab === 'lastYear' && showListTab && listPart}
           </>
         )}
@@ -287,32 +286,19 @@ export default function Census() {
 
 /**
  * Start a new census, or with `cycle` change one's name and dates (and
- * delete it, through `onDelete`). `listStillOn` is the last census held here
- * when last year's (paper) list is still switched on: starting then warns,
- * since the new census would be measured against that old list rather than
- * the census before it.
+ * delete it, through `onDelete`). `previous` is the last census held here,
+ * which a new census is measured against (the households that answered it).
  */
-function CensusCycleForm({ cycle = null, listStillOn = null, canChangeList = false, onCancel, onStarted, onSaved, onDelete }) {
-  const confirm = useConfirm();
+function CensusCycleForm({ cycle = null, previous = null, onCancel, onStarted, onSaved, onDelete }) {
   const [label, setLabel] = useState(cycle?.label || defaultCensusLabel());
   const [startsOn, setStartsOn] = useState(cycle?.starts_on || today());
   const [endsOn, setEndsOn] = useState(cycle?.ends_on || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const warnList = !cycle && listStillOn;
 
   async function start() {
     setError('');
     if (!label.trim()) { setError('Give the census a name.'); return; }
-    if (warnList) {
-      const ok = await confirm({
-        title: "Start with last year's list still on?",
-        message: `The ${label.trim()} will be measured against last year's paper list, not the ${listStillOn.label} held in this registry. `
-          + `If the list is out of date, cancel and turn it off first under Census → Last year's list.`,
-        confirmLabel: 'Start anyway',
-      });
-      if (!ok) return;
-    }
     setSaving(true);
     try {
       if (cycle) onSaved(await api.updateCensusCycle(cycle.id, { label: label.trim(), startsOn, endsOn }));
@@ -332,15 +318,10 @@ function CensusCycleForm({ cycle = null, listStillOn = null, canChangeList = fal
           ? 'Change its name or dates. Recorded answers stay as they are.'
           : 'Every current member starts as “not confirmed”. Nothing changes in the records until staff save a household\'s answers.'}
       </p>
-      {warnList && (
-        <div role="note" className="mb-4 px-4 py-3 rounded-xl border border-[#fdba74] bg-[#fff7ed] text-[13.5px] text-[#9a3412] leading-relaxed">
-          <strong>Last year's household list is still on.</strong> The {listStillOn.label} was held in this registry, so last year's
-          paper list is probably out of date. With the list on, this census is measured against those old names instead of the
-          families in the {listStillOn.label}.{' '}
-          {canChangeList
-            ? <>Turn it off under <strong>Last year's list</strong> on this page</>
-            : <>Ask a staff admin to turn it off under Census → Last year's list</>}
-          {' '}before starting, unless you mean to keep using it.
+      {!cycle && previous && (
+        <div role="note" className="mb-4 px-4 py-3 rounded-xl border border-[var(--p-blue-border)] bg-[var(--p-blue-tint)] text-[13.5px] text-parish-text2 leading-relaxed">
+          Its results by GKK are measured against the {previous.label}: how many of the households that answered it have answered this one.
+          Last year's list is only for the first census held here.
         </div>
       )}
       {error && <div className="mb-3 text-parish-error text-[13.5px]" role="alert">{error}</div>}
@@ -696,16 +677,16 @@ function PrintButton({ onClick, className = '' }) {
 }
 
 /**
- * A link to Reports → Analysis Report (how active members are, from their
- * latest census answers), on that GKK's analysis when `gkk` is given.
- * Nothing for staff who can't open Reports.
+ * A link to Reports → Analysis Report (how active members are) for this
+ * census, scored on its answers alone; on that GKK's analysis when `gkk` is
+ * given. Nothing for staff who can't open Reports.
  */
-function AnalysisLink({ gkk = null, className = '' }) {
+function AnalysisLink({ cycle, gkk = null, className = '' }) {
   const { user } = useAuth();
   if (!can(user, 'reports')) return null;
   return (
     <Link
-      to={`/admin/reports?tab=analysis${gkk ? `&gkk=${encodeURIComponent(gkk)}` : ''}`}
+      to={`/admin/reports?tab=analysis&cycle=${cycle.id}${gkk ? `&gkk=${encodeURIComponent(gkk)}` : ''}`}
       className={`inline-flex items-center font-semibold text-white bg-parish-fill rounded-lg no-underline whitespace-nowrap ${className}`}
     >
       Analysis Report →
@@ -735,7 +716,9 @@ function FamiliesTable({ res, cycle, ownGkk, onPrint }) {
     <div className="mb-6">
       <div className="flex items-start gap-3 flex-wrap">
         <h3 className="m-0 mb-1 flex-1 min-w-0 font-serif text-[20px] font-semibold text-parish-navy">
-          {ownGkk ? `${ownGkk}: registered families` : 'Registered families by GKK'}
+          {census
+            ? (ownGkk ? `${ownGkk}: families that answered` : 'Families that answered the census, by GKK')
+            : (ownGkk ? `${ownGkk}: registered families` : 'Registered families by GKK')}
           <span className="ml-2 align-middle text-[14px] font-sans font-semibold text-parish-blue">{fam.total.pct}%</span>
         </h3>
         {onPrint && (
@@ -746,13 +729,16 @@ function FamiliesTable({ res, cycle, ownGkk, onPrint }) {
       </div>
       <p className="text-[13px] text-parish-muted mt-0 mb-3">
         {census
-          ? <>Families with at least one member confirmed in the {cycle.label}, against the families that took part in the {res.previous.label}. A house can hold more than one family, each with its own head.</>
+          ? <>Families with at least one member's answers in the {cycle.label}, against the families that answered the {res.previous.label}. A house can hold more than one family, each with its own head.</>
           : <>Families in the registry against each GKK's families last year, set in Parish GKK. A house can hold more than one family, each with its own head.</>}
       </p>
       <DataTable
         minWidth={560}
         stickyFirst
-        columns={[{ label: 'GKK' }, { label: 'Last year', align: 'right' }, { label: 'Registered', align: 'right' }, { label: 'Not yet', align: 'right' }, { label: 'Registered %', align: 'right' }]}
+        columns={[
+          { label: 'GKK' }, { label: census ? 'Last census' : 'Last year', align: 'right' }, { label: census ? 'Answered' : 'Registered', align: 'right' },
+          { label: 'Not yet', align: 'right' }, { label: census ? 'Answered %' : 'Registered %', align: 'right' },
+        ]}
       >
         {rows.map((r, i) => (
           <tr key={r.label} className={`border-t border-parish-line ${i === rows.length - 1 ? 'bg-parish-sunk font-semibold' : ''}`}>
@@ -890,7 +876,9 @@ function ResultsTab({ canOpenGkk, ...props }) {
  * (`ownGkk`), or one GKK's opened by staff (`staffView`). `onOpenGkk(name)`,
  * when given, makes each GKK's row open it.
  */
-function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false, onOpenGkk = null }) {
+function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false, onOpenGkk = null, canRecord = false }) {
+  const toast = useToast();
+  const [recording, setRecording] = useState(false);
   const [summary, setSummary] = useState(null);
   const [vsLastYear, setVsLastYear] = useState(null);
   const [error, setError] = useState('');
@@ -916,6 +904,20 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
     api.censusVsLastYear(cycle, cycles, ownGkk).then(setVsLastYear).catch(() => setVsLastYear(null));
   }
   useEffect(() => { load(); }, [cycle.id, refreshKey, parish?.last_year_list_enabled]);
+
+  // A census closed before 0082 kept no results: keep them now, as they stand today.
+  async function recordResults() {
+    setRecording(true);
+    try {
+      await api.recordCensusResults(cycle, cycles);
+      toast.success(`The ${cycle.label}'s results are kept`);
+      load();
+    } catch (e) {
+      toast.error(e.message || 'Could not keep the results');
+    } finally {
+      setRecording(false);
+    }
+  }
 
   async function exportCsv() {
     const columns = ['GKK', ...summary.columns, 'Total', 'Confirmed %'];
@@ -949,19 +951,39 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
   const openHint = onOpenGkk && <p className="text-[12.5px] text-parish-muted mt-0 mb-2">Click a GKK to see its results as its GKK leader does, with the families not yet registered.</p>;
   return (
     <>
+      {cycle.status === 'Closed' && vsLastYear && (vsLastYear.kept ? (
+        <p className="mb-5 px-4 py-3 rounded-xl bg-parish-sunk text-[13px] text-parish-text2">
+          These are the {cycle.label}'s results as they stood when it closed
+          {cycle.closed_at ? ` on ${new Date(cycle.closed_at).toLocaleDateString()}` : ''}. They stay the same as the registry changes.
+        </p>
+      ) : (
+        <div className="mb-5 px-4 py-3 rounded-xl border border-[#fdba74] bg-[#fff7ed] text-[13px] text-[#9a3412] flex items-center gap-3 flex-wrap">
+          <span className="flex-1 min-w-[240px]">
+            The {cycle.label} closed before results were kept, so these are worked out from today's registry and can change as it does.
+            {canRecord && !staffView ? ' Keep them as they stand now so they stop changing.' : ''}
+          </span>
+          {canRecord && !staffView && (
+            <button type="button" onClick={recordResults} disabled={recording} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap disabled:opacity-60">
+              {recording ? 'Keeping…' : 'Record these results'}
+            </button>
+          )}
+        </div>
+      ))}
       {vsLastYear?.hasBaseline && (
         <>
           <div className="flex items-start gap-3 mb-3 flex-wrap">
             <div className="min-w-0 flex-1">
               <h3 className="m-0 mb-1 font-serif text-[20px] font-semibold text-parish-navy">
-                {ownGkk ? `${ownGkk}: registered households` : 'Registered households by GKK'}
+                {vsLastYear.mode === 'census'
+                  ? (ownGkk ? `${ownGkk}: households that answered` : 'Households that answered the census, by GKK')
+                  : (ownGkk ? `${ownGkk}: registered households` : 'Registered households by GKK')}
                 <span className="ml-2 align-middle text-[14px] font-sans font-semibold text-parish-blue">{vsLastYear.total.pct}%</span>
               </h3>
               <p className="text-[13px] text-parish-muted m-0">
                 {vsLastYear.mode === 'census'
-                  ? <>Households registered in the {cycle.label} (at least one member confirmed) against the {vsLastYear.previous.label}. “Last year” is the households that took part in the {vsLastYear.previous.label}; “not yet” is those of them with nobody confirmed in this census yet.</>
+                  ? <>Households that answered the {cycle.label} (at least one member's answers: on paper, at a visit, at registration, or an online update once approved) against those that answered the {vsLastYear.previous.label}. “Not yet” is those of them with no answers in this census yet.</>
                   : vsLastYear.mode === 'count'
-                    ? <>Households in the registry (on the verification queue or verified) against each GKK's households last year, set in Parish GKK. Last year's list is off and there's no earlier census in the registry yet; from the next census on, it's compared with this one.</>
+                    ? <>Households in the registry (on the verification queue or verified) against each GKK's households last year, set in Parish GKK. Last year's list is off and this is the first census in the registry; from the next census on, it's compared with this one.</>
                     : <>Households in the registry (on the verification queue or verified) against last year's list. A GKK marked “list” counts its names, and a name is registered once it's found in the registry or ticked off; the others use the household count set in Parish GKK.</>}
               </p>
             </div>
@@ -979,9 +1001,10 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
               minWidth={760}
               stickyFirst
               columns={[
-                { label: 'GKK' }, { label: 'Last year', align: 'right' }, { label: 'Registered', align: 'right' },
-                ...(vsLastYear.mode === 'census' ? [{ label: 'Fully confirmed', align: 'right' }] : [{ label: 'Verified', align: 'right' }, { label: 'On the queue', align: 'right' }]),
-                { label: 'Not yet', align: 'right' }, { label: 'Registered %', align: 'right' },
+                ...(vsLastYear.mode === 'census'
+                  ? [{ label: 'GKK' }, { label: 'Last census', align: 'right' }, { label: 'Answered', align: 'right' }, { label: 'Fully confirmed', align: 'right' }]
+                  : [{ label: 'GKK' }, { label: 'Last year', align: 'right' }, { label: 'Registered', align: 'right' }, { label: 'Verified', align: 'right' }, { label: 'On the queue', align: 'right' }]),
+                { label: 'Not yet', align: 'right' }, { label: vsLastYear.mode === 'census' ? 'Answered %' : 'Registered %', align: 'right' },
               ]}
             >
               {[...vsLastYear.rows, vsLastYear.total].map((r, i) => (
@@ -1042,7 +1065,7 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
           onClick={() => printReport(statusTable(summary, cycle), `“Not confirmed” are current members with no answer in this census${cycle.status === 'Open' ? ' yet' : ''}.`)}
         />
         <button onClick={exportCsv} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
-        <AnalysisLink gkk={ownGkk} className="px-3.5 py-2 text-[12.5px]" />
+        <AnalysisLink cycle={cycle} gkk={ownGkk} className="px-3.5 py-2 text-[12.5px]" />
       </div>
       {!vsLastYear?.hasBaseline && openHint}
       <DataTable

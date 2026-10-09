@@ -752,6 +752,47 @@ export function vsLastYearBaseline(res) {
 }
 
 /**
+ * Which baseline a census is measured against (api.censusVsLastYearInputs()):
+ * 'census' once an earlier census was held in the registry (the households
+ * that answered it, whatever last year's list switch says); for the first
+ * census, 'list' (last year's paper list, while the switch is on) or 'count'
+ * (each GKK's households last year, typed in Parish GKK).
+ */
+export function censusBaselineMode(cycles, cycle, listOn) {
+  if (cycle && previousCensus(cycles, cycle)) return 'census';
+  return listOn ? 'list' : 'count';
+}
+
+/**
+ * The households (and families) against last year or the previous census,
+ * from api.censusVsLastYearInputs(), for the whole parish or one GKK
+ * (`ownGkk`). Pure, so every GKK's results come from one fetch when a
+ * census's results are kept (0082). All give { mode, previous, rows, total,
+ * hasBaseline, notYet: [{ key, title, detail, gkk, purok, note }], families }.
+ * - list: registryVsLastYear(): each GKK's names on last year's list (or its
+ *   typed count) against the households in the registry, queued or verified;
+ * - count: registryVsLastYear() on the counts typed in Parish GKK alone
+ *   (`noPrevious` when no GKK has one);
+ * - census: householdsVsPreviousCensus(): the households that answered the
+ *   census before against this one. Online updates count once approved.
+ */
+export function censusVsLastYearFrom(inputs, ownGkk = null) {
+  const familiesTyped = () => (inputs.familyStats ? familiesVsCount(inputs.gkks, inputs.familyStats, ownGkk) : null);
+  if (inputs.mode === 'list' || inputs.mode === 'count') {
+    const list = inputs.mode === 'list';
+    // `matches` (a Map) is for last year's list itself, not the results.
+    const { matches: _matches, ...res } = registryVsLastYear(inputs.gkks, inputs.heads, list ? inputs.list : [], ownGkk, list ? inputs.familyHeads : []);
+    return { mode: inputs.mode, previous: null, ...(list ? {} : { noPrevious: !res.hasBaseline }), ...res, families: familiesTyped() };
+  }
+  const { notYetHouseholds, ...res } = householdsVsPreviousCensus(inputs.before, inputs.now, ownGkk);
+  const notYet = notYetHouseholds.map((h) => ({
+    key: `h${h.household_id}`, title: h.household_name, detail: [h.head_name, h.ref_no].filter(Boolean).join(' · '), gkk: h.gkk, purok: '', note: [h.head_name, h.ref_no].filter(Boolean).join(' · '),
+  }));
+  const families = inputs.famBefore && inputs.famNow ? familiesVsPreviousCensus(inputs.famBefore, inputs.famNow, ownGkk) : null;
+  return { mode: 'census', previous: inputs.previous, ...res, notYet, families };
+}
+
+/**
  * The households-vs-last-year table (api.censusVsLastYear() result) as
  * { title, columns, rows } for a CSV or report, one row per GKK and the total.
  */
@@ -760,7 +801,7 @@ export function vsLastYearTable(res, cycle, { withFamilies = true } = {}) {
   const from = (r) => (r.lastYear == null || r === res.total ? '' : census ? res.previous.label : r.fromList ? 'List' : 'Count');
   const pct = (r) => (r.pct == null ? '' : `${r.pct}%`);
   const columns = census
-    ? ['GKK', 'Last year', 'Registered', 'Fully confirmed', 'Not yet', 'Registered %']
+    ? ['GKK', 'Last census', 'Answered', 'Fully confirmed', 'Not yet', 'Answered %']
     : ['GKK', 'Last year from', 'Last year', 'Registered', 'Verified', 'On the queue', 'Not yet', 'Registered %'];
   const cells = (r) => (census
     ? [r.label, r.lastYear ?? '', r.registered, r.confirmed, r.notYet ?? '', pct(r)]
@@ -774,7 +815,9 @@ export function vsLastYearTable(res, cycle, { withFamilies = true } = {}) {
   };
   return {
     title: `${cycle?.label || 'Census'}: households vs ${vsLastYearBaseline(res)}`,
-    columns: fam ? [...columns, 'Families last year', 'Families registered', 'Families not yet', 'Families %'] : columns,
+    columns: fam
+      ? [...columns, ...(census ? ['Families last census', 'Families answered'] : ['Families last year', 'Families registered']), 'Families not yet', 'Families %']
+      : columns,
     rows: res.hasBaseline ? [...res.rows, res.total].map((r) => (fam ? [...cells(r), ...famCells(r)] : cells(r))) : [],
   };
 }
@@ -788,7 +831,7 @@ export function familiesTable(res, cycle) {
   const pct = (r) => (r.pct == null ? '' : `${r.pct}%`);
   return {
     title: `${cycle?.label || 'Census'}: families vs ${vsLastYearBaseline(res)}`,
-    columns: ['GKK', 'Last year', 'Registered', 'Not yet', 'Registered %'],
+    columns: res?.mode === 'census' ? ['GKK', 'Last census', 'Answered', 'Not yet', 'Answered %'] : ['GKK', 'Last year', 'Registered', 'Not yet', 'Registered %'],
     rows: fam?.hasBaseline ? [...fam.rows, fam.total].map((r) => [r.label, r.lastYear ?? '', r.registered, r.notYet ?? '', pct(r)]) : [],
   };
 }
