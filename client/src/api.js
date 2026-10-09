@@ -1128,6 +1128,7 @@ export const api = {
     if (error?.code === '23505') throw new Error('A GKK with this name already exists');
     if (gkk44Missing(error)) throw new Error(GKK_44_HINT);
     if (gkk46Missing(error)) throw new Error(GKK_46_HINT);
+    if (gkk79Missing(error)) throw new Error(GKK_79_HINT);
     if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql and 0040_gkk_previous_households.sql migrations in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
@@ -1137,6 +1138,7 @@ export const api = {
     const { data, error } = await supabase.from('gkks').update(cleanPatch(fields)).eq('id', id).select().single();
     if (gkk44Missing(error)) throw new Error(GKK_44_HINT);
     if (gkk46Missing(error)) throw new Error(GKK_46_HINT);
+    if (gkk79Missing(error)) throw new Error(GKK_79_HINT);
     if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql and 0040_gkk_previous_households.sql migrations in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
@@ -1164,7 +1166,6 @@ export const api = {
   },
   /** Upload `file` to the GKK's folder, then save its row; the file is removed again if the row can't be saved. */
   async uploadGkkDocument(gkkId, file, { title, kind, note }) {
-    if (gkk79Missing(error)) throw new Error(GKK_79_HINT);
     const contentType = gkkDocumentType(file);
     const path = gkkDocumentPath(gkkId, contentType, crypto.randomUUID());
     const { error: upError } = await supabase.storage.from(GKK_DOCS_BUCKET).upload(path, file, { contentType, upsert: false });
@@ -1174,7 +1175,6 @@ export const api = {
     }
     const { data, error } = await supabase.from('gkk_documents')
       .insert({ gkk_id: gkkId, title, kind, note: note || null, file_path: path, file_name: file.name.slice(0, 255), content_type: contentType, size_bytes: file.size })
-    if (gkk79Missing(error)) throw new Error(GKK_79_HINT);
       .select().single();
     if (error) {
       await supabase.storage.from(GKK_DOCS_BUCKET).remove([path]).catch(() => {});
@@ -1492,6 +1492,11 @@ export const api = {
    * All give { mode, rows, total, hasBaseline, notYet: [{ key, title, detail, gkk }], previous }.
    */
   async censusVsLastYear(cycle, cycles, ownGkk = null) {
+    // Families (0079) against the count typed in Parish GKK; null before 0054/0079.
+    const familiesVsTyped = async (details) => {
+      const stats = await api.familyStats().catch(() => null);
+      return stats ? familiesVsCount(details.rows, stats.by_gkk, ownGkk) : null;
+    };
     if (await api.lastYearListEnabled()) {
       const [details, heads, list, families] = await Promise.all([
         api.listGkkDetails(), api.registryHeads(), api.listLastYear('All').catch(() => []), api.registryFamilyHeads().catch(() => []),
@@ -1541,11 +1546,6 @@ export const api = {
     if (error) return [];
     return data || [];
   },
-    // Families (0079) against the count typed in Parish GKK; null before 0054/0079.
-    const familiesVsTyped = async (details) => {
-      const stats = await api.familyStats().catch(() => null);
-      return stats ? familiesVsCount(details.rows, stats.by_gkk, ownGkk) : null;
-    };
 
   /** Every name on one GKK's list (or every GKK's, for 'All'), by purok then name. */
   async listLastYear(gkk = 'All') {
@@ -2261,6 +2261,9 @@ const GKK_44_HINT = 'Run the 0044_gkk_history_documents.sql migration in Supabas
 /** Before 0046 the GKK page's photo columns don't exist. */
 const gkk46Missing = (error) => ['42703', 'PGRST204'].includes(error?.code) && /photo_url|photos/.test(error?.message || '');
 const GKK_46_HINT = "Run the 0046_gkk_photos.sql migration in Supabase to save the GKK page's photos";
+/** Before 0079 there's no Families last year column. */
+const gkk79Missing = (error) => ['42703', 'PGRST204'].includes(error?.code) && /previous_families/.test(error?.message || '');
+const GKK_79_HINT = 'Run the 0079_census_families.sql migration in Supabase to save Families last year';
 
 async function listWebsite(table, order, migration = '0011_website_content.sql') {
   const { data, error } = await order(supabase.from(table).select('*'));
@@ -2297,9 +2300,6 @@ async function saveWebsiteRow(table, row, dupLabel) {
   return data;
 }
 
-/** Before 0079 there's no Families last year column. */
-const gkk79Missing = (error) => ['42703', 'PGRST204'].includes(error?.code) && /previous_families/.test(error?.message || '');
-const GKK_79_HINT = 'Run the 0079_census_families.sql migration in Supabase to save Families last year';
 async function deleteWebsiteRow(table, id) {
   const { error } = await supabase.from(table).delete().eq('id', id);
   if (error) throw mapError(error);
