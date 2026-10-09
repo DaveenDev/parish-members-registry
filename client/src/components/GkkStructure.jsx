@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { api } from '../api.js';
 import { useToast } from '../ToastContext.jsx';
@@ -8,8 +8,11 @@ import { Badge, Field, GhostButton, PrimaryButton, TextInput } from './ui.jsx';
 import { RowButton } from './panels.jsx';
 import MemberPicker from './orgchart/MemberPicker.jsx';
 import {
-  birthdateText, displayName, formalName, maxText, otherPositions, positionRows, savePayload, snapshot, statusText, structureChanges, structureProblem,
+  birthdateText, chartNodes, displayName, formalName, maxText, otherPositions, positionRows, savePayload, snapshot, statusText, structureChanges, structureProblem,
 } from '../lib/gkkStructure.js';
+
+// The website's org chart (d3 is heavy: it loads only when this tab opens).
+const OrgChartView = React.lazy(() => import('./site/OrgChartView.jsx'));
 
 const dateText = (v) => (v ? new Date(v).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : '');
 let keyCount = 0;
@@ -60,6 +63,9 @@ export default function GkkStructure({ gkk, office = false, canEdit = true }) {
   const state = data?.state || null;
   const status = state?.status || null;
   const others = otherPositions(positions, officers);
+  // The chart follows the list, redrawn once typing pauses.
+  const shown = useDeferredValue(officers);
+  const nodes = useMemo(() => chartNodes(positions, shown), [positions, shown]);
 
   if (loadError) return <ErrorState message={loadError} onRetry={load} />;
   if (!data) return <LoadingState label="Loading the structure…" />;
@@ -154,6 +160,24 @@ export default function GkkStructure({ gkk, office = false, canEdit = true }) {
             </ul>
           )}
         </div>
+      )}
+
+      {positions.length > 0 && (
+        <section aria-labelledby="gkk-structure-chart">
+          <div className="flex items-baseline justify-between gap-3 flex-wrap mb-2">
+            <h3 id="gkk-structure-chart" className="m-0 font-serif text-[20px] font-semibold text-parish-navy">GKK Structure</h3>
+            <span className="text-[12.5px] text-parish-muted">
+              The same for every GKK, set by the parish office. {canEdit ? 'Add the names in the list below.' : ''}
+            </span>
+          </div>
+          <Suspense fallback={<LoadingState label="Loading the chart…" compact />}>
+            <OrgChartView nodes={nodes} height={420} fileName={`structure-${gkk}`} />
+          </Suspense>
+        </section>
+      )}
+
+      {positions.length > 0 && (
+        <h3 className="m-0 mt-1 font-serif text-[20px] font-semibold text-parish-navy">{canEdit ? 'Leaders: add the names' : 'Leaders'}</h3>
       )}
 
       {!positions.length ? (

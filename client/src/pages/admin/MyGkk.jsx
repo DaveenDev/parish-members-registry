@@ -14,7 +14,7 @@ import {
 } from '../../components/GkkFields.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 
-const VIEWS = [['details', 'Details'], ['structure', 'Structure'], ['history', 'History'], ['documents', 'Documents'], ['names', "Last year's list"]];
+const VIEWS = [['details', 'Details'], ['structure', 'Leaders & Structure'], ['history', 'History'], ['documents', 'Documents'], ['names', "Last year's list"]];
 
 /**
  * GKK Config → My GKK (0045, 0046): a GKK leader's own GKK, without the

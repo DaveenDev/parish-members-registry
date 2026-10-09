@@ -135,6 +135,24 @@ export function otherPositions(positions, officers) {
   return (o) => (held.get(key(o)) || []).filter((id) => id !== o.nodeId).map((id) => title.get(id)).filter(Boolean);
 }
 
+/**
+ * The GKK Structure chart with these officers' names, as the website draws
+ * it (org_chart_tree): [{ id, parentId, title, holders: [name], note }],
+ * positions in their order, a note after the name as "(Family Group 1)".
+ */
+export function chartNodes(positions, officers) {
+  return (positions || []).map((p) => ({
+    id: p.id,
+    parentId: p.parentId ?? null,
+    title: p.title,
+    holders: (officers || []).filter((o) => o.nodeId === p.id)
+      .map((o) => `${displayName(o)}${clean(o.note) ? ` (${clean(o.note)})` : ''}`)
+      .filter((n) => n.trim()),
+    photo: null,
+    note: null,
+  }));
+}
+
 /** The structure's status for the GKK leader, in one line. */
 export function statusText(state) {
   if (!state?.status) return state?.approvedAt ? 'Approved, on the website' : 'Not sent yet';

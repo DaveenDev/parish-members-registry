@@ -87,7 +87,7 @@ export default function NodePanel({ node, scope, positions, canEdit, onChange, o
             </Select>
           </Field>
           <p className="m-0 -mt-1 text-[12.5px] text-parish-muted">
-            Each GKK's leader fills in its people (My GKK → Structure) and the parish office approves them. A registered member in this position then gets
+            Each GKK's leader fills in its people (My GKK → Leaders & Structure) and the parish office approves them. A registered member in this position then gets
             {d.gkkRole ? ` ${d.gkkRole}` : ' its title'} as their Katungdanan sa GKK, and the position in their service list.
           </p>
         </>

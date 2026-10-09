@@ -160,7 +160,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
     onHistoryOpened?.();
   }, [historyOf, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // The same for "GKK structure to approve" (?structure=<id>): its Structure tab.
+  // The same for "GKK structure to approve" (?structure=<id>): its Leaders & Structure tab.
   useEffect(() => {
     if (!structureOf || loading) return;
     const g = rows.find((r) => String(r.id) === structureOf);
@@ -433,7 +433,7 @@ function GkkPanel({ initial, codes, listNames = 0, onClose, onSaved, onOpenList 
     }
   }
 
-  const tabs = [['details', 'Details'], ...(isNew ? [] : [['structure', 'Structure']]), ['history', 'History'], ...(isNew ? [] : [['documents', 'Documents']])];
+  const tabs = [['details', 'Details'], ...(isNew ? [] : [['structure', 'Leaders & Structure']]), ['history', 'History'], ...(isNew ? [] : [['documents', 'Documents']])];
 
   return (
     <SidePanel

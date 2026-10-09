@@ -1,8 +1,8 @@
 -- GKK Structure filled in by each GKK, approved by the parish office. Run
 -- after 0080_history_video.sql. Safe to re-run.
 --
--- Screens: GKK Config → My GKK → Structure (the GKK leader) and Parish
--- Config → Parish GKK → a GKK → Structure (the parish office).
+-- Screens: GKK Config → My GKK → Leaders & Structure (the GKK leader) and
+-- Parish Config → Parish GKK → a GKK → Leaders & Structure (the parish office).
 --
 -- * The GKK Structure (00571) stays one template for every GKK, now with
 --   the Formation Ministry's form: officers, the Formation, Service and

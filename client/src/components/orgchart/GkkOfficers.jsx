@@ -12,7 +12,7 @@ import { usePhotoUploads } from './usePhotoUploads.js';
 /**
  * "Officers per GKK" under the GKK Structure: who holds each position in
  * one GKK, as approved in the GKK's structure (0081: filled in by its
- * leader, approved under Parish Config → Parish GKK → Structure). Here
+ * leader, approved under Parish Config → Parish GKK → Leaders & Structure). Here
  * each position can get a photo and a note for this GKK.
  */
 export default function GkkOfficers({ gkk, gkkId, positions, preview, canEdit, dirty, onChanged }) {
@@ -26,8 +26,8 @@ export default function GkkOfficers({ gkk, gkkId, positions, preview, canEdit, d
       <div className="px-4 sm:px-5 py-2.5 text-[13px] bg-parish-sunk text-parish-text2">
         The people come from {gkk}'s structure, filled in by its GKK leader and approved by the parish office.{' '}
         {gkkId
-          ? <Link to={`/admin/settings?tab=gkk&structure=${gkkId}`} className="font-semibold text-parish-blue hover:underline">Change them in its Structure tab</Link>
-          : 'Change them in Parish Config → Parish GKK → the GKK → Structure'}
+          ? <Link to={`/admin/settings?tab=gkk&structure=${gkkId}`} className="font-semibold text-parish-blue hover:underline">Change them in its Leaders & Structure tab</Link>
+          : 'Change them in Parish Config → Parish GKK → the GKK → Leaders & Structure'}
         . Here you can give a position a photo or a note for this GKK.
       </div>
       {dirty && <div className="px-4 sm:px-5 py-2.5 text-[13px] bg-parish-warnBg text-parish-warnStrong">Save the structure first: this list shows the saved positions.</div>}

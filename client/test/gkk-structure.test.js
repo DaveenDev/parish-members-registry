@@ -2,7 +2,7 @@ import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  positionRows, formalName, displayName, birthdateText, maxText, structureProblem, savePayload, structureChanges, otherPositions, statusText,
+  chartNodes, positionRows, formalName, displayName, birthdateText, maxText, structureProblem, savePayload, structureChanges, otherPositions, statusText,
 } from '../src/lib/gkkStructure.js';
 
 const positions = [
@@ -80,6 +80,18 @@ describe('GKK structure', () => {
     assert.deepEqual(others(officers[0]), ['Lectors']);
     assert.deepEqual(others(officers[1]), ['GKK President']);
     assert.deepEqual(others(officers[2]), []);
+  });
+
+  test('the chart shows each position with its people, as the website does', () => {
+    const nodes = chartNodes(positions, [
+      { nodeId: 4, memberId: 7, firstName: 'Richel', lastName: 'Penaso' },
+      { nodeId: 4, name: 'Lilibeth Balunan', note: ' Family Group 1 ' },
+    ]);
+    assert.equal(nodes.length, positions.length);
+    assert.deepEqual(nodes.find((n) => n.id === 4), {
+      id: 4, parentId: 3, title: 'Lectors', holders: ['Richel Penaso', 'Lilibeth Balunan (Family Group 1)'], photo: null, note: null,
+    });
+    assert.deepEqual(nodes.find((n) => n.id === 2).holders, []);
   });
 
   test('the status reads plainly', () => {
