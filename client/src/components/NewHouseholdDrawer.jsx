@@ -665,6 +665,15 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onAddFamily, onR
   );
 }
 
+/** Under a ticked sacrament: the tick alone is enough when the date isn't known. */
+function OptionalDetailsHint() {
+  return (
+    <div className="text-[12px] text-parish-muted mt-1.5 mb-2.5">
+      Date and parish can be left blank if not known. The tick alone records the sacrament.
+    </div>
+  );
+}
+
 function SacramentBlock({ mv, field, dateField, churchField, label, extra, onField }) {
   const checked = mv[field];
   const set = (f) => (e) => onField(mv.mi, f, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
@@ -675,11 +684,14 @@ function SacramentBlock({ mv, field, dateField, churchField, label, extra, onFie
         <span className="font-semibold text-[14px] text-parish-navy">{label}</span>
       </label>
       {checked && (
-        <div className="grid gap-2.5 mt-1 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
-          <TextInput type="date" aria-label={`${label} date`} value={mv[dateField]} onChange={set(dateField)} />
-          <TextInput placeholder="Parish / Church" value={mv[churchField]} onChange={set(churchField)} />
-          {extra && extra(set)}
-        </div>
+        <>
+          <div className="grid gap-2.5 mt-1" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
+            <TextInput type="date" aria-label={`${label} date`} value={mv[dateField]} onChange={set(dateField)} />
+            <TextInput placeholder="Parish / Church" value={mv[churchField]} onChange={set(churchField)} />
+            {extra && extra(set)}
+          </div>
+          <OptionalDetailsHint />
+        </>
       )}
     </div>
   );
@@ -718,10 +730,13 @@ function WeddingBlock({ mv, sharedWith, onField }) {
         })}
       </div>
       {mv.matType === 'Catholic Marriage' && (
-        <div className="grid gap-2.5 mt-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
-          <TextInput type="date" aria-label="Wedding date" value={mv.matDate} onChange={set('matDate')} />
-          <TextInput placeholder="Parish / Church" value={mv.matChurch} onChange={set('matChurch')} />
-        </div>
+        <>
+          <div className="grid gap-2.5 mt-3" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(140px,1fr))' }}>
+            <TextInput type="date" aria-label="Wedding date" value={mv.matDate} onChange={set('matDate')} />
+            <TextInput placeholder="Parish / Church" value={mv.matChurch} onChange={set('matChurch')} />
+          </div>
+          <OptionalDetailsHint />
+        </>
       )}
     </div>
   );
