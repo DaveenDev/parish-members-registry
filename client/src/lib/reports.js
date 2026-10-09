@@ -4,6 +4,7 @@ import { SACRAMENTS, HEAD, HEADS, COMMUNION_MIN_AGE, CONFIRMATION_MIN_AGE, GKK_R
 import { inDateRange } from './util.js';
 import { CERT_OPEN } from './requests.js';
 import { toCsv } from './csv.js';
+import { YOUNG_CHILD_MAX_AGE } from './census.js';
 
 const DAY = 86400000;
 const round1 = (n) => Math.round(n * 10) / 10;
@@ -209,6 +210,39 @@ export function churchWeddingCandidates(members) {
     }
   }
   return rows.sort((a, b) => byGkkLabel(a.gkk === '—' ? NO_GKK : a.gkk, b.gkk === '—' ? NO_GKK : b.gkk) || a.household.localeCompare(b.household));
+}
+
+/**
+ * Young children (YOUNG_CHILD_MAX_AGE and under, the census's "Bata pa")
+ * with no Baptism on record, for a follow-up visit: each with the head of
+ * their family in the house (and the head's spouse) and a number to call.
+ * Children of another religion, or with no birth date, are left out. By
+ * GKK, household, then oldest first (the longest wait).
+ */
+export function unbaptizedChildren(members) {
+  const catholic = (m) => (String(m.religion || '').trim() || 'Roman Catholic') === 'Roman Catholic';
+  const family = (m) => `${m.household_id}:${m.family_no || 1}`;
+  const parentsOf = new Map();
+  for (const m of members) {
+    if (HEADS.includes(m.relationship) || m.relationship === 'Spouse') {
+      if (!parentsOf.has(family(m))) parentsOf.set(family(m), []);
+      parentsOf.get(family(m)).push(m);
+    }
+  }
+  return members
+    .filter((m) => m.age != null && m.age >= 0 && m.age <= YOUNG_CHILD_MAX_AGE && !m.has_baptism && catholic(m))
+    .map((m) => {
+      // The family head first, then their spouse.
+      const parents = (parentsOf.get(family(m)) || []).filter((p) => p.id !== m.id)
+        .sort((a, b) => HEADS.includes(b.relationship) - HEADS.includes(a.relationship));
+      return {
+        name: personName(m), age: m.age, dob: m.dob || '', household: m.household_name, gkk: m.household_gkk || '—',
+        parents: parents.map(personName).join(' & ') || '—',
+        contact: [...parents, m].map((p) => p.contact).find((c) => !blank(c)) || '—',
+      };
+    })
+    .sort((a, b) => byGkkLabel(a.gkk === '—' ? NO_GKK : a.gkk, b.gkk === '—' ? NO_GKK : b.gkk)
+      || a.household.localeCompare(b.household) || b.age - a.age);
 }
 
 /**

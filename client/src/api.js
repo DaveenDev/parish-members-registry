@@ -10,10 +10,10 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
-import { MEMBERSHIP_STATUSES, cleanParticipation, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, censusVsLastYearFrom, censusBaselineMode, previousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet } from './lib/census.js';
+import { MEMBERSHIP_STATUSES, cleanParticipation, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, censusVsLastYearFrom, censusBaselineMode, previousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet, YOUNG_CHILD_MAX_AGE } from './lib/census.js';
 import {
   sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows, personName, SACRAMENT_MIN_AGE, missingSacrament,
-  candidatesByGkk, churchWeddingCandidates, sacramentsByYear, AGE_GROUPS, inAgeGroup, ageSexRows, breakdownRows, celebrationsInMonth, statusChanges,
+  candidatesByGkk, churchWeddingCandidates, unbaptizedChildren, sacramentsByYear, AGE_GROUPS, inAgeGroup, ageSexRows, breakdownRows, celebrationsInMonth, statusChanges,
   waitingForVerification, helpWayLabel, volunteerPool, verificationsByStaff, groupMakeupRows, busyMembers, gkkOfficerRows, parishRoleRows,
   requestOutcomeRows, feesByMonth, byGkk, peso, missingDetails, dataQualityByGkk, householdProblems, censusComparisonRows,
 } from './lib/reports.js';
@@ -1953,6 +1953,13 @@ export const api = {
         return table('Couples for a church wedding', `${rows.length} couple(s) or member(s) living together, or married without a church wedding on record${where}`,
           ['Couple', 'Situation', 'Married on', 'Household', 'GKK', 'Contact'],
           rows.map((r) => [r.names, r.situation, r.married || '—', r.household, r.gkk, r.contact]));
+      }
+      if (type === 'Children not yet baptized') {
+        const rows = unbaptizedChildren(list);
+        return table('Children not yet baptized',
+          `${rows.length} child(ren) aged ${YOUNG_CHILD_MAX_AGE} and under with no Baptism on record, for a follow-up visit with their family. Some may be baptized but not recorded yet${where}`,
+          ['Child', 'Age', 'Birth date', 'Parents / family head', 'Household', 'GKK', 'Contact'],
+          rows.map((r) => [r.name, r.age, r.dob || '—', r.parents, r.household, r.gkk, r.contact]));
       }
       if (type === 'Received by year') {
         const { rows, undated } = sacramentsByYear(list);

@@ -6,6 +6,7 @@ import { PrimaryButton, GhostButton, Badge } from './ui.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { analyzeActiveness } from '../lib/activeness.js';
 import { PRACTICE_TONES, practiceSourceText } from '../lib/practice.js';
+import { YOUNG_CHILD_MAX_AGE } from '../lib/census.js';
 import { toCsv } from '../lib/csv.js';
 
 const COLORS = { Aktibo: 'rgb(var(--c-ok-text))', Panagsa: 'var(--p-gold)', 'Dili aktibo': 'rgb(var(--c-error))', Wala: 'rgb(var(--c-error))' };
@@ -219,12 +220,12 @@ export default function ActivenessReport({ parish, initialGkk = '', initialCycle
             <div className="text-[12.5px] text-parish-muted mt-2.5">
               {censusLabel ? (
                 <>
-                  Not rated: {a.summary.unassessed} with no participation answers in the {censusLabel} · {a.summary.children} under 7 · {a.summary.otherReligion} of another religion.
+                  Not rated: {a.summary.unassessed} with no participation answers in the {censusLabel} · {a.summary.children} aged {YOUNG_CHILD_MAX_AGE} and under · {a.summary.otherReligion} of another religion.
                   {' '}Each score uses the member's answers in the {censusLabel} alone; their sacraments, ministries and roles are as they are now.
                 </>
               ) : (
                 <>
-                  Not rated: {a.summary.unassessed} with no participation answers yet · {a.summary.children} under 7 · {a.summary.otherReligion} of another religion.
+                  Not rated: {a.summary.unassessed} with no participation answers yet · {a.summary.children} aged {YOUNG_CHILD_MAX_AGE} and under · {a.summary.otherReligion} of another religion.
                   {' '}{a.summary.ownAnswers} score(s) use the member's own census answers; {a.summary.estimated} are household estimates.
                 </>
               )}
@@ -244,7 +245,7 @@ export default function ActivenessReport({ parish, initialGkk = '', initialCycle
           )}
 
           <Panel className="px-6 py-[22px]">
-            <SectionTitle title="By age group" sub="Children under 7 aren't rated." />
+            <SectionTitle title="By age group" sub={`Children aged ${YOUNG_CHILD_MAX_AGE} and under aren't rated, as in the census.`} />
             <GroupTable rows={a.byAge} nameOf={(r) => r.label} empty="No ages on record." />
           </Panel>
 

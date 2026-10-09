@@ -157,6 +157,7 @@ const REPORTS = {
       'Verification progress by GKK': R(['gkk']),
       'Candidates by GKK': R(['gkk']),
       'Couples for a church wedding': R(['gkk']),
+      'Children not yet baptized': R(['gkk']),
       'Received by year': R(['gkk']),
     },
   },

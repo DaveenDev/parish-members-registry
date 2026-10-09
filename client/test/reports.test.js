@@ -2,7 +2,7 @@ import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows, missingSacrament, candidatesByGkk, churchWeddingCandidates,
+  sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows, missingSacrament, candidatesByGkk, churchWeddingCandidates, unbaptizedChildren,
   weddingSituation, sacramentsByYear, ageSexRows, breakdownRows, inAgeGroup, celebrationsInMonth, statusChanges, waitingForVerification, volunteerPool,
   helpWayLabel, verificationsByStaff, groupMakeupRows, busyMembers, gkkOfficerRows, parishRoleRows, requestOutcomeRows, parseFee, feesByMonth, peso,
   missingDetails, dataQualityByGkk, householdProblems, censusComparisonRows, statsSections, sectionsCsv, registrationProgress, progressText,
@@ -90,6 +90,39 @@ describe('sacrament candidates', () => {
     const { rows, total } = candidatesByGkk([m({ age: 2 }), m({ age: 10, has_communion: true }), m({ household_gkk: null, has_baptism: false })]);
     assert.deepEqual(rows.map((r) => [r.label, r.members, r.baptism, r.communion, r.confirmation]), [['GKK A', 2, 0, 0, 1], ['No GKK', 1, 1, 1, 1]]);
     assert.deepEqual([total.members, total.baptism, total.communion, total.confirmation], [3, 1, 1, 2]);
+  });
+});
+
+describe('unbaptizedChildren', () => {
+  const m = (id, over) => ({ id, household_id: 1, family_no: 1, household_name: 'Cruz', household_gkk: 'GKK A', has_baptism: false, ...over });
+  const members = [
+    m(1, { first_name: 'Pedro', last_name: 'Cruz', relationship: HEAD, age: 35, contact: '' }),
+    m(2, { first_name: 'Ana', last_name: 'Cruz', relationship: 'Spouse', age: 33, contact: '0917' }),
+    m(3, { first_name: 'Baby', last_name: 'Cruz', relationship: 'Son', age: 1, dob: '2025-05-01' }),
+    m(4, { first_name: 'Lito', last_name: 'Cruz', relationship: 'Son', age: 8 }),
+    m(5, { first_name: 'Nene', last_name: 'Cruz', relationship: 'Daughter', age: 6, has_baptism: true }),
+    m(6, { first_name: 'Big', last_name: 'Cruz', relationship: 'Son', age: 9 }),
+    m(7, { first_name: 'Ali', last_name: 'Cruz', relationship: 'Son', age: 3, religion: 'Islam' }),
+    m(8, { first_name: 'Nodob', last_name: 'Cruz', relationship: 'Son', age: null }),
+  ];
+
+  test('lists children of 8 and under with no Baptism, oldest first, with their parents and a number', () => {
+    const rows = unbaptizedChildren(members);
+    assert.deepEqual(rows.map((r) => r.name), ['Lito Cruz', 'Baby Cruz']);
+    assert.equal(rows[0].parents, 'Pedro Cruz & Ana Cruz');
+    assert.equal(rows[0].contact, '0917');
+    assert.equal(rows[1].dob, '2025-05-01');
+  });
+
+  test('a child in a second family in the house gets that family’s head', () => {
+    const rows = unbaptizedChildren([
+      ...members,
+      m(9, { first_name: 'Jun', last_name: 'Reyes', relationship: 'Head of Family', family_no: 2, age: 25, contact: '0999' }),
+      m(10, { first_name: 'Joy', last_name: 'Reyes', relationship: 'Daughter', family_no: 2, age: 2 }),
+    ]);
+    const joy = rows.find((r) => r.name === 'Joy Reyes');
+    assert.equal(joy.parents, 'Jun Reyes');
+    assert.equal(joy.contact, '0999');
   });
 });
 

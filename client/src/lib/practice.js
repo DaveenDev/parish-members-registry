@@ -4,7 +4,7 @@
 // filter and sort on it); this copy scores past census answers for a
 // member's history and explains the parts.
 
-import { cleanParticipation } from './census.js';
+import { cleanParticipation, YOUNG_CHILD_MAX_AGE } from './census.js';
 
 /** Points for each participation item, out of 60 in all. Mass weighs most. */
 export const PARTICIPATION_WEIGHTS = { mass: 24, bible_service: 8, devotions: 7, meetings: 7, pintakasi: 7, financial: 7 };
@@ -31,7 +31,7 @@ export const PRACTICE_LEVEL_HELP = {
   Panagsa: 'Score 40–69',
   'Dili aktibo': 'Score below 40',
   'Wala pa matino': 'No participation answers yet',
-  'Bata pa': 'Under 7, not rated',
+  'Bata pa': `${YOUNG_CHILD_MAX_AGE} and under, not rated`,
   'Dili Katoliko': 'Another religion, not rated',
 };
 
@@ -69,7 +69,8 @@ export function involvementPoints(m) {
 export function practiceLevel({ score, participation, age, religion, isCurrent = true }) {
   if (!isCurrent) return null;
   if ((String(religion || '').trim() || 'Roman Catholic') !== 'Roman Catholic') return 'Dili Katoliko';
-  if (age != null && age < 7) return 'Bata pa';
+  // The census's young children (0086: up to 8, before that under 7).
+  if (age != null && age <= YOUNG_CHILD_MAX_AGE) return 'Bata pa';
   if (participation == null) return 'Wala pa matino';
   if (score >= 70) return 'Aktibo';
   if (score >= 40) return 'Panagsa';

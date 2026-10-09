@@ -4,11 +4,12 @@
 // api.activenessData() loads, so the whole report is easy to test.
 
 import { PARTICIPATION_ITEMS } from '../constants.js';
-import { cleanParticipation } from './census.js';
+import { cleanParticipation, YOUNG_CHILD_MAX_AGE } from './census.js';
 import { PRACTICE_MAX, RATED_LEVELS } from './practice.js';
 
+// From the first rated age: children of YOUNG_CHILD_MAX_AGE and under are "Bata pa" (0086).
 export const AGE_GROUPS = [
-  ['youth', '7–17', 7, 17],
+  ['youth', `${YOUNG_CHILD_MAX_AGE + 1}–17`, YOUNG_CHILD_MAX_AGE + 1, 17],
   ['young', '18–39', 18, 39],
   ['middle', '40–59', 40, 59],
   ['senior', '60 and over', 60, 200],
@@ -40,7 +41,7 @@ export function levelMix(members) {
   };
 }
 
-/** Which age group a member falls in, or null (unknown age, or under 7). */
+/** Which age group a member falls in, or null (unknown age, or a young child not rated). */
 export function ageGroupOf(age) {
   if (age == null) return null;
   const g = AGE_GROUPS.find(([, , lo, hi]) => age >= lo && age <= hi);

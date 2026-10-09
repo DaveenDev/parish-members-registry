@@ -60,6 +60,9 @@ describe('practiceLevel', () => {
   test('unrated members', () => {
     assert.equal(practiceLevel({ score: null, participation: null, age: 30 }), 'Wala pa matino');
     assert.equal(practiceLevel({ score: 90, participation: 60, age: 5 }), 'Bata pa');
+    // As the census: 8 and under are young children (0086); 9 is rated.
+    assert.equal(practiceLevel({ score: null, participation: null, age: 8 }), 'Bata pa');
+    assert.equal(practiceLevel({ score: 90, participation: 60, age: 9 }), 'Aktibo');
     assert.equal(practiceLevel({ score: 90, participation: 60, age: 30, religion: 'Islam' }), 'Dili Katoliko');
     assert.equal(practiceLevel({ score: 90, participation: 60, age: 30, isCurrent: false }), null);
   });

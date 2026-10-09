@@ -34,9 +34,9 @@ describe('levelMix', () => {
 });
 
 describe('ageGroupOf', () => {
-  test('groups from 7 up; under 7 and unknown are left out', () => {
-    assert.equal(ageGroupOf(6), null);
-    assert.equal(ageGroupOf(7), 'youth');
+  test('groups from 9 up; children of 8 and under (Bata pa) and unknown ages are left out', () => {
+    assert.equal(ageGroupOf(8), null);
+    assert.equal(ageGroupOf(9), 'youth');
     assert.equal(ageGroupOf(39), 'young');
     assert.equal(ageGroupOf(40), 'middle');
     assert.equal(ageGroupOf(75), 'senior');
