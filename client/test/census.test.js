@@ -6,7 +6,7 @@ import {
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
-  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
+  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, vsLastYearTable, familiesTable, statusTable, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
 
@@ -417,6 +417,27 @@ describe('vsLastYearTable', () => {
     assert.deepEqual(t.rows.map((r) => r.slice(-4)), [[6, 3, 3, '50%'], ['', 1, '', ''], [6, 3, 3, '50%']]);
     // Without a families baseline, no family columns.
     assert.equal(vsLastYearTable({ mode: 'list', ...res, families: familiesVsCount([{ name: 'A' }], []) }, null).columns.length, 8);
+    // The printed households report leaves the families to their own report.
+    assert.equal(vsLastYearTable({ mode: 'list', ...res, families }, null, { withFamilies: false }).columns.length, 8);
+  });
+
+  test('the families report: one row per GKK and the total', () => {
+    const gkks = [{ name: 'A', previous_households: 4, previous_families: 6 }, { name: 'B', previous_households: 2 }];
+    const families = familiesVsCount(gkks, [{ label: 'A', families: 3 }, { label: 'B', families: 1 }]);
+    const t = familiesTable({ mode: 'list', families }, { label: '2026 Census' });
+    assert.equal(t.title, "2026 Census: families vs last year's list");
+    assert.deepEqual(t.columns, ['GKK', 'Last year', 'Registered', 'Not yet', 'Registered %']);
+    assert.deepEqual(t.rows, [['A', 6, 3, 3, '50%'], ['B', '', 1, '', ''], [t.rows[2][0], 6, 3, 3, '50%']]);
+    assert.deepEqual(familiesTable({ mode: 'list', families: familiesVsCount([{ name: 'A' }], []) }, null).rows, []);
+  });
+
+  test('the members-per-status report', () => {
+    const summary = summarizeCensus([{ gkk: 'A', status: 'Active', members: 3 }, { gkk: 'A', status: 'Not confirmed', members: 1 }]);
+    const t = statusTable(summary, { label: '2026 Census' });
+    assert.equal(t.title, '2026 Census: members per status');
+    assert.deepEqual(t.columns, ['GKK', ...summary.columns, 'Total', 'Confirmed %']);
+    assert.equal(t.rows.length, summary.rows.length + 1);
+    assert.deepEqual(t.rows.at(-1).slice(-2), [summary.total.total, `${summary.total.pct}%`]);
   });
 });
 

@@ -11,7 +11,8 @@ import CensusSubmissionDrawer from '../../components/CensusSubmissionDrawer.jsx'
 import LastYearList, { NotYetPrintSheet } from '../../components/LastYearList.jsx';
 import LastYearListSwitch from '../../components/LastYearListSwitch.jsx';
 import { fmtDate } from '../../constants.js';
-import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, vsLastYearTable, unnamedNotYet } from '../../lib/census.js';
+import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, vsLastYearTable, familiesTable, statusTable, unnamedNotYet } from '../../lib/census.js';
+import ReportPrintSheet from '../../components/ReportPrintSheet.jsx';
 import { groupRuns, groupHeading } from '../../lib/household.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
@@ -678,7 +679,19 @@ const listEnabled = (parish) => parish?.last_year_list_enabled !== false;
  * families that took part in it. Nothing before 0079; without a count, a
  * note saying where to set one.
  */
-function FamiliesTable({ res, cycle, ownGkk }) {
+/** "Print" beside a report's Export CSV: prints that table on its own. */
+function PrintButton({ onClick, className = '' }) {
+  return (
+    <button type="button" onClick={onClick} className={`appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg whitespace-nowrap ${className}`}>
+      Print
+    </button>
+  );
+}
+
+/** The note under a printed table when its total leaves GKKs out (those with no "last year"), else ''. */
+const totalNote = (rows, text) => (rows.some((r) => r.lastYear == null) ? text : '');
+
+function FamiliesTable({ res, cycle, ownGkk, onPrint }) {
   const fam = res?.families;
   if (!fam) return null;
   const census = res.mode === 'census';
@@ -695,10 +708,17 @@ function FamiliesTable({ res, cycle, ownGkk }) {
   const rows = [...fam.rows, fam.total];
   return (
     <div className="mb-6">
-      <h3 className="m-0 mb-1 font-serif text-[20px] font-semibold text-parish-navy">
-        {ownGkk ? `${ownGkk}: registered families` : 'Registered families by GKK'}
-        <span className="ml-2 align-middle text-[14px] font-sans font-semibold text-parish-blue">{fam.total.pct}%</span>
-      </h3>
+      <div className="flex items-start gap-3 flex-wrap">
+        <h3 className="m-0 mb-1 flex-1 min-w-0 font-serif text-[20px] font-semibold text-parish-navy">
+          {ownGkk ? `${ownGkk}: registered families` : 'Registered families by GKK'}
+          <span className="ml-2 align-middle text-[14px] font-sans font-semibold text-parish-blue">{fam.total.pct}%</span>
+        </h3>
+        {onPrint && (
+          <PrintButton onClick={() => onPrint(familiesTable(res, cycle), totalNote(fam.rows, census
+            ? `The total leaves out GKKs with no family in the ${res.previous.label}.`
+            : 'The total leaves out GKKs with no families last year set in Parish GKK.'))} />
+        )}
+      </div>
       <p className="text-[13px] text-parish-muted mt-0 mb-3">
         {census
           ? <>Families with at least one member confirmed in the {cycle.label}, against the families that took part in the {res.previous.label}. A house can hold more than one family, each with its own head.</>
@@ -850,6 +870,18 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
   const [vsLastYear, setVsLastYear] = useState(null);
   const [error, setError] = useState('');
   const [print, setPrint] = useState(null); // { rows, gkk } for the visit sheet
+  const [report, setReport] = useState(null); // { report, note } for a printed table
+  // One sheet on paper at a time: printing one report clears the other.
+  useEffect(() => {
+    const done = () => setReport(null);
+    window.addEventListener('afterprint', done);
+    return () => window.removeEventListener('afterprint', done);
+  }, []);
+  function printReport(table, note = '') {
+    setPrint(null);
+    setReport({ report: table, note });
+    requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
+  }
 
   function load() {
     setError('');
@@ -874,6 +906,7 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
   }
 
   function printNotYet(list, gkk) {
+    setReport(null);
     setPrint({ gkk, rows: list.map((n) => ({ id: n.key, head_name: n.title, purok: vsLastYear.mode !== 'census' ? n.purok : n.gkk || 'No GKK', note: n.note })) });
     requestAnimationFrame(() => requestAnimationFrame(() => window.print()));
   }
@@ -907,7 +940,13 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
                     : <>Households in the registry (on the verification queue or verified) against last year's list. A GKK marked “list” counts its names, and a name is registered once it's found in the registry or ticked off; the others use the household count set in Parish GKK.</>}
               </p>
             </div>
-            <button onClick={exportVsLastYear} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
+            <div className="flex gap-2">
+              <PrintButton onClick={() => printReport(vsLastYearTable(vsLastYear, cycle, { withFamilies: false }), totalNote(vsLastYear.rows, vsLastYear.mode === 'census'
+                ? `The total leaves out GKKs with nobody in the ${vsLastYear.previous.label}.`
+                : vsLastYear.mode === 'count' ? 'The total leaves out GKKs with no households last year set in Parish GKK.'
+                  : "The total leaves out GKKs with no names on last year's list and no household count."))} />
+              <button onClick={exportVsLastYear} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
+            </div>
           </div>
           <div className="mb-6">
             {openHint}
@@ -954,7 +993,7 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
           <NotYetList res={vsLastYear} cycle={cycle} ownGkk={ownGkk} onPrint={printNotYet} />
         </>
       )}
-      <FamiliesTable res={vsLastYear} cycle={cycle} ownGkk={ownGkk} />
+      <FamiliesTable res={vsLastYear} cycle={cycle} ownGkk={ownGkk} onPrint={printReport} />
       {vsLastYear?.noPrevious && (
         <p className="mb-6 px-4 py-3 rounded-xl border border-parish-border bg-parish-field text-[13px] text-parish-text2">
           Last year's list is turned off, there's no earlier census in the registry to compare with, and {ownGkk ? `${ownGkk} has no` : 'no GKK has a'} household count for last year in Parish GKK, so this census can't show who hasn't registered yet. Set the households last year in Parish Config → Parish GKK, turn the list on under Census → Last year's list, or compare from the next census on.
@@ -968,11 +1007,16 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
         </p>
       )}
       <NotYetPrintSheet rows={print?.rows} gkk={print?.gkk} parish={parish} placeLabel={vsLastYear?.mode === 'census' ? 'GKK' : 'Purok'} />
+      <ReportPrintSheet report={report?.report} note={report?.note} parish={parish} scope={ownGkk || 'All GKKs'} />
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <p className="text-[13px] text-parish-muted m-0 flex-1 min-w-[220px]">
           Members per status in the {cycle.label}. “Not confirmed” are current members with no answer in this census{cycle.status === 'Open' ? ' yet' : ''}.
         </p>
-        <button onClick={exportCsv} className="ml-auto appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
+        <PrintButton
+          className="ml-auto"
+          onClick={() => printReport(statusTable(summary, cycle), `“Not confirmed” are current members with no answer in this census${cycle.status === 'Open' ? ' yet' : ''}.`)}
+        />
+        <button onClick={exportCsv} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
       </div>
       {!vsLastYear?.hasBaseline && openHint}
       <DataTable

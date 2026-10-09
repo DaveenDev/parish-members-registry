@@ -755,7 +755,7 @@ export function vsLastYearBaseline(res) {
  * The households-vs-last-year table (api.censusVsLastYear() result) as
  * { title, columns, rows } for a CSV or report, one row per GKK and the total.
  */
-export function vsLastYearTable(res, cycle) {
+export function vsLastYearTable(res, cycle, { withFamilies = true } = {}) {
   const census = res.mode === 'census';
   const from = (r) => (r.lastYear == null || r === res.total ? '' : census ? res.previous.label : r.fromList ? 'List' : 'Count');
   const pct = (r) => (r.pct == null ? '' : `${r.pct}%`);
@@ -766,7 +766,7 @@ export function vsLastYearTable(res, cycle) {
     ? [r.label, r.lastYear ?? '', r.registered, r.confirmed, r.notYet ?? '', pct(r)]
     : [r.label, from(r), r.lastYear ?? '', r.registered, r.verified, r.pending, r.notYet ?? '', pct(r)]);
   // Families (0079), matched by GKK; blank for a GKK with no families baseline.
-  const fam = res.families?.hasBaseline ? res.families : null;
+  const fam = withFamilies && res.families?.hasBaseline ? res.families : null;
   const famOf = new Map(fam ? [...fam.rows, fam.total].map((r) => [r.label, r]) : []);
   const famCells = (r) => {
     const f = famOf.get(r.label);
@@ -776,5 +776,28 @@ export function vsLastYearTable(res, cycle) {
     title: `${cycle?.label || 'Census'}: households vs ${vsLastYearBaseline(res)}`,
     columns: fam ? [...columns, 'Families last year', 'Families registered', 'Families not yet', 'Families %'] : columns,
     rows: res.hasBaseline ? [...res.rows, res.total].map((r) => (fam ? [...cells(r), ...famCells(r)] : cells(r))) : [],
+  };
+}
+
+/**
+ * The families-vs-last-year table (0079, api.censusVsLastYear().families) as
+ * { title, columns, rows }, one row per GKK and the total; no rows without a baseline.
+ */
+export function familiesTable(res, cycle) {
+  const fam = res?.families;
+  const pct = (r) => (r.pct == null ? '' : `${r.pct}%`);
+  return {
+    title: `${cycle?.label || 'Census'}: families vs ${vsLastYearBaseline(res)}`,
+    columns: ['GKK', 'Last year', 'Registered', 'Not yet', 'Registered %'],
+    rows: fam?.hasBaseline ? [...fam.rows, fam.total].map((r) => [r.label, r.lastYear ?? '', r.registered, r.notYet ?? '', pct(r)]) : [],
+  };
+}
+
+/** Members per census status (summarizeCensus()) as { title, columns, rows }, one row per GKK and the total. */
+export function statusTable(summary, cycle) {
+  return {
+    title: `${cycle?.label || 'Census'}: members per status`,
+    columns: ['GKK', ...summary.columns, 'Total', 'Confirmed %'],
+    rows: [...summary.rows, summary.total].map((r) => [r.label, ...summary.columns.map((c) => r.counts[c]), r.total, `${r.pct}%`]),
   };
 }
