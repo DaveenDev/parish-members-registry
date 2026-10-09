@@ -20,16 +20,18 @@ const fullName = (m) => [m.first_name, m.middle_name, m.last_name, m.suffix].fil
 /**
  * Review a household from a panel on the right, like the Edit panel: its
  * details and every member's, read-only and compact. "Verify" and "Edit"
- * at the bottom act on it; a member's name opens their record.
+ * at the bottom act on it; a member's name opens their record. `readOnly`
+ * (a household opened from another page, e.g. a ref no on the Census page)
+ * leaves out Edit and Verify; `household` then needs only its id.
  */
-export default function HouseholdViewDrawer({ household: row, onClose, onEdit, onToggleStatus, onChanged }) {
+export default function HouseholdViewDrawer({ household: row, readOnly = false, onClose, onEdit, onToggleStatus, onChanged }) {
   const { user } = useAuth();
   const titleId = useId();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [openMemberId, setOpenMemberId] = useState(null);
-  const canEdit = can(user, 'editRegistry');
+  const canEdit = !readOnly && can(user, 'editRegistry');
   const showBlood = can(user, 'bloodTypes'); // GKK leaders don't see blood types (0050)
 
   function load() {
@@ -83,7 +85,7 @@ export default function HouseholdViewDrawer({ household: row, onClose, onEdit, o
           <div className="min-w-0">
             <h3 id={titleId} className="font-serif text-[24px] font-semibold m-0 text-parish-navy truncate">{h.household_name}</h3>
             <p className="text-[13px] text-parish-muted m-0 flex items-center gap-2 flex-wrap">
-              <StatusPill status={h.status} />
+              {h.status && <StatusPill status={h.status} />}
               {h.ref_no && <span>{h.ref_no}</span>}
             </p>
             <p className="text-[12px] text-parish-muted m-0 mt-1">

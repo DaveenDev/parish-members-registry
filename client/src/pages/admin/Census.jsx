@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Link, useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote, rowActivationProps } from '../../components/admin.jsx';
@@ -8,6 +9,7 @@ import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../compo
 import CensusHouseholdDrawer from '../../components/CensusHouseholdDrawer.jsx';
 import CensusPrintSheet from '../../components/CensusPrintSheet.jsx';
 import CensusSubmissionDrawer from '../../components/CensusSubmissionDrawer.jsx';
+import HouseholdViewDrawer from '../../components/HouseholdViewDrawer.jsx';
 import LastYearList, { NotYetPrintSheet } from '../../components/LastYearList.jsx';
 import LastYearListSwitch from '../../components/LastYearListSwitch.jsx';
 import { fmtDate } from '../../constants.js';
@@ -476,7 +478,9 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
                 {g.rows.map((r) => (
                   <li key={r.household_id} className="px-4 py-3">
                     <div className="font-semibold text-[14.5px] text-parish-navy">{r.household_name}</div>
-                    <div className="text-[12.5px] text-parish-muted">{[r.head_name, r.ref_no, r.family_grouping].filter(Boolean).join(' · ')}</div>
+                    <div className="text-[12.5px] text-parish-muted">
+                      {dotted(r.head_name, r.ref_no && <HouseholdRef key="ref" id={r.household_id} refNo={r.ref_no} name={r.household_name} />, r.family_grouping)}
+                    </div>
                     <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
                       {!(r.pending_update && r.progress === 'Not started') && <Badge tone={PROGRESS_TONES[r.progress]}>{r.progress}</Badge>}
                       {r.pending_update && <Badge tone="blue">Sent online · to review</Badge>}
@@ -516,7 +520,9 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
               <tr key={r.household_id} className="border-t border-parish-line">
                 <td className="px-4 py-3">
                   <div className="font-semibold text-[14.5px] text-parish-navy">{r.household_name}</div>
-                  <div className="text-[12.5px] text-parish-muted">{[r.head_name, r.ref_no].filter(Boolean).join(' · ')}</div>
+                  <div className="text-[12.5px] text-parish-muted">
+                    {dotted(r.head_name, r.ref_no && <HouseholdRef key="ref" id={r.household_id} refNo={r.ref_no} name={r.household_name} />)}
+                  </div>
                 </td>
                 <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.family_grouping || '—'}</td>
                 <td className="px-4 py-3 text-[14px] text-parish-text3">{r.members_confirmed} of {r.members_expected}</td>
@@ -612,7 +618,9 @@ function UpdateList({ list, loaded, log = false, emptyTitle, emptySubtitle, onOp
             <li key={r.id} className="px-4 py-3 flex items-start gap-3">
               <div className="min-w-0 flex-1">
                 <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
-                <div className="text-[12.5px] text-parish-muted">{[r.households?.ref_no, r.households?.gkk, sent(r)].filter(Boolean).join(' · ')}</div>
+                <div className="text-[12.5px] text-parish-muted">
+                  {dotted(r.households?.ref_no && <HouseholdRef key="ref" id={r.household_id} refNo={r.households.ref_no} name={r.households.household_name} />, r.households?.gkk, sent(r))}
+                </div>
                 <div className="text-[13px] text-parish-text3 mt-1">{updateSummary(r)}</div>
                 {log && <div className="mt-1.5">{outcome(r)}</div>}
                 {note(r)}
@@ -634,7 +642,9 @@ function UpdateList({ list, loaded, log = false, emptyTitle, emptySubtitle, onOp
           {log && <td className="px-4 py-3 text-[13.5px] text-parish-text2 whitespace-nowrap">{sent(r)}</td>}
           <td className="px-4 py-3">
             <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
-            <div className="text-[12.5px] text-parish-muted">{r.households?.ref_no}</div>
+            <div className="text-[12.5px] text-parish-muted">
+              <HouseholdRef id={r.household_id} refNo={r.households?.ref_no} name={r.households?.household_name} />
+            </div>
           </td>
           <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.households?.gkk || '—'}</td>
           {!log && <td className="px-4 py-3 text-[13.5px] text-parish-text2 whitespace-nowrap">{sent(r)}</td>}
@@ -713,6 +723,33 @@ function UpdatesTab({ cycle, parish, refreshKey, onChanged, initialQuery = '' })
 
 /** Whether the parish uses last year's household list (on unless turned off, 0048). */
 const listEnabled = (parish) => parish?.last_year_list_enabled !== false;
+
+/**
+ * A household's reference number as a link: it opens the household's
+ * read-only record (members, sacraments, census answers) in a side panel,
+ * without leaving the census.
+ */
+function HouseholdRef({ id, refNo, name }) {
+  const [open, setOpen] = useState(false);
+  if (!refNo) return null;
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        aria-label={`View ${name || 'household'} (${refNo})`}
+        className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-parish-blue"
+      >
+        {refNo}
+      </button>
+      {/* At the page's root, so the row's small grey text doesn't style the panel. */}
+      {open && createPortal(<HouseholdViewDrawer household={{ id, household_name: name, ref_no: refNo }} readOnly onClose={() => setOpen(false)} />, document.body)}
+    </>
+  );
+}
+
+/** Text and elements joined with " · ", leaving out the empty ones. */
+const dotted = (...parts) => parts.filter(Boolean).flatMap((p, i) => (i ? [' · ', p] : [p]));
 
 /** "Print" beside a report's Export CSV: prints that table on its own. */
 function PrintButton({ onClick, className = '' }) {
