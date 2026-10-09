@@ -95,7 +95,9 @@ A **second** Vercel project from the same repository:
 
 3. Deploy. Settings → Domains: rename to e.g. `olgqp-training`. The name
    matters: `client/vercel.json` sends `/media` to the testing bucket for
-   addresses starting with `olgqp-training` (step 8).
+   addresses starting with `olgqp-training` (step 8), and tells search
+   engines not to list any of its pages (`X-Robots-Tag: noindex`), so the
+   practice data never shows up on Google.
 4. Production branch `main`, like the live site: every push to `main`
    updates both sites at once. (To try code on the training site before the
    live one, use a `staging` branch here instead and merge it into `main`
@@ -141,7 +143,7 @@ Password can be used in the training project's SMTP settings; the training
 project's own URL Configuration (step 5) makes the link come back to the
 training site.
 
-## Steps 11–13
+## Steps 11–14
 
 - Notifications: work the same once step 4 is done.
 - **Keep-alive: not set up for the training project.** It pauses after 7 days
@@ -151,6 +153,8 @@ training site.
 - Backups: none. It holds practice data.
 - GitHub integration: leave it off for the training project; migrations go
   there by hand (below).
+- Search engines: **skip step 14.** Don't add the training site to Search
+  Console; it's kept out of search on purpose (step 7).
 
 ## Practice data
 
@@ -277,4 +281,7 @@ on practice data and never on the live registry.
 - [ ] Parish Config → Public website address = `<staging-site>`.
 - [ ] A test registration on the training site does **not** appear in the
       live admin.
+- [ ] Kept out of search: browser DevTools → Network → reload
+      `<staging-site>` → the page's response headers include
+      `x-robots-tag: noindex, nofollow`.
 - [ ] [README.md](README.md) "what exists" table filled in.

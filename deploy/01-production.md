@@ -131,7 +131,7 @@ Every other account is made in the admin panel (Settings → Staff), not here.
 5. Project → **Settings → Domains**: the free address is
    `<project-name>.vercel.app`; edit it to the name you want (e.g.
    `guadalupe-muaan`). That's `<site>`. A custom domain can be added here
-   later.
+   later (then see step 14, "If the site moves to its own domain").
 6. Production branch (Settings → Git) is `main`: every push to `main` updates
    the live site.
 
@@ -227,6 +227,56 @@ Because step 3 used `db push`, the migration history is already complete; the
 one-time marking in [docs/github-migrations.md](../docs/github-migrations.md)
 is only for a project whose migrations were pasted into the SQL editor.
 
+## Step 14. Search engines (Google Search Console)
+
+The website already tells search engines what each page is (title,
+description, the parish's address and map pin on Home), keeps them out of
+the admin and the census portal, and lists its main pages in
+`<site>/sitemap.xml` ([`client/src/lib/seo.js`](../client/src/lib/seo.js),
+[`client/public/robots.txt`](../client/public/robots.txt),
+[`client/public/sitemap.xml`](../client/public/sitemap.xml)). Google finds a
+new site on its own in time; Search Console (free) makes it much sooner and
+shows how the site does in search.
+
+1. Sign in at [search.google.com/search-console](https://search.google.com/search-console)
+   with the parish Google account.
+2. **Add property → URL prefix** → `<site>/` (with the `https://` and the
+   final `/`) → **Continue**.
+3. Verify with **HTML tag**: copy the `<meta name="google-site-verification" …>`
+   line it gives, paste it into [`client/index.html`](../client/index.html)
+   inside `<head>` (under the other `<meta>` lines), commit and push to
+   `main`, wait for Vercel to deploy, then press **Verify**. Leave the tag in
+   for good: removing it un-verifies the site.
+4. **Sitemaps** (left menu) → enter `sitemap.xml` → **Submit**. Its status
+   should become "Success" within a day.
+5. Optional: **URL inspection** → paste `<site>/` → **Request indexing**, so
+   Home is indexed first.
+
+Results take a few days to a few weeks to appear. Search Console's
+**Performance** page then shows what people searched for to find the parish.
+
+Also worth doing, outside the website: claim the church on **Google Business
+Profile** ([business.google.com](https://business.google.com)) with the same
+address and the website `<site>`, so it shows on Google Maps with Mass times
+and the link.
+
+### If the site moves to its own domain
+
+1. Add the domain in Vercel (step 7, Settings → Domains) and make it the
+   primary one; Vercel then sends the `vercel.app` address to it.
+2. Change the address in [`client/public/robots.txt`](../client/public/robots.txt)
+   (the `Sitemap:` line) and in every `<loc>` of
+   [`client/public/sitemap.xml`](../client/public/sitemap.xml), the share
+   image in [`client/index.html`](../client/index.html) (`og:image`), and
+   `DEFAULT_SITE_URL` in [`client/src/lib/census.js`](../client/src/lib/census.js).
+   Commit and push.
+3. Parish Config → **Public website address**: the new domain (census forms
+   print it). Supabase → Authentication → URL Configuration: add it too.
+4. In Search Console add the new domain as another property (steps 2–4
+   above), then on the **old** property use **Settings → Change of address**
+   to point it at the new one, so the old address's place in search carries
+   over.
+
 ## Go-live checklist
 
 - [ ] `<site>` loads, no purple banner; `<site>/admin/login` signs in.
@@ -239,6 +289,8 @@ is only for a project whose migrations were pasted into the SQL editor.
       password".
 - [ ] A notification reaches a phone (Settings → Notifications → Send a test).
 - [ ] Keep-alive and backup workflows both have a green run.
+- [ ] Search Console verified and `sitemap.xml` submitted (step 14);
+      `<site>/robots.txt` and `<site>/sitemap.xml` open in the browser.
 - [ ] The backup passphrase is written down somewhere offline.
 - [ ] The `service_role` key, database password and R2 secrets are in a
       password manager and nowhere in git or Vercel.
