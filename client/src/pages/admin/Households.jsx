@@ -68,9 +68,12 @@ export default function Households() {
   const filters = { status, gkk, search: debouncedSearch };
   // The verification queue is one list in the chosen order, newest registration
   // first by default, so the latest families are seen first. The other tabs
-  // group the households by GKK, or by Family Grouping when the list covers
-  // one GKK (filtered to it, or a GKK leader's own).
-  const groupKey = status === 'Pending' ? null : gkk === 'All' && !leaderGkk(user) ? 'gkk' : 'family_grouping';
+  // open grouped by GKK, or by Family Grouping when the list covers one GKK
+  // (filtered to it, or a GKK leader's own), until staff sort by a column:
+  // then it's one list in that order, with a link back to the groups.
+  const sortedByHand = sort !== URL_DEFAULTS.sort || !!url.dir;
+  const groupBy = gkk === 'All' && !leaderGkk(user) ? 'gkk' : 'family_grouping';
+  const groupKey = status === 'Pending' || sortedByHand ? null : groupBy;
 
   // Opened without a tab in the link: start on the queue, but go straight to
   // Verified when nothing is waiting. The list waits for that choice, so an
@@ -329,6 +332,11 @@ export default function Households() {
           <FilterSelect aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} className="md:hidden">
             {SORTS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}
           </FilterSelect>
+          {status !== 'Pending' && sortedByHand && (
+            <button onClick={() => setUrl({ sort: URL_DEFAULTS.sort, dir: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">
+              Group by {groupBy === 'gkk' ? 'GKK' : 'Family Grouping'} again
+            </button>
+          )}
           {/* Phones: the buttons share a full-width row of their own. */}
           <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2.5">
             {can(user, 'exports') && (
