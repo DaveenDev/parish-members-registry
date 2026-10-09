@@ -12,6 +12,19 @@ const COLORS = { Aktibo: 'rgb(var(--c-ok-text))', Panagsa: 'var(--p-gold)', 'Dil
 const fullName = (m) => [m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ');
 const pctText = (n) => `${Math.round(n)}%`;
 
+// CSV columns shared by the full export and the follow-up export.
+const MEMBER_COLUMNS = {
+  member: { label: 'Member', value: fullName },
+  household: { label: 'Household', value: (m) => m.household_name },
+  gkk: { label: 'GKK', value: (m) => m.household_gkk || '' },
+  age: { label: 'Age', value: (m) => m.age ?? '' },
+  level: { label: 'Practicing Catholic', value: (m) => m.practice_level || '' },
+  score: { label: 'Score (%)', value: (m) => (m.practice_score == null ? '' : Math.round(m.practice_score)) },
+  basedOn: { label: 'Based on', value: (m) => (m.practice_source === 'census' ? m.practice_source_label || 'Census' : m.practice_source === 'registration' ? 'Own answers at registration' : m.practice_source === 'household' ? 'Household survey (estimate)' : '') },
+  status: { label: 'Census status', value: (m) => m.membership_status || '' },
+  contact: { label: 'Contact', value: (m) => m.contact || '' },
+};
+
 /** A bar split into Aktibo / Panagsa / Dili aktibo (or Wala) shares. */
 function MixBar({ parts, className = 'h-2.5' }) {
   return (
@@ -108,30 +121,39 @@ export default function ActivenessReport({ parish }) {
   // The parish-wide analysis is ready when the tab opens.
   useEffect(() => { generate('All'); }, []);
 
+  const fileScope = () => (result.scope === 'All' ? 'parish' : result.scope === 'None' ? 'no-gkk' : result.scope.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+
   function exportCsv() {
     if (!result) return;
     const csv = toCsv(result.members, [
-      { label: 'Member', value: fullName },
-      { label: 'Household', value: (m) => m.household_name },
-      { label: 'GKK', value: (m) => m.household_gkk || '' },
-      { label: 'Age', value: (m) => m.age ?? '' },
-      { label: 'Practicing Catholic', value: (m) => m.practice_level || '' },
-      { label: 'Score (%)', value: (m) => (m.practice_score == null ? '' : Math.round(m.practice_score)) },
+      MEMBER_COLUMNS.member, MEMBER_COLUMNS.household, MEMBER_COLUMNS.gkk, MEMBER_COLUMNS.age, MEMBER_COLUMNS.level, MEMBER_COLUMNS.score,
       { label: 'Participation (of 60)', value: (m) => m.practice_participation ?? '' },
       { label: 'Sacraments (of 25)', value: (m) => m.practice_sacraments ?? '' },
       { label: 'Involvement (of 15)', value: (m) => m.practice_involvement ?? '' },
-      { label: 'Based on', value: (m) => (m.practice_source === 'census' ? m.practice_source_label || 'Census' : m.practice_source === 'registration' ? 'Own answers at registration' : m.practice_source === 'household' ? 'Household survey (estimate)' : '') },
+      MEMBER_COLUMNS.basedOn,
       { label: 'Change since census before', value: (m) => (m.practice_trend == null ? '' : Math.round(m.practice_trend)) },
-      { label: 'Census status', value: (m) => m.membership_status || '' },
-      { label: 'Contact', value: (m) => m.contact || '' },
+      MEMBER_COLUMNS.status, MEMBER_COLUMNS.contact,
     ]);
-    const name = result.scope === 'All' ? 'parish' : result.scope === 'None' ? 'no-gkk' : result.scope.toLowerCase().replace(/[^a-z0-9]+/g, '-');
-    triggerDownload(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `membership-activeness-${name}.csv`);
+    triggerDownload(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `membership-activeness-${fileScope()}.csv`);
     toast.success(`Exported ${result.members.length} member(s)`);
+  }
+
+  // The members rated Dili aktibo, least active first: the list for GKK leaders' visits.
+  function exportFollowUp() {
+    if (!result) return;
+    const rows = result.analysis.followUp;
+    const csv = toCsv(rows, [
+      MEMBER_COLUMNS.member, MEMBER_COLUMNS.household, MEMBER_COLUMNS.gkk, MEMBER_COLUMNS.age, MEMBER_COLUMNS.score,
+      MEMBER_COLUMNS.basedOn, MEMBER_COLUMNS.status, MEMBER_COLUMNS.contact,
+    ]);
+    triggerDownload(new Blob([csv], { type: 'text/csv;charset=utf-8' }), `needs-follow-up-${fileScope()}.csv`);
+    toast.success(`Exported ${rows.length} member(s) needing a follow-up`);
   }
 
   const a = result?.analysis;
   const scopeLabel = !result ? '' : result.scope === 'All' ? 'Whole parish' : result.scope === 'None' ? 'Households with no GKK' : result.scope;
+  // The whole parish's list is too long to show or print; it's in the follow-up export.
+  const showFollowUp = result?.scope !== 'All';
 
   return (
     <div className="flex flex-col gap-5">
@@ -150,6 +172,7 @@ export default function ActivenessReport({ parish }) {
           {a && (
             <div className="ml-auto flex gap-2">
               <GhostButton onClick={() => window.print()} className="px-3.5 py-2 text-[12.5px] !text-parish-text2 !border-transparent bg-parish-sunk">Print</GhostButton>
+              <GhostButton onClick={exportFollowUp} disabled={!a.followUp.length} title={a.followUp.length ? `${a.followUp.length} member(s) rated Dili aktibo` : 'No member is rated Dili aktibo in this scope'} className="px-3.5 py-2 text-[12.5px] !text-parish-text2 !border-transparent bg-parish-sunk disabled:opacity-60">Export members needing follow-up</GhostButton>
               <button onClick={exportCsv} disabled={!result.members.length} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg disabled:opacity-60">Export CSV</button>
             </div>
           )}
@@ -234,12 +257,14 @@ export default function ActivenessReport({ parish }) {
             </div>
           </Panel>
 
-          <Panel className="px-6 py-[22px]">
-            <SectionTitle title={`Needs a follow-up (${a.followUp.length})`} sub="Rated Dili aktibo, least active first: a list for GKK leaders' visits. The CSV export has every member." />
-            {!a.followUp.length ? <div className="text-[13.5px] text-parish-muted">No member is rated Dili aktibo in this scope.</div> : (
-              <MemberTable rows={a.followUp.slice(0, 50)} more={a.followUp.length - 50} />
-            )}
-          </Panel>
+          {showFollowUp && (
+            <Panel className="px-6 py-[22px]">
+              <SectionTitle title={`Needs a follow-up (${a.followUp.length})`} sub="Rated Dili aktibo, least active first: a list for GKK leaders' visits. The CSV export has every member." />
+              {!a.followUp.length ? <div className="text-[13.5px] text-parish-muted">No member is rated Dili aktibo in this scope.</div> : (
+                <MemberTable rows={a.followUp.slice(0, 50)} more={a.followUp.length - 50} />
+              )}
+            </Panel>
+          )}
 
           {a.mismatches.length > 0 && (
             <Panel className="px-6 py-[22px]">
@@ -526,7 +551,7 @@ function ActivenessPrintSheet({ result, scopeLabel, parish }) {
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <tbody>{a.activities.map((x) => <tr key={x.key}><td style={cell}>{x.label}</td><td style={cell}>{x.answered ? `${x.aktiboPct}% · ${x.panagsaPct}% · ${x.walaPct}%` : 'No answers'}</td></tr>)}</tbody>
       </table>
-      {a.followUp.length > 0 && (
+      {result.scope !== 'All' && a.followUp.length > 0 && (
         <>
           <div style={h2}>Needs a follow-up ({a.followUp.length})</div>
           <table style={{ width: '100%', borderCollapse: 'collapse', breakInside: 'auto' }}>
