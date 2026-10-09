@@ -1496,7 +1496,7 @@ export const api = {
   },
   /**
    * Households registered against last year, as the Census page and Reports
-   * show it, following Parish Config -> Last year's list (0048):
+   * show it, following the switch on Census -> Last year's list (0048):
    * - list on: registryVsLastYear(): the GKK's names on last year's list (or
    *   its typed count) against the households in the registry, queued or verified;
    * - list off: householdsVsPreviousCensus(): the households that took part
@@ -1927,7 +1927,7 @@ export const api = {
       if (!cycleId) throw new Error('Choose a census');
       const cycles = await api.listCensusCycles();
       const cycle = cycles.find((c) => c.id === Number(cycleId));
-      // Against last year's list or the previous census, as Parish Config -> Last year's list says (0048).
+      // Against last year's list or the previous census, as the switch on Census -> Last year's list says (0048).
       if (type === 'Households vs last year' || type === 'Not yet registered') {
         const res = await api.censusVsLastYear(cycle, cycles, gkk === 'All' ? null : gkk);
         const baseline = vsLastYearBaseline(res);

@@ -605,7 +605,7 @@ export function censusComparisonRows(prev, cur) {
 /**
  * Registration against the households expected, from api.censusVsLastYear()
  * (last year's list, last year's household count, or the census before, as
- * Parish Config -> Last year's list says), as the Census page and Parish GKK
+ * the switch on Census -> Last year's list says), as the Census page and Parish GKK
  * show it: `total` and `byGkk` (GKK name -> row) with { expected, done, pct,
  * notYet, fromList }, null for a GKK with no baseline. `against` names the
  * baseline ("last year's list"). Null when no GKK has a baseline.

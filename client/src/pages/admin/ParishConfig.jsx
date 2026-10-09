@@ -1,10 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, Tabs, Panel, LoadingState } from '../../components/admin.jsx';
 import { GkkManager } from '../../components/GkkManager.jsx';
 import MyGkk from './MyGkk.jsx';
-import LastYearList from '../../components/LastYearList.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 import { ownSettingsOnly } from '../../components/adminNav.js';
@@ -1086,99 +1085,7 @@ function ParishThemeRow({ canEdit, onSaved }) {
   );
 }
 
-/**
- * Last year's household list (0041) and whether the census uses it (0048).
- * On: each GKK is measured against its names here, and the names not ticked
- * off are the families to visit. Off: the census compares with the previous
- * census in the registry instead; the names are kept but not shown.
- */
-function LastYearTab({ gkk }) {
-  const toast = useToast();
-  const [parish, setParish] = useState(null);
-  const [cycles, setCycles] = useState(null);
-  const [names, setNames] = useState(null);
-  const [busy, setBusy] = useState(false);
-
-  useEffect(() => {
-    api.getSettings().then((r) => setParish(r.settings)).catch((e) => toast.error(e.message));
-    api.listCensusCycles().then(setCycles).catch(() => setCycles([]));
-    api.lastYearCounts().then((m) => setNames([...m.values()].reduce((n, c) => n + c.total, 0))).catch(() => setNames(0));
-  }, []);
-  if (!parish) return <LoadingState label="Loading…" />;
-  const on = parish.last_year_list_enabled !== false;
-  // With the list off, a census needs an earlier one in the registry to compare with.
-  const latest = cycles?.[0];
-  const noEarlier = cycles && cycles.length < 2;
-
-  async function toggle(next) {
-    setBusy(true);
-    try {
-      const res = await api.updateSettings({ last_year_list_enabled: next });
-      setParish(res.settings);
-      toast.success(next ? "Last year's list is in use" : 'The census now compares with the previous census');
-    } catch (e) {
-      toast.error(e.message || 'Could not change this');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className="flex flex-col gap-[18px]">
-      <Panel className="p-6">
-        <div className="flex items-start gap-4 flex-wrap">
-          <div className="flex-1 min-w-[260px] max-w-[720px]">
-            <div className="font-serif text-[22px] font-semibold text-parish-navy">Use last year's household list for CENSUS</div>
-            <div className="text-[13.5px] text-parish-muted mt-1 leading-relaxed">
-              How the census tracks the families who haven't registered yet. Use the list when last year's census was on paper; turn it off once the previous census was held in this registry.
-            </div>
-          </div>
-          <label className={`flex items-center gap-3 cursor-pointer select-none ${busy ? 'opacity-60 pointer-events-none' : ''}`}>
-            <span className="font-semibold text-[14px] text-parish-text2">{on ? 'On' : 'Off'}</span>
-            <span className="relative inline-flex">
-              <input type="checkbox" role="switch" aria-label="Use last year's household list" checked={on} disabled={busy} onChange={(e) => toggle(e.target.checked)} className="peer sr-only" />
-              <span className="w-12 h-7 rounded-full bg-parish-sunk border border-parish-border transition peer-checked:bg-parish-fill peer-checked:border-transparent peer-focus-visible:ring-4 peer-focus-visible:ring-parish-blue/20" />
-              <span className="absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition peer-checked:translate-x-5" />
-            </span>
-          </label>
-        </div>
-
-        <div className="grid gap-3 mt-5 sm:grid-cols-2">
-          <div className={`rounded-xl border px-4 py-3.5 ${on ? 'border-[var(--p-blue-border)] bg-[var(--p-blue-tint)]' : 'border-parish-line2 bg-parish-field opacity-75'}`}>
-            <div className="font-semibold text-[14px] text-parish-navy mb-1">{on && '✓ '}On: last year's list</div>
-            <div className="text-[13px] text-parish-text2 leading-relaxed">Each GKK is measured against its names below (or the household count in Parish GKK when it has none). The list comes first: a count that doesn't match a GKK's names is cleared. Tick families off as they register; the names left are printed for house visits.</div>
-          </div>
-          <div className={`rounded-xl border px-4 py-3.5 ${!on ? 'border-[var(--p-blue-border)] bg-[var(--p-blue-tint)]' : 'border-parish-line2 bg-parish-field opacity-75'}`}>
-            <div className="font-semibold text-[14px] text-parish-navy mb-1">{!on && '✓ '}Off: the previous census</div>
-            <div className="text-[13px] text-parish-text2 leading-relaxed">Each GKK is measured against the households that took part in the previous census here (until there is one, against the household count in Parish GKK). Those not registered yet are listed under Census → Results by GKK, to print or export.</div>
-          </div>
-        </div>
-        {!on && noEarlier && (
-          <div className="mt-4 px-4 py-3 rounded-xl border border-[#fdba74] bg-[#fff7ed] text-[13.5px] text-[#9a3412]">
-            {latest ? <>The {latest.label} is the only census in the registry, so there's nothing earlier to compare it with.</> : <>No census has been held in the registry yet.</>}{' '}
-            Until there is, each GKK is measured against its households last year set in Parish GKK, which gives how many haven't registered but not their names. Turn the list back on if last year's census was on paper.
-          </div>
-        )}
-      </Panel>
-
-      {on ? (
-        <Panel className="p-6">
-          <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Last year's household list</div>
-          <div className="text-[13.5px] text-parish-muted mb-4">
-            The names from the previous paper census: each household head, their purok and a note. Choose a GKK, then type or paste its names, or upload a spreadsheet. The same list is on the Census page, where families are ticked off as they register.
-          </div>
-          <LastYearList key={gkk} initialGkk={gkk} parish={parish} canEdit canManage />
-        </Panel>
-      ) : (
-        <Panel className="p-6 text-[13.5px] text-parish-muted">
-          {names ? <>The list's {names} name(s) are kept but not used or shown. Turn the list back on to see them.</> : <>The list is off. Turn it on to type or upload last year's names.</>}
-        </Panel>
-      )}
-    </div>
-  );
-}
-
-const CONFIG_TABS = [['mygkk', 'My GKK'], ['config', 'Parish Config'], ['gkk', 'Parish GKK'], ['lastyear', "Last year's list"], ['personal', 'Personal Settings'], ['integrations', 'Platform Integrations']];
+const CONFIG_TABS = [['mygkk', 'My GKK'], ['config', 'Parish Config'], ['gkk', 'Parish GKK'], ['personal', 'Personal Settings'], ['integrations', 'Platform Integrations']];
 
 export default function ParishConfig() {
   const [params, setParams] = useSearchParams();
@@ -1187,13 +1094,20 @@ export default function ParishConfig() {
   // change settings; Personal Settings for everyone; integrations for staff
   // admins only.
   const leader = user?.access === 'gkk_leader';
-  const show = { mygkk: leader, config: can(user, 'settings'), gkk: can(user, 'settings'), lastyear: can(user, 'settings'), personal: true, integrations: !!user?.isAdmin };
+  const show = { mygkk: leader, config: can(user, 'settings'), gkk: can(user, 'settings'), personal: true, integrations: !!user?.isAdmin };
   const tabs = CONFIG_TABS.filter(([k]) => show[k]);
   // GKK leaders see this page as "GKK Config", and accounts with only their
   // own settings as "My Account" (as in the sidebar).
   const ownOnly = ownSettingsOnly(user);
   const title = leader ? 'GKK Config' : ownOnly ? 'My Account' : 'Parish Config';
   const subtitle = leader ? 'Your GKK and your personal settings' : ownOnly ? 'Your personal settings' : 'Profile, privacy, GKK settings & integrations';
+  // Last year's list moved to the Census page (and each GKK's GKK Config page).
+  const navigate = useNavigate();
+  const censusList = (gkk) => `/admin/census?tab=lastYear${gkk ? `&gkk=${encodeURIComponent(gkk)}` : ''}`;
+  const oldListTab = params.get('tab') === 'lastyear';
+  useEffect(() => {
+    if (oldListTab) navigate(censusList(params.get('gkk')), { replace: true });
+  }, [oldListTab]); // eslint-disable-line react-hooks/exhaustive-deps
   const tab = tabs.some(([k]) => k === params.get('tab')) ? params.get('tab') : tabs[0][0];
   const setTab = (k) => setParams(k === tabs[0][0] ? {} : { tab: k }, { replace: true });
 
@@ -1212,14 +1126,13 @@ export default function ParishConfig() {
           )}
           {tab === 'gkk' && !params.get('open') && (
             <GkkManager
-              onOpenList={(name) => setParams({ tab: 'lastyear', gkk: name }, { replace: true })}
+              onOpenList={(name) => navigate(censusList(name))}
               historyOf={params.get('history') || ''}
               onHistoryOpened={() => setParams({ tab: 'gkk' }, { replace: true })}
               structureOf={params.get('structure') || ''}
               onStructureOpened={() => setParams({ tab: 'gkk' }, { replace: true })}
             />
           )}
-          {tab === 'lastyear' && <LastYearTab gkk={params.get('gkk') || ''} />}
           {tab === 'integrations' && <IntegrationsTab />}
         </div>
       </PageBody>

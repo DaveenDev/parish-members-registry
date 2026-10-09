@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote, rowActivationProps } from '../../components/admin.jsx';
 import { useAuth } from '../../AuthContext.jsx';
@@ -9,6 +9,7 @@ import CensusHouseholdDrawer from '../../components/CensusHouseholdDrawer.jsx';
 import CensusPrintSheet from '../../components/CensusPrintSheet.jsx';
 import CensusSubmissionDrawer from '../../components/CensusSubmissionDrawer.jsx';
 import LastYearList, { NotYetPrintSheet } from '../../components/LastYearList.jsx';
+import LastYearListSwitch from '../../components/LastYearListSwitch.jsx';
 import { fmtDate } from '../../constants.js';
 import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, vsLastYearTable, unnamedNotYet } from '../../lib/census.js';
 import { groupRuns, groupHeading } from '../../lib/household.js';
@@ -51,7 +52,7 @@ export default function Census() {
   const [parish, setParish] = useState(null);
   const [starting, setStarting] = useState(false);
   const [editing, setEditing] = useState(false);
-  // The tab is in the address bar: ?tab=lastYear&gkk=… (the link from Parish
+  // The tab is in the address bar: ?tab=lastYear&gkk=… (the links from Parish
   // Config → Parish GKK) opens that GKK's list, and ?tab=updates&q=<ref no>
   // (the Dashboard and census update notifications) that household's update.
   const [params, setParams] = useSearchParams();
@@ -59,9 +60,20 @@ export default function Census() {
   const linkedQuery = params.get('q') || '';
   const tab = CENSUS_TABS.includes(params.get('tab')) ? params.get('tab') : 'households';
   const setTab = (k) => setParams(k === 'households' ? {} : { tab: k, ...(k === 'lastYear' && linkedGkk ? { gkk: linkedGkk } : {}) }, { replace: true });
-  // Parish Config → Last year's list can turn the list off (0048); then the
-  // census measures itself against the previous census instead.
+  // The switch on the "Last year's list" tab can turn the list off (0048);
+  // then the census measures itself against the previous census instead.
+  // Staff who can change settings always see the tab, to turn it back on.
   const listOn = listEnabled(parish);
+  const canSwitch = can(user, 'settings');
+  const showListTab = listOn || canSwitch;
+  const listPart = (
+    <>
+      {canSwitch && parish && <LastYearListSwitch parish={parish} cycles={cycles} onChanged={setParish} />}
+      {listOn
+        ? <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />
+        : <Panel className="p-6 text-[13.5px] text-parish-muted">The list is off: its names are kept but not used or shown. Turn it on to see them, or to type or upload last year's names.</Panel>}
+    </>
+  );
   const [refreshKey, setRefreshKey] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -218,10 +230,10 @@ export default function Census() {
               <EmptyState title="No census yet" subtitle="Start a census, print the pre-filled forms by GKK, and record the answers as they come back." />
             </Panel>
             {/* The list can be typed in before the census starts. */}
-            {listOn && (
+            {showListTab && (
               <>
                 <h2 className="font-serif text-[22px] font-semibold text-parish-navy mt-8 mb-3">Last year's household list</h2>
-                <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />
+                {listPart}
               </>
             )}
           </>
@@ -255,14 +267,14 @@ export default function Census() {
             )}
 
             <Tabs
-              tabs={[['households', 'Households'], ['updates', `Online updates${pendingCount ? ` (${pendingCount})` : ''}`], ['results', 'Results by GKK'], ...(listOn ? [['lastYear', "Last year's list"]] : [])]}
-              value={tab === 'lastYear' && !listOn ? 'households' : tab}
+              tabs={[['households', 'Households'], ['updates', `Online updates${pendingCount ? ` (${pendingCount})` : ''}`], ['results', 'Results by GKK'], ...(showListTab ? [['lastYear', "Last year's list"]] : [])]}
+              value={tab === 'lastYear' && !showListTab ? 'households' : tab}
               onChange={setTab}
             />
-            {(tab === 'households' || (tab === 'lastYear' && !listOn)) && <HouseholdsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
+            {(tab === 'households' || (tab === 'lastYear' && !showListTab)) && <HouseholdsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
             {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} initialQuery={linkedQuery} />}
             {tab === 'results' && <ResultsTab key={cycle.id} cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} canOpenGkk={!ownGkk && can(user, 'censusGkkView')} />}
-            {tab === 'lastYear' && listOn && <LastYearList ownGkk={ownGkk} initialGkk={linkedGkk} parish={parish} canEdit={canEdit} canManage={canManage} />}
+            {tab === 'lastYear' && showListTab && listPart}
           </>
         )}
       </PageBody>
@@ -293,7 +305,7 @@ function CensusCycleForm({ cycle = null, listStillOn = null, canChangeList = fal
       const ok = await confirm({
         title: "Start with last year's list still on?",
         message: `The ${label.trim()} will be measured against last year's paper list, not the ${listStillOn.label} held in this registry. `
-          + `If the list is out of date, cancel and turn it off first in Parish Config → Last year's list.`,
+          + `If the list is out of date, cancel and turn it off first under Census → Last year's list.`,
         confirmLabel: 'Start anyway',
       });
       if (!ok) return;
@@ -323,8 +335,8 @@ function CensusCycleForm({ cycle = null, listStillOn = null, canChangeList = fal
           paper list is probably out of date. With the list on, this census is measured against those old names instead of the
           families in the {listStillOn.label}.{' '}
           {canChangeList
-            ? <Link to="/admin/settings?tab=lastyear" className="font-semibold text-[#9a3412] underline">Turn it off in Parish Config → Last year's list</Link>
-            : <>Ask a staff admin to turn it off in Parish Config → Last year's list</>}
+            ? <>Turn it off under <strong>Last year's list</strong> on this page</>
+            : <>Ask a staff admin to turn it off under Census → Last year's list</>}
           {' '}before starting, unless you mean to keep using it.
         </div>
       )}
@@ -945,14 +957,14 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
       <FamiliesTable res={vsLastYear} cycle={cycle} ownGkk={ownGkk} />
       {vsLastYear?.noPrevious && (
         <p className="mb-6 px-4 py-3 rounded-xl border border-parish-border bg-parish-field text-[13px] text-parish-text2">
-          Last year's list is turned off, there's no earlier census in the registry to compare with, and {ownGkk ? `${ownGkk} has no` : 'no GKK has a'} household count for last year in Parish GKK, so this census can't show who hasn't registered yet. Set the households last year in Parish Config → Parish GKK, turn the list on in Parish Config → Last year's list, or compare from the next census on.
+          Last year's list is turned off, there's no earlier census in the registry to compare with, and {ownGkk ? `${ownGkk} has no` : 'no GKK has a'} household count for last year in Parish GKK, so this census can't show who hasn't registered yet. Set the households last year in Parish Config → Parish GKK, turn the list on under Census → Last year's list, or compare from the next census on.
         </p>
       )}
       {vsLastYear && !vsLastYear.hasBaseline && !vsLastYear.noPrevious && vsLastYear.mode === 'list' && (
         <p className="mb-6 px-4 py-3 rounded-xl border border-parish-border bg-parish-field text-[13px] text-parish-text2">
           {ownGkk
             ? <>{ownGkk} has no names on last year's list and no household count yet, so the census can't show who hasn't registered. Add the names on the Last year's list tab.</>
-            : <>No GKK has names on last year's list or a household count yet, so the census can't show who hasn't registered. Add them in Parish Config → Last year's list.</>}
+            : <>No GKK has names on last year's list or a household count yet, so the census can't show who hasn't registered. Add them under Census → Last year's list.</>}
         </p>
       )}
       <NotYetPrintSheet rows={print?.rows} gkk={print?.gkk} parish={parish} placeLabel={vsLastYear?.mode === 'census' ? 'GKK' : 'Purok'} />
