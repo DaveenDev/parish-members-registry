@@ -128,7 +128,11 @@ function MainArticle({ main }) {
   );
 }
 
-/** The title, the main article's video (0080) and its photos: its main photo large, its gallery beside it. */
+/**
+ * The main article's photos (its main photo large, its gallery beside it),
+ * then the title and its video (0080), so the photos and the video are never
+ * side by side.
+ */
 function Hero({ main }) {
   const photos = [main?.photo_url && { url: main.photo_url, caption: '' }, ...(main?.photos || [])].filter((p) => p?.url);
   const [open, setOpen] = useState(null);
@@ -139,25 +143,10 @@ function Hero({ main }) {
   return (
     <Band aria-labelledby="kasaysayan-title">
       <div className={`${WRAP} ${BAND_PAD}`}>
-        <Eyebrow>Kasaysayan sa Parokya</Eyebrow>
-        <h1 id="kasaysayan-title" className="font-serif font-semibold text-[32px] lg:text-[50px] leading-[1.08] lg:leading-[1.04] mt-0.5 mb-2 text-parish-navy lg:max-w-[900px]">
-          {main?.title || 'Ang Among Kasaysayan'}
-        </h1>
-        {main?.author && <div className="mb-4 lg:mb-6 text-[15px] lg:text-[16px] text-parish-text2">Sinulat ni <span className="font-semibold text-parish-ink">{main.author}</span></div>}
-
-        {main?.video_url && (
-          // "#t=0.1" so phones show its first frame instead of a black box.
-          <video
-            src={`${main.video_url}#t=0.1`} controls playsInline preload="metadata"
-            aria-label={`Video: ${main.title || 'Ang Among Kasaysayan'}`}
-            className="block w-full max-h-[70vh] mt-4 rounded-[14px] lg:rounded-[18px] bg-black"
-          />
-        )}
-
         {photos.length > 0 && (
           // Phones: the main photo, then the rest in a row. Desktop: the main photo
           // on the left half, up to four more filling the right half.
-          <div className={`grid gap-2 lg:gap-3 mt-4 ${side.length ? `grid-cols-4 ${side.length === 1 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} lg:grid-rows-2 lg:h-[500px]` : ''}`}>
+          <div className={`grid gap-2 lg:gap-3 mb-6 lg:mb-9 ${side.length ? `grid-cols-4 ${side.length === 1 ? 'lg:grid-cols-3' : 'lg:grid-cols-4'} lg:grid-rows-2 lg:h-[500px]` : ''}`}>
             <button type="button" onClick={() => setOpen(0)} className={`${tile} rounded-[14px] lg:rounded-[18px] ${side.length ? 'col-span-4 lg:col-span-2 lg:row-span-2' : 'lg:h-[520px]'} aspect-[16/10] lg:aspect-auto`}>
               <img src={photos[0].url} alt={main?.title || ''} className="w-full h-full object-cover" />
             </button>
@@ -174,6 +163,21 @@ function Hero({ main }) {
               </button>
             ))}
           </div>
+        )}
+
+        <Eyebrow>Kasaysayan sa Parokya</Eyebrow>
+        <h1 id="kasaysayan-title" className="font-serif font-semibold text-[32px] lg:text-[50px] leading-[1.08] lg:leading-[1.04] mt-0.5 mb-2 text-parish-navy lg:max-w-[900px]">
+          {main?.title || 'Ang Among Kasaysayan'}
+        </h1>
+        {main?.author && <div className="mb-4 lg:mb-6 text-[15px] lg:text-[16px] text-parish-text2">Sinulat ni <span className="font-semibold text-parish-ink">{main.author}</span></div>}
+
+        {main?.video_url && (
+          // "#t=0.1" so phones show its first frame instead of a black box.
+          <video
+            src={`${main.video_url}#t=0.1`} controls playsInline preload="metadata"
+            aria-label={`Video: ${main.title || 'Ang Among Kasaysayan'}`}
+            className="block w-full max-h-[70vh] mt-4 rounded-[14px] lg:rounded-[18px] bg-black"
+          />
         )}
         {open != null && <Lightbox photos={photos} index={open} onIndex={setOpen} onClose={() => setOpen(null)} />}
       </div>
