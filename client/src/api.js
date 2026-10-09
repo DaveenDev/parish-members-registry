@@ -10,7 +10,7 @@ import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE
 import { toCsv, downloadCsv } from './lib/csv.js';
 import { fetchAllPages } from './lib/paging.js';
 import { shapeDashboard, shapeReport } from './lib/stats.js';
-import { MEMBERSHIP_STATUSES, cleanParticipation, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, registryVsLastYear, householdsVsPreviousCensus, previousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet } from './lib/census.js';
+import { MEMBERSHIP_STATUSES, cleanParticipation, censusResponsesPayload, summarizeCensus, countLastYearList, normalizeSiteUrl, registryVsLastYear, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, previousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet } from './lib/census.js';
 import {
   sacramentProgressRows, turnaroundRows, registrationsByMonth, monthName, familiesByGkkRows, personName, SACRAMENT_MIN_AGE, missingSacrament,
   candidatesByGkk, churchWeddingCandidates, sacramentsByYear, AGE_GROUPS, inAgeGroup, ageSexRows, breakdownRows, celebrationsInMonth, statusChanges,
@@ -1143,6 +1143,7 @@ export const api = {
   },
   /** Upload `file` to the GKK's folder, then save its row; the file is removed again if the row can't be saved. */
   async uploadGkkDocument(gkkId, file, { title, kind, note }) {
+    if (gkk79Missing(error)) throw new Error(GKK_79_HINT);
     const contentType = gkkDocumentType(file);
     const path = gkkDocumentPath(gkkId, contentType, crypto.randomUUID());
     const { error: upError } = await supabase.storage.from(GKK_DOCS_BUCKET).upload(path, file, { contentType, upsert: false });
@@ -1152,6 +1153,7 @@ export const api = {
     }
     const { data, error } = await supabase.from('gkk_documents')
       .insert({ gkk_id: gkkId, title, kind, note: note || null, file_path: path, file_name: file.name.slice(0, 255), content_type: contentType, size_bytes: file.size })
+    if (gkk79Missing(error)) throw new Error(GKK_79_HINT);
       .select().single();
     if (error) {
       await supabase.storage.from(GKK_DOCS_BUCKET).remove([path]).catch(() => {});
@@ -1473,20 +1475,33 @@ export const api = {
       const [details, heads, list, families] = await Promise.all([
         api.listGkkDetails(), api.registryHeads(), api.listLastYear('All').catch(() => []), api.registryFamilyHeads().catch(() => []),
       ]);
-      return { mode: 'list', previous: null, ...registryVsLastYear(details.rows, heads, list, ownGkk, families) };
+      return { mode: 'list', previous: null, ...registryVsLastYear(details.rows, heads, list, ownGkk, families), families: await familiesVsTyped(details) };
     }
     const previous = cycle ? previousCensus(cycles, cycle) : null;
     if (!previous) {
       const [details, heads] = await Promise.all([api.listGkkDetails(), api.registryHeads()]);
       const res = registryVsLastYear(details.rows, heads, [], ownGkk);
-      return { mode: 'count', previous: null, noPrevious: !res.hasBaseline, ...res };
+      return { mode: 'count', previous: null, noPrevious: !res.hasBaseline, ...res, families: await familiesVsTyped(details) };
     }
-    const [before, now] = await Promise.all([api.censusHouseholdProgressRows(previous.id), api.censusHouseholdProgressRows(cycle.id)]);
+    const [before, now, famBefore, famNow] = await Promise.all([
+      api.censusHouseholdProgressRows(previous.id), api.censusHouseholdProgressRows(cycle.id),
+      api.censusFamilyProgressRows(previous.id), api.censusFamilyProgressRows(cycle.id),
+    ]);
     const res = householdsVsPreviousCensus(before, now, ownGkk);
     const notYet = res.notYetHouseholds.map((h) => ({
       key: `h${h.household_id}`, title: h.household_name, detail: [h.head_name, h.ref_no].filter(Boolean).join(' · '), gkk: h.gkk, purok: '', note: [h.head_name, h.ref_no].filter(Boolean).join(' · '),
     }));
-    return { mode: 'census', previous, ...res, notYet };
+    const families = famBefore && famNow ? familiesVsPreviousCensus(famBefore, famNow, ownGkk) : null;
+    return { mode: 'census', previous, ...res, notYet, families };
+  },
+  /** Every family's part in one census (0079): [{ household_id, family_no, gkk, took_part }], or null before 0079. */
+  async censusFamilyProgressRows(cycleId) {
+    try {
+      return await fetchAll(() => supabase.rpc('census_family_progress', { p_cycle_id: cycleId })
+        .select('household_id, family_no, gkk, took_part').order('household_id').order('family_no'));
+    } catch {
+      return null;
+    }
   },
   /** Every household's progress in one census: [{ household_id, household_name, head_name, ref_no, gkk, progress }]. */
   async censusHouseholdProgressRows(cycleId) {
@@ -1505,6 +1520,11 @@ export const api = {
     if (error) return [];
     return data || [];
   },
+    // Families (0079) against the count typed in Parish GKK; null before 0054/0079.
+    const familiesVsTyped = async (details) => {
+      const stats = await api.familyStats().catch(() => null);
+      return stats ? familiesVsCount(details.rows, stats.by_gkk, ownGkk) : null;
+    };
 
   /** Every name on one GKK's list (or every GKK's, for 'All'), by purok then name. */
   async listLastYear(gkk = 'All') {
@@ -1880,7 +1900,9 @@ export const api = {
           : `No baseline to compare with (${baseline}): add last year's names or counts, or turn the list off once there's an earlier census${where}`;
         if (type === 'Households vs last year') {
           const t = vsLastYearTable(res, cycle);
-          const meta = res.hasBaseline ? `${res.total.pct}% registered against ${baseline} · ${res.total.notYet} of ${res.total.lastYear} not yet${where}` : noBaseline;
+          const fam = res.families?.hasBaseline ? res.families.total : null;
+          const families = fam ? ` · families: ${fam.lastYear - fam.notYet} of ${fam.lastYear} (${fam.pct}%)` : '';
+          const meta = res.hasBaseline ? `${res.total.pct}% registered against ${baseline} · ${res.total.notYet} of ${res.total.lastYear} not yet${families}${where}` : noBaseline;
           return table(t.title, meta, t.columns, t.rows);
         }
         const list = res.mode !== 'census'
@@ -2206,7 +2228,7 @@ const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'dire
 
 const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles', 'history_articles'];
 
-const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'history', 'history_photos', 'history_published', 'photo_url', 'photos'];
+const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'previous_families', 'history', 'history_photos', 'history_published', 'photo_url', 'photos'];
 
 const GKK_DOCS_BUCKET = 'gkk-documents';
 
@@ -2254,6 +2276,9 @@ async function saveWebsiteRow(table, row, dupLabel) {
   return data;
 }
 
+/** Before 0079 there's no Families last year column. */
+const gkk79Missing = (error) => ['42703', 'PGRST204'].includes(error?.code) && /previous_families/.test(error?.message || '');
+const GKK_79_HINT = 'Run the 0079_census_families.sql migration in Supabase to save Families last year';
 async function deleteWebsiteRow(table, id) {
   const { error } = await supabase.from(table).delete().eq('id', id);
   if (error) throw mapError(error);

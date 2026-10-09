@@ -511,6 +511,84 @@ export function householdsVsPreviousCensus(previousRows, currentRows, onlyGkk = 
   return { rows, total, hasBaseline: withBase.length > 0, notYetHouseholds };
 }
 
+// ---- families (0079) -------------------------------------------------------
+// A household can hold more than one family (0054). The census measures each
+// GKK's families too, in the same row shape as the households: { label,
+// lastYear, registered, notYet, pct } per GKK and an 'All GKKs' total over
+// the GKKs with a baseline (lastYear, notYet and pct null without one).
+
+const familyShare = (done, of) => (of > 0 ? Math.min(Math.round((done / of) * 100), 100) : 0);
+
+/** The 'All GKKs' row and hasBaseline for family rows. */
+function familyTotals(rows) {
+  const withBase = rows.filter((r) => r.lastYear != null);
+  const sum = (k) => withBase.reduce((n, r) => n + r[k], 0);
+  const lastYear = withBase.length ? sum('lastYear') : null;
+  const notYet = withBase.length ? sum('notYet') : null;
+  return {
+    rows,
+    total: { label: 'All GKKs', lastYear, notYet, registered: sum('registered'), pct: lastYear == null ? null : familyShare(lastYear - notYet, lastYear) },
+    hasBaseline: withBase.length > 0,
+  };
+}
+
+/**
+ * Families registered against the count typed in Parish GKK -> Families last
+ * year (gkks.previous_families). `gkks` are the GKK rows; `registered` is
+ * family_stats().by_gkk ([{ label, families }]), the families in the
+ * registry per GKK. "Not yet" is the count minus those, never below zero.
+ */
+export function familiesVsCount(gkks, registered, onlyGkk = null) {
+  const reg = new Map((registered || []).map((g) => [g.label, Number(g.families) || 0]));
+  const rows = (gkks || [])
+    .filter((g) => !onlyGkk || g.name === onlyGkk)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((g) => {
+      const n = reg.get(g.name) || 0;
+      const of = g.previous_families ?? null;
+      return of == null
+        ? { label: g.name, registered: n, lastYear: null, notYet: null, pct: null }
+        : { label: g.name, registered: n, lastYear: of, notYet: Math.max(of - n, 0), pct: familyShare(n, of) };
+    });
+  return familyTotals(rows);
+}
+
+/**
+ * Families in this census against the families that took part in the
+ * previous one, for a parish not using last year's list. Both arguments are
+ * census_family_progress() rows ({ household_id, family_no, gkk, took_part }).
+ * Like householdsVsPreviousCensus(): last year is the families that took
+ * part before and still exist; "not yet" is those of them with nobody
+ * answering now; a family counts under its household's GKK today.
+ */
+export function familiesVsPreviousCensus(previousRows, currentRows, onlyGkk = null) {
+  const key = (r) => `${r.household_id}:${r.family_no}`;
+  const mine = (r) => !onlyGkk || r.gkk === onlyGkk;
+  const now = new Map((currentRows || []).filter(mine).map((r) => [key(r), r]));
+  const byGkk = new Map();
+  const at = (gkk) => {
+    if (!byGkk.has(gkk)) byGkk.set(gkk, { lastYear: 0, notYet: 0, registered: 0 });
+    return byGkk.get(gkk);
+  };
+  for (const r of now.values()) if (r.took_part) at(r.gkk ?? null).registered += 1;
+  for (const r of (previousRows || []).filter(mine)) {
+    const today = r.took_part && now.get(key(r));
+    if (!today) continue;
+    const c = at(today.gkk ?? null);
+    c.lastYear += 1;
+    if (!today.took_part) c.notYet += 1;
+  }
+  const rows = [...byGkk.entries()]
+    .sort(([a], [b]) => (a === null) - (b === null) || String(a).localeCompare(String(b)))
+    .map(([gkk, c]) => ({
+      label: gkk ?? 'No GKK', registered: c.registered,
+      ...(c.lastYear
+        ? { lastYear: c.lastYear, notYet: c.notYet, pct: familyShare(c.lastYear - c.notYet, c.lastYear) }
+        : { lastYear: null, notYet: null, pct: null }),
+    }));
+  return familyTotals(rows);
+}
+
 // ---- family portal (0008 migration) -------------------------------------
 
 /** "ab3k-77xq " → "AB3K77XQ" (what census_normalize_code() compares). */
@@ -687,9 +765,16 @@ export function vsLastYearTable(res, cycle) {
   const cells = (r) => (census
     ? [r.label, r.lastYear ?? '', r.registered, r.confirmed, r.notYet ?? '', pct(r)]
     : [r.label, from(r), r.lastYear ?? '', r.registered, r.verified, r.pending, r.notYet ?? '', pct(r)]);
+  // Families (0079), matched by GKK; blank for a GKK with no families baseline.
+  const fam = res.families?.hasBaseline ? res.families : null;
+  const famOf = new Map(fam ? [...fam.rows, fam.total].map((r) => [r.label, r]) : []);
+  const famCells = (r) => {
+    const f = famOf.get(r.label);
+    return !f || f.lastYear == null ? ['', f ? f.registered : '', '', ''] : [f.lastYear, f.registered, f.notYet, `${f.pct}%`];
+  };
   return {
     title: `${cycle?.label || 'Census'}: households vs ${vsLastYearBaseline(res)}`,
-    columns,
-    rows: res.hasBaseline ? [...res.rows, res.total].map(cells) : [],
+    columns: fam ? [...columns, 'Families last year', 'Families registered', 'Families not yet', 'Families %'] : columns,
+    rows: res.hasBaseline ? [...res.rows, res.total].map((r) => (fam ? [...cells(r), ...famCells(r)] : cells(r))) : [],
   };
 }

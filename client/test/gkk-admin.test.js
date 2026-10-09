@@ -1,7 +1,16 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { attentionCounts, filterByAttention, gkkProgress } from '../src/lib/gkkAdmin.js';
+import { attentionCounts, filterByAttention, gkkProgress, gkkFamilyProgress } from '../src/lib/gkkAdmin.js';
+
+describe('gkkFamilyProgress (0079)', () => {
+  const families = { rows: [{ label: 'A', lastYear: 15, notYet: 3, pct: 80, registered: 12 }, { label: 'B', lastYear: null, notYet: null, pct: null, registered: 4 }] };
+  test('against the families baseline; nothing without one', () => {
+    assert.deepEqual(gkkFamilyProgress(families, 'A'), { done: 12, of: 15, pct: 80, notYet: 3 });
+    assert.equal(gkkFamilyProgress(families, 'B'), null);
+    assert.equal(gkkFamilyProgress(null, 'A'), null);
+  });
+});
 
 const rows = [
   { name: 'A', chapel_address: 'Purok 1', coordinator_name: 'X', meeting_schedule: 'Sun', count: 4, history_published: true, history: 'Text' },

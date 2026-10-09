@@ -661,6 +661,69 @@ function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '' }) {
 const listEnabled = (parish) => parish?.last_year_list_enabled !== false;
 
 /**
+ * Families registered against last year (0079): the count typed in Parish GKK
+ * (Families last year), or with the list off and an earlier census, the
+ * families that took part in it. Nothing before 0079; without a count, a
+ * note saying where to set one.
+ */
+function FamiliesTable({ res, cycle, ownGkk }) {
+  const fam = res?.families;
+  if (!fam) return null;
+  const census = res.mode === 'census';
+  if (!fam.hasBaseline) {
+    if (census) return null;
+    return (
+      <p className="mb-6 px-4 py-3 rounded-xl border border-parish-border bg-parish-field text-[13px] text-parish-text2">
+        A house can hold more than one family. To count registered families too, set each GKK's families last year in Parish Config → Parish GKK
+        {ownGkk ? ` (ask the parish office for ${ownGkk})` : ''}.
+      </p>
+    );
+  }
+  const dash = <span className="text-parish-faint">—</span>;
+  const rows = [...fam.rows, fam.total];
+  return (
+    <div className="mb-6">
+      <h3 className="m-0 mb-1 font-serif text-[20px] font-semibold text-parish-navy">
+        {ownGkk ? `${ownGkk}: registered families` : 'Registered families by GKK'}
+        <span className="ml-2 align-middle text-[14px] font-sans font-semibold text-parish-blue">{fam.total.pct}%</span>
+      </h3>
+      <p className="text-[13px] text-parish-muted mt-0 mb-3">
+        {census
+          ? <>Families with at least one member confirmed in the {cycle.label}, against the families that took part in the {res.previous.label}. A house can hold more than one family, each with its own head.</>
+          : <>Families in the registry against each GKK's families last year, set in Parish GKK. A house can hold more than one family, each with its own head.</>}
+      </p>
+      <DataTable
+        minWidth={560}
+        stickyFirst
+        columns={[{ label: 'GKK' }, { label: 'Last year', align: 'right' }, { label: 'Registered', align: 'right' }, { label: 'Not yet', align: 'right' }, { label: 'Registered %', align: 'right' }]}
+      >
+        {rows.map((r, i) => (
+          <tr key={r.label} className={`border-t border-parish-line ${i === rows.length - 1 ? 'bg-parish-sunk font-semibold' : ''}`}>
+            <td className="px-4 py-3 text-[14px] text-parish-navy whitespace-nowrap">{r.label}</td>
+            <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.lastYear ?? dash}</td>
+            <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.registered}</td>
+            <td className="px-4 py-3 text-[14px] text-right text-parish-text3">{r.notYet ?? dash}</td>
+            <td className="px-4 py-3 text-[14px] text-right">
+              {r.pct == null ? dash : (
+                <span className="inline-flex items-center gap-2 justify-end">
+                  <span className="hidden sm:inline-block w-16 h-1.5 rounded-full bg-parish-sunk overflow-hidden"><span className="block h-full bg-parish-fill" style={{ width: `${r.pct}%` }} /></span>
+                  <span className="text-parish-navy font-semibold">{r.pct}%</span>
+                </span>
+              )}
+            </td>
+          </tr>
+        ))}
+      </DataTable>
+      {fam.rows.some((r) => r.lastYear == null) && (
+        <p className="text-[12.5px] text-parish-muted mt-2 mb-0">
+          {census ? `The total leaves out GKKs with no family in the ${res.previous.label}.` : 'The total leaves out GKKs with no families last year set in Parish GKK.'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
  * The families still to visit: last year's names not found in the registry
  * (list on) or the previous census's households with nobody confirmed yet
  * (list off). Staff can narrow it to a GKK; a GKK leader sees their own.
@@ -879,6 +942,7 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
           <NotYetList res={vsLastYear} cycle={cycle} ownGkk={ownGkk} onPrint={printNotYet} />
         </>
       )}
+      <FamiliesTable res={vsLastYear} cycle={cycle} ownGkk={ownGkk} />
       {vsLastYear?.noPrevious && (
         <p className="mb-6 px-4 py-3 rounded-xl border border-parish-border bg-parish-field text-[13px] text-parish-text2">
           Last year's list is turned off, there's no earlier census in the registry to compare with, and {ownGkk ? `${ownGkk} has no` : 'no GKK has a'} household count for last year in Parish GKK, so this census can't show who hasn't registered yet. Set the households last year in Parish Config → Parish GKK, turn the list on in Parish Config → Last year's list, or compare from the next census on.

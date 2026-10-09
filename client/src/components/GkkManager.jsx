@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { SearchInput, ErrorState, LoadingState, Panel, ActionMenu } from './admin.jsx';
-import { GKK_ATTENTION, attentionCounts, filterByAttention, gkkProgress } from '../lib/gkkAdmin.js';
+import { GKK_ATTENTION, attentionCounts, filterByAttention, gkkProgress, gkkFamilyProgress } from '../lib/gkkAdmin.js';
 import { useClientList } from '../hooks.js';
 import { Field, FlagEmptyRequired, GhostButton, TextInput } from './ui.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -21,6 +21,16 @@ const missingAddress = (g) => !String(g.chapel_address || '').trim();
 /** The Households page filtered to one GKK, on the All tab so Pending and Verified both show. */
 const householdsPath = (gkk) => `/admin/households?status=All&gkk=${encodeURIComponent(gkk)}`;
 const websitePath = (name) => `/komunidad/gkk/${encodeURIComponent(name)}`;
+
+/** A GKK's families registered of last year (0079), under its households progress; nothing without a families baseline. */
+function FamilyProgress({ p }) {
+  if (!p) return null;
+  return (
+    <span className="block text-[12px] text-parish-muted whitespace-nowrap mt-0.5" title={`${p.notYet} of last year's ${p.of} family(ies) not yet registered`}>
+      Families <strong className="text-parish-text2">{p.done}</strong> / {p.of} · {p.pct}%
+    </span>
+  );
+}
 
 /** A GKK's census progress, as the Census page counts it: done / last year, with a bar. */
 function Progress({ p, compact = false }) {
@@ -74,7 +84,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
   const [show, setShow] = useState('all');
   const gaps = attentionCounts(rows);
   const list = useClientList(filterByAttention(rows, show), (r) => `${r.name} ${r.chapel_address || ''} ${r.puroks || ''}`, ALL_GKKS);
-  // Census progress rows by GKK (api.censusVsLastYear(), as on the Census page); null until loaded or if it fails.
+  // Census progress by GKK (api.censusVsLastYear(), as on the Census page: households in `rows`, `families`); null until loaded or if it fails.
   const [progress, setProgress] = useState(null);
   const [listCounts, setListCounts] = useState(new Map());
   const [listOn, setListOn] = useState(true);
@@ -107,7 +117,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
     // The open census (or the latest), measured the way the Census page measures it.
     api.listCensusCycles()
       .then((cycles) => api.censusVsLastYear(cycles.find((c) => c.status === 'Open') || cycles[0] || null, cycles))
-      .then((res) => setProgress(res.rows))
+      .then((res) => setProgress(res))
       .catch(() => setProgress(null));
     // Listing also gives a code to each new barangay.
     api.listBarangayRefCodes()
@@ -134,8 +144,8 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
   }
 
   const open = (g, tab = 'details') => setEditing(g
-    ? { ...gkkForm(g), id: g.id, original: g.name, tab, name: g.name, previous_households: g.previous_households ?? '' }
-    : { ...gkkForm(null), name: '', previous_households: '', tab });
+    ? { ...gkkForm(g), id: g.id, original: g.name, tab, name: g.name, previous_households: g.previous_households ?? '', previous_families: g.previous_families ?? '' }
+    : { ...gkkForm(null), name: '', previous_households: '', previous_families: '', tab });
 
   // Once the GKKs are loaded, and again if another notification is clicked
   // while this page is open. A GKK that's gone just shows the list.
@@ -192,7 +202,8 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
       )}
       <div className="flex flex-col gap-2">
         {list.rows.map((g) => {
-          const p = gkkProgress(progress, g.name);
+          const p = gkkProgress(progress?.rows, g.name);
+          const fp = gkkFamilyProgress(progress?.families, g.name);
           const info = [g.puroks, g.year_established && `Est. ${g.year_established}`].filter(Boolean).join(' · ');
           // The GKK's households: the Households page filtered to it, every status.
           const householdsLink = (children, className = '') => (!g.count ? <span className="text-parish-text2">{children}</span> :
@@ -218,7 +229,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
                   {missingAddress(g) ? <span className="font-semibold text-[#c2410c]">Chapel address missing</span> : `Chapel: ${g.chapel_address}`}{info && ` · ${info}`}
                   {' · '}{householdsLink(`${g.count} household(s)`)}
                 </div>
-                <div className="lg:hidden mt-0.5"><Progress p={p} compact /></div>
+                <div className="lg:hidden mt-0.5"><Progress p={p} compact /><FamilyProgress p={fp} /></div>
                 {g.history_published
                   ? <div className="text-[12px] text-parish-muted">History on the website</div>
                   : (String(g.history || '').trim() || (g.history_photos || []).length > 0) && <div className="text-[12px] font-semibold text-[#c2410c]">History draft, not published</div>}
@@ -226,7 +237,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{missingAddress(g) ? missing : g.chapel_address}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.year_established || dash}</span>
               <span className="hidden lg:block text-[13.5px]">{householdsLink(g.count, 'inline-block min-w-[28px] px-1 -mx-1 rounded')}</span>
-              <span className="hidden lg:block min-w-0"><Progress p={p} /></span>
+              <span className="hidden lg:block min-w-0"><Progress p={p} /><FamilyProgress p={fp} /></span>
               <div className="flex items-center gap-2 lg:justify-end">
                 <RowButton onClick={() => open(g)} className="px-3.5 py-2">Edit</RowButton>
                 <ActionMenu
@@ -255,7 +266,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
         )}
       </div>
 
-      <p className="mt-4 mb-0 text-[13px] text-parish-muted">Each GKK's chapel, puroks, year established and history show in the website's GKK directory. Last year's household count is the baseline the census measures its progress against. Land titles and other documents stay private. A GKK assigned to a household, or with documents, can't be deleted.</p>
+      <p className="mt-4 mb-0 text-[13px] text-parish-muted">Each GKK's chapel, puroks, year established and history show in the website's GKK directory. Last year's household and family counts are the baselines the census measures its progress against. Land titles and other documents stay private. A GKK assigned to a household, or with documents, can't be deleted.</p>
 
       {editing && <GkkPanel key={editing.id ?? 'new'} initial={editing} codes={codes} listNames={editing.original ? listNames(editing.original) : 0} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); reload(); }} onOpenList={openList} />}
     </Panel>
@@ -374,6 +385,10 @@ function GkkPanel({ initial, codes, listNames = 0, onClose, onSaved, onOpenList 
     // Only when they changed, so the details still save before the 0044 and 0046 migrations.
     if (!samePhotos(form, initial)) Object.assign(details, photosPatch(form));
     if (!sameHistory(form, initial)) Object.assign(details, historyPatch(form));
+    // Families last year (0079), only when changed, so other details still save before 0079.
+    const families = String(form.previous_families ?? '').trim();
+    if (families && Number(families) > 100000) { fail("Enter last year's family count as a number up to 100,000."); return; }
+    if (families !== String(initial.previous_families ?? '').trim()) details.previous_families = families ? Number(families) : null;
     setSaving(true);
     try {
       if (isNew) {
@@ -435,6 +450,12 @@ function GkkPanel({ initial, codes, listNames = 0, onClose, onSaved, onOpenList 
               ? <>From the {listNames} name(s) on {onOpenList ? <button type="button" onClick={() => onOpenList(initial.original)} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue">last year's household list</button> : "last year's household list"}, which come first: a typed count that doesn't match them is cleared. It's used once, until a census is recorded in the registry.</>
               : <>From the previous census. The ongoing census counts how many of these households have registered and how many have not yet, until a census is recorded in the registry.
                 {!isNew && onOpenList && <> The names themselves go on <button type="button" onClick={() => onOpenList(initial.original)} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue">last year's household list</button>; once a GKK has names there, they're used instead of this count.</>}</>}
+          </div>
+          <Field label="Families last year">
+            <TextInput inputMode="numeric" maxLength={6} value={form.previous_families ?? ''} placeholder="e.g. 140" className="max-w-[160px]" onChange={(e) => { setForm((f) => ({ ...f, previous_families: e.target.value.replace(/\D/g, '') })); setError(''); }} />
+          </Field>
+          <div className="-mt-2 text-[13px] text-parish-muted">
+            A house can hold more than one family, each with its own head. The census counts how many of these families have registered, until a census is recorded in the registry.
           </div>
           {!isNew && initial.name !== form.name.trim() && form.name.trim() && (
             <div className="text-[13px] text-parish-muted">Renaming also moves every household in this GKK to the new name.</div>

@@ -22,6 +22,16 @@ export function filterByAttention(rows, key) {
 }
 
 /**
+ * One GKK's families progress (0079) from api.censusVsLastYear()'s
+ * `families`: { done, of, pct, notYet }, or null without a families baseline.
+ */
+export function gkkFamilyProgress(families, name) {
+  const r = (families?.rows || []).find((p) => p.label === name);
+  if (!r || r.lastYear == null) return null;
+  return { done: r.lastYear - r.notYet, of: r.lastYear, pct: r.pct, notYet: r.notYet };
+}
+
+/**
  * One GKK's census progress from api.censusVsLastYear() rows (by label):
  * { done, of, pct, notYet } against its baseline, or { registered } alone
  * when it has no baseline; null when there's no progress row for it.

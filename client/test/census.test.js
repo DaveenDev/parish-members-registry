@@ -6,7 +6,7 @@ import {
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
-  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
+  DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, vsLastYearTable, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
 
@@ -406,6 +406,57 @@ describe('vsLastYearTable', () => {
   test('count mode (list off, no earlier census): titled by the household count', () => {
     const res = registryVsLastYear([{ name: 'A', previous_households: 4 }], [{ household_id: 1, gkk: 'A', status: 'Verified' }], []);
     assert.equal(vsLastYearTable({ mode: 'count', ...res }, { label: '2026 Census' }).title, "2026 Census: households vs last year's household count");
+  });
+
+  test('with families (0079): four family columns, matched by GKK', () => {
+    const gkks = [{ name: 'A', previous_households: 4, previous_families: 6 }, { name: 'B', previous_households: 2 }];
+    const res = registryVsLastYear(gkks, [{ household_id: 1, gkk: 'A', status: 'Verified' }, { household_id: 2, gkk: 'B', status: 'Verified' }], []);
+    const families = familiesVsCount(gkks, [{ label: 'A', families: 3 }, { label: 'B', families: 1 }]);
+    const t = vsLastYearTable({ mode: 'list', ...res, families }, { label: '2026 Census' });
+    assert.deepEqual(t.columns.slice(-4), ['Families last year', 'Families registered', 'Families not yet', 'Families %']);
+    assert.deepEqual(t.rows.map((r) => r.slice(-4)), [[6, 3, 3, '50%'], ['', 1, '', ''], [6, 3, 3, '50%']]);
+    // Without a families baseline, no family columns.
+    assert.equal(vsLastYearTable({ mode: 'list', ...res, families: familiesVsCount([{ name: 'A' }], []) }, null).columns.length, 8);
+  });
+});
+
+describe('familiesVsCount (0079)', () => {
+  const gkks = [{ name: 'B', previous_families: 10 }, { name: 'A', previous_families: 4 }, { name: 'C' }];
+  const registered = [{ label: 'A', families: 6 }, { label: 'B', families: 7 }, { label: 'C', families: 2 }];
+
+  test('each GKK against its families last year; not yet never below zero', () => {
+    const { rows, total, hasBaseline } = familiesVsCount(gkks, registered);
+    assert.deepEqual(rows.map((r) => [r.label, r.lastYear, r.registered, r.notYet, r.pct]), [
+      ['A', 4, 6, 0, 100], ['B', 10, 7, 3, 70], ['C', null, 2, null, null],
+    ]);
+    // The total leaves out C, which has no count.
+    assert.deepEqual([total.lastYear, total.registered, total.notYet, total.pct], [14, 13, 3, 79]);
+    assert.equal(hasBaseline, true);
+  });
+
+  test('a GKK leader sees their own GKK; no counts means no baseline', () => {
+    assert.deepEqual(familiesVsCount(gkks, registered, 'B').rows.map((r) => r.label), ['B']);
+    const none = familiesVsCount([{ name: 'A' }], registered);
+    assert.equal(none.hasBaseline, false);
+    assert.equal(none.total.lastYear, null);
+  });
+});
+
+describe('familiesVsPreviousCensus (0079)', () => {
+  const f = (household_id, family_no, gkk, took_part) => ({ household_id, family_no, gkk, took_part });
+  test('families that took part before, against now; two families in one house count apart', () => {
+    const previous = [f(1, 1, 'A', true), f(1, 2, 'A', true), f(2, 1, 'A', true), f(3, 1, 'B', false), f(4, 1, 'B', true)];
+    const current = [f(1, 1, 'A', true), f(1, 2, 'A', false), f(2, 1, 'B', true), f(3, 1, 'B', true), f(5, 1, 'B', true)];
+    const { rows, total } = familiesVsPreviousCensus(previous, current);
+    // A: 1:1 and 1:2 took part before; 1:2 not yet. Household 2 moved to B and counts there.
+    // B: 2:1 (moved here) took part before and now; 4:1 is gone; 3:1 and 5:1 are new.
+    assert.deepEqual(rows.map((r) => [r.label, r.lastYear, r.registered, r.notYet, r.pct]), [['A', 2, 1, 1, 50], ['B', 1, 3, 0, 100]]);
+    assert.deepEqual([total.lastYear, total.notYet, total.registered, total.pct], [3, 1, 4, 67]);
+  });
+
+  test('only one GKK', () => {
+    const { rows } = familiesVsPreviousCensus([f(1, 1, 'A', true), f(2, 1, 'B', true)], [f(1, 1, 'A', false), f(2, 1, 'B', true)], 'A');
+    assert.deepEqual(rows.map((r) => [r.label, r.lastYear, r.notYet]), [['A', 1, 1]]);
   });
 });
 
