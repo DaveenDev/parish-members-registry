@@ -63,8 +63,9 @@ function formFrom(data) {
 /**
  * Census family portal: during an open census a family opens its record with
  * the reference number and access code from its printed census form, checks
- * its details and answers the census. What it sends is reviewed by staff
- * before anything in the registry changes.
+ * its details and answers the census. Answers with no change to the details
+ * are saved at once; changed details are reviewed by staff before anything
+ * in the registry changes.
  */
 export default function CensusPortal() {
   const [params] = useSearchParams();
@@ -82,6 +83,8 @@ export default function CensusPortal() {
   const [error, setError] = useState('');
   const [showStatusErrors, setShowStatusErrors] = useState(false);
   const [busy, setBusy] = useState(false);
+  // No details changed: the answers went straight into the census (0083).
+  const [approved, setApproved] = useState(false);
   const [logo, setLogo] = useState(null);
 
   useEffect(() => {
@@ -141,6 +144,7 @@ export default function CensusPortal() {
     try {
       const res = await api.portalSubmit(refNo.trim(), code.trim(), portalPayload(form));
       if (!res?.ok) { setError(portalErrorInBisaya(res?.error)); return; }
+      setApproved(!!res.approved);
       setScreen('done');
       top();
     } catch (err) {
@@ -173,8 +177,14 @@ export default function CensusPortal() {
           </div>
           <h1 className="font-serif font-semibold text-[clamp(30px,6vw,42px)] leading-tight m-0 mb-3 text-parish-navy">Salamat sa inyong pag-update!</h1>
           <p className="text-[16px] leading-relaxed text-parish-text2 mb-6">
-            Nadawat na sa parokya ang census sa <strong>{data?.household.household_name}</strong>. Susihon kini sa among kawani
-            una kini ibutang sa rehistro. Kung adunay sayop, mahimo pa ninyo kining usbon samtang wala pa nasusi.
+            {approved ? (
+              <>Nadawat ug natala na sa rehistro ang census sa <strong>{data?.household.household_name}</strong>.
+                Kung adunay sayop, mahimo pa ninyo kining usbon samtang bukas pa ang census.</>
+            ) : (
+              <>Nadawat na sa parokya ang census sa <strong>{data?.household.household_name}</strong>. Tungod kay giusab ninyo ang
+                mga detalye, susihon kini sa among kawani una kini ibutang sa rehistro. Kung adunay sayop, mahimo pa ninyo kining
+                usbon samtang wala pa nasusi.</>
+            )}
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
             <GhostButton onClick={() => open()} className="px-6 py-3 text-[15px]">Usba pag-usab</GhostButton>

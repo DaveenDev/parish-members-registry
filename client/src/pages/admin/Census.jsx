@@ -59,6 +59,7 @@ export default function Census() {
   const [params, setParams] = useSearchParams();
   const linkedGkk = params.get('gkk') || '';
   const linkedQuery = params.get('q') || '';
+  const linkedStatus = params.get('status') || '';
   const tab = CENSUS_TABS.includes(params.get('tab')) ? params.get('tab') : 'households';
   const setTab = (k) => setParams(k === 'households' ? {} : { tab: k, ...(k === 'lastYear' && linkedGkk ? { gkk: linkedGkk } : {}) }, { replace: true });
   // The switch on the "Last year's list" tab can turn the list off (0048);
@@ -274,7 +275,7 @@ export default function Census() {
               onChange={setTab}
             />
             {(tab === 'households' || (tab === 'lastYear' && !showListTab)) && <HouseholdsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
-            {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} initialQuery={linkedQuery} />}
+            {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} initialQuery={linkedQuery} initialStatus={linkedStatus} />}
             {tab === 'results' && <ResultsTab key={cycle.id} cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} canOpenGkk={!ownGkk && can(user, 'censusGkkView')} />}
             {tab === 'lastYear' && showListTab && listPart}
           </>
@@ -572,8 +573,11 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
 /** What the Online updates search looks in. */
 const updateSearchText = (r) => [r.households?.household_name, r.households?.ref_no, r.households?.gkk, r.reviewed_by_name, r.review_note, r.message].filter(Boolean).join(' ');
 
-function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '' }) {
-  const [status, setStatus] = useState('Pending');
+const UPDATE_STATUSES = ['Pending', 'Approved', 'Rejected'];
+
+function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '', initialStatus = '' }) {
+  // A notification's link may name the list (an update approved automatically).
+  const [status, setStatus] = useState(UPDATE_STATUSES.includes(initialStatus) ? initialStatus : 'Pending');
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [openRow, setOpenRow] = useState(null);
@@ -581,6 +585,7 @@ function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '' }) {
   const list = useClientList(rows, updateSearchText, 20);
   // A notification's link names the household: show its update.
   useEffect(() => { if (initialQuery) list.setQuery(initialQuery); }, [initialQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (UPDATE_STATUSES.includes(initialStatus)) setStatus(initialStatus); }, [initialStatus]);
 
   function load() {
     setError('');
@@ -594,7 +599,8 @@ function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '' }) {
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <p className="text-[13px] text-parish-muted m-0 flex-1 min-w-[240px]">
           Families open their record at <strong className="text-parish-navy">{window.location.origin}/census</strong> with the reference number and
-          code printed on their census form. Nothing changes in the registry until you approve their update.
+          code printed on their census form. An update that only answers the census is approved automatically; one that changes
+          a household's or member's details, or adds a member, waits here until you approve it.
         </p>
         <SearchInput placeholder="Search household, ref no, GKK…" aria-label="Search online updates" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
         <FilterSelect aria-label="Update status" value={status} onChange={(e) => setStatus(e.target.value)}>
