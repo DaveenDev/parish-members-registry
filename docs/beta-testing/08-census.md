@@ -248,6 +248,9 @@ window or a second browser for the family, so it is not signed in as staff.
 
 **Expected**
 - The row shows "Online update waiting", and the tab shows "Online updates (1)".
+- On the tab, **Waiting for review (1)** comes first with the Dela Cruz update;
+  below it, **Recent online updates** lists it too, newest first, as
+  "Waiting for review".
 - The review lists only what changed (old value struck through, new value
   bold), each member's census answers, the new member and the message. A
   member whose answers suggest a different status from the one chosen is
@@ -255,7 +258,8 @@ window or a second browser for the family, so it is not signed in as staff.
 - After approving: the contact number changed, the email you edited in step 2
   was **not** overwritten, the newborn is in the household, and the answered
   members show **Confirmed** with source "Portal".
-- Under **Approved**, the update shows who approved it.
+- It leaves **Waiting for review**; in **Recent online updates** it shows
+  "Approved by" your name.
 
 ### CE-18 — What's approved at once, and what waits
 **Steps**
@@ -265,8 +269,9 @@ window or a second browser for the family, so it is not signed in as staff.
 
 **Expected**
 - Step 1: the thank-you page says the census is recorded. On the staff side the
-  answers are already **Confirmed** (source "Portal"), and the update is under
-  **Approved** "by the system".
+  answers are already **Confirmed** (source "Portal"). The update never shows
+  under **Waiting for review**; it's at the top of **Recent online updates** as
+  **Approved automatically**, and **View** opens what the family sent.
 - Step 2: the thank-you page says staff will check it. Nothing changed in the
   registry yet; the update waits under **Online updates**, its row says
   "1 marked moved / deceased / left", and the review panel says approving takes
@@ -290,8 +295,8 @@ window or a second browser for the family, so it is not signed in as staff.
    on `/census`.
 
 **Expected**
-- The rejected update is listed under **Rejected** with the reason, and nothing
-  in the registry changed.
+- **Recent online updates** shows it as "Rejected by" your name with the
+  reason, and nothing in the registry changed.
 - The old code no longer works. The new one does.
 
 ### CE-21 — Closing the census closes the portal

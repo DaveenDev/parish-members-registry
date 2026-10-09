@@ -1758,15 +1758,13 @@ export const api = {
     return count || 0;
   },
 
-  /** Every update in one status (past the 1,000-row cap), oldest first; the tab searches and pages them. */
+  /** Every update in one status, or every status for 'All' (past the 1,000-row cap), oldest first; the tab searches and pages them. */
   async listCensusSubmissions(cycleId, status = 'Pending') {
-    return fetchAll(() => supabase
-      .from('census_submissions')
-      .select('*, households(household_name, ref_no, gkk)')
-      .eq('cycle_id', cycleId)
-      .eq('status', status)
-      .order('submitted_at', { ascending: true })
-      .order('id', { ascending: true }));
+    return fetchAll(() => {
+      let q = supabase.from('census_submissions').select('*, households(household_name, ref_no, gkk)').eq('cycle_id', cycleId);
+      if (status !== 'All') q = q.eq('status', status);
+      return q.order('submitted_at', { ascending: true }).order('id', { ascending: true });
+    });
   },
 
   async approveCensusSubmission(id) {

@@ -59,7 +59,6 @@ export default function Census() {
   const [params, setParams] = useSearchParams();
   const linkedGkk = params.get('gkk') || '';
   const linkedQuery = params.get('q') || '';
-  const linkedStatus = params.get('status') || '';
   const tab = CENSUS_TABS.includes(params.get('tab')) ? params.get('tab') : 'households';
   const setTab = (k) => setParams(k === 'households' ? {} : { tab: k, ...(k === 'lastYear' && linkedGkk ? { gkk: linkedGkk } : {}) }, { replace: true });
   // The switch on the "Last year's list" tab can turn the list off (0048);
@@ -281,7 +280,7 @@ export default function Census() {
               onChange={setTab}
             />
             {(tab === 'households' || (tab === 'lastYear' && !showListTab)) && <HouseholdsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
-            {tab === 'updates' && <UpdatesTab cycle={cycle} parish={parish} refreshKey={refreshKey} onChanged={refresh} initialQuery={linkedQuery} initialStatus={linkedStatus} />}
+            {tab === 'updates' && <UpdatesTab cycle={cycle} parish={parish} refreshKey={refreshKey} onChanged={refresh} initialQuery={linkedQuery} />}
             {tab === 'results' && <ResultsTab key={cycle.id} cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} canOpenGkk={!ownGkk && can(user, 'censusGkkView')} canRecord={canManage} />}
             {tab === 'lastYear' && showListTab && listPart}
           </>
@@ -561,8 +560,6 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
 /** What the Online updates search looks in. */
 const updateSearchText = (r) => [r.households?.household_name, r.households?.ref_no, r.households?.gkk, r.reviewed_by_name, r.review_note, r.message].filter(Boolean).join(' ');
 
-const UPDATE_STATUSES = ['Pending', 'Approved', 'Rejected'];
-
 /** "2 change(s) · 5 census answer(s) · 1 marked moved / deceased / left · message" for one online update. */
 function updateSummary(r) {
   const d = diffSubmission(r);
@@ -573,25 +570,107 @@ function updateSummary(r) {
   ].filter(Boolean).join(' · ');
 }
 
-function UpdatesTab({ cycle, parish, refreshKey, onChanged, initialQuery = '', initialStatus = '' }) {
-  // A notification's link may name the list (an update approved automatically).
-  const [status, setStatus] = useState(UPDATE_STATUSES.includes(initialStatus) ? initialStatus : 'Pending');
+// Who approved an update that only answered the census (0083).
+const AUTO_REVIEWER = 'the system';
+
+/** How an online update stands, for the log: [label, badge tone]. */
+function updateOutcome(r) {
+  if (r.status === 'Pending') return ['Waiting for review', 'blue'];
+  if (r.status === 'Rejected') return [`Rejected by ${r.reviewed_by_name || 'staff'}`, 'red'];
+  if (r.reviewed_by_name === AUTO_REVIEWER) return ['Approved automatically', 'green'];
+  return [`Approved by ${r.reviewed_by_name || 'staff'}`, 'green'];
+}
+
+/**
+ * One list of online updates, a table on wide screens and cards on phones:
+ * the review queue, or with `log` the record of every update with how it
+ * ended. `list` is a useClientList() of the updates.
+ */
+function UpdateList({ list, loaded, log = false, emptyTitle, emptySubtitle, onOpen }) {
+  const action = (r, extra = '') => (
+    <button onClick={() => onOpen(r)} className={`appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap ${extra}`}>
+      {r.status === 'Pending' ? 'Review' : 'View'}
+    </button>
+  );
+  const outcome = (r) => {
+    const [label, tone] = updateOutcome(r);
+    return <Badge tone={tone}>{label}</Badge>;
+  };
+  // Staff's note when they approved or rejected it (the automatic one says nothing new).
+  const note = (r) => r.status !== 'Pending' && r.reviewed_by_name !== AUTO_REVIEWER && r.review_note
+    && <div className="text-[12px] text-parish-muted mt-0.5">{r.review_note}</div>;
+  const sent = (r) => new Date(r.submitted_at).toLocaleString();
+  return (
+    <DataTable
+      minWidth={log ? 780 : 680}
+      columns={log
+        ? [{ label: 'Sent' }, { label: 'Household' }, { label: 'GKK' }, { label: 'What they sent' }, { label: 'Outcome' }, { label: '', key: 'actions' }]
+        : [{ label: 'Household' }, { label: 'GKK' }, { label: 'Sent' }, { label: 'Changes' }, { label: '', key: 'actions' }]}
+      mobile={(
+        <ul className="list-none m-0 p-0 divide-y divide-parish-line" aria-label={log ? 'Recent online updates' : 'Online updates waiting for review'}>
+          {list.rows.map((r) => (
+            <li key={r.id} className="px-4 py-3 flex items-start gap-3">
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
+                <div className="text-[12.5px] text-parish-muted">{[r.households?.ref_no, r.households?.gkk, sent(r)].filter(Boolean).join(' · ')}</div>
+                <div className="text-[13px] text-parish-text3 mt-1">{updateSummary(r)}</div>
+                {log && <div className="mt-1.5">{outcome(r)}</div>}
+                {note(r)}
+              </div>
+              {action(r, 'flex-none')}
+            </li>
+          ))}
+        </ul>
+      )}
+      footer={loaded && (
+        <>
+          {!list.total && <EmptyState title={list.query ? 'No updates found' : emptyTitle} subtitle={list.query ? 'Try another name, reference number or GKK.' : emptySubtitle} />}
+          <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />
+        </>
+      )}
+    >
+      {list.rows.map((r) => (
+        <tr key={r.id} className="border-t border-parish-line">
+          {log && <td className="px-4 py-3 text-[13.5px] text-parish-text2 whitespace-nowrap">{sent(r)}</td>}
+          <td className="px-4 py-3">
+            <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
+            <div className="text-[12.5px] text-parish-muted">{r.households?.ref_no}</div>
+          </td>
+          <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.households?.gkk || '—'}</td>
+          {!log && <td className="px-4 py-3 text-[13.5px] text-parish-text2 whitespace-nowrap">{sent(r)}</td>}
+          <td className="px-4 py-3 text-[13.5px] text-parish-text3">{updateSummary(r)}</td>
+          {log && <td className="px-4 py-3">{outcome(r)}{note(r)}</td>}
+          <td className="px-4 py-3 text-right">{action(r)}</td>
+        </tr>
+      ))}
+    </DataTable>
+  );
+}
+
+/**
+ * Online updates: the ones waiting for review first, oldest first; then a
+ * log of every update families sent in this census, newest first, with how
+ * each ended (most are approved automatically, 0083). One search covers
+ * both; a notification's link fills it with the household's ref no.
+ */
+function UpdatesTab({ cycle, parish, refreshKey, onChanged, initialQuery = '' }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState('');
   const [openRow, setOpenRow] = useState(null);
-  // All of a cycle's updates in one status are loaded, then searched and paged here.
-  const list = useClientList(rows, updateSearchText, 20);
-  // A notification's link names the household: show its update.
-  useEffect(() => { if (initialQuery) list.setQuery(initialQuery); }, [initialQuery]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { if (UPDATE_STATUSES.includes(initialStatus)) setStatus(initialStatus); }, [initialStatus]);
+  // Every update in this census is loaded once, then split, searched and paged here.
+  const waiting = useClientList(rows && rows.filter((r) => r.status === 'Pending'), updateSearchText, 20);
+  const log = useClientList(rows && [...rows].reverse(), updateSearchText, 10);
+  const search = (q) => { waiting.setQuery(q); log.setQuery(q); };
+  useEffect(() => { if (initialQuery) search(initialQuery); }, [initialQuery]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function load() {
     setError('');
-    api.listCensusSubmissions(cycle.id, status).then(setRows).catch((e) => setError(e.message));
+    api.listCensusSubmissions(cycle.id, 'All').then(setRows).catch((e) => setError(e.message));
   }
-  useEffect(() => { setRows(null); load(); }, [cycle.id, status, refreshKey]);
-  useEffect(() => { list.setPage(1); }, [cycle.id, status]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { setRows(null); load(); }, [cycle.id, refreshKey]);
+  useEffect(() => { waiting.setPage(1); log.setPage(1); }, [cycle.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  const pendingTotal = rows ? rows.filter((r) => r.status === 'Pending').length : null;
   return (
     <>
       <div className="flex flex-wrap items-center gap-3 mb-4">
@@ -601,61 +680,25 @@ function UpdatesTab({ cycle, parish, refreshKey, onChanged, initialQuery = '', i
           that changes a household's or member's details, adds a member, or marks a member moved away, deceased or left the Church waits here
           until you approve it.
         </p>
-        <SearchInput placeholder="Search household, ref no, GKK…" aria-label="Search online updates" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
-        <FilterSelect aria-label="Update status" value={status} onChange={(e) => setStatus(e.target.value)}>
-          <option value="Pending">Waiting for review</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option>
-        </FilterSelect>
+        <SearchInput placeholder="Search household, ref no, GKK…" aria-label="Search online updates" value={waiting.query} onChange={(e) => search(e.target.value)} />
       </div>
-      <DataTable
-        minWidth={680}
-        columns={[{ label: 'Household' }, { label: 'GKK' }, { label: 'Sent' }, { label: 'Changes' }, { label: '', key: 'actions' }]}
-        mobile={(
-          <ul className="list-none m-0 p-0 divide-y divide-parish-line" aria-label="Online updates">
-            {list.rows.map((r) => (
-              <li key={r.id} className="px-4 py-3 flex items-start gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
-                  <div className="text-[12.5px] text-parish-muted">{[r.households?.ref_no, r.households?.gkk, new Date(r.submitted_at).toLocaleString()].filter(Boolean).join(' · ')}</div>
-                  <div className="text-[13px] text-parish-text3 mt-1">{updateSummary(r)}</div>
-                  {r.status !== 'Pending' && <div className="text-[12px] text-parish-muted">{r.status} by {r.reviewed_by_name || 'staff'}{r.review_note ? ` — ${r.review_note}` : ''}</div>}
-                </div>
-                <button onClick={() => setOpenRow(r)} className="flex-none appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
-                  {r.status === 'Pending' ? 'Review' : 'View'}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-        footer={
-          <>
-            {!rows && !error && <LoadingState label="Loading online updates…" />}
-            {error && <ErrorState message={error} onRetry={load} />}
-            {rows && !rows.length && <EmptyState title={status === 'Pending' ? 'No updates waiting' : `No ${status.toLowerCase()} updates`} />}
-            {rows && !!rows.length && !list.total && <EmptyState title="No updates found" subtitle="Try another name, reference number or GKK." />}
-            {rows && <Pagination page={list.page} pageSize={list.pageSize} total={list.total} onPage={list.setPage} onPageSize={list.setPageSize} />}
-          </>
-        }
-      >
-        {list.rows.map((r) => (
-          <tr key={r.id} className="border-t border-parish-line">
-            <td className="px-4 py-3">
-              <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
-              <div className="text-[12.5px] text-parish-muted">{r.households?.ref_no}</div>
-            </td>
-            <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.households?.gkk || '—'}</td>
-            <td className="px-4 py-3 text-[13.5px] text-parish-text2 whitespace-nowrap">{new Date(r.submitted_at).toLocaleString()}</td>
-            <td className="px-4 py-3 text-[13.5px] text-parish-text3">
-              {updateSummary(r)}
-              {r.status !== 'Pending' && <div className="text-[12px] text-parish-muted">{r.status} by {r.reviewed_by_name || 'staff'}{r.review_note ? ` — ${r.review_note}` : ''}</div>}
-            </td>
-            <td className="px-4 py-3 text-right">
-              <button onClick={() => setOpenRow(r)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
-                {r.status === 'Pending' ? 'Review' : 'View'}
-              </button>
-            </td>
-          </tr>
-        ))}
-      </DataTable>
+
+      <h3 className="m-0 mb-2 font-serif text-[20px] font-semibold text-parish-navy">
+        Waiting for review{pendingTotal ? ` (${pendingTotal})` : ''}
+      </h3>
+      {!rows && !error && <LoadingState label="Loading online updates…" />}
+      {error && <ErrorState message={error} onRetry={load} />}
+      {rows && (
+        <>
+          <UpdateList list={waiting} loaded emptyTitle="No updates waiting" emptySubtitle="Updates that change details or mark a member as leaving wait here." onOpen={setOpenRow} />
+
+          <h3 className="mt-8 mb-1 font-serif text-[20px] font-semibold text-parish-navy">Recent online updates</h3>
+          <p className="text-[13px] text-parish-muted mt-0 mb-3">
+            Every update families sent in the {cycle.label}, newest first, and how it ended. Those that only answered the census were approved automatically.
+          </p>
+          <UpdateList list={log} loaded log emptyTitle="No online updates yet" emptySubtitle="Families' updates show here as they send them." onOpen={setOpenRow} />
+        </>
+      )}
       {openRow && (
         <CensusSubmissionDrawer
           submission={openRow}
