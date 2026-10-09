@@ -57,7 +57,7 @@ export default function CommandPalette({ onClose }) {
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const pages = NAV_GROUPS.flatMap((g) => g.items.filter((i) => navAllowed(i, user)).map((i) => ({ ...i, label: navLabel(i, user), group: g.label })))
+    const pages = NAV_GROUPS.flatMap((g) => g.items.filter((i) => !i.whileCensusOpen && navAllowed(i, user)).map((i) => ({ ...i, label: navLabel(i, user), group: g.label })))
       .filter((i) => !q || i.label.toLowerCase().includes(q) || i.group.toLowerCase().includes(q))
       .slice(0, q ? 5 : 8)
       .map((i) => ({ key: `p${i.to}`, section: 'Pages', title: i.label, sub: i.group, go: () => navigate(i.to) }));

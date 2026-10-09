@@ -930,6 +930,8 @@ export const api = {
     if ('theme' in patch) cleaned.theme = patch.theme || null;
     // Whether the census uses last year's household list (0048 migration).
     if ('last_year_list_enabled' in patch) cleaned.last_year_list_enabled = !!patch.last_year_list_enabled;
+    // Whether an open census shows CENSUS under Main in the sidebar (0088 migration).
+    if ('census_in_main_menu' in patch) cleaned.census_in_main_menu = !!patch.census_in_main_menu;
     // Maintenance mode for the public website (0049 migration).
     if ('maintenance_mode' in patch) cleaned.maintenance_mode = !!patch.maintenance_mode;
     if ('maintenance_message' in patch) cleaned.maintenance_message = String(patch.maintenance_message || '').trim() || null;
@@ -946,6 +948,7 @@ export const api = {
     if ('hero_image' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0020_parish_hero_image.sql migration in Supabase to save the parish photo');
     if ('site_url' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0042_public_site_url.sql migration in Supabase to save the website address');
     if (('maintenance_mode' in cleaned || 'maintenance_message' in cleaned) && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0049_maintenance_mode.sql migration in Supabase to use maintenance mode');
+    if ('census_in_main_menu' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0088_census_main_menu.sql migration in Supabase to hide CENSUS from the menu');
     if ('last_year_list_enabled' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error("Run the 0048_last_year_list_switch.sql migration in Supabase to turn last year's list off");
     if (error) throw mapError(error);
     return { settings: data };
@@ -1372,6 +1375,13 @@ export const api = {
     const { data, error } = await supabase.from('census_cycles').select('*').order('id', { ascending: false });
     if (error) throw mapError(error);
     return data;
+  },
+
+  /** The open census ({ id, label }), or null when none is open. */
+  async openCensus() {
+    const { data, error } = await supabase.from('census_cycles').select('id, label').eq('status', 'Open').maybeSingle();
+    if (error) throw mapError(error);
+    return data || null;
   },
 
   async openCensusCycle({ label, startsOn, endsOn }) {
