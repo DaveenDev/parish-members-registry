@@ -1466,6 +1466,17 @@ export const api = {
     return counts;
   },
 
+  /**
+   * Households' reference numbers, for lists read from members_with_household
+   * (which has no ref no): Map of household id → ref_no. One page's worth at a time.
+   */
+  async householdRefs(householdIds) {
+    const ids = [...new Set(householdIds.filter(Boolean))];
+    if (!ids.length) return new Map();
+    const { data, error } = await supabase.from('households').select('id, ref_no').in('id', ids);
+    if (error) throw mapError(error);
+    return new Map(data.map((h) => [h.id, h.ref_no]));
+  },
   /** Whether the parish uses last year's household list (on unless turned off, 0048). */
   async lastYearListEnabled() {
     const { data, error } = await supabase.from('parish_settings').select('last_year_list_enabled').eq('id', 1).maybeSingle();

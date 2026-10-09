@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps, Panel } from '../../components/admin.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
+import HouseholdRef from '../../components/HouseholdRef.jsx';
 import SacramentVerifyDialog, { SacramentChip } from '../../components/SacramentVerifyDialog.jsx';
 import { SACRAMENTS } from '../../constants.js';
 import { useDebounced, useUrlState } from '../../hooks.js';
@@ -79,6 +80,14 @@ export default function Sacraments() {
 
   useEffect(() => { reload(); }, [filterKey, debouncedSearch, page, pageSize]);
   useEffect(() => { reloadCounts(); }, [filters.gkk]);
+
+  // The page's households' reference numbers (the members view has none), read again only when the households change.
+  const [refs, setRefs] = useState(new Map());
+  const householdKey = [...new Set(rows.map((r) => r.household_id))].join(',');
+  useEffect(() => {
+    api.householdRefs(rows.map((r) => r.household_id)).then(setRefs).catch(() => setRefs(new Map()));
+  }, [householdKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const refLink = (m) => <HouseholdRef id={m.household_id} refNo={refs.get(m.household_id)} name={m.household_name} />;
 
   const setFilter = (key, value) => setUrl({ [key]: value });
   const isFiltered = !!debouncedSearch || Object.keys(DEFAULT_FILTERS).some((k) => filters[k] !== DEFAULT_FILTERS[k]);
@@ -164,6 +173,7 @@ export default function Sacraments() {
                         <span className="block font-semibold text-[14.5px] text-parish-navy">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</span>
                         <span className="block text-[12.5px] text-parish-muted">{[bis(RELATIONSHIP_LABELS, m.relationship), m.household_name].filter(Boolean).join(' · ') || '—'}</span>
                       </button>
+                      {refs.get(m.household_id) && <div className="text-[12.5px]">{refLink(m)}</div>}
                       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mt-2.5">
                         {SACRAMENTS.map((s) => (
                           <div key={s.key} className="flex items-center justify-between gap-2 min-w-0">
@@ -204,7 +214,10 @@ export default function Sacraments() {
                 <div className="font-semibold text-[14px] text-parish-navy whitespace-nowrap">{[m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ')}</div>
                 <div className="text-[12px] text-parish-muted whitespace-nowrap">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</div>
               </td>
-              <td className="px-4 py-2.5 text-[14px] text-parish-text3 whitespace-nowrap">{m.household_name || '—'}</td>
+              <td className="px-4 py-2.5 whitespace-nowrap">
+                <div className="text-[14px] text-parish-text3">{m.household_name || '—'}</div>
+                <div className="text-[12px]">{refLink(m)}</div>
+              </td>
               {SACRAMENTS.map((s) => (
                 <td key={s.key} className="text-center px-2.5 py-2.5">
                   <SacramentChip
