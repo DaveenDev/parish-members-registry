@@ -397,7 +397,7 @@ export default function Reports() {
             </div>
           )}
 
-          {tab === 'analysis' && <ActivenessReport parish={layout?.parish} />}
+          {tab === 'analysis' && <ActivenessReport parish={layout?.parish} initialGkk={params.get('gkk') || ''} />}
 
           {tab === 'gen' && (
             <div className="flex flex-col gap-5">

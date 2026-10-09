@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote, rowActivationProps } from '../../components/admin.jsx';
 import { useAuth } from '../../AuthContext.jsx';
@@ -254,6 +254,7 @@ export default function Census() {
                 {canManage && !editing && <GhostButton onClick={() => setEditing(true)} className="px-4 py-2 text-[13.5px]">Edit</GhostButton>}
                 {canManage && cycle.status === 'Open' && <GhostButton onClick={closeCycle} className="px-4 py-2 text-[13.5px]">Close census</GhostButton>}
                 {canManage && cycle.status === 'Closed' && !openCycle && <GhostButton onClick={reopenCycle} className="px-4 py-2 text-[13.5px]">Reopen</GhostButton>}
+                {cycle.status === 'Closed' && <AnalysisLink gkk={ownGkk} className="px-4 py-2 text-[13.5px]" />}
               </div>
             </div>
 
@@ -688,6 +689,24 @@ function PrintButton({ onClick, className = '' }) {
   );
 }
 
+/**
+ * A link to Reports → Analysis Report (how active members are, from their
+ * latest census answers), on that GKK's analysis when `gkk` is given.
+ * Nothing for staff who can't open Reports.
+ */
+function AnalysisLink({ gkk = null, className = '' }) {
+  const { user } = useAuth();
+  if (!can(user, 'reports')) return null;
+  return (
+    <Link
+      to={`/admin/reports?tab=analysis${gkk ? `&gkk=${encodeURIComponent(gkk)}` : ''}`}
+      className={`inline-flex items-center font-semibold text-white bg-parish-fill rounded-lg no-underline whitespace-nowrap ${className}`}
+    >
+      Analysis Report →
+    </Link>
+  );
+}
+
 /** The note under a printed table when its total leaves GKKs out (those with no "last year"), else ''. */
 const totalNote = (rows, text) => (rows.some((r) => r.lastYear == null) ? text : '');
 
@@ -1017,6 +1036,7 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
           onClick={() => printReport(statusTable(summary, cycle), `“Not confirmed” are current members with no answer in this census${cycle.status === 'Open' ? ' yet' : ''}.`)}
         />
         <button onClick={exportCsv} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap">Export CSV</button>
+        <AnalysisLink gkk={ownGkk} className="px-3.5 py-2 text-[12.5px]" />
       </div>
       {!vsLastYear?.hasBaseline && openHint}
       <DataTable

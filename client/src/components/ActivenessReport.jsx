@@ -94,11 +94,12 @@ function GroupTable({ rows, nameOf, empty }) {
 /**
  * Reports → Analysis Report: how active the parish's members are, from each
  * member's Practicing Catholic status. Scoped by GKK; printable; the
- * member-level data exports as CSV.
+ * member-level data exports as CSV. `initialGkk` (?gkk=, from the Census
+ * results' link) opens it on that GKK instead of the whole parish.
  */
-export default function ActivenessReport({ parish }) {
+export default function ActivenessReport({ parish, initialGkk = '' }) {
   const toast = useToast();
-  const [gkk, setGkk] = useState('All');
+  const [gkk, setGkk] = useState(initialGkk || 'All');
   const [gkkOptions, setGkkOptions] = useState([]);
   const [result, setResult] = useState(null); // { analysis, members, answers, scope, at }
   const [loading, setLoading] = useState(false);
@@ -118,8 +119,8 @@ export default function ActivenessReport({ parish }) {
       setLoading(false);
     }
   }
-  // The parish-wide analysis is ready when the tab opens.
-  useEffect(() => { generate('All'); }, []);
+  // The parish-wide analysis (or the linked GKK's) is ready when the tab opens.
+  useEffect(() => { generate(initialGkk || 'All'); }, []);
 
   const fileScope = () => (result.scope === 'All' ? 'parish' : result.scope === 'None' ? 'no-gkk' : result.scope.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
 
