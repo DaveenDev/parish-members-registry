@@ -29,7 +29,7 @@ function PositionNode({ id, data, selected }) {
   if (scope === 'gkk') {
     photo = shown?.photo || '';
     holder = shown ? (shown.holders.join(', ') || 'Bakante') : '';
-    sub = data.gkkRole ? `GKK role: ${data.gkkRole}` : 'Set per GKK';
+    sub = data.maxHolders == null ? 'Any number of people' : data.maxHolders === 1 ? 'One person' : `Up to ${data.maxHolders} people`;
   }
   return (
     <div
@@ -182,7 +182,7 @@ function Editor({ chart, canEdit, onChartUpdated, onDeleted, onDirtyChange }) {
         const center = box ? rf.screenToFlowPosition({ x: box.left + box.width / 2, y: box.top + box.height / 2 }) : { x: 0, y: 0 };
         position = { x: Math.round(center.x - NODE_W / 2), y: Math.round(center.y - NODE_H / 2) };
       }
-      const data = { parentKey, title: 'New position', positionName: null, gkkRole: null, memberId: null, memberName: '', holderName: '', photoUrl: '', note: '' };
+      const data = { parentKey, title: 'New position', positionName: null, gkkRole: null, maxHolders: 1, memberId: null, memberName: '', holderName: '', photoUrl: '', note: '' };
       return [...ns.map((n) => (n.selected ? { ...n, selected: false } : n)), { id: key, type: 'position', position, data, selected: true }];
     });
     setSelectedEdge(null);

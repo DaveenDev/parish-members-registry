@@ -28,6 +28,9 @@ There are three ways staff get them:
 Who sees what follows the staff access levels: full, read-only and
 "Website & requests" accounts get everything; GKK leaders get registrations
 and census updates for their own GKK only. Disabled accounts get nothing.
+Full-access accounts also get the GKK histories and GKK structures waiting
+for them (0060, 0081); a GKK leader gets told when the office approves their
+structure or sends it back, and nobody else sees that one.
 
 **Privacy.** A phone's lock screen only shows the kind of request and its
 reference number (e.g. *Anointing of the Sick: gravely ill — SR-2026-7KX4QM*),

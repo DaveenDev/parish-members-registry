@@ -120,6 +120,8 @@ export function savePayload(nodes) {
     title: (n.title || '').trim(),
     positionName: n.positionName || null,
     gkkRole: n.gkkRole || null,
+    // GKK Structure: how many people the position takes (null: any number, 0081).
+    maxHolders: Number.isInteger(n.maxHolders) && n.maxHolders > 0 ? n.maxHolders : null,
     memberId: n.memberId || null,
     holderName: (n.holderName || '').trim() || null,
     photoUrl: n.photoUrl || null,
@@ -138,6 +140,8 @@ export function fromRows(rows) {
     title: r.position_name || r.title || '',
     positionName: r.position_name || null,
     gkkRole: r.gkk_role || null,
+    // Before 0081 every position took one person.
+    maxHolders: r.max_holders === undefined ? 1 : r.max_holders,
     memberId: r.member_id || null,
     memberName: r.member ? [r.member.first_name, r.member.last_name, r.member.suffix].filter(Boolean).join(' ') : '',
     holderName: r.holder_name || '',

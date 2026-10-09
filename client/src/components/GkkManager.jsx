@@ -9,6 +9,7 @@ import { useConfirm } from './ConfirmDialog.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { AddButton, RowButton, SidePanel } from './panels.jsx';
 import GkkDocuments from './GkkDocuments.jsx';
+import GkkStructure from './GkkStructure.jsx';
 import { barangayCodeSuggestion, gkkParts } from '../lib/site.js';
 import { ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProblem, gkkForm, historyPatch, photosPatch, sameHistory, samePhotos, useGkkPhotos } from './GkkFields.jsx';
 
@@ -63,7 +64,7 @@ function Progress({ p, compact = false }) {
  * notification's ?history=) opens that GKK on its History tab, to review and
  * publish; `onHistoryOpened` then drops it from the address.
  */
-export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
+export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, structureOf = '', onStructureOpened }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
@@ -88,6 +89,8 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
   const [progress, setProgress] = useState(null);
   const [listCounts, setListCounts] = useState(new Map());
   const [listOn, setListOn] = useState(true);
+  // GKKs whose structure has changes waiting (0081): name → status.
+  const [structures, setStructures] = useState(new Map());
   // Each barangay's reference code by lower-case name; null before 0047.
   const [codes, setCodes] = useState(null);
   const codeOf = (name) => codes?.get(gkkParts(name).area.toLowerCase())?.code;
@@ -119,6 +122,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
       .then((cycles) => api.censusVsLastYear(cycles.find((c) => c.status === 'Open') || cycles[0] || null, cycles))
       .then((res) => setProgress(res))
       .catch(() => setProgress(null));
+    api.gkkStructureStates().then(setStructures).catch(() => {});
     // Listing also gives a code to each new barangay.
     api.listBarangayRefCodes()
       .then((r) => setCodes(new Map(r.map((c) => [c.barangay.toLowerCase(), c]))))
@@ -155,6 +159,14 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
     if (g) open(g, 'history');
     onHistoryOpened?.();
   }, [historyOf, loading]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The same for "GKK structure to approve" (?structure=<id>): its Structure tab.
+  useEffect(() => {
+    if (!structureOf || loading) return;
+    const g = rows.find((r) => String(r.id) === structureOf);
+    if (g) open(g, 'structure');
+    onStructureOpened?.();
+  }, [structureOf, loading]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <>
@@ -233,6 +245,9 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened }) {
                 {g.history_published
                   ? <div className="text-[12px] text-parish-muted">History on the website</div>
                   : (String(g.history || '').trim() || (g.history_photos || []).length > 0) && <div className="text-[12px] font-semibold text-[#c2410c]">History draft, not published</div>}
+                {structures.get(g.name) === 'submitted' && (
+                  <button type="button" onClick={() => open(g, 'structure')} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-[12px] font-semibold text-[#c2410c] hover:underline text-left">Structure waiting for approval</button>
+                )}
               </div>
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{missingAddress(g) ? missing : g.chapel_address}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.year_established || dash}</span>
@@ -418,7 +433,7 @@ function GkkPanel({ initial, codes, listNames = 0, onClose, onSaved, onOpenList 
     }
   }
 
-  const tabs = [['details', 'Details'], ['history', 'History'], ...(isNew ? [] : [['documents', 'Documents']])];
+  const tabs = [['details', 'Details'], ...(isNew ? [] : [['structure', 'Structure']]), ['history', 'History'], ...(isNew ? [] : [['documents', 'Documents']])];
 
   return (
     <SidePanel
@@ -465,6 +480,8 @@ function GkkPanel({ initial, codes, listNames = 0, onClose, onSaved, onOpenList 
       )}
 
       {tab === 'history' && <HistoryFields form={form} setForm={setForm} setError={setError} photos={historyPhotos} canPublish />}
+
+      {tab === 'structure' && !isNew && <GkkStructure gkk={initial.original} office />}
 
       {tab === 'documents' && !isNew && <GkkDocuments gkk={{ id: initial.id, name: initial.original }} />}
     </SidePanel>

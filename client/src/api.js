@@ -888,11 +888,26 @@ export const api = {
     if (error) throw mapError(error);
     return data || [];
   },
-  /** Set one GKK's holder of a GKK Structure position; all empty goes back to the registry's. */
-  saveOrgGkkHolder: ({ nodeId, gkk, memberId, holderName, photoUrl, note }) => orgRpc('save_org_gkk_holder', {
-    p_node_id: nodeId, p_gkk: gkk, p_member_id: memberId || null,
-    p_holder_name: holderName || null, p_photo_url: photoUrl || null, p_note: note || null,
+  /** One GKK's photo and note on a GKK Structure position (0081: the people are its officers). */
+  saveOrgGkkHolder: ({ nodeId, gkk, photoUrl, note }) => orgRpc('save_org_gkk_holder', {
+    p_node_id: nodeId, p_gkk: gkk, p_member_id: null, p_holder_name: null, p_photo_url: photoUrl || null, p_note: note || null,
   }),
+
+  // ---- a GKK's structure: its officers (0081) ------------------------------
+  // The GKK leader saves a draft and sends it; the parish office approves it
+  // (save with 'publish') or sends it back. Each returns the structure:
+  // { positions, live, draft, state } (lib/gkkStructure.js).
+  gkkStructure: (gkk) => structureRpc('gkk_structure', { p_gkk: gkk }),
+  /** `action`: 'draft', 'submit' (to the parish office) or 'publish' (full access: approved). */
+  saveGkkStructure: (gkk, officers, action) => structureRpc('save_gkk_structure', { p_gkk: gkk, p_officers: officers, p_action: action }),
+  returnGkkStructure: (gkk, note) => structureRpc('return_gkk_structure', { p_gkk: gkk, p_note: note }),
+  discardGkkStructure: (gkk) => structureRpc('discard_gkk_structure', { p_gkk: gkk }),
+  /** Each GKK with changes waiting: Map of GKK name → status ('draft', 'submitted', 'returned'). */
+  async gkkStructureStates() {
+    const { data, error } = await supabase.from('org_gkk_structures').select('gkk, status').not('status', 'is', null);
+    if (error) return new Map();
+    return new Map((data || []).map((r) => [r.gkk, r.status]));
+  },
 
   // ---- parish settings ---------------------------------------------------
   async getSettings() {
@@ -2341,6 +2356,14 @@ function orgMissing(error) {
 async function orgRpc(name, args) {
   const { data, error } = await supabase.rpc(name, args);
   if (orgMissing(error)) throw new Error(ORG_HINT);
+  if (error) throw mapError(error);
+  return data;
+}
+
+const STRUCTURE_HINT = 'Run the 0081_gkk_structure_leaders.sql migration in Supabase to fill in GKK structures';
+async function structureRpc(name, args) {
+  const { data, error } = await supabase.rpc(name, args);
+  if (orgMissing(error)) throw new Error(STRUCTURE_HINT);
   if (error) throw mapError(error);
   return data;
 }

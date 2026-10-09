@@ -143,7 +143,11 @@ export default function ServiceHistory({ memberId, canEdit, ministryList, orgLis
                 )}
               </div>
               {r.notes && <div className="text-[12.5px] text-parish-muted mt-0.5">{r.notes}</div>}
-              {r.source === 'auto' && <div className="text-[11.5px] text-parish-muted mt-0.5">Recorded when it was taken off this member</div>}
+              {r.source === 'auto' && (
+                <div className="text-[11.5px] text-parish-muted mt-0.5">
+                  {r.to_year == null ? 'Serving now, from the approved GKK structure' : 'Recorded when it was taken off this member'}
+                </div>
+              )}
             </li>
           )))}
         </ul>

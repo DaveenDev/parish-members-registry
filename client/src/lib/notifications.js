@@ -12,6 +12,8 @@ export const NOTIFICATION_KINDS = {
   registration: { icon: '🏠', tone: 'green', label: 'Registration' },
   census: { icon: '📋', tone: 'green', label: 'Census' },
   gkk_history: { icon: '📖', tone: 'gold', label: 'GKK history' },
+  gkk_structure: { icon: '👥', tone: 'gold', label: 'GKK structure' },
+  gkk_structure_review: { icon: '👥', tone: 'green', label: 'GKK structure' },
   digest: { icon: '☀', tone: 'gold', label: 'Morning summary' },
 };
 
@@ -19,18 +21,19 @@ export const kindStyle = (kind) => NOTIFICATION_KINDS[kind] || { icon: '•', to
 
 /**
  * The kinds "Member requests only" sends: what parishioners ask for from the
- * website, plus a GKK history waiting to be republished. Same list as
- * notification_push_targets() in 0060_gkk_history_review_alert.sql; keep the
+ * website, plus a GKK history waiting to be republished, a GKK structure to
+ * approve and (to its GKK leader) the answer. Same list as
+ * notification_push_targets() in 0081_gkk_structure_leaders.sql; keep the
  * two in sync.
  */
-export const MEMBER_REQUEST_KINDS = ['anointing', 'certificate', 'ocia', 'blood', 'donor', 'census', 'gkk_history'];
+export const MEMBER_REQUEST_KINDS = ['anointing', 'certificate', 'ocia', 'blood', 'donor', 'census', 'gkk_history', 'gkk_structure', 'gkk_structure_review'];
 
 /** What a new account gets until it chooses (the column default in 0037). */
 export const DEFAULT_PUSH_LEVEL = 'requests';
 
 /** What each account wants sent to its devices (staff_notify_prefs.push_level). */
 export const PUSH_LEVELS = [
-  { key: 'requests', label: 'Member requests only', note: 'The default. Requests for Dihog (Anointing of the Sick), certificates and OCIA, the blood donor call (blood requests and new donors), census updates from families, and GKK histories to republish.' },
+  { key: 'requests', label: 'Member requests only', note: 'The default. Requests for Dihog (Anointing of the Sick), certificates and OCIA, the blood donor call (blood requests and new donors), census updates from families, GKK histories to republish, and GKK structures to approve (for GKK leaders: whether theirs was approved).' },
   { key: 'all', label: 'Every new request', note: 'All of the above, plus new household registrations, as they come in.' },
   { key: 'urgent', label: 'Urgent ones only', note: 'Anointing of the Sick and blood requests.' },
   { key: 'none', label: 'None', note: 'Nothing as it comes in; the bell in the admin panel still shows everything.' },

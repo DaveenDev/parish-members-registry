@@ -8,17 +8,19 @@ import { can } from '../../lib/access.js';
 import { useToast } from '../../ToastContext.jsx';
 import GkkDocuments from '../../components/GkkDocuments.jsx';
 import LastYearList from '../../components/LastYearList.jsx';
+import GkkStructure from '../../components/GkkStructure.jsx';
 import {
   ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProblem, gkkForm, historyPatch, photosPatch, sameHistory, samePhotos, useGkkPhotos,
 } from '../../components/GkkFields.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 
-const VIEWS = [['details', 'Details'], ['history', 'History'], ['documents', 'Documents'], ['names', "Last year's list"]];
+const VIEWS = [['details', 'Details'], ['structure', 'Structure'], ['history', 'History'], ['documents', 'Documents'], ['names', "Last year's list"]];
 
 /**
  * GKK Config → My GKK (0045, 0046): a GKK leader's own GKK, without the
  * list of every GKK. They keep its chapel details and the photos on its
- * website page, its history (the parish office publishes it), its
+ * website page, its structure (its officers, approved by the parish
+ * office, 0081), its history (the parish office publishes it), its
  * documents and last year's household names. Full-access staff do all of
  * this under Parish Config → Parish GKK. ?view= picks the part.
  */
@@ -151,6 +153,7 @@ export default function MyGkk() {
               </form>
             </Panel>
           )}
+          {view === 'structure' && <Panel className="p-6"><GkkStructure gkk={gkk.name} canEdit={can(user, 'editRegistry')} /></Panel>}
           {view === 'documents' && <Panel className="p-6"><GkkDocuments gkk={gkk} /></Panel>}
           {view === 'names' && (
             <Panel className="p-6">

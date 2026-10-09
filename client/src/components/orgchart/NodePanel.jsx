@@ -71,17 +71,24 @@ export default function NodePanel({ node, scope, positions, canEdit, onChange, o
 
       {scope === 'gkk' ? (
         <>
-          <SectionLabel>Officer in each GKK</SectionLabel>
-          <Field label="GKK role">
+          <SectionLabel>Officers in each GKK</SectionLabel>
+          <Field label="How many people">
+            <Select value={d.maxHolders == null ? '' : String(d.maxHolders)} disabled={!canEdit} onChange={(e) => onChange({ maxHolders: e.target.value ? Number(e.target.value) : null })}>
+              <option value="1">One person</option>
+              <option value="2">Up to 2 (e.g. a couple)</option>
+              {[3, 4, 5, 6].map((n) => <option key={n} value={String(n)}>Up to {n}</option>)}
+              <option value="">Any number (e.g. Lectors)</option>
+            </Select>
+          </Field>
+          <Field label="Katungdanan sa GKK">
             <Select value={d.gkkRole || ''} disabled={!canEdit} onChange={(e) => onChange({ gkkRole: e.target.value || null })}>
-              <option value="">None: set per GKK below the chart</option>
+              <option value="">The position's title</option>
               {GKK_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
             </Select>
           </Field>
           <p className="m-0 -mt-1 text-[12.5px] text-parish-muted">
-            {d.gkkRole
-              ? `Each GKK's page shows its member registered as ${d.gkkRole} (Katungdanan sa GKK), with no typing twice.`
-              : 'Without a GKK role, each GKK\'s holder is set in "Officers per GKK" below the chart.'}
+            Each GKK's leader fills in its people (My GKK → Structure) and the parish office approves them. A registered member in this position then gets
+            {d.gkkRole ? ` ${d.gkkRole}` : ' its title'} as their Katungdanan sa GKK, and the position in their service list.
           </p>
         </>
       ) : (

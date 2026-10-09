@@ -65,9 +65,12 @@ test('the save payload has ids, parents, order and rounded positions', () => {
   const p = savePayload(nodes);
   const clerk = p.find((n) => n.key === 'new-1');
   assert.deepEqual(clerk, {
-    key: 'new-1', id: null, parentKey: '4', title: 'Clerk', positionName: null, gkkRole: null, memberId: null,
+    key: 'new-1', id: null, parentKey: '4', title: 'Clerk', positionName: null, gkkRole: null, maxHolders: null, memberId: null,
     holderName: 'Ana', photoUrl: null, note: null, sortOrder: 0, x: -200, y: 451,
   });
+  // GKK Structure: how many people a position takes; anything but a whole number above 0 is "any number".
+  assert.equal(savePayload([{ key: '1', title: 'Lectors', maxHolders: 2 }])[0].maxHolders, 2);
+  assert.equal(savePayload([{ key: '1', title: 'Lectors', maxHolders: 0 }])[0].maxHolders, null);
   assert.equal(p.find((n) => n.key === '3').id, 3);
   assert.equal(p.find((n) => n.key === 'new-2').parentKey, null);
   assert.equal(p.find((n) => n.key === 'new-2').x, null);
@@ -82,6 +85,8 @@ test('database rows become editor positions', () => {
   assert.equal(n.parentKey, '2');
   assert.equal(n.title, 'PPC Secretary');
   assert.equal(n.memberName, 'Juan Dela Cruz Jr.');
+  assert.equal(n.maxHolders, 1, 'before 0081, one person');
+  assert.equal(fromRows([{ id: 8, max_holders: null }])[0].maxHolders, null);
   assert.equal(holderOf(n), 'Juan Dela Cruz Jr.');
   assert.equal(holderOf({ holderName: 'Typed' }), 'Typed');
 });

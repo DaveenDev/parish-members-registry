@@ -1128,7 +1128,7 @@ function LastYearTab({ gkk }) {
       <Panel className="p-6">
         <div className="flex items-start gap-4 flex-wrap">
           <div className="flex-1 min-w-[260px] max-w-[720px]">
-            <div className="font-serif text-[22px] font-semibold text-parish-navy">Use last year's household list</div>
+            <div className="font-serif text-[22px] font-semibold text-parish-navy">Use last year's household list for CENSUS</div>
             <div className="text-[13.5px] text-parish-muted mt-1 leading-relaxed">
               How the census tracks the families who haven't registered yet. Use the list when last year's census was on paper; turn it off once the previous census was held in this registry.
             </div>
@@ -1211,6 +1211,8 @@ export default function ParishConfig() {
               onOpenList={(name) => setParams({ tab: 'lastyear', gkk: name }, { replace: true })}
               historyOf={params.get('history') || ''}
               onHistoryOpened={() => setParams({ tab: 'gkk' }, { replace: true })}
+              structureOf={params.get('structure') || ''}
+              onStructureOpened={() => setParams({ tab: 'gkk' }, { replace: true })}
             />
           )}
           {tab === 'lastyear' && <LastYearTab gkk={params.get('gkk') || ''} />}
