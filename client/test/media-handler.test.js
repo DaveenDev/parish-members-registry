@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { handleMediaRequest, keyFromUrl, namePlan, objectKey, r2Settings, testConnection, MAX_BYTES, NOT_CONFIGURED, TEST_FOLDER } from '../../supabase/functions/media-upload/handler.js';
+import { handleMediaRequest, keyFromUrl, namePlan, objectKey, r2Settings, testConnection, MAX_BYTES, MAX_VIDEO_BYTES, NOT_CONFIGURED, TEST_FOLDER } from '../../supabase/functions/media-upload/handler.js';
 
 const BASE = 'https://media.example.org';
 const NOW = new Date('2026-10-02T03:00:00Z');
@@ -106,6 +106,22 @@ describe('sign', () => {
     const res = await call('token-web', sign({ folder: 'history' }), r2);
     assert.equal(res.body.publicUrl, `${BASE}/history/2026/10/abc.jpg`);
     assert.equal((await call('token-web', { action: 'delete', url: `${BASE}/history/2026/10/abc.jpg` }, r2)).status, 200);
+  });
+  test('a History page video (0080) is signed with its own type, up to 200 MB', async () => {
+    const r2 = fakeR2();
+    const res = await call('token-web', sign({ folder: 'history', contentType: 'video/mp4', size: 150 * 1024 * 1024 }), r2);
+    assert.equal(res.status, 200);
+    assert.equal(res.body.publicUrl, `${BASE}/history/2026/10/abc.mp4`);
+    assert.deepEqual(r2.calls, [['sign', 'history/2026/10/abc.mp4', 'video/mp4']]);
+    assert.equal(objectKey('history', 'video/quicktime', 'x', NOW), 'history/2026/10/x.mov');
+    assert.equal(objectKey('history', 'video/webm', 'x', NOW), 'history/2026/10/x.webm');
+    assert.equal((await call('token-web', sign({ folder: 'history', contentType: 'video/mp4', size: MAX_VIDEO_BYTES + 1 }))).status, 400);
+    assert.equal((await call('token-web', { action: 'delete', url: `${BASE}/history/2026/10/abc.mp4` }, r2)).status, 200);
+  });
+  test('videos only for the History page', async () => {
+    assert.equal((await call('token-web', sign({ contentType: 'video/mp4' }))).status, 400);
+    assert.equal((await call('token-web', sign({ folder: 'events', contentType: 'video/mp4' }))).status, 400);
+    assert.equal((await call('token-web', sign({ folder: 'history', contentType: 'video/x-matroska' }))).status, 400);
   });
   test('webp and png keep their extension', () => {
     assert.equal(objectKey('articles', 'image/webp', 'x', NOW), 'articles/2026/10/x.webp');
@@ -289,6 +305,16 @@ describe('name', () => {
     assert.equal(res.body.row.body_photo_url, `${BASE}/history/history3_2.jpg`);
     assert.equal(res.body.row.photo_seq, 2);
     assert.deepEqual(r2.calls.map((c) => c[0]), ['copy', 'copy', 'copy', 'delete', 'delete', 'delete']);
+  });
+  test('renames the main article\'s video (0080) with the gallery, keeping its extension', async () => {
+    const db = fakeDb({ articles: [], events: [], history_articles: [{ id: 3, cover_seq: 1, photo_seq: 4, photo_url: `${BASE}/history/history3_cover.jpg`, photos: [], body_photo_url: `${BASE}/history/history3_4.jpg`, video_url: `${BASE}/history/2026/10/v.mov` }] });
+    const r2 = r2WithCopy();
+    const res = await run(db, { table: 'history_articles', id: 3 }, r2);
+    assert.equal(res.body.row.video_url, `${BASE}/history/history3_5.mov`);
+    assert.equal(res.body.row.photo_seq, 5);
+    assert.deepEqual(r2.calls, [['copy', 'history/2026/10/v.mov', 'history/history3_5.mov'], ['delete', 'history/2026/10/v.mov']]);
+    // Once named, it's left alone.
+    assert.deepEqual(namePlan('history_articles', res.body.row, BASE).moves, []);
   });
   test("keeps a cover another event still uses (Duplicate)", async () => {
     const shared = `${BASE}/events/event55_cover.jpg`;

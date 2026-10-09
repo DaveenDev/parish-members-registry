@@ -4,6 +4,9 @@ import { TextInput } from '../ui.jsx';
 import { SectionLabel, RowButton, PhotoIcon, FilePick, UploadOverlay, UploadingNote, useUploadCount } from './shared.jsx';
 
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
+// As the media-upload function allows (History page only).
+const VIDEO_TYPES = ['video/mp4', 'video/webm', 'video/quicktime'];
+const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 
 /**
  * A cover photo and a captioned gallery on an editor's `form` (photo_url,
@@ -66,6 +69,23 @@ export function useArticlePhotos({ form, setForm, setError, folder }) {
   });
   const removePhoto = (i) => { discard(formRef.current.photos[i].url); setForm((f) => ({ ...f, photos: f.photos.filter((_, j) => j !== i) })); };
 
+  /** Upload a video into `field` (video_url, 0080), as it is; `onProgress(fraction)` follows it. */
+  async function uploadVideo(field, file, onProgress) {
+    if (!VIDEO_TYPES.includes(file.type)) { setError(`${file.name} isn't an MP4, WebM or MOV video`); return; }
+    if (file.size > MAX_VIDEO_BYTES) { setError(`${file.name} is over 200 MB. Trim it, or save it at a lower quality.`); return; }
+    setUploading((n) => n + 1);
+    setError('');
+    try {
+      const url = await api.uploadVideo(file, folder, onProgress);
+      added.current.add(url);
+      setPhoto(field, url);
+    } catch (e) {
+      setError(e.message || 'Could not upload the video');
+    } finally {
+      setUploading((n) => n - 1);
+    }
+  }
+
   /** Nothing was saved: take back what this session uploaded. */
   function cancel() {
     for (const url of added.current) api.deleteImage(url).catch(() => {});
@@ -79,7 +99,41 @@ export function useArticlePhotos({ form, setForm, setError, folder }) {
     added.current.clear();
   }
 
-  return { uploading, withUploads, setPhoto, setCover, addPhoto, updatePhoto, movePhoto, removePhoto, cancel, saved };
+  return { uploading, withUploads, uploadVideo, setPhoto, setCover, addPhoto, updatePhoto, movePhoto, removePhoto, cancel, saved };
+}
+
+/** A video in `field` of the form (video_url): its player, upload/replace with the progress, and remove. */
+export function VideoField({ form, photos, field = 'video_url', label = 'Video', hint }) {
+  const url = form[field];
+  const [progress, setProgress] = useState(null);
+  const busy = progress != null;
+  const pct = `${Math.round((progress || 0) * 100)}%`;
+  async function pick([file]) {
+    setProgress(0);
+    try {
+      await photos.uploadVideo(field, file, setProgress);
+    } finally {
+      setProgress(null);
+    }
+  }
+  return (
+    <>
+      <SectionLabel>{label}</SectionLabel>
+      <div className="flex items-start gap-4 flex-wrap">
+        <div className="relative w-[220px] aspect-video rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
+          {url
+            ? <video src={url} controls preload="metadata" playsInline className="w-full h-full bg-black" aria-label={label} />
+            : <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="2.5" y="5" width="14" height="14" rx="2.5" /><path d="m16.5 10 5-3v10l-5-3" /></svg>}
+          <UploadOverlay busy={busy} label={`Uploading video… ${pct}`} />
+        </div>
+        <div className="flex flex-col gap-2 items-start flex-1 min-w-[200px]">
+          <FilePick accept={VIDEO_TYPES.join(',')} label={url ? 'Replace video' : 'Upload video'} onFiles={pick} busy={busy} busyLabel={`Uploading… ${pct}`} disabled={photos.uploading > 0} />
+          {url && !busy && <button type="button" onClick={() => photos.setPhoto(field, '')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove video</button>}
+          {hint && <span className="text-[12px] text-parish-muted max-w-[260px]">{hint}</span>}
+        </div>
+      </div>
+    </>
+  );
 }
 
 /** One photo in `field` of the form (the cover by default): its preview, upload/replace and remove. `children` go under the buttons. */

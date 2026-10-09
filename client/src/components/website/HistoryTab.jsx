@@ -6,7 +6,7 @@ import { fmtDateTime } from '../../constants.js';
 import { useToast } from '../../ToastContext.jsx';
 import { HISTORY_PAGE, historyWhen, openingParagraph, parseYear, sortChapters } from '../../lib/history.js';
 import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon } from './shared.jsx';
-import { useArticlePhotos, PhotoFields, SinglePhotoField } from './photos.jsx';
+import { useArticlePhotos, PhotoFields, SinglePhotoField, VideoField } from './photos.jsx';
 
 const describe = (r) => r.title;
 const NEW_MAIN = { is_main: true, title: 'Ang Kasaysayan sa Parokya', author: '', body: '', photo_url: '', photos: [], published: false };
@@ -145,7 +145,7 @@ function MainCard({ row, busy, onEdit, onToggle }) {
           <div className="flex items-center gap-2 flex-wrap">
             <Badge tone="gold">Main article</Badge>
             <StateBadge state={row.published ? 'Published' : 'Draft'} />
-            <span className="text-[12px] text-parish-muted">{(row.photo_url ? 1 : 0) + gallery.length} photo(s)</span>
+            <span className="text-[12px] text-parish-muted">{(row.photo_url ? 1 : 0) + gallery.length} photo(s){row.video_url ? ' · a video' : ''}</span>
           </div>
           <div className="font-serif font-bold text-[22px] leading-tight text-parish-navy">{row.title}</div>
           <div className="text-[12px] text-parish-muted">{[row.author && `by ${row.author}`, row.updated_at && `updated ${fmtDateTime(row.updated_at, { time: false })}`].filter(Boolean).join(' · ')}</div>
@@ -170,7 +170,7 @@ function HistoryEditor({ row, onClose, onSaved }) {
   const [form, setForm] = useState({
     ...row, title: row.title || '', year: row.year ?? '', date_label: row.date_label || '', author: row.author || '',
     body: row.body || '', photo_url: row.photo_url || '', photos: row.photos || [],
-    body_photo_url: row.body_photo_url || '', body_photo_caption: row.body_photo_caption || '',
+    body_photo_url: row.body_photo_url || '', body_photo_caption: row.body_photo_caption || '', video_url: row.video_url || '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -186,25 +186,27 @@ function HistoryEditor({ row, onClose, onSaved }) {
     if (!form.title.trim()) { setError(isMain ? 'Give the article a title.' : 'Give the chapter a title.'); return; }
     const year = parseYear(form.year);
     if (!isMain && year == null) { setError('Type the year it happened, e.g. 1952. Use "Date shown" for a period or a month.'); return; }
-    if (photos.uploading) { setError('Wait for the photos to finish uploading.'); return; }
+    if (photos.uploading) { setError('Wait for the photos and the video to finish uploading.'); return; }
     setSaving(true);
     setError('');
     try {
       const gallery = form.photos.map((p) => ({ url: p.url, caption: (p.caption || '').trim() }));
-      // The photo inside the article is the main article's (0069); left out
-      // otherwise, so chapters still save before that migration.
-      const { body_photo_url: inside, body_photo_caption: insideCaption, ...fields } = form;
+      // The photo inside the article (0069) and the video (0080) are the main
+      // article's; left out otherwise, so chapters still save before those
+      // migrations, and so does the main article until it has a video.
+      const { body_photo_url: inside, body_photo_caption: insideCaption, video_url: video, ...fields } = form;
       const withInside = isMain && (inside || 'body_photo_url' in row)
         ? { ...fields, body_photo_url: inside, body_photo_caption: inside ? insideCaption.trim() : '' }
         : fields;
+      const withVideo = isMain && (video || 'video_url' in row) ? { ...withInside, video_url: video } : withInside;
       const saved = await api.saveHistory({
-        ...withInside, title: form.title.trim(), author: form.author.trim(), photos: gallery,
+        ...withVideo, title: form.title.trim(), author: form.author.trim(), photos: gallery,
         year: isMain ? null : year, date_label: isMain ? '' : form.date_label.trim(),
       });
       photos.saved();
       // Now that it has an ID: history<ID>_cover.jpg, history<ID>_1.jpg… on R2.
       let named = null;
-      if (saved.photo_url || saved.photos?.length || saved.body_photo_url) {
+      if (saved.photo_url || saved.photos?.length || saved.body_photo_url || saved.video_url) {
         named = await api.nameImages('history_articles', saved.id).catch((e) => { toast.error(`Saved, but its photos weren't renamed: ${e.message}`); return null; });
       }
       toast.success(isMain ? 'Main article saved' : 'Chapter saved');
@@ -242,6 +244,10 @@ function HistoryEditor({ row, onClose, onSaved }) {
           placeholder={isMain ? 'How the parish came to be. The first paragraph is the excerpt on Ang Simbahan. Blank lines start a new paragraph.' : 'What happened in this period. Blank lines start a new paragraph.'}
         />
       </Field>
+
+      {isMain && (
+        <VideoField form={form} photos={photos} hint="Optional. Shown under the title on the History page, before the photos. MP4 plays on every phone; up to 200 MB." />
+      )}
 
       <PhotoFields
         form={form} photos={photos}

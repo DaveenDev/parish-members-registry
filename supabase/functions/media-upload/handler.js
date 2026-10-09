@@ -1,6 +1,7 @@
 // Photo uploads for the Parish Website (Blog Articles, event covers, GKK
 // history photos, the parish History page, the Organization Structure's
-// holder photos and the parish photo on the home page), stored on Cloudflare R2.
+// holder photos and the parish photo on the home page), and the video of the
+// History page's main article (0080), stored on Cloudflare R2.
 //
 // The R2 keys must never reach the browser, so this Edge Function hands the
 // admin a short-lived signed PUT link instead; the browser then uploads the
@@ -18,8 +19,14 @@
 const isDisabled = (user, now) => !!user?.banned_until && new Date(user.banned_until) > now;
 
 export const MAX_BYTES = 10 * 1024 * 1024;
+export const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
 export const FOLDERS = ['articles', 'events', 'gkks', 'org', 'parish', 'history'];
 const TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+// Videos only for the History page's main article (0080).
+const VIDEO_TYPES = { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' };
+const VIDEO_FOLDERS = ['history'];
+const EXT = { ...TYPES, ...VIDEO_TYPES };
+const MEDIA_EXT = Object.values(EXT).join('|');
 const EDIT_WEBSITE = ['full', 'website'];
 export const NOT_CONFIGURED = "Photo storage isn't set up yet. A staff admin can add the Cloudflare R2 settings under Parish Config (see docs/media-storage.md).";
 
@@ -144,10 +151,10 @@ export async function testConnection({ form, saved, makeR2, fetchPublic, uuid = 
 const ok = (body) => ({ status: 200, body: { ok: true, ...body } });
 const fail = (status, error) => ({ status, body: { error } });
 
-/** "articles/2026/10/<uuid>.jpg" for a new photo. */
+/** "articles/2026/10/<uuid>.jpg" for a new photo, "history/2026/10/<uuid>.mp4" for a video. */
 export function objectKey(folder, contentType, uuid, now = new Date()) {
   const mm = String(now.getUTCMonth() + 1).padStart(2, '0');
-  return `${folder}/${now.getUTCFullYear()}/${mm}/${uuid}.${TYPES[contentType]}`;
+  return `${folder}/${now.getUTCFullYear()}/${mm}/${uuid}.${EXT[contentType]}`;
 }
 
 /** The R2 key behind one of our public photo URLs, or null if it isn't one we may delete. */
@@ -162,12 +169,13 @@ export function keyFromUrl(url, publicBase) {
 
 // Readable names once a row is saved (0029 migration): article101_cover.jpg,
 // article101_1.jpg…, event55_cover.jpg, and history3_cover.jpg, history3_1.jpg…
-// for the History page (0068), whose photo inside the main article (0069) is
-// numbered with the gallery. Events only have a cover.
+// for the History page (0068), whose photo inside the main article (0069) and
+// video (0080, history3_4.mp4) are numbered with the gallery. Events only have
+// a cover.
 const NAMED = {
   articles: { folder: 'articles', prefix: 'article', gallery: true },
   events: { folder: 'events', prefix: 'event', gallery: false },
-  history_articles: { folder: 'history', prefix: 'history', gallery: true, inside: 'body_photo_url' },
+  history_articles: { folder: 'history', prefix: 'history', gallery: true, inside: ['body_photo_url', 'video_url'] },
 };
 
 /**
@@ -182,7 +190,7 @@ export function namePlan(table, row, publicBase) {
   const base = String(publicBase || '').replace(/\/+$/, '');
   const stem = `${spec.folder}/${spec.prefix}${row.id}_`;
   const isCover = new RegExp(`^${stem}cover(_\\d+)?\\.(jpg|png|webp)$`);
-  const isPhoto = new RegExp(`^${stem}\\d+\\.(jpg|png|webp)$`);
+  const isPhoto = new RegExp(`^${stem}\\d+\\.(${MEDIA_EXT})$`);
   let coverSeq = row.cover_seq || 0;
   let photoSeq = row.photo_seq || 0;
   const moves = [];
@@ -190,7 +198,7 @@ export function namePlan(table, row, publicBase) {
   const rename = (url, cover) => {
     const key = keyFromUrl(url, base);
     if (!key || !key.startsWith(`${spec.folder}/`) || (cover ? isCover : isPhoto).test(key)) return url;
-    const ext = (key.match(/\.(jpg|png|webp)$/) || [])[1] || 'jpg';
+    const ext = (key.match(new RegExp(`\\.(${MEDIA_EXT})$`)) || [])[1] || 'jpg';
     let to;
     if (cover) {
       coverSeq += 1;
@@ -207,7 +215,9 @@ export function namePlan(table, row, publicBase) {
   const patch = {};
   if (row.photo_url) patch.photo_url = rename(row.photo_url, true);
   if (spec.gallery) patch.photos = (row.photos || []).map((p) => (p?.url ? { ...p, url: rename(p.url, false) } : p));
-  if (spec.inside && row[spec.inside]) patch[spec.inside] = rename(row[spec.inside], false);
+  for (const field of spec.inside || []) {
+    if (row[field]) patch[field] = rename(row[field], false);
+  }
   patch.cover_seq = coverSeq;
   if (spec.gallery) patch.photo_seq = photoSeq;
   return { moves, patch };
@@ -226,8 +236,9 @@ async function inUse(admin, url) {
     admin.from('history_articles').select('id').eq('photo_url', url).limit(1),
     admin.from('history_articles').select('id').contains('photos', [{ url }]).limit(1),
     admin.from('history_articles').select('id').eq('body_photo_url', url).limit(1),
+    admin.from('history_articles').select('id').eq('video_url', url).limit(1),
   ]);
-  // Nor, before 0069, a photo inside the main article.
+  // Nor, before 0069 and 0080, a photo or video inside the main article.
   const noTable = (e) => ['42P01', 'PGRST205', '42703'].includes(e?.code);
   if (history.some((r) => (r.error && !noTable(r.error)) || r.data?.length)) return true;
   const gkks = await gkksUsing(admin, url);
@@ -289,10 +300,13 @@ export async function handleMediaRequest({ admin, token, body, r2, saved = null,
       const folder = body.folder || 'articles';
       if (!FOLDERS.includes(folder)) return fail(400, 'Unknown photo folder');
       if (leaderGkk && folder !== 'gkks') return fail(403, "Your account can only add photos to your GKK's page");
-      if (!TYPES[body.contentType]) return fail(400, 'Only JPG, PNG or WebP photos can be uploaded');
+      const video = !!VIDEO_TYPES[body.contentType];
+      if (video && !VIDEO_FOLDERS.includes(folder)) return fail(400, 'Videos can only be added to the History page');
+      if (!video && !TYPES[body.contentType]) return fail(400, 'Only JPG, PNG or WebP photos can be uploaded');
       const size = Number(body.size);
       if (!Number.isFinite(size) || size <= 0) return fail(400, 'That file looks empty');
-      if (size > MAX_BYTES) return fail(400, 'That photo is over 10 MB');
+      if (video && size > MAX_VIDEO_BYTES) return fail(400, 'That video is over 200 MB. Trim it, or save it at a lower quality.');
+      if (!video && size > MAX_BYTES) return fail(400, 'That photo is over 10 MB');
       const key = objectKey(folder, body.contentType, uuid(), now);
       const uploadUrl = await r2.signPut(key, body.contentType);
       return ok({ uploadUrl, publicUrl: `${String(r2.publicBase).replace(/\/+$/, '')}/${key}` });

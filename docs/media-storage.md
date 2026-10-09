@@ -162,6 +162,13 @@ in the SQL editor (adds each article's gallery and the History / Kasaysayan tag)
   and redeploying the function) works like the Blog Articles: photos go under
   `history/YYYY/MM/<random>.jpg`, are renamed as in the table above once saved,
   and are deleted when taken off or when their chapter is deleted.
+- The main History article can also have a video (after
+  [`0080_history_video.sql`](../supabase/migrations/0080_history_video.sql)
+  and redeploying the function), shown under the page's title. It's uploaded
+  as it is (MP4, WebM or MOV, up to 200 MB; MP4 plays on every phone) under
+  `history/YYYY/MM/<random>.mp4`, then numbered with the gallery
+  (`history/history3_5.mp4`). Videos aren't allowed in any other folder. The
+  CORS policy above already lets the browser upload them.
 - The function only deletes files under `articles/`, `events/`, `gkks/`, `org/`, `parish/` and `history/` in this bucket.
 - A GKK's land titles and other documents are **not** kept on R2 (anyone with a
   photo's link can open it): they go in the private `gkk-documents` bucket of
