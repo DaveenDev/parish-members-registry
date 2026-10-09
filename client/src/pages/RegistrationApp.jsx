@@ -1199,6 +1199,15 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember, 
   );
 }
 
+/** Under a ticked sacrament: the tick alone is enough when the date isn't known. */
+function OptionalDetailsHint() {
+  return (
+    <div className="text-[12.5px] text-parish-muted mt-1.5 mb-2.5">
+      Kon wala mahinumdumi ang petsa o parokya, pwede ra kini biyaan nga blangko. Igo na ang pag-tsek aron matala ang sakramento.
+    </div>
+  );
+}
+
 function SacramentBlock({ mv, field, dateField, churchField, label, extra, onField }) {
   const checked = mv[field];
   const set = (f) => (e) => onField(mv.mi, f, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
@@ -1210,11 +1219,14 @@ function SacramentBlock({ mv, field, dateField, churchField, label, extra, onFie
         <span className="font-semibold text-[15px] text-parish-navy">{label}</span>
       </label>
       {checked && (
-        <div className="grid gap-3 mt-1 mb-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-          <input type="date" value={mv[dateField]} onChange={set(dateField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-          <input type="text" placeholder="Parokya / Simbahan" value={mv[churchField]} onChange={set(churchField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-          {extra && extra(set)}
-        </div>
+        <>
+          <div className="grid gap-3 mt-1" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
+            <input type="date" aria-label={`Petsa sa ${label}`} value={mv[dateField]} onChange={set(dateField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+            <input type="text" placeholder="Parokya / Simbahan" value={mv[churchField]} onChange={set(churchField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+            {extra && extra(set)}
+          </div>
+          <OptionalDetailsHint />
+        </>
       )}
     </div>
   );
@@ -1308,10 +1320,13 @@ function WeddingBlock({ mv, sharedWith, onField }) {
         })}
       </div>
       {catholic && (
-        <div className="grid gap-3 mt-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-          <input type="date" aria-label="Petsa sa kasal" value={mv.matDate} onChange={set('matDate')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-          <input type="text" placeholder="Parokya / Simbahan" value={mv.matChurch} onChange={set('matChurch')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-        </div>
+        <>
+          <div className="grid gap-3 mt-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
+            <input type="date" aria-label="Petsa sa kasal" value={mv.matDate} onChange={set('matDate')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+            <input type="text" placeholder="Parokya / Simbahan" value={mv.matChurch} onChange={set('matChurch')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
+          </div>
+          <OptionalDetailsHint />
+        </>
       )}
     </div>
   );
