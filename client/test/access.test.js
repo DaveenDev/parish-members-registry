@@ -55,6 +55,15 @@ describe('can', () => {
     assert.ok(!can({ access: 'website' }, 'census'));
   });
 
+  test('clergy see the registry and census, verify sacraments and handle requests, and change nothing else (0087)', () => {
+    const u = { access: 'clergy' };
+    for (const what of ['registry', 'census', 'reports', 'requests', 'verify', 'editRequests']) assert.ok(can(u, what), what);
+    for (const what of ['editRegistry', 'editCensus', 'manageCensus', 'censusCodes', 'censusGkkView', 'deleteRecords',
+      'exports', 'bloodTypes', 'activity', 'trash', 'website', 'editWebsite', 'manageLists', 'settings']) {
+      assert.ok(!can(u, what), what);
+    }
+  });
+
   test('unknown permissions are refused', () => {
     assert.ok(!can({ access: 'full' }, 'launchRockets'));
   });
@@ -104,6 +113,7 @@ describe('admin nav', async () => {
     const config = navItemFor('/admin/settings');
     assert.equal(navLabel(config, { access: 'read_only' }), 'My Account');
     assert.equal(navLabel(config, { access: 'website' }), 'My Account');
+    assert.equal(navLabel(config, { access: 'clergy' }), 'My Account');
     // A staff admin also has Platform Integrations there.
     assert.equal(navLabel(config, { access: 'read_only', isAdmin: true }), 'Parish Config');
     assert.equal(navLabel(navItemFor('/admin/households'), { access: 'read_only' }), 'Households');

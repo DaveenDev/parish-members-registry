@@ -8,14 +8,15 @@
 export const LEADER_ROLE = 'Census Coordinator';
 
 /** Access levels in the order the list groups them. */
-const ACCESS_ORDER = ['full', 'website', 'read_only', 'gkk_leader', 'none'];
-const ACCESS_NAMES = { full: 'Full access', website: 'Website & requests', read_only: 'Read only', gkk_leader: 'GKK leader', none: 'No access' };
+const ACCESS_ORDER = ['full', 'clergy', 'website', 'read_only', 'gkk_leader', 'none'];
+const ACCESS_NAMES = { full: 'Full access', clergy: 'Clergy', website: 'Website & requests', read_only: 'Read only', gkk_leader: 'GKK leader', none: 'No access' };
 
 /** The filter chips: [key, label, test(row)]. 'all' matches everyone. */
 export const STAFF_FILTERS = [
   ['all', 'All accounts', () => true],
   ['gkk_leader', 'GKK leaders', (s) => s.access === 'gkk_leader'],
   ['full', 'Full access', (s) => s.access === 'full'],
+  ['clergy', 'Clergy', (s) => s.access === 'clergy'],
   ['website', 'Website & requests', (s) => s.access === 'website'],
   ['read_only', 'Read only', (s) => s.access === 'read_only'],
   ['none', 'No access', (s) => s.access === 'none'],

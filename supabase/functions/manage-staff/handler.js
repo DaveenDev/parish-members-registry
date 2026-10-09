@@ -25,8 +25,8 @@ const fail = (status, error) => ({ status, body: { error } });
 
 const clean = (v) => (typeof v === 'string' ? v.trim() : '');
 
-// Access levels (profiles.access, added in 0014_roles_activity_trash.sql).
-export const ACCESS_LEVELS = ['full', 'read_only', 'gkk_leader', 'website'];
+// Access levels (profiles.access, added in 0014_roles_activity_trash.sql; clergy in 0087).
+export const ACCESS_LEVELS = ['full', 'read_only', 'gkk_leader', 'website', 'clergy'];
 const MIGRATION_HINT = 'Run the 0014_roles_activity_trash.sql migration in Supabase to use access levels';
 
 /**

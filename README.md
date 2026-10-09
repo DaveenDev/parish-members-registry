@@ -144,10 +144,11 @@ isn't allowed to make, with a message saying why.
 
 | Access | Can see | Can change |
 |---|---|---|
-| Full access | Everything | Everything (the only level that can delete, restore from the Trash, verify sacraments, run the census and edit settings) |
+| Full access | Everything | Everything (the only level that can delete, restore from the Trash, run the census and edit settings) |
 | Read only | Every page except the Trash | Nothing |
 | GKK leader | The households and members of one GKK | Those households and members, but can't delete them |
 | Website & requests | The registry (to match certificate requests), the Parish Website and Requests | The Parish Website and Requests |
+| Clergy (0087) | The registry, sacraments, census, reports and Requests; no blood types, exports, website, activity log or Trash | Sacrament verifications and Requests, nothing else |
 
 Staff admins always have full access. The registration and census portals
 aren't affected: they don't sign in as staff.

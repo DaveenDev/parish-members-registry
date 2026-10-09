@@ -17,6 +17,7 @@ import {
 } from '../../lib/staff.js';
 
 const DEFAULT_ROLE = 'Parish Staff';
+const CLERGY_ROLE = 'Priest';
 const EMPTY_FORM = { name: '', email: '', role: DEFAULT_ROLE, isAdmin: false, access: 'full', accessGkkId: '' };
 /** A new GKK leader's form, for `gkk` ({ id, name }) when it's known. */
 const leaderForm = (gkk) => ({ ...EMPTY_FORM, role: LEADER_ROLE, access: 'gkk_leader', accessGkkId: gkk ? String(gkk.id) : '' });
@@ -34,8 +35,9 @@ function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
     return { ...f, [key]: value };
   });
   const setAccess = (access) => setForm((f) => {
-    // A GKK leader is a census coordinator, unless a role was typed.
-    const role = access === 'gkk_leader' && (!f.role || f.role === DEFAULT_ROLE) ? LEADER_ROLE : f.role;
+    // A GKK leader is a census coordinator and clergy a priest, unless a role was typed.
+    const untyped = !f.role || f.role === DEFAULT_ROLE;
+    const role = untyped && access === 'gkk_leader' ? LEADER_ROLE : untyped && access === 'clergy' ? CLERGY_ROLE : f.role;
     return { ...f, access, role };
   });
   return (
@@ -61,7 +63,7 @@ function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
                 aria-checked={on}
                 disabled={locked}
                 onClick={() => setAccess(a.key)}
-                className={`appearance-none flex items-center justify-center gap-1.5 min-h-[46px] px-3 py-2.5 rounded-xl border-[1.5px] text-[13.5px] font-semibold text-center leading-tight transition ${
+                className={`appearance-none last:odd:col-span-2 flex items-center justify-center gap-1.5 min-h-[46px] px-3 py-2.5 rounded-xl border-[1.5px] text-[13.5px] font-semibold text-center leading-tight transition ${
                   on
                     ? 'bg-parish-fill border-transparent text-white shadow-btn'
                     : 'bg-parish-field border-parish-borderSoft text-parish-text2 hover:border-[var(--p-blue-border)]'

@@ -236,6 +236,8 @@ describe('manage-staff: access levels', () => {
   test('accessInput defaults to full and drops the GKK for other levels', () => {
     assert.deepEqual(accessInput({}), { access: 'full', access_gkk_id: null });
     assert.deepEqual(accessInput({ access: 'website', access_gkk_id: 4 }), { access: 'website', access_gkk_id: null });
+    assert.deepEqual(accessInput({ access: 'clergy' }), { access: 'clergy', access_gkk_id: null });
+    assert.match(accessInput({ access: 'clergy', is_admin: true }).error, /full access/);
   });
 
   test('a login without an access level is listed as having none (0065)', async () => {

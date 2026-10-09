@@ -7,6 +7,7 @@ export const ACCESS_LEVELS = [
   { key: 'read_only', label: 'Read only', note: 'Sees the registry, census, requests, website and activity log, and changes nothing. No exports, census codes, GKK documents or trash.' },
   { key: 'gkk_leader', label: 'GKK leader', note: 'Sees and updates the households and members of one GKK (not their blood types), records their census and reviews their online updates, and gets or renews their census codes. Dashboard, reports and duplicates cover that GKK only.' },
   { key: 'website', label: 'Website & requests', note: 'Runs the Parish Website (including the office and contact details) and the Requests queues; views the registry and blood types but not the census.' },
+  { key: 'clergy', label: 'Clergy', note: 'For the parish priests. Sees the registry, sacraments, census and reports, verifies sacraments and handles the Requests queues. Changes no household or member. No blood types, exports, census codes, website, activity log or trash.' },
 ];
 
 // 'none': signed in without a staff profile (0062); never offered when setting up an account.
@@ -14,19 +15,19 @@ export const accessLabel = (key) => (key === 'none' ? 'No access' : ACCESS_LEVEL
 
 const RULES = {
   // see
-  registry: ['full', 'read_only', 'gkk_leader', 'website'],
-  requests: ['full', 'read_only', 'website'],
+  registry: ['full', 'read_only', 'gkk_leader', 'website', 'clergy'],
+  requests: ['full', 'read_only', 'website', 'clergy'],
   website: ['full', 'read_only', 'website'],
-  census: ['full', 'read_only', 'gkk_leader'], // GKK leaders: their GKK only (0024)
-  reports: ['full', 'read_only', 'gkk_leader'],
+  census: ['full', 'read_only', 'gkk_leader', 'clergy'], // GKK leaders: their GKK only (0024)
+  reports: ['full', 'read_only', 'gkk_leader', 'clergy'],
   // Whole-registry downloads (the Exports page, Households and Members CSV): full access only.
   exports: ['full'],
-  // Members' blood types: the Blood Types page, the field, filter and report (not GKK leaders, 0050).
+  // Members' blood types: the Blood Types page, the field, filter and report (not GKK leaders, 0050, or clergy, 0087).
   bloodTypes: ['full', 'read_only', 'website'],
   activity: ['full', 'read_only'],
   // change
   editRegistry: ['full', 'gkk_leader'],
-  editRequests: ['full', 'website'],
+  editRequests: ['full', 'website', 'clergy'],
   editWebsite: ['full', 'website'],
   // Record answers and review online updates (GKK leaders: their GKK, 0024).
   editCensus: ['full', 'gkk_leader'],
@@ -36,7 +37,8 @@ const RULES = {
   censusGkkView: ['full'],
   // Get or renew a household's census access code (0023: GKK leaders, for their GKK).
   censusCodes: ['full', 'gkk_leader'],
-  verify: ['full'],
+  // Verify a sacrament or take a verification back (clergy: 0087).
+  verify: ['full', 'clergy'],
   deleteRecords: ['full'],
   manageLists: ['full'],
   settings: ['full'],

@@ -25,8 +25,9 @@ There are three ways staff get them:
 3. **The 7:00 AM summary**: one notification with what's still waiting (and
    how many have waited over 3 days). Nothing is sent when nothing is waiting.
 
-Who sees what follows the staff access levels: full, read-only and
-"Website & requests" accounts get everything; GKK leaders get registrations
+Who sees what follows the staff access levels: full, read-only and clergy
+accounts get registrations, census updates and requests; "Website &
+requests" accounts get requests; GKK leaders get registrations
 and census updates for their own GKK only. Disabled accounts get nothing.
 Full-access accounts also get the GKK histories and GKK structures waiting
 for them (0060, 0081); a GKK leader gets told when the office approves their
