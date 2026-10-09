@@ -682,7 +682,7 @@ const listEnabled = (parish) => parish?.last_year_list_enabled !== false;
 /** "Print" beside a report's Export CSV: prints that table on its own. */
 function PrintButton({ onClick, className = '' }) {
   return (
-    <button type="button" onClick={onClick} className={`appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg whitespace-nowrap ${className}`}>
+    <button type="button" onClick={onClick} className={`appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-white bg-parish-fill rounded-lg whitespace-nowrap ${className}`}>
       Print
     </button>
   );
