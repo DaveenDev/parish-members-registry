@@ -58,10 +58,16 @@ Open the failed run (Actions → Encrypted database backup) and read the first
 red step:
 
 - **Check the database connection string**: `SUPABASE_DB_URL` can't be used.
-  Copy-paste slips (spaces, quotes, the `[ ]` from the template, a password
-  with `@ # / ?` in it) are fixed automatically and listed as notices; what's
-  left is said in the error, e.g. the `[YOUR-PASSWORD]` placeholder still in
-  it. Update the secret and run the workflow again.
+  Copy-paste slips (spaces, quotes, a `DATABASE_URL=` in front, the `[ ]`
+  from the template, a password with `@ # / ?` in it) are fixed
+  automatically and listed as notices, and so are Supabase's other forms of
+  the same string (JDBC, SQLAlchemy, .NET, `user=… password=… host=…`, a
+  Prisma `.env` block). What's left is said in the error, e.g. the
+  `[YOUR-PASSWORD]` placeholder still in it, only the password, or the
+  Project URL (`https://…supabase.co`) instead of the connection string.
+  GitHub hides anything shaped like a connection string in the log, so the
+  error describes the expected form in words. Update the secret and run the
+  workflow again.
 - **Dump roles, schema and data**, with *password authentication failed*: the
   password in `SUPABASE_DB_URL` is wrong. Supabase → Project Settings →
   Database → **Reset database password**, then put the new one in the secret.
