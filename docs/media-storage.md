@@ -110,7 +110,7 @@ Or in the Supabase dashboard: **Edge Functions → Secrets**. Never put these in
 npx supabase functions deploy media-upload --project-ref <your-project-ref>
 ```
 
-To redeploy to our live project, run `npm run deploy:media-upload` (training site:
+To redeploy to our live project, run `npm run deploy:production:media-upload` (training site:
 `npm run deploy:training:media-upload`). It bundles on Supabase's servers, so Docker isn't needed.
 
 Or **Edge Functions → Deploy a new function**, name it `media-upload`, and paste in

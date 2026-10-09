@@ -9,10 +9,10 @@ repository root:
 
 | Function | Live site |
 | --- | --- |
-| `manage-staff` | `npm run deploy:manage-staff` |
-| `media-upload` | `npm run deploy:media-upload` |
-| `notify-staff` | `npm run deploy:notify-staff` |
-| all of them | `npm run deploy:live` |
+| `manage-staff` | `npm run deploy:production:manage-staff` |
+| `media-upload` | `npm run deploy:production:media-upload` |
+| `notify-staff` | `npm run deploy:production:notify-staff` |
+| all of them | `npm run deploy:production` |
 
 These name the live project (`rmlkowkbonbrtaqocsvo`), so they deploy there
 whichever project the CLI is linked to. The long form is
