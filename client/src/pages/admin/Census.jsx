@@ -254,7 +254,7 @@ export default function Census() {
                 {canManage && !editing && <GhostButton onClick={() => setEditing(true)} className="px-4 py-2 text-[13.5px]">Edit</GhostButton>}
                 {canManage && cycle.status === 'Open' && <GhostButton onClick={closeCycle} className="px-4 py-2 text-[13.5px]">Close census</GhostButton>}
                 {canManage && cycle.status === 'Closed' && !openCycle && <GhostButton onClick={reopenCycle} className="px-4 py-2 text-[13.5px]">Reopen</GhostButton>}
-                {cycle.status === 'Closed' && <AnalysisLink cycle={cycle} gkk={ownGkk}className="px-4 py-2 text-[13.5px]" />}
+                {cycle.status === 'Closed' && <AnalysisLink cycle={cycle} gkk={ownGkk} className="px-4 py-2 text-[13.5px]" />}
               </div>
             </div>
 

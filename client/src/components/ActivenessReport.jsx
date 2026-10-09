@@ -94,35 +94,44 @@ function GroupTable({ rows, nameOf, empty }) {
 /**
  * Reports → Analysis Report: how active the parish's members are, from each
  * member's Practicing Catholic status. Scoped by GKK; printable; the
- * member-level data exports as CSV. `initialGkk` (?gkk=, from the Census
- * results' link) opens it on that GKK instead of the whole parish.
+ * member-level data exports as CSV. By default each member's latest answers;
+ * a census picked shows that census alone (0084). `initialGkk` and
+ * `initialCycle` (?gkk=, ?cycle=, from the Census page's links) open it on
+ * that GKK and census.
  */
-export default function ActivenessReport({ parish, initialGkk = '' }) {
+export default function ActivenessReport({ parish, initialGkk = '', initialCycle = '' }) {
   const toast = useToast();
   const [gkk, setGkk] = useState(initialGkk || 'All');
   const [gkkOptions, setGkkOptions] = useState([]);
-  const [result, setResult] = useState(null); // { analysis, members, answers, scope, at }
+  const [cycleId, setCycleId] = useState(initialCycle || '');
+  const [cycles, setCycles] = useState([]);
+  const [result, setResult] = useState(null); // { analysis, members, answers, scope, cycleId, at }
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((g) => g.name))).catch(() => {}); }, []);
+  // Before 0007 there are no censuses; the picker then only offers the latest answers.
+  useEffect(() => { api.listCensusCycles().then(setCycles).catch(() => {}); }, []);
 
-  async function generate(scope = gkk) {
+  async function generate(scope = gkk, cycle = cycleId) {
     setLoading(true);
     setError('');
     try {
-      const { members, answers } = await api.activenessData({ gkk: scope });
-      setResult({ analysis: analyzeActiveness(members, (m) => answers.get(m.id)), members, scope, at: new Date() });
+      const { members, answers } = await api.activenessData({ gkk: scope, cycleId: cycle || null });
+      setResult({ analysis: analyzeActiveness(members, (m) => answers.get(m.id)), members, scope, cycleId: cycle || '', at: new Date() });
     } catch (e) {
       setError(e.message || 'Could not generate the analysis');
     } finally {
       setLoading(false);
     }
   }
-  // The parish-wide analysis (or the linked GKK's) is ready when the tab opens.
-  useEffect(() => { generate(initialGkk || 'All'); }, []);
+  // The parish-wide analysis (or the linked GKK's and census's) is ready when the tab opens.
+  useEffect(() => { generate(initialGkk || 'All', initialCycle || ''); }, []);
 
-  const fileScope = () => (result.scope === 'All' ? 'parish' : result.scope === 'None' ? 'no-gkk' : result.scope.toLowerCase().replace(/[^a-z0-9]+/g, '-'));
+  // The census the shown result covers, or '' for everyone's latest answers.
+  const censusLabel = !result?.cycleId ? '' : cycles.find((c) => String(c.id) === String(result.cycleId))?.label || 'Census';
+  const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+  const fileScope = () => (result.scope === 'All' ? 'parish' : result.scope === 'None' ? 'no-gkk' : slug(result.scope)) + (censusLabel ? `-${slug(censusLabel)}` : '');
 
   function exportCsv() {
     if (!result) return;
@@ -152,7 +161,8 @@ export default function ActivenessReport({ parish, initialGkk = '' }) {
   }
 
   const a = result?.analysis;
-  const scopeLabel = !result ? '' : result.scope === 'All' ? 'Whole parish' : result.scope === 'None' ? 'Households with no GKK' : result.scope;
+  const scopeLabel = !result ? '' : (result.scope === 'All' ? 'Whole parish' : result.scope === 'None' ? 'Households with no GKK' : result.scope) + (censusLabel ? ` · ${censusLabel}` : '');
+  const membersText = (n) => (censusLabel ? `${n} member(s) in the ${censusLabel}` : `${n} current member(s)`);
   // The whole parish's list is too long to show or print; it's in the follow-up export.
   const showFollowUp = result?.scope !== 'All';
 
@@ -169,6 +179,15 @@ export default function ActivenessReport({ parish, initialGkk = '' }) {
               <option value="None">No GKK</option>
             </FilterSelect>
           </div>
+          {cycles.length > 0 && (
+            <div>
+              <div className="font-semibold text-[11px] text-parish-muted mb-1.5">Census</div>
+              <FilterSelect value={cycleId} onChange={(e) => setCycleId(e.target.value)} aria-label="Census">
+                <option value="">Latest answers</option>
+                {cycles.map((c) => <option key={c.id} value={String(c.id)}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
+              </FilterSelect>
+            </div>
+          )}
           <PrimaryButton onClick={() => generate()} disabled={loading} className="px-[22px] py-2.5 text-[14px]">{loading ? 'Analyzing…' : 'Generate Analysis'}</PrimaryButton>
           {a && (
             <div className="ml-auto flex gap-2">
@@ -188,7 +207,7 @@ export default function ActivenessReport({ parish, initialGkk = '' }) {
           <Panel className="px-6 py-[22px]">
             <div className="flex items-baseline justify-between gap-3 flex-wrap mb-3">
               <div className="font-serif text-[21px] font-semibold text-parish-navy">{scopeLabel}</div>
-              <div className="text-[12.5px] text-parish-muted">{a.summary.members} current member(s) · generated {result.at.toLocaleString()}</div>
+              <div className="text-[12.5px] text-parish-muted">{membersText(a.summary.members)} · generated {result.at.toLocaleString()}</div>
             </div>
             <div className="grid gap-3 mb-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
               <Tile value={a.summary.avgScore == null ? '—' : pctText(a.summary.avgScore)} label="Average score" sub={`${a.summary.rated} rated member(s)`} />
@@ -198,8 +217,17 @@ export default function ActivenessReport({ parish, initialGkk = '' }) {
             </div>
             {a.summary.rated > 0 && <MixBar className="h-3.5" parts={[['Aktibo', a.summary.aktiboPct], ['Panagsa', a.summary.panagsaPct], ['Dili aktibo', a.summary.diliPct]]} />}
             <div className="text-[12.5px] text-parish-muted mt-2.5">
-              Not rated: {a.summary.unassessed} with no participation answers yet · {a.summary.children} under 7 · {a.summary.otherReligion} of another religion.
-              {' '}{a.summary.ownAnswers} score(s) use the member's own census answers; {a.summary.estimated} are household estimates.
+              {censusLabel ? (
+                <>
+                  Not rated: {a.summary.unassessed} with no participation answers in the {censusLabel} · {a.summary.children} under 7 · {a.summary.otherReligion} of another religion.
+                  {' '}Each score uses the member's answers in the {censusLabel} alone; their sacraments, ministries and roles are as they are now.
+                </>
+              ) : (
+                <>
+                  Not rated: {a.summary.unassessed} with no participation answers yet · {a.summary.children} under 7 · {a.summary.otherReligion} of another religion.
+                  {' '}{a.summary.ownAnswers} score(s) use the member's own census answers; {a.summary.estimated} are household estimates.
+                </>
+              )}
             </div>
           </Panel>
 
@@ -274,7 +302,7 @@ export default function ActivenessReport({ parish, initialGkk = '' }) {
             </Panel>
           )}
 
-          <ActivenessPrintSheet result={result} scopeLabel={scopeLabel} parish={parish} />
+          <ActivenessPrintSheet result={result} scopeLabel={scopeLabel} membersText={membersText} parish={parish} />
         </>
       )}
     </div>
@@ -508,7 +536,7 @@ function MemberTable({ rows, more, showStatus = false }) {
 }
 
 /** The printed analysis: summary, findings and the group tables, in print-safe inline styles. */
-function ActivenessPrintSheet({ result, scopeLabel, parish }) {
+function ActivenessPrintSheet({ result, scopeLabel, membersText, parish }) {
   const a = result.analysis;
   const cell = { padding: '4px 8px', borderBottom: '1px solid #e6dcc7', fontSize: 11, textAlign: 'left' };
   const head = { ...cell, fontWeight: 700, textTransform: 'uppercase', fontSize: 9.5, color: '#6b6552', borderBottom: '1.5px solid #1a2b4a' };
@@ -528,7 +556,7 @@ function ActivenessPrintSheet({ result, scopeLabel, parish }) {
         <div>
           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 600, color: '#1a2b4a' }}>{parish?.name || 'Our Lady of Guadalupe'}</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1a2b4a', marginTop: 2 }}>Membership Activeness Analysis — {scopeLabel}</div>
-          <div style={{ fontSize: 11, color: '#6b6552' }}>{a.summary.members} current member(s) · {a.summary.rated} rated · generated {result.at.toLocaleString()}</div>
+          <div style={{ fontSize: 11, color: '#6b6552' }}>{membersText(a.summary.members)} · {a.summary.rated} rated · generated {result.at.toLocaleString()}</div>
         </div>
       </header>
       <div style={{ fontSize: 12, color: '#1a2b4a' }}>
