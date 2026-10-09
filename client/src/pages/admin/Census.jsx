@@ -11,7 +11,7 @@ import CensusSubmissionDrawer from '../../components/CensusSubmissionDrawer.jsx'
 import LastYearList, { NotYetPrintSheet } from '../../components/LastYearList.jsx';
 import LastYearListSwitch from '../../components/LastYearListSwitch.jsx';
 import { fmtDate } from '../../constants.js';
-import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, vsLastYearTable, familiesTable, statusTable, unnamedNotYet } from '../../lib/census.js';
+import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, vsLastYearTable, familiesTable, statusTable, unnamedNotYet, publicSiteUrl } from '../../lib/census.js';
 import ReportPrintSheet from '../../components/ReportPrintSheet.jsx';
 import { groupRuns, groupHeading } from '../../lib/household.js';
 import { useToast } from '../../ToastContext.jsx';
@@ -124,6 +124,13 @@ export default function Census() {
   }
 
   async function reopenCycle() {
+    const ok = await confirm({
+      title: `Reopen the ${cycle.label}?`,
+      message: 'Families can send updates again and staff can record answers. The results kept when it closed are let go: Results by GKK '
+        + 'is worked out from the registry again until you close it, which keeps them afresh.',
+      confirmLabel: 'Reopen census',
+    });
+    if (!ok) return;
     try {
       await api.reopenCensusCycle(cycle.id);
       toast.success(`${cycle.label} reopened`);
@@ -274,7 +281,7 @@ export default function Census() {
               onChange={setTab}
             />
             {(tab === 'households' || (tab === 'lastYear' && !showListTab)) && <HouseholdsTab cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} onChanged={refresh} />}
-            {tab === 'updates' && <UpdatesTab cycle={cycle} refreshKey={refreshKey} onChanged={refresh} initialQuery={linkedQuery} initialStatus={linkedStatus} />}
+            {tab === 'updates' && <UpdatesTab cycle={cycle} parish={parish} refreshKey={refreshKey} onChanged={refresh} initialQuery={linkedQuery} initialStatus={linkedStatus} />}
             {tab === 'results' && <ResultsTab key={cycle.id} cycle={cycle} cycles={cycles} parish={parish} ownGkk={ownGkk} refreshKey={refreshKey} canOpenGkk={!ownGkk && can(user, 'censusGkkView')} canRecord={canManage} />}
             {tab === 'lastYear' && showListTab && listPart}
           </>
@@ -556,7 +563,17 @@ const updateSearchText = (r) => [r.households?.household_name, r.households?.ref
 
 const UPDATE_STATUSES = ['Pending', 'Approved', 'Rejected'];
 
-function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '', initialStatus = '' }) {
+/** "2 change(s) · 5 census answer(s) · 1 marked moved / deceased / left · message" for one online update. */
+function updateSummary(r) {
+  const d = diffSubmission(r);
+  const answered = [...d.members, ...d.newMembers].filter((m) => m.status).length;
+  return [
+    `${d.changeCount} change(s)`, `${answered} census answer(s)`,
+    d.leaving && `${d.leaving} marked moved / deceased / left`, r.message && 'message',
+  ].filter(Boolean).join(' · ');
+}
+
+function UpdatesTab({ cycle, parish, refreshKey, onChanged, initialQuery = '', initialStatus = '' }) {
   // A notification's link may name the list (an update approved automatically).
   const [status, setStatus] = useState(UPDATE_STATUSES.includes(initialStatus) ? initialStatus : 'Pending');
   const [rows, setRows] = useState(null);
@@ -579,9 +596,10 @@ function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '', initialSt
     <>
       <div className="flex flex-wrap items-center gap-3 mb-4">
         <p className="text-[13px] text-parish-muted m-0 flex-1 min-w-[240px]">
-          Families open their record at <strong className="text-parish-navy">{window.location.origin}/census</strong> with the reference number and
-          code printed on their census form. An update that only answers the census is approved automatically; one that changes
-          a household's or member's details, or adds a member, waits here until you approve it.
+          Families open their record at <strong className="text-parish-navy">{publicSiteUrl(parish).replace(/^https?:\/\//, '')}/census</strong> with
+          the reference number and code printed on their census form. An update that only answers the census is approved automatically; one
+          that changes a household's or member's details, adds a member, or marks a member moved away, deceased or left the Church waits here
+          until you approve it.
         </p>
         <SearchInput placeholder="Search household, ref no, GKK…" aria-label="Search online updates" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
         <FilterSelect aria-label="Update status" value={status} onChange={(e) => setStatus(e.target.value)}>
@@ -593,23 +611,19 @@ function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '', initialSt
         columns={[{ label: 'Household' }, { label: 'GKK' }, { label: 'Sent' }, { label: 'Changes' }, { label: '', key: 'actions' }]}
         mobile={(
           <ul className="list-none m-0 p-0 divide-y divide-parish-line" aria-label="Online updates">
-            {list.rows.map((r) => {
-              const d = diffSubmission(r);
-              const answered = [...d.members, ...d.newMembers].filter((m) => m.status).length;
-              return (
-                <li key={r.id} className="px-4 py-3 flex items-start gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
-                    <div className="text-[12.5px] text-parish-muted">{[r.households?.ref_no, r.households?.gkk, new Date(r.submitted_at).toLocaleString()].filter(Boolean).join(' · ')}</div>
-                    <div className="text-[13px] text-parish-text3 mt-1">{d.changeCount} change(s) · {answered} census answer(s){r.message ? ' · message' : ''}</div>
-                    {r.status !== 'Pending' && <div className="text-[12px] text-parish-muted">{r.status} by {r.reviewed_by_name || 'staff'}{r.review_note ? ` — ${r.review_note}` : ''}</div>}
-                  </div>
-                  <button onClick={() => setOpenRow(r)} className="flex-none appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
-                    {r.status === 'Pending' ? 'Review' : 'View'}
-                  </button>
-                </li>
-              );
-            })}
+            {list.rows.map((r) => (
+              <li key={r.id} className="px-4 py-3 flex items-start gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
+                  <div className="text-[12.5px] text-parish-muted">{[r.households?.ref_no, r.households?.gkk, new Date(r.submitted_at).toLocaleString()].filter(Boolean).join(' · ')}</div>
+                  <div className="text-[13px] text-parish-text3 mt-1">{updateSummary(r)}</div>
+                  {r.status !== 'Pending' && <div className="text-[12px] text-parish-muted">{r.status} by {r.reviewed_by_name || 'staff'}{r.review_note ? ` — ${r.review_note}` : ''}</div>}
+                </div>
+                <button onClick={() => setOpenRow(r)} className="flex-none appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
+                  {r.status === 'Pending' ? 'Review' : 'View'}
+                </button>
+              </li>
+            ))}
           </ul>
         )}
         footer={
@@ -622,29 +636,25 @@ function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '', initialSt
           </>
         }
       >
-        {list.rows.map((r) => {
-          const d = diffSubmission(r);
-          const answered = [...d.members, ...d.newMembers].filter((m) => m.status).length;
-          return (
-            <tr key={r.id} className="border-t border-parish-line">
-              <td className="px-4 py-3">
-                <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
-                <div className="text-[12.5px] text-parish-muted">{r.households?.ref_no}</div>
-              </td>
-              <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.households?.gkk || '—'}</td>
-              <td className="px-4 py-3 text-[13.5px] text-parish-text2 whitespace-nowrap">{new Date(r.submitted_at).toLocaleString()}</td>
-              <td className="px-4 py-3 text-[13.5px] text-parish-text3">
-                {d.changeCount} change(s) · {answered} census answer(s){r.message ? ' · message' : ''}
-                {r.status !== 'Pending' && <div className="text-[12px] text-parish-muted">{r.status} by {r.reviewed_by_name || 'staff'}{r.review_note ? ` — ${r.review_note}` : ''}</div>}
-              </td>
-              <td className="px-4 py-3 text-right">
-                <button onClick={() => setOpenRow(r)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
-                  {r.status === 'Pending' ? 'Review' : 'View'}
-                </button>
-              </td>
-            </tr>
-          );
-        })}
+        {list.rows.map((r) => (
+          <tr key={r.id} className="border-t border-parish-line">
+            <td className="px-4 py-3">
+              <div className="font-semibold text-[14.5px] text-parish-navy">{r.households?.household_name}</div>
+              <div className="text-[12.5px] text-parish-muted">{r.households?.ref_no}</div>
+            </td>
+            <td className="px-4 py-3 text-[14px] text-parish-text2 whitespace-nowrap">{r.households?.gkk || '—'}</td>
+            <td className="px-4 py-3 text-[13.5px] text-parish-text2 whitespace-nowrap">{new Date(r.submitted_at).toLocaleString()}</td>
+            <td className="px-4 py-3 text-[13.5px] text-parish-text3">
+              {updateSummary(r)}
+              {r.status !== 'Pending' && <div className="text-[12px] text-parish-muted">{r.status} by {r.reviewed_by_name || 'staff'}{r.review_note ? ` — ${r.review_note}` : ''}</div>}
+            </td>
+            <td className="px-4 py-3 text-right">
+              <button onClick={() => setOpenRow(r)} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg whitespace-nowrap">
+                {r.status === 'Pending' ? 'Review' : 'View'}
+              </button>
+            </td>
+          </tr>
+        ))}
       </DataTable>
       {openRow && (
         <CensusSubmissionDrawer
@@ -661,12 +671,6 @@ function UpdatesTab({ cycle, refreshKey, onChanged, initialQuery = '', initialSt
 /** Whether the parish uses last year's household list (on unless turned off, 0048). */
 const listEnabled = (parish) => parish?.last_year_list_enabled !== false;
 
-/**
- * Families registered against last year (0079): the count typed in Parish GKK
- * (Families last year), or with the list off and an earlier census, the
- * families that took part in it. Nothing before 0079; without a count, a
- * note saying where to set one.
- */
 /** "Print" beside a report's Export CSV: prints that table on its own. */
 function PrintButton({ onClick, className = '' }) {
   return (
@@ -697,6 +701,12 @@ function AnalysisLink({ cycle, gkk = null, className = '' }) {
 /** The note under a printed table when its total leaves GKKs out (those with no "last year"), else ''. */
 const totalNote = (rows, text) => (rows.some((r) => r.lastYear == null) ? text : '');
 
+/**
+ * Families registered against last year (0079): the count typed in Parish GKK
+ * (Families last year), or from the second census on, the families that
+ * answered the census before. Nothing before 0079; without a count, a note
+ * saying where to set one.
+ */
 function FamiliesTable({ res, cycle, ownGkk, onPrint }) {
   const fam = res?.families;
   if (!fam) return null;
@@ -779,6 +789,8 @@ function NotYetList({ res, cycle, ownGkk, onPrint }) {
   const gkks = [...new Set(res.notYet.map((n) => n.gkk || 'No GKK'))];
   const list = res.notYet.filter((n) => gkk === 'All' || (n.gkk || 'No GKK') === gkk);
   const shown = open ? list : list.slice(0, 15);
+  // From the second census on, the visits are to households that haven't answered this one.
+  const done = res.mode === 'census' ? 'answered' : 'registered';
   const what = res.mode === 'census'
     ? `took part in the ${res.previous.label}, nobody confirmed yet in this one`
     : "on last year's list and not yet found in the registry (on the queue or verified) or ticked off";
@@ -791,22 +803,22 @@ function NotYetList({ res, cycle, ownGkk, onPrint }) {
 
   async function exportCsv() {
     const blob = await api.exportGenerated({
-      title: `${cycle.label}: not yet registered${gkk === 'All' ? '' : ` (${gkk})`}`,
+      title: `${cycle.label}: not yet ${done}${gkk === 'All' ? '' : ` (${gkk})`}`,
       columns: res.mode !== 'census' ? ['GKK', 'Head of household', 'Purok', 'Note'] : ['GKK', 'Household', 'Head of household · ref no'],
       rows: list.map((n) => ({ cells: res.mode !== 'census' ? [n.gkk, n.title, n.purok, n.note] : [n.gkk || 'No GKK', n.title, n.detail] })),
     });
-    triggerDownload(blob, `${cycle.label.toLowerCase().replace(/\s+/g, '-')}-not-yet-registered.csv`);
+    triggerDownload(blob, `${cycle.label.toLowerCase().replace(/\s+/g, '-')}-not-yet-${done}.csv`);
   }
 
   if (!res.notYet.length) {
     if (unnamed > 0) return <div className="mb-8 -mt-2">{unnamedNote}</div>;
     const all = res.mode === 'census' ? `from the ${res.previous.label}` : res.mode === 'count' ? 'counted last year' : "on last year's list";
-    return <p className="mb-8 px-4 py-3 rounded-xl border border-parish-border bg-parish-field text-[13.5px] text-parish-ok font-semibold">Every household {all} has registered.</p>;
+    return <p className="mb-8 px-4 py-3 rounded-xl border border-parish-border bg-parish-field text-[13.5px] text-parish-ok font-semibold">Every household {all} has {done}.</p>;
   }
   return (
     <div className="mb-8">
       <div className="flex items-center gap-2.5 flex-wrap mb-1">
-        <h3 className="m-0 font-serif text-[20px] font-semibold text-parish-navy">Not yet registered ({list.length})</h3>
+        <h3 className="m-0 font-serif text-[20px] font-semibold text-parish-navy">Not yet {done} ({list.length})</h3>
         <div className="ml-auto flex gap-2 flex-wrap">
           {!ownGkk && gkks.length > 1 && (
             <FilterSelect aria-label="GKK" value={gkk} onChange={(e) => { setGkk(e.target.value); setOpen(false); }}>
@@ -1054,7 +1066,10 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
             : <>No GKK has names on last year's list or a household count yet, so the census can't show who hasn't registered. Add them under Census → Last year's list.</>}
         </p>
       )}
-      <NotYetPrintSheet rows={print?.rows} gkk={print?.gkk} parish={parish} placeLabel={vsLastYear?.mode === 'census' ? 'GKK' : 'Purok'} />
+      <NotYetPrintSheet
+        rows={print?.rows} gkk={print?.gkk} parish={parish} placeLabel={vsLastYear?.mode === 'census' ? 'GKK' : 'Purok'}
+        {...(vsLastYear?.mode === 'census' ? { heading: `Wala pa makatubag sa ${cycle.label} · Not yet answered` } : {})}
+      />
       <ReportPrintSheet report={report?.report} note={report?.note} parish={parish} scope={ownGkk || 'All GKKs'} />
       <div className="flex items-center gap-3 mb-3 flex-wrap">
         <p className="text-[13px] text-parish-muted m-0 flex-1 min-w-[220px]">

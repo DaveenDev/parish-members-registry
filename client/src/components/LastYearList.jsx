@@ -503,10 +503,11 @@ const head = { ...cell, fontWeight: 700, fontSize: 10, textAlign: 'left', border
 
 /**
  * The households on last year's list not yet registered, for the GKK leader
- * to visit. Plain black on white, revealed by the #print-sheet print rules
+ * to visit (or, under `heading`, the previous census's households not yet
+ * answered). Plain black on white, revealed by the #print-sheet print rules
  * in index.css like the census forms.
  */
-export function NotYetPrintSheet({ rows, gkk, parish, placeLabel = 'Purok' }) {
+export function NotYetPrintSheet({ rows, gkk, parish, placeLabel = 'Purok', heading = 'Wala pa makarehistro · Not yet registered' }) {
   if (!rows || !rows.length) return null;
   return createPortal(
     <div id="print-sheet" aria-hidden style={{ fontSize: 11, color: '#000', background: '#fff' }}>
@@ -514,7 +515,7 @@ export function NotYetPrintSheet({ rows, gkk, parish, placeLabel = 'Purok' }) {
         {parish?.logo && <img src={parish.logo} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />}
         <div>
           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 21, fontWeight: 600 }}>{parish?.name || 'Our Lady of Guadalupe'}</div>
-          <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: '#555' }}>Wala pa makarehistro · Not yet registered</div>
+          <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: '#555' }}>{heading}</div>
         </div>
         <div style={{ marginLeft: 'auto', textAlign: 'right', fontSize: 10.5 }}>
           <div><strong>GKK:</strong> {gkk}</div>

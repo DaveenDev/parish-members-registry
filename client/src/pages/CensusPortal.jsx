@@ -7,7 +7,7 @@ import { HEADS, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATIO
 import { familiesOf, familyHeadName } from '../lib/household.js';
 import { bis, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
-import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParticipation, isYoungChild, YOUNG_CHILD_MAX_AGE, portalPayload, formatAccessCode, codeFromHash } from '../lib/census.js';
+import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParticipation, isYoungChild, YOUNG_CHILD_MAX_AGE, portalPayload, formatAccessCode, codeFromHash, cleanParticipation } from '../lib/census.js';
 
 const BG = { background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' };
 const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(min(180px,100%),1fr))' };
@@ -80,7 +80,12 @@ export default function CensusPortal() {
   const [code, setCode] = useState(formatAccessCode(linkCode));
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
+  // The form as it opened: every change makes a new object, so `form !== openedForm` means unsent answers.
+  const [openedForm, setOpenedForm] = useState(null);
   const [error, setError] = useState('');
+  // Asked once per send: Aktibo members with no activity answers (their score can't be worked out).
+  const [notice, setNotice] = useState('');
+  const [noticeShown, setNoticeShown] = useState(false);
   const [showStatusErrors, setShowStatusErrors] = useState(false);
   const [busy, setBusy] = useState(false);
   // No details changed: the answers went straight into the census (0083).
@@ -115,8 +120,12 @@ export default function CensusPortal() {
     try {
       const res = await api.portalOpen(refNo.trim(), code.trim());
       if (!res?.ok) { setError(portalErrorInBisaya(res?.error)); return; }
+      const opened = formFrom(res);
       setData(res);
-      setForm(formFrom(res));
+      setForm(opened);
+      setOpenedForm(opened);
+      setNotice('');
+      setNoticeShown(false);
       setScreen('form');
       top();
     } catch (err) {
@@ -139,6 +148,16 @@ export default function CensusPortal() {
       setTimeout(() => document.querySelector('[data-census-status][aria-invalid=true]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
       return;
     }
+    // An adult marked Aktibo with no activity answers can't be scored: ask once, then send anyway.
+    const unanswered = [...form.members, ...form.newMembers.filter(isFilledNew)]
+      .filter((m) => m.status === 'Active' && !isYoungChild(m.dob) && !Object.keys(cleanParticipation(m.participation)).length);
+    if (unanswered.length && !noticeShown) {
+      setNoticeShown(true);
+      setNotice(`${unanswered.length} ka miyembro nga Aktibo wala pay tubag sa mga pangutana (Misa, Debosyon, ug uban pa). `
+        + 'Tubaga kini kung mahimo, o pindota pag-usab ang “Ipadala sa parokya” aron ipadala gihapon.');
+      return;
+    }
+    setNotice('');
     if (!form.consent) { setError('Palihug i-tsek ang pagtugot sa data privacy sa ubos.'); return; }
     setBusy(true);
     try {
@@ -154,8 +173,20 @@ export default function CensusPortal() {
     }
   }
 
+  // Answers typed in but not sent yet.
+  const unsent = screen === 'form' && !!form && form !== openedForm;
+
+  // Closing the tab, going back or reloading would lose them: the browser asks first.
+  useEffect(() => {
+    if (!unsent) return undefined;
+    const warn = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [unsent]);
+
   function signOut() {
-    setData(null); setForm(null); setCode(''); setError(''); setScreen('signin'); top();
+    if (unsent && !window.confirm('Wala pa mapadala ang inyong mga tubag. Mogawas gihapon?')) return;
+    setData(null); setForm(null); setOpenedForm(null); setCode(''); setError(''); setNotice(''); setScreen('signin'); top();
   }
 
   const header = (
@@ -182,8 +213,8 @@ export default function CensusPortal() {
                 Kung adunay sayop, mahimo pa ninyo kining usbon samtang bukas pa ang census.</>
             ) : (
               <>Nadawat na sa parokya ang census sa <strong>{data?.household.household_name}</strong>. Tungod kay giusab ninyo ang
-                mga detalye, susihon kini sa among kawani una kini ibutang sa rehistro. Kung adunay sayop, mahimo pa ninyo kining
-                usbon samtang wala pa nasusi.</>
+                mga detalye, o ang kahimtang sa usa ka miyembro (nibalhin, namatay o mibiya sa Simbahan), susihon kini sa among
+                kawani una kini ibutang sa rehistro. Kung adunay sayop, mahimo pa ninyo kining usbon samtang wala pa nasusi.</>
             )}
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
@@ -344,6 +375,7 @@ export default function CensusPortal() {
         </Card>
 
         {error && <div role="alert" className="mb-4 px-4 py-3 rounded-xl bg-parish-errorBg text-parish-error text-[14.5px] font-medium">{error}</div>}
+        {notice && <div role="alert" className="mb-4 px-4 py-3 rounded-xl bg-[#fdf1de] text-[#7a5a1f] text-[14.5px] font-medium">{notice}</div>}
         <div className="flex justify-end gap-3 mb-8">
           <GhostButton onClick={signOut} className="px-5 py-3.5 text-[15px]">Kanselahon</GhostButton>
           <PrimaryButton onClick={submit} disabled={busy} className="px-8 py-3.5 text-[16px]">{busy ? 'Ginapadala…' : 'Ipadala sa parokya'}</PrimaryButton>

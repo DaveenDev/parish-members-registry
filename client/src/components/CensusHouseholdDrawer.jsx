@@ -8,7 +8,7 @@ import { HELP_WAYS, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, ageFromDob } from
 import { familiesOf, familyNoOf } from '../lib/household.js';
 import { familyTitle } from './FamilyGroups.jsx';
 import { bis, RELATIONSHIP_LABELS } from '../lib/bisaya.js';
-import { MEMBERSHIP_STATUSES, FORMER_STATUSES, CENSUS_SOURCES, STATUS_TONES, cleanParticipation, suggestStatus, formatAccessCode } from '../lib/census.js';
+import { MEMBERSHIP_STATUSES, FORMER_STATUSES, CENSUS_SOURCES, STATUS_TONES, YOUNG_CHILD_MAX_AGE, cleanParticipation, suggestStatus, formatAccessCode, isYoungChild } from '../lib/census.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { useAuth } from '../AuthContext.jsx';
@@ -17,8 +17,15 @@ import { can } from '../lib/access.js';
 
 const SHORT_LEVEL = { Aktibo: 'A', Panagsa: 'P', Wala: 'W' };
 
-/** Editable census answer for one member, from their saved answer (if any). */
-function rowFrom(m) {
+/**
+ * Editable census answer for one member, from their saved answer (if any).
+ * With `childDefault`, a young child with no answer starts as Active with
+ * nothing to answer, as on the portal and the printed form.
+ */
+function rowFrom(m, { childDefault = false } = {}) {
+  if (childDefault && !m.census && isYoungChild(m.dob) && !FORMER_STATUSES.includes(m.membership_status)) {
+    return { status: 'Active', participation: {}, notes: '', statusPicked: true, child: true };
+  }
   return {
     status: m.census?.status || '',
     participation: m.census?.participation || {},
@@ -82,23 +89,31 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
     }
   }
 
+  // The rows as the panel opened them (young children already Active), to tell staff's own edits apart.
+  const [startRows, setStartRows] = useState({});
+
   function load({ keepEdits = false } = {}) {
     setLoadError('');
     api.getHouseholdCensus(cycle.id, householdId)
       .then((res) => {
+        const start = Object.fromEntries(res.members.map((m) => [m.id, rowFrom(m, { childDefault: editable })]));
         setData(res);
-        setRows((prev) => Object.fromEntries(res.members.map((m) => [m.id, keepEdits && prev[m.id] ? prev[m.id] : rowFrom(m)])));
+        setStartRows(start);
+        setRows((prev) => Object.fromEntries(res.members.map((m) => [m.id, keepEdits && prev[m.id] ? prev[m.id] : start[m.id]])));
       })
       .catch((e) => setLoadError(e.message || 'Could not load this household'));
   }
   useEffect(() => { load(); }, [cycle.id, householdId]);
 
+  // What saving would change (young children started as Active count); what staff changed themselves.
   const changed = data ? data.members.filter((m) => rows[m.id] && !sameAnswer(rows[m.id], m.census)) : [];
+  const edited = data ? data.members.filter((m) => rows[m.id] && startRows[m.id] && !sameAnswer(rows[m.id], startRows[m.id].status ? startRows[m.id] : null)) : [];
   const surveyDirty = !!survey && data && (
     JSON.stringify(cleanParticipation(survey.participation)) !== JSON.stringify(cleanParticipation(data.household.participation))
     || JSON.stringify(survey.help_ways) !== JSON.stringify(data.household.help_ways || [])
   );
-  const dirty = changed.length > 0 || surveyDirty;
+  const dirty = edited.length > 0 || surveyDirty;
+  const canSave = changed.some((m) => rows[m.id].status) || dirty;
 
   function setRow(id, patch) {
     setRows((r) => {
@@ -341,7 +356,7 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
           {dirty && <span className="mr-auto text-[12.5px] font-semibold text-parish-warn">Unsaved answers</span>}
           <GhostButton onClick={requestClose} className="px-5 py-2.5 text-[14px]">Close</GhostButton>
           {editable && (
-            <PrimaryButton onClick={save} disabled={saving || !dirty} className="px-6 py-2.5 text-[14px]">
+            <PrimaryButton onClick={save} disabled={saving || !canSave} className="px-6 py-2.5 text-[14px]">
               {saving ? 'Saving…' : 'Save census'}
             </PrimaryButton>
           )}
@@ -433,9 +448,11 @@ function MemberCensusRow({ member: m, family, row, former, editable, onChange, o
             {MEMBERSHIP_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
           </Select>
           <div className="text-[12px] mt-1 text-parish-muted">
-            {suggestion
-              ? <>Suggested from the answers: <Badge tone={STATUS_TONES[suggestion]}>{suggestion}</Badge></>
-              : 'No suggestion — choose from what the family wrote.'}
+            {row.child && row.status === 'Active' && !suggestion
+              ? `Young child (${YOUNG_CHILD_MAX_AGE} or under): Active, with no questions to answer, unless the form says otherwise.`
+              : suggestion
+                ? <>Suggested from the answers: <Badge tone={STATUS_TONES[suggestion]}>{suggestion}</Badge></>
+                : 'No suggestion — choose from what the family wrote.'}
           </div>
         </Field>
         <Field label="Notes">

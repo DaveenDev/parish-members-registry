@@ -2,7 +2,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { fmtDate, PARTICIPATION_ITEMS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
-import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, formatAccessCode, publicSiteUrl, censusLink } from '../lib/census.js';
+import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, YOUNG_CHILD_MAX_AGE, formatAccessCode, publicSiteUrl, censusLink, isYoungChild } from '../lib/census.js';
 import QrCode from './QrCode.jsx';
 
 // Short column headings for the participation grid on paper.
@@ -146,7 +146,12 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
               {members.map((m) => (
                 <tr key={m.id}>
                   <td style={{ ...cell, fontWeight: 600 }}>{[m.first_name, m.last_name].join(' ')}</td>
-                  {PARTICIPATION_ITEMS.map(([key]) => (
+                  {/* As on the portal: a young child is Aktibo, with nothing to answer. */}
+                  {isYoungChild(m.dob) ? (
+                    <td colSpan={PARTICIPATION_ITEMS.length} style={{ ...cell, textAlign: 'center', color: '#444', fontSize: 9.5 }}>
+                      Bata pa ({YOUNG_CHILD_MAX_AGE} anyos o ubos): <strong>Aktibo</strong>, dili na kinahanglan tubagon
+                    </td>
+                  ) : PARTICIPATION_ITEMS.map(([key]) => (
                     <td key={key} style={{ ...cell, textAlign: 'center', color: '#444', whiteSpace: 'nowrap' }}>A · P · W</td>
                   ))}
                   <td style={{ ...cell, fontSize: 9.5, color: '#222' }}>

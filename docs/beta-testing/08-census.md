@@ -56,6 +56,9 @@ checks matter.
   number, address and contact as on file, every current member with their
   sacraments, an A/P/W grid per member, the status choices, blank rows for new
   members, and signature lines.
+- A child aged 8 or under has "Bata pa … Aktibo, dili na kinahanglan tubagon"
+  across the A/P/W columns instead of the grid, as on the portal. The status
+  choices are still there, for a child who moved away.
 - The rest of the admin panel is not printed.
 - **Print form** on a single row prints just that household.
 
@@ -74,6 +77,10 @@ checks matter.
 - The first member's status changes to **Inactive** by itself, the second to
   **Active**, and the third stays "Not confirmed yet" ("No suggestion").
 - After you pick a status yourself, changing the answers no longer changes it.
+- A child aged 8 or under with no answer yet already shows **Active** ("Young
+  child … Active, with no questions to answer"). Opening and closing the panel
+  without touching anything doesn't ask to discard; **Save census** confirms
+  the child with the others.
 
 ### CE-05 — Save a mixed household
 **Steps**
@@ -121,7 +128,10 @@ checks matter.
 - No member's status or details changed by closing.
 - On **Members**, the "Not confirmed in census" filter lists every current member
   nobody confirmed.
-- **Reopen** brings it back to Open.
+- **Reopen** first asks, saying the results kept at closing are let go, then
+  brings it back to Open.
+- **Analysis Report →** beside the closed census opens Reports → Analysis
+  Report on that census.
 
 ### CE-09 — Results by GKK
 **Steps**
@@ -158,7 +168,7 @@ checks matter.
 - A family whose online update is still waiting in **Online updates** is not
   counted as answered until it's approved.
 
-### CE-10 — Dashboard
+### CE-12 — Dashboard
 **Steps**
 1. Open **Dashboard**.
 
@@ -174,7 +184,7 @@ checks matter.
 Run these while a census is **open** (reopen it after CE-08). Use a private
 window or a second browser for the family, so it is not signed in as staff.
 
-### CE-11 — The portal is only offered during a census
+### CE-13 — The portal is only offered during a census
 **Steps**
 1. With no census open, open the registration home page, then `/census`.
 2. Open a census and reload both.
@@ -185,7 +195,7 @@ window or a second browser for the family, so it is not signed in as staff.
 - With a census open: the home page shows "Narehistro na? I-update ang inyong
   rekord (… Census)", and `/census` asks for a reference number and code.
 
-### CE-12 — The printed form carries the online code
+### CE-14 — The printed form carries the online code
 **Steps**
 1. Print the forms for GKK San Isidro (CE-03), then print them again.
 
@@ -195,7 +205,7 @@ window or a second browser for the family, so it is not signed in as staff.
 - Printing again shows the **same** codes.
 - **Record census** on that household shows the same code as "Online code".
 
-### CE-13 — Signing in
+### CE-15 — Signing in
 **Steps**
 1. On `/census`, enter a household's reference number with a wrong code.
 2. Enter a reference number that doesn't exist.
@@ -208,7 +218,7 @@ window or a second browser for the family, so it is not signed in as staff.
 - Step 3 opens the household's form, showing only that household.
 - Step 4: the right code is refused for 15 minutes ("Daghan na kaayong sayop…").
 
-### CE-14 — A family sends an update
+### CE-16 — A family sends an update
 **Steps**
 1. Sign in as the Dela Cruz Family. Change the contact number, mark the first
    member's Mass as **Wala** and the second member's Mass as **Aktibo**.
@@ -228,7 +238,7 @@ window or a second browser for the family, so it is not signed in as staff.
   update is waiting for review. Sending again replaces the earlier one (staff
   still see only one).
 
-### CE-15 — Staff review and approve
+### CE-17 — Staff review and approve
 **Steps**
 1. As staff, open **Census**. Look at the Dela Cruz row, then open
    **Online updates**.
@@ -247,7 +257,33 @@ window or a second browser for the family, so it is not signed in as staff.
   members show **Confirmed** with source "Portal".
 - Under **Approved**, the update shows who approved it.
 
-### CE-16 — Reject, and a new code
+### CE-18 — What's approved at once, and what waits
+**Steps**
+1. As another family, change nothing but the census answers (statuses Aktibo
+   or Dili aktibo, and the activity questions), and send.
+2. As a third family, change nothing but mark one member **Namatay**, and send.
+
+**Expected**
+- Step 1: the thank-you page says the census is recorded. On the staff side the
+  answers are already **Confirmed** (source "Portal"), and the update is under
+  **Approved** "by the system".
+- Step 2: the thank-you page says staff will check it. Nothing changed in the
+  registry yet; the update waits under **Online updates**, its row says
+  "1 marked moved / deceased / left", and the review panel says approving takes
+  that member off the household's current members.
+
+### CE-19 — Answers aren't lost by accident
+**Steps**
+1. On a family's form, answer a few questions, then press the browser's back
+   button or reload.
+2. Mark an adult **Aktibo** without answering any activity question, and send.
+
+**Expected**
+- Step 1: the browser asks before leaving. **Gawas** and **Kanselahon** ask too.
+- Step 2: an amber note says that member has no answers yet and to send again
+  to send anyway. Sending again goes through.
+
+### CE-20 — Reject, and a new code
 **Steps**
 1. Send another update as a different family, then **Reject…** it with a reason.
 2. In that household's census panel, click **New code**, then try the old code
@@ -258,7 +294,7 @@ window or a second browser for the family, so it is not signed in as staff.
   in the registry changed.
 - The old code no longer works. The new one does.
 
-### CE-17 — Closing the census closes the portal
+### CE-21 — Closing the census closes the portal
 **Steps**
 1. Close the census, then try to sign in on `/census`.
 

@@ -19,6 +19,13 @@ function show(key, value) {
 
 const hasAnswers = (participation) => PARTICIPATION_ITEMS.some(([k]) => participation?.[k]);
 
+// What approving a status that takes a member off the household does (0085: these always wait for review).
+const LEAVING_NOTES = {
+  'Moved away': 'Approving takes them off the household’s current members.',
+  Deceased: 'Approving records them as deceased and takes them off the household’s current members.',
+  'Left the Church': 'Approving records that they left the Church.',
+};
+
 function CheckIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
@@ -80,7 +87,7 @@ function Changes({ rows }) {
   );
 }
 
-function Answer({ status, participation, notes }) {
+function Answer({ status, participation, notes, pending = false }) {
   const a = hasAnswers(participation);
   const suggested = suggestStatus(participation);
   if (!status && !a && !notes) return <div className="text-[13px] text-parish-muted mt-1.5">No census answer.</div>;
@@ -91,6 +98,7 @@ function Answer({ status, participation, notes }) {
         {status ? <Badge tone={STATUS_TONES[status]}>{status}</Badge> : <span className="text-parish-muted">no status chosen</span>}
         {suggested && suggested !== status && <span className="text-[12px] font-semibold text-parish-warn">(the answers suggest {suggested})</span>}
       </div>
+      {pending && LEAVING_NOTES[status] && <div className="mt-1 text-[12.5px] font-semibold text-parish-warn">{LEAVING_NOTES[status]}</div>}
       {a && <AnswerChecklist participation={participation} />}
       {notes && <div className="mt-1 text-parish-text2">Note: {notes}</div>}
     </div>
@@ -191,7 +199,7 @@ export default function CensusSubmissionDrawer({ submission: s, cycle, onClose, 
                 <div key={m.id} className="border border-parish-line2 rounded-xl bg-parish-field px-4 py-3">
                   <div className="font-semibold text-[14.5px] text-parish-navy">{m.name}</div>
                   {m.changes.length > 0 ? <Changes rows={m.changes} /> : <div className="text-[13px] text-parish-muted mt-1">Details unchanged.</div>}
-                  <Answer {...m} />
+                  <Answer {...m} pending={!reviewed} />
                 </div>
               ))}
             </div>
@@ -208,7 +216,7 @@ export default function CensusSubmissionDrawer({ submission: s, cycle, onClose, 
                       {[show('relationship', m.fields.relationship), m.fields.sex && show('sex', m.fields.sex), m.fields.dob && `born ${show('dob', m.fields.dob)}`, m.fields.civil_status && show('civil_status', m.fields.civil_status), m.fields.contact]
                         .filter((x) => x && x !== '—').join(' · ')}
                     </div>
-                    <Answer {...m} />
+                    <Answer {...m} pending={!reviewed} />
                   </div>
                 ))}
               </div>

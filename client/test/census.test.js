@@ -203,6 +203,18 @@ describe('diffSubmission', () => {
   test('no changes', () => {
     const d = diffSubmission({ before, proposed: { household: before.household, members: [], newMembers: [] } });
     assert.equal(d.changeCount, 0);
+    assert.equal(d.leaving, 0);
+  });
+
+  test('counts members marked moved away, deceased or left the Church (they wait for review, 0085)', () => {
+    const fields = before.members[1];
+    const member = (id, status) => ({ id, fields, status, participation: {} });
+    const d = diffSubmission({
+      before: { ...before, members: { 1: fields, 2: fields, 3: fields, 4: fields } },
+      proposed: { household: before.household, members: [member(1, 'Deceased'), member(2, 'Moved away'), member(3, 'Left the Church'), member(4, 'Active')], newMembers: [] },
+    });
+    assert.equal(d.changeCount, 0);
+    assert.equal(d.leaving, 3);
   });
 });
 

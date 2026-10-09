@@ -1466,12 +1466,6 @@ export const api = {
     return counts;
   },
 
-  /**
-   * Per GKK (null = no GKK): { started, confirmed } households in this
-   * census, where started counts every household with at least one member
-   * confirmed (partly or fully). Compared against each GKK's
-   * previous_households baseline (0040).
-   */
   /** Whether the parish uses last year's household list (on unless turned off, 0048). */
   async lastYearListEnabled() {
     const { data, error } = await supabase.from('parish_settings').select('last_year_list_enabled').eq('id', 1).maybeSingle();
@@ -1675,10 +1669,6 @@ export const api = {
   },
 
   /**
-   * A household with each member's answer in this census (`census`) and in
-   * the census before it (`previous`), for the census entry panel.
-   */
-  /**
    * Save members' statuses and own participation answers from Edit Household
    * (0056): [{ memberId, status, participation }]. While a census is open, an
    * answer in it that came from the registration follows the edit.
@@ -1717,6 +1707,10 @@ export const api = {
     }
     return latest;
   },
+  /**
+   * A household with each member's answer in this census (`census`) and in
+   * the census before it (`previous`), for the census entry panel.
+   */
   async getHouseholdCensus(cycleId, householdId) {
     const { household, members } = await api.getHousehold(householdId);
     const { data, error } = await supabase
@@ -1756,7 +1750,6 @@ export const api = {
     return null;
   },
 
-  /** Online updates families sent in this census (Pending by default). */
   /** How many online updates in this census wait for review (count only, for the tab badge). */
   async pendingCensusSubmissionCount(cycleId) {
     const { count, error } = await supabase.from('census_submissions').select('id', { count: 'exact', head: true })
@@ -1815,23 +1808,19 @@ export const api = {
   /**
    * Households and their current members for the printed census form —
    * either one GKK ('None' = households without one) or the given ids.
+   * Every row, past the 1,000-row cap: a large GKK has more members than that.
    */
   async censusPrintData({ gkk, householdIds, withCodes = true }) {
-    let hq = supabase.from('households').select('*').order('household_name');
-    let mq = supabase.from('members_with_household').select('*').eq('is_current', true).order('id');
-    if (householdIds) {
-      hq = hq.in('id', householdIds);
-      mq = mq.in('household_id', householdIds);
-    } else if (gkk === 'None') {
-      hq = hq.is('gkk', null);
-      mq = mq.is('household_gkk', null);
-    } else {
-      hq = hq.eq('gkk', gkk);
-      mq = mq.eq('household_gkk', gkk);
-    }
-    const [{ data: households, error: hErr }, { data: members, error: mErr }] = await Promise.all([hq, mq]);
-    if (hErr) throw mapError(hErr);
-    if (mErr) throw mapError(mErr);
+    const memberCols = 'id, household_id, family_no, first_name, middle_name, last_name, suffix, relationship, dob, civil_status, '
+      + 'has_baptism, has_communion, has_confirmation, has_matrimony';
+    const scope = (q, idCol, gkkCol) => {
+      if (householdIds) return q.in(idCol, householdIds);
+      return gkk === 'None' ? q.is(gkkCol, null) : q.eq(gkkCol, gkk);
+    };
+    const [households, members] = await Promise.all([
+      fetchAll(() => scope(supabase.from('households').select('*'), 'id', 'gkk').order('household_name').order('id')),
+      fetchAll(() => scope(supabase.from('members_with_household').select(memberCols).eq('is_current', true), 'household_id', 'household_gkk').order('id')),
+    ]);
     // Online access codes (0008), unless the caller leaves them out. Without that
     // migration the forms print without them.
     const codes = withCodes ? await api.censusAccessCodes(households.map((h) => h.id)).catch(() => ({})) : {};

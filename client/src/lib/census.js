@@ -10,6 +10,10 @@ export const MEMBERSHIP_STATUSES = ['Active', 'Inactive', 'Moved away', 'Decease
 // No longer on the household roster; hidden from lists unless asked for.
 export const FORMER_STATUSES = ['Moved away', 'Deceased'];
 
+// A family marking a member with one of these online waits for staff review
+// (0085), even when no details changed.
+export const LEAVING_STATUSES = ['Moved away', 'Deceased', 'Left the Church'];
+
 // What the family sees on the printed form.
 export const MEMBERSHIP_STATUS_LABELS = {
   Active: 'Aktibo',
@@ -705,6 +709,7 @@ export function portalPayload({ household, members, newMembers, message, consent
  * What a family's online update would change, for the staff review panel:
  * household fields and member fields that differ from what was on record
  * when the family sent it, the census answers, and any new members.
+ * `leaving` counts the members marked moved away, deceased or left the Church.
  */
 export function diffSubmission({ before, proposed }) {
   const changed = (fields, from = {}, to = {}) => fields
@@ -732,7 +737,8 @@ export function diffSubmission({ before, proposed }) {
     notes: m.notes || null,
   }));
   const changeCount = household.length + members.reduce((n, m) => n + m.changes.length, 0) + newMembers.length;
-  return { household, members, newMembers, changeCount };
+  const leaving = members.filter((m) => LEAVING_STATUSES.includes(m.status)).length;
+  return { household, members, newMembers, changeCount, leaving };
 }
 
 /**
