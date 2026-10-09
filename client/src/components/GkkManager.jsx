@@ -232,7 +232,8 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
             >
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-[14.5px] text-parish-navy">
-                  <button type="button" onClick={() => open(g)} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-[14.5px] text-parish-navy text-left hover:underline">{g.name}</button>
+                  {/* Its GKK Config page, as its leader sees it; Edit (and the rest of the row) opens the edit panel. */}
+                  <Link to={`/admin/settings?tab=gkk&open=${g.id}`} title={`Open ${g.name}'s GKK Config page, as its GKK leader sees it`} className="font-semibold text-[14.5px] text-parish-blue hover:underline">{g.name}</Link>
                   {codeOf(g.name) && (
                     <span title={`Its families' reference numbers start with ${codeOf(g.name)}`} className="ml-2 align-[1px] inline-block px-1.5 py-px rounded-md bg-parish-sunk font-bold text-[11px] tracking-[.08em] text-parish-text2">{codeOf(g.name)}</span>
                   )}

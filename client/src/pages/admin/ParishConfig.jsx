@@ -1206,7 +1206,11 @@ export default function ParishConfig() {
           {tab === 'mygkk' && <MyGkk />}
           {tab === 'config' && <ProfileTab />}
           {tab === 'personal' && <PersonalTab withPrivacy={!show.config} />}
-          {tab === 'gkk' && (
+          {/* A GKK's name opens its GKK Config page, as its leader sees it (?open=<id>). */}
+          {tab === 'gkk' && params.get('open') && (
+            <MyGkk gkkId={params.get('open')} onBack={() => setParams({ tab: 'gkk' })} />
+          )}
+          {tab === 'gkk' && !params.get('open') && (
             <GkkManager
               onOpenList={(name) => setParams({ tab: 'lastyear', gkk: name }, { replace: true })}
               historyOf={params.get('history') || ''}

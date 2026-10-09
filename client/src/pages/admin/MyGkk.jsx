@@ -21,14 +21,20 @@ const VIEWS = [['details', 'Details'], ['structure', 'Leaders & Structure'], ['h
  * list of every GKK. They keep its chapel details and the photos on its
  * website page, its structure (its officers, approved by the parish
  * office, 0081), its history (the parish office publishes it), its
- * documents and last year's household names. Full-access staff do all of
- * this under Parish Config → Parish GKK. ?view= picks the part.
+ * documents and last year's household names. ?view= picks the part.
+ *
+ * The parish office opens the same page for any GKK (`gkkId`) from the GKK
+ * names under Parish Config → Parish GKK, to see what its leader sees. There
+ * its changes are the office's: the history can be published straight
+ * away, and the structure approved or sent back. `onBack` returns to the list.
  */
-export default function MyGkk() {
+export default function MyGkk({ gkkId = null, onBack = null }) {
   const { user } = useAuth();
   const toast = useToast();
   const confirm = useConfirm();
-  const name = user?.access === 'gkk_leader' ? user.accessGkk : null;
+  const office = gkkId != null;
+  const [gkk, setGkk] = useState(null);
+  const name = office ? gkk?.name || '' : user?.access === 'gkk_leader' ? user.accessGkk : null;
   const [params, setParams] = useSearchParams();
   const [parish, setParish] = useState(null);
   // Last year's list only while the parish uses it (0048).
@@ -40,7 +46,6 @@ export default function MyGkk() {
     return next;
   }, { replace: true });
 
-  const [gkk, setGkk] = useState(null);
   const [form, setForm] = useState(null);
   const [loadError, setLoadError] = useState('');
   const [error, setError] = useState('');
@@ -54,20 +59,25 @@ export default function MyGkk() {
     api.listGkkDetails()
       .then(({ rows }) => {
         // By id since 0063, so a renamed GKK is still found.
-        const g = rows.find((r) => (user.accessGkkId ? r.id === user.accessGkkId : r.name === name));
-        if (!g) throw new Error(`${name} wasn't found in the GKK list. Ask the parish office.`);
+        const g = office
+          ? rows.find((r) => String(r.id) === String(gkkId))
+          : rows.find((r) => (user.accessGkkId ? r.id === user.accessGkkId : r.name === name));
+        if (!g) throw new Error(office ? 'This GKK is no longer in the list.' : `${name} wasn't found in the GKK list. Ask the parish office.`);
         setGkk(g);
         setForm(gkkForm(g));
       })
-      .catch((e) => setLoadError(e.message || 'Could not load your GKK'));
+      .catch((e) => setLoadError(e.message || 'Could not load the GKK'));
   }
+  const key = office ? `id:${gkkId}` : name;
   useEffect(() => {
-    if (!name) return undefined;
+    if (!key) return undefined;
+    setGkk(null);
+    setForm(null);
     load();
     api.getSettings().then((r) => setParish(r.settings)).catch(() => {});
     // Leaving with unsaved photos: take them back off R2.
     return () => { pagePhotos.rollback(); historyPhotos.rollback(); };
-  }, [name]);
+  }, [key]);
 
   async function save(what) {
     setError('');
@@ -79,6 +89,8 @@ export default function MyGkk() {
     if (photos.uploading) { setError('Wait for the photos to finish uploading.'); return; }
     if (what === 'history') {
       if (sameHistory(form, gkkForm(gkk))) { toast.success('No changes to save'); return; }
+    }
+    if (what === 'history' && !office) {
       // A leader's change takes a published history off the website (0045)
       // and alerts the parish office (0060): say so before saving.
       const live = !!gkk.history_published;
@@ -95,7 +107,7 @@ export default function MyGkk() {
     // The photos only when they changed, so the details still save before the 0046 migration.
     const patch = what === 'details'
       ? { ...chapelPatch(form), ...(samePhotos(form, gkkForm(gkk)) ? {} : photosPatch(form)) }
-      : historyPatch(form, { withPublished: false });
+      : historyPatch(form, { withPublished: office });
     setSaving(true);
     try {
       const saved = await api.saveGkkDetails(gkk.id, patch);
@@ -107,7 +119,8 @@ export default function MyGkk() {
         ? ['chapel_address', 'puroks', 'year_established', 'meeting_schedule', 'meeting_place', 'photo_url', 'photos']
         : ['history', 'history_photos', 'history_published'];
       setForm((f) => ({ ...f, ...Object.fromEntries(keys.map((k) => [k, fresh[k]])) }));
-      toast.success(what === 'details' ? 'Details saved' : 'History saved. The parish office has been notified to review it for the website.');
+      toast.success(what === 'details' ? 'Details saved'
+        : office ? 'History saved' : 'History saved. The parish office has been notified to review it for the website.');
     } catch (e) {
       setError(e.message || 'Could not save');
     } finally {
@@ -115,7 +128,7 @@ export default function MyGkk() {
     }
   }
 
-  if (!name) return <Panel className="p-6 text-[14px] text-parish-text2">This tab is for GKK leader accounts.</Panel>;
+  if (!office && !name) return <Panel className="p-6 text-[14px] text-parish-text2">This tab is for GKK leader accounts.</Panel>;
 
   const saveBar = (label) => (
     <div className="flex items-center gap-3 justify-end flex-wrap">
@@ -127,7 +140,18 @@ export default function MyGkk() {
 
   return (
     <div>
-      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3">{name}</div>
+      {office && onBack && (
+        <button type="button" onClick={onBack} className="appearance-none border-none bg-transparent p-0 mb-2 cursor-pointer font-semibold text-[13.5px] text-parish-blue hover:underline">
+          ← All GKKs
+        </button>
+      )}
+      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3">{name || (loadError ? 'GKK' : 'Loading…')}</div>
+      {office && (
+        <div className="mb-4 rounded-xl px-4 py-2.5 bg-parish-sunk text-[13px] text-parish-text2">
+          This is the GKK Config page as {name || 'the GKK'}'s leader sees it. Your changes here are the parish office's:
+          the history can be published straight away, and the leaders and structure approved or sent back.
+        </div>
+      )}
       <div className="grid gap-4 md:gap-6 md:grid-cols-[200px_minmax(0,1fr)] md:items-start">
       <SideTabs tabs={views} value={view} onChange={(k) => { setView(k); setError(''); }} />
       <div className="min-w-0">
@@ -148,12 +172,12 @@ export default function MyGkk() {
           {view === 'history' && (
             <Panel className="p-6">
               <form onSubmit={onSubmit('history')} className="flex flex-col gap-4">
-                <HistoryFields form={form} setForm={setForm} setError={setError} photos={historyPhotos} canPublish={false} />
+                <HistoryFields form={form} setForm={setForm} setError={setError} photos={historyPhotos} canPublish={office} />
                 {saveBar('Save history')}
               </form>
             </Panel>
           )}
-          {view === 'structure' && <Panel className="p-6"><GkkStructure gkk={gkk.name} canEdit={can(user, 'editRegistry')} /></Panel>}
+          {view === 'structure' && <Panel className="p-6"><GkkStructure key={gkk.name} gkk={gkk.name} office={office} canEdit={can(user, 'editRegistry')} /></Panel>}
           {view === 'documents' && <Panel className="p-6"><GkkDocuments gkk={gkk} /></Panel>}
           {view === 'names' && (
             <Panel className="p-6">
