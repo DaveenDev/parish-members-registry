@@ -2,7 +2,7 @@ import React from 'react';
 import { useLocation } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BigButton, INNER } from '../../components/site/kit.jsx';
-import { useSiteTitle } from './SiteLayout.jsx';
+import { PageMeta, useSiteTitle } from './SiteLayout.jsx';
 
 /**
  * A public address that isn't a page (a mistyped or old shared link): say so,
@@ -13,6 +13,8 @@ export default function NotFound() {
   const { pathname } = useLocation();
   return (
     <main className={`${INNER} lg:max-w-[680px] text-center`}>
+      {/* The server answers every address with the app, so search engines are told this one isn't a page. */}
+      <PageMeta noindex />
       <div className="w-[76px] h-[76px] rounded-full flex items-center justify-center mx-auto mt-4 mb-4 text-parish-blue" style={{ background: 'var(--p-blue-tint)' }}>
         <Icon name="search" size={36} />
       </div>

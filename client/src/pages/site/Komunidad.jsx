@@ -6,7 +6,8 @@ import ArticlesSection from './Articles.jsx';
 import { Body, Gallery, Lightbox } from './Details.jsx';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
-import { useSiteTitle } from './SiteLayout.jsx';
+import { PageMeta, useSiteTitle } from './SiteLayout.jsx';
+import { excerpt } from '../../lib/seo.js';
 import { listState, useArticles, useCensusProgress, useGkkDirectory, useGkkPage } from './data.js';
 import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
 
@@ -241,11 +242,15 @@ export function GkkDetail() {
   const pad = `${INNER} lg:max-w-[760px]`;
   if (dir.loading) return <main className={pad}><Skeletons n={3} h={90} /></main>;
   if (dir.error) return <main className={pad}><ErrorNote onRetry={dir.reload}>Wala ma-load ang GKK.</ErrorNote></main>;
-  if (!found) return <main className={pad}><EmptyNote>Wala namo makit-i kini nga GKK.</EmptyNote><BigButton variant="secondary" to="/komunidad?view=gkk">Tan-awa ang tanang GKK</BigButton></main>;
+  if (!found) return <main className={pad}><PageMeta noindex /><EmptyNote>Wala namo makit-i kini nga GKK.</EmptyNote><BigButton variant="secondary" to="/komunidad?view=gkk">Tan-awa ang tanang GKK</BigButton></main>;
   const g = found;
 
   return (
     <main className={`${INNER} lg:max-w-[880px]`}>
+      <PageMeta
+        title={name}
+        description={excerpt([`${name}, usa sa mga GKK sa Our Lady of Guadalupe Quasi-Parish, Mua-an, Kidapawan City`, g.puroks, g.chapel_address && `Kapilya: ${g.chapel_address}`, g.meeting_schedule && `Bible-sharing: ${g.meeting_schedule}`].filter(Boolean).join(' · '))}
+      />
       <div>
       <GkkPhotos page={page} patron={patron} />
       {area && <div className="inline-flex items-center gap-[5px] font-bold text-[12px] lg:text-[12.5px] tracking-[.1em] uppercase text-[var(--p-eyebrow)]"><Icon name="pin" size={14} />{area}</div>}

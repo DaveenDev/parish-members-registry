@@ -7,7 +7,8 @@ import { triggerDownload } from '../../lib/csv.js';
 import {
   ARTICLES_PAGE, BIS_DAYS, EVENT_ICONS, EVENT_TYPE_LABELS, articlePath, eventDays, eventIcs, eventSpan, eventTime, fmtLong, fmtShort, paragraphs, parseIso,
 } from '../../lib/site.js';
-import { PARISH_NAME, useSiteTitle } from './SiteLayout.jsx';
+import { PageMeta, PARISH_NAME, useSiteTitle } from './SiteLayout.jsx';
+import { excerpt } from '../../lib/seo.js';
 import { useItem } from './data.js';
 
 const READING = `${INNER} lg:max-w-[760px]`;
@@ -19,6 +20,8 @@ function Detail({ q, notFound, className = READING, children }) {
   if (!q.data) {
     return (
       <main className={READING}>
+        {/* Taken down: search engines drop the address. */}
+        <PageMeta noindex />
         <EmptyNote>{notFound}</EmptyNote>
         <BigButton variant="secondary" to="/">Balik sa Home</BigButton>
       </main>
@@ -78,6 +81,7 @@ export function EventDetail() {
         }
         return (
           <>
+            <PageMeta title={e.title} description={excerpt([when, e.location, e.description].filter(Boolean).join(' · '))} image={e.photo_url} />
             <div className="lg:[grid-area:head]">
               <div className="inline-flex items-center gap-1.5 font-bold text-[12px] lg:text-[12.5px] tracking-[.06em] uppercase rounded-lg px-[9px] py-[5px] lg:px-2.5 lg:py-1.5" style={{ color: tone.color, background: tone.background }}>
                 <Icon name={EVENT_ICONS[e.type] || 'cal'} size={15} />{EVENT_TYPE_LABELS[e.type] || e.type}
@@ -121,6 +125,7 @@ export function AnnouncementDetail() {
     <Detail q={useItem('announcements', id)} notFound="Wala na kini nga pahibalo.">
       {(a) => (
         <>
+          <PageMeta title={a.title} description={excerpt(a.body)} />
           <div className="flex gap-2 items-center mb-2"><AnnouncementChip a={a} /><span className="text-[13.5px] lg:text-[14.5px] text-parish-text2">{fmtShort(a.publish_on)}</span></div>
           <h1 className={DETAIL_TITLE}>{a.title}</h1>
           <Body text={a.body} />
@@ -139,6 +144,7 @@ export function BulletinDetail() {
     <Detail q={useItem('bulletins', id)} notFound="Wala na kini nga bulletin.">
       {(b) => (
         <>
+          <PageMeta title={b.title} description={excerpt(b.body) || `Bulletin sa semana sa ${fmtLong(b.week_of)}`} />
           <div className="text-[13.5px] text-parish-text2 mb-1">Semana sa {fmtLong(b.week_of)}</div>
           <h1 className={DETAIL_TITLE}>{b.title}</h1>
           <Body text={b.body} />
@@ -164,6 +170,7 @@ export function ArticleDetail() {
     <Detail q={useItem('articles', id)} notFound="Wala na kini nga artikulo." className={`${INNER} lg:max-w-[1240px]`}>
       {(a) => (
         <>
+          <PageMeta title={a.title} description={excerpt(a.summary || a.body)} image={a.photo_url} />
           <div className="flex gap-2 items-center mb-2 flex-wrap">
             <ArticleChip a={a} />
             <span className="text-[13.5px] text-parish-text2">{[`Artikulo #${a.id}`, fmtLong(a.held_on), a.place].filter(Boolean).join(' · ')}</span>

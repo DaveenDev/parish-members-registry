@@ -8,7 +8,8 @@ import { api } from '../../api.js';
 import CreditFooter from '../../components/CreditFooter.jsx';
 import { daysUntil, fmtLong, officeHourRows } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
-import { messengerLink } from '../../lib/website.js';
+import { messengerLink, validCoords } from '../../lib/website.js';
+import { applyPageMeta, canonicalUrl, pageDescription, pageNoindex, parishJsonLd, resetPageMeta } from '../../lib/seo.js';
 import { useCensusProgress, useOffice } from './data.js';
 
 export const PARISH_NAME = 'Our Lady of Guadalupe';
@@ -49,6 +50,19 @@ export function useSiteTitle(title) {
   useEffect(() => { set(title || ''); }, [set, title]);
 }
 
+// A page about one item (an article, event, GKK…) describes itself for search
+// engines and link previews with <PageMeta title description image />: its own
+// title in the browser tab (the header keeps its short one), its text, its photo.
+const MetaContext = createContext(() => {});
+export function PageMeta({ title, description, image, noindex = false }) {
+  const set = useContext(MetaContext);
+  useEffect(() => {
+    set({ title, description, image, noindex });
+    return () => set(null);
+  }, [set, title, description, image, noindex]);
+  return null;
+}
+
 /** The parish logo uploaded in Parish Config, or null. Shared by the header and Home. */
 export function useParishLogo() {
   return usePublicData('logo', () => api.publicParishLogo().catch(() => null)).data || null;
@@ -84,13 +98,32 @@ export default function SiteLayout() {
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
   useEffect(() => () => clearTimeout(timer.current), []);
 
-  // The browser tab (and bookmarks, history) names the page: a main page by its
-  // section, an inner page by its header title, Home by the parish alone.
+  // The browser tab (and bookmarks, history, search results) names the page: an
+  // item by its own title, a main page by its section, an inner page by its
+  // header title, Home by the parish alone. With it go the page's description,
+  // canonical address and preview tags (lib/seo.js), and on Home the parish's
+  // structured data for Google's local results.
+  const [pageMeta, setPageMeta] = useState(null);
+  const office = useOffice().data;
   useEffect(() => {
-    const name = isRoot ? DESK_NAV.find((t) => t.to !== '/' && t.to === pathname)?.label : title;
-    document.title = name ? `${name} · ${PARISH_NAME}` : DOC_TITLE;
-  }, [isRoot, pathname, title]);
-  useEffect(() => () => { document.title = DOC_TITLE; }, []);
+    const name = pageMeta?.title || (isRoot ? DESK_NAV.find((t) => t.to !== '/' && t.to === pathname)?.label : title);
+    const origin = window.location.origin;
+    const o = office || {};
+    applyPageMeta({
+      title: name ? `${name} · ${PARISH_NAME}` : DOC_TITLE,
+      description: pageMeta?.description || pageDescription(pathname),
+      url: canonicalUrl(origin, pathname),
+      image: pageMeta?.image ? new URL(pageMeta.image, origin).href : null,
+      noindex: !!pageMeta?.noindex || pageNoindex(pathname),
+      jsonLd: pathname === '/' ? parishJsonLd({
+        name: `${PARISH_NAME} Quasi-Parish`, url: `${origin}/`, logo: logo && new URL(logo, origin).href,
+        address: o.address || PARISH_ADDRESS, coords: validCoords(o.latitude, o.longitude) ? o : PARISH_COORDS,
+        mapUrl: o.map_url || PARISH_MAP_URL, phone: o.mobile || o.contact, email: o.email, facebook: o.facebook_url,
+      }) : null,
+    });
+  }, [isRoot, pathname, title, pageMeta, office, logo]);
+  // Leaving the website (the registration form, the census portal, the admin): back to index.html's tags.
+  useEffect(() => () => resetPageMeta(DOC_TITLE), []);
 
   function back() {
     // Opened from a shared link: there's no page of ours to go back to.
@@ -101,6 +134,7 @@ export default function SiteLayout() {
   return (
     <SiteToastContext.Provider value={say}>
       <TitleContext.Provider value={setTitle}>
+      <MetaContext.Provider value={setPageMeta}>
         <IconSprite />
         <div className="min-h-screen bg-parish-bg font-sans text-parish-ink max-w-[560px] mx-auto relative pb-[64px] lg:max-w-none lg:pb-0 lg:flex lg:flex-col">
           <DesktopHeader pathname={pathname} logo={logo} />
@@ -166,6 +200,7 @@ export default function SiteLayout() {
             })}
           </div>
         </nav>
+      </MetaContext.Provider>
       </TitleContext.Provider>
     </SiteToastContext.Provider>
   );
