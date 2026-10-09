@@ -97,14 +97,14 @@ export function PhotoIcon({ size = 26 }) {
  * button's upload is running) it shows a spinner and "Uploading…" (or
  * `busyLabel`) and can't be pressed; `disabled` alone just greys it out.
  */
-export function FilePick({ label, onFiles, multiple = false, disabled = false, busy = false, busyLabel = 'Uploading…' }) {
+export function FilePick({ label, onFiles, multiple = false, disabled = false, busy = false, busyLabel = 'Uploading…', accept = 'image/*' }) {
   const off = disabled || busy;
   return (
     <label aria-busy={busy || undefined} className={`cursor-pointer px-4 py-2 font-semibold text-[13.5px] text-white bg-parish-fill rounded-xl inline-flex items-center gap-2 ${off ? 'pointer-events-none' : ''} ${disabled && !busy ? 'opacity-60' : ''} ${busy ? 'opacity-90' : ''}`}>
       {busy && <Spinner />}
       {busy ? busyLabel : label}
       <input
-        type="file" accept="image/*" multiple={multiple} className="hidden" disabled={off}
+        type="file" accept={accept} multiple={multiple} className="hidden" disabled={off}
         onChange={(e) => { const files = [...(e.target.files || [])]; e.target.value = ''; if (files.length) onFiles(files); }}
       />
     </label>

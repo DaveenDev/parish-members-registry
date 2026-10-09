@@ -1059,6 +1059,7 @@ export const api = {
       return await saveWebsiteRow('history_articles', row);
     } catch (e) {
       if (/body_photo/.test(e.message || '')) throw new Error('Run the 0069_history_body_photo.sql migration in Supabase to add a photo inside the article');
+      if (/video_url/.test(e.message || '')) throw new Error('Run the 0080_history_video.sql migration in Supabase to add a video to the article');
       throw e;
     }
   },
@@ -1066,7 +1067,7 @@ export const api = {
   async deleteHistory(id) {
     const { data: row } = await supabase.from('history_articles').select('*').eq('id', id).maybeSingle();
     await deleteWebsiteRow('history_articles', id);
-    const urls = [row?.photo_url, row?.body_photo_url, ...(row?.photos || []).map((p) => p.url)].filter(Boolean);
+    const urls = [row?.photo_url, row?.body_photo_url, row?.video_url, ...(row?.photos || []).map((p) => p.url)].filter(Boolean);
     await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
   },
 
@@ -1093,7 +1094,27 @@ export const api = {
     if (!res.ok) throw new Error(`The photo storage refused the upload (${res.status})`);
     return publicUrl;
   },
-  /** Remove an uploaded photo from R2. */
+  /**
+   * Upload a video as it is to R2 under `folder` (the History page's, 0080)
+   * and return its public URL. `onProgress(fraction)` follows the upload,
+   * which can take minutes on a slow connection.
+   */
+  async uploadVideo(file, folder = 'history', onProgress = () => {}) {
+    const { uploadUrl, publicUrl } = await callMediaFunction({ action: 'sign', folder, contentType: file.type, size: file.size });
+    // XMLHttpRequest, not fetch: only it reports how much has been sent.
+    const status = await new Promise((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('PUT', uploadUrl);
+      xhr.setRequestHeader('Content-Type', file.type);
+      xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+      xhr.onload = () => resolve(xhr.status);
+      xhr.onerror = () => reject(new Error('Could not reach the photo storage. Check the R2 bucket’s CORS settings (docs/media-storage.md), and the connection.'));
+      xhr.send(file);
+    });
+    if (status < 200 || status >= 300) throw new Error(`The photo storage refused the video (${status})`);
+    return publicUrl;
+  },
+  /** Remove an uploaded photo (or video) from R2. */
   deleteImage: (url) => callMediaFunction({ action: 'delete', url }),
 
   // GKK directory details on the gkks rows (0013 migration).
