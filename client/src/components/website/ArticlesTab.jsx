@@ -134,6 +134,11 @@ function ArticleEditor({ row, onClose, onSaved }) {
       <Field label="Author"><TextInput value={form.author} onChange={(e) => set('author')(e.target.value)} maxLength={120} placeholder="Who wrote it, e.g. Maria Santos or Parish Youth Ministry" /></Field>
       <Field label="Summary">
         <TextArea rows={2} value={form.summary} onChange={(e) => set('summary')(e.target.value)} maxLength={300} placeholder="One or two sentences shown on the article card." />
+        {/* lib/seo.js uses the summary (else the article's start) as the page's description. */}
+        <div className={`text-[12px] mt-1 ${form.summary.length > 160 ? 'text-parish-warn' : 'text-parish-muted'}`}>
+          Also what Google and shared links show under the title: about 160 characters is shown in full
+          ({form.summary.length}/160). Left empty, the start of the article is used.
+        </div>
       </Field>
       <Field label="Article">
         <TextArea rows={10} value={form.body} onChange={(e) => set('body')(e.target.value)} placeholder="The full story. Blank lines start a new paragraph." />

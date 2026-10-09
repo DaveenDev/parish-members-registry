@@ -4,7 +4,8 @@ import { BAND_PAD, Band, BigButton, EmptyNote, ErrorNote, Eyebrow, Skeleton, Ske
 import { chapterAnchor, historyWhen } from '../../lib/history.js';
 import { paragraphs } from '../../lib/site.js';
 import { Body, Gallery, Lightbox, Photo } from './Details.jsx';
-import { useSiteTitle } from './SiteLayout.jsx';
+import { PageMeta, useSiteTitle } from './SiteLayout.jsx';
+import { excerpt } from '../../lib/seo.js';
 import { useHistory } from './data.js';
 
 // Below the sticky header (58px on phones, 76px on desktop) and the phone's year bar.
@@ -46,6 +47,11 @@ export default function Kasaysayan() {
 
   return (
     <main className="animate-fadeUp">
+      {/* For search and shared links: the history's own opening words and main photo. */}
+      <PageMeta
+        description={excerpt(main?.body || chapters[0]?.body)}
+        image={main?.photo_url || main?.photos?.[0]?.url || chapters.find((c) => c.photo_url)?.photo_url}
+      />
       <Hero main={main} />
       <Story main={main?.body ? main : null} chapters={chapters} />
     </main>
