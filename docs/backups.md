@@ -85,9 +85,15 @@ red step:
   - *no bucket by that name*: check `R2_BACKUP_BUCKET`. A bucket made with
     the EU jurisdiction needs its S3 API address (`https://<account
     id>.eu.r2.cloudflarestorage.com`) in `R2_ACCOUNT_ID`.
-  - *may not use this bucket*: give the token Object Read & Write on it.
-- **Upload to R2**: rare once the bucket check passes; check that the token
-  may write (Object Read & **Write**), not only read.
+  - *may read the bucket but not write to it* (*AccessDenied … PutObject*):
+    the token has Object Read only. R2 Object Storage → **Manage API
+    tokens**: give it **Object Read & Write**, or make a new token with that
+    on the backup bucket and put its two keys in the secrets.
+  - *may not use this bucket*: the token is for another bucket (e.g. the
+    photo one). Use a token for the bucket named in `R2_BACKUP_BUCKET`.
+
+  The check writes and deletes a tiny `database/.write-check` file; if it's
+  ever left behind, it's harmless.
 
 ## Restoring
 

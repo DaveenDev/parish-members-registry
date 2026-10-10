@@ -81,16 +81,25 @@ jobs:
       - name: Check the R2 settings
         run: node .github/scripts/r2-target.mjs
 
-      # A wrong account ID, key or bucket shows up here in seconds, before the
-      # dump, with which secret to fix.
+      # A wrong account ID, key or bucket, or a token that may only read,
+      # shows up here in seconds, before the dump, with which secret to fix.
       - name: Check the R2 bucket
         run: |
-          # list-objects-v2, not s3 ls, which fails on an empty bucket.
+          # Lists the bucket (list-objects-v2, not s3 ls, which fails on an
+          # empty bucket), then writes a tiny file and deletes it again.
+          probe=database/.write-check
+          echo "written by the backup workflow's bucket check" > write-check.txt
           if out=$(aws s3api list-objects-v2 --bucket "$R2_BUCKET" --max-keys 1 \
+                     --endpoint-url "$R2_ENDPOINT" 2>&1 > /dev/null) \
+             && out=$(aws s3api put-object --bucket "$R2_BUCKET" --key "$probe" --body write-check.txt \
                      --endpoint-url "$R2_ENDPOINT" 2>&1 > /dev/null); then
-            echo "Reached the bucket."
+            rm -f write-check.txt
+            aws s3api delete-object --bucket "$R2_BUCKET" --key "$probe" --endpoint-url "$R2_ENDPOINT" > /dev/null \
+              || echo "::warning::Couldn't delete $probe from the bucket; it's harmless, and can be deleted by hand."
+            echo "Reached the bucket, and may write to it."
             exit 0
           fi
+          rm -f write-check.txt
           echo "$out"
           case "$out" in
             *[Hh]andshake*|*HANDSHAKE*|*SSL*)
@@ -99,12 +108,14 @@ jobs:
               why="the token's keys are wrong. R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY are the Access Key ID and Secret Access Key shown when the R2 token was made, not the token value; make a new token if they're lost." ;;
             *NoSuchBucket*)
               why="this account has no bucket by that name. Check R2_BACKUP_BUCKET against Cloudflare → R2 Object Storage. If the bucket was made in the EU jurisdiction, put its S3 API address (ending in .eu.r2.cloudflarestorage.com) in R2_ACCOUNT_ID." ;;
+            *AccessDenied*PutObject*)
+              why="the token may read the bucket but not write to it. In Cloudflare → R2 Object Storage → Manage API tokens, it needs Object Read & Write (not Object Read only) on this bucket; or make a new token with that and put its two keys in R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY." ;;
             *AccessDenied*)
-              why="the token may not use this bucket. Give it Object Read & Write on the backup bucket." ;;
+              why="the token may not use this bucket. In Cloudflare → R2 Object Storage → Manage API tokens, check that it's for the bucket named in R2_BACKUP_BUCKET, with Object Read & Write." ;;
             *)
               why="see the message above." ;;
           esac
-          echo "::error::Can't reach the R2 bucket: $why No backup was made (see docs/backups.md)."
+          echo "::error::R2 bucket check failed: $why No backup was made (see docs/backups.md)."
           exit 1
 
       - uses: supabase/setup-cli@v1
