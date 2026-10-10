@@ -142,7 +142,7 @@ function GkkDirectory({ scrollHere = false }) {
   const [q, setQ] = useState('');
   const items = filterGkks(dir.rows, q).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   const count = items.length;
-  const examples = [...new Set(dir.rows.map((g) => gkkParts(g.name).area).filter(Boolean))].slice(0, 3);
+  const examples = [...new Set(dir.rows.map((g) => g.barangay || gkkParts(g.name).area).filter(Boolean))].slice(0, 3);
 
   return (
     <>
@@ -236,7 +236,9 @@ export function GkkDetail() {
   const census = useCensusProgress().data;
   const page = useGkkPage(name).data;
   const found = dir.rows.find((g) => g.name === name);
-  const { patron, area } = gkkParts(name);
+  // The barangay saved for the GKK (0089), else the end of its name.
+  const { patron, area: nameArea } = gkkParts(name);
+  const area = found?.barangay || nameArea;
   useSiteTitle(patron);
 
   const pad = `${INNER} lg:max-w-[760px]`;

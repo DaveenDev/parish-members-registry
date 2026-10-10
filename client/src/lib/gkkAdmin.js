@@ -1,8 +1,12 @@
 // Parish Config → Parish GKK: what each GKK still needs, for the filter
 // chips above the list, and its census progress line.
 
+import { gkkParts } from './site.js';
+
 /** The filter chips, in order: [key, label, test(gkk)]. A gkk row carries `count` (households). */
 export const GKK_ATTENTION = [
+  // Required (0089): registration lists the barangays, and reference numbers use them.
+  ['barangay', 'No barangay', (g) => !String(g.barangay || '').trim() && !gkkParts(g.name).area],
   ['address', 'No chapel address', (g) => !String(g.chapel_address || '').trim()],
   ['history', 'History to publish', (g) => !g.history_published && (!!String(g.history || '').trim() || (g.history_photos || []).length > 0)],
   ['coordinator', 'No coordinator', (g) => !String(g.coordinator_name || '').trim()],

@@ -13,19 +13,23 @@ describe('gkkFamilyProgress (0079)', () => {
 });
 
 const rows = [
-  { name: 'A', chapel_address: 'Purok 1', coordinator_name: 'X', meeting_schedule: 'Sun', count: 4, history_published: true, history: 'Text' },
-  { name: 'B', chapel_address: '', coordinator_name: '', meeting_schedule: '', count: 0, history_published: false, history: 'Draft' },
-  { name: 'C', chapel_address: 'Purok 3', coordinator_name: ' ', meeting_schedule: 'Sat', count: 2, history_published: false, history: '', history_photos: ['p.jpg'] },
-  { name: 'D', chapel_address: 'Purok 4', coordinator_name: 'Y', meeting_schedule: 'Fri', count: 1, history_published: false, history: '' },
+  { name: 'A', barangay: 'Meohao', chapel_address: 'Purok 1', coordinator_name: 'X', meeting_schedule: 'Sun', count: 4, history_published: true, history: 'Text' },
+  { name: 'B', barangay: ' ', chapel_address: '', coordinator_name: '', meeting_schedule: '', count: 0, history_published: false, history: 'Draft' },
+  { name: 'C -Balabag', chapel_address: 'Purok 3', coordinator_name: ' ', meeting_schedule: 'Sat', count: 2, history_published: false, history: '', history_photos: ['p.jpg'] },
+  { name: 'D', barangay: 'Mua-an', chapel_address: 'Purok 4', coordinator_name: 'Y', meeting_schedule: 'Fri', count: 1, history_published: false, history: '' },
 ];
 
 describe('Parish GKK attention chips', () => {
   test('counts each gap', () => {
-    assert.deepEqual(attentionCounts(rows), { address: 1, history: 2, coordinator: 2, meeting: 1, empty: 1 });
+    assert.deepEqual(attentionCounts(rows), { barangay: 1, address: 1, history: 2, coordinator: 2, meeting: 1, empty: 1 });
+  });
+
+  test('no barangay: none saved and none at the end of the name (0089)', () => {
+    assert.deepEqual(filterByAttention(rows, 'barangay').map((r) => r.name), ['B']);
   });
 
   test('a history counts as a draft only when there is text or a photo and it is not published', () => {
-    assert.deepEqual(filterByAttention(rows, 'history').map((r) => r.name), ['B', 'C']);
+    assert.deepEqual(filterByAttention(rows, 'history').map((r) => r.name), ['B', 'C -Balabag']);
   });
 
   test('"all" and unknown keys show every GKK', () => {

@@ -165,6 +165,17 @@ export const api = {
     return data || [];
   },
 
+  /**
+   * Each GKK's barangay as set in Parish GKK (0089), for the registration
+   * forms: Map of GKK name → barangay. Empty before 0089 (the forms then read
+   * the barangay from the GKK's name, gkkBarangayOf()).
+   */
+  async gkkBarangayMap() {
+    const { data, error } = await supabase.rpc('public_gkk_barangays');
+    if (error) return new Map();
+    return new Map((data || []).filter((g) => g.barangay).map((g) => [g.name, g.barangay]));
+  },
+
   async listPublicOrganizations() {
     const { data, error } = await supabase.rpc('list_public_organizations');
     if (error) throw mapError(error);
@@ -1147,6 +1158,7 @@ export const api = {
     if (gkk44Missing(error)) throw new Error(GKK_44_HINT);
     if (gkk46Missing(error)) throw new Error(GKK_46_HINT);
     if (gkk79Missing(error)) throw new Error(GKK_79_HINT);
+    if (gkk89Missing(error)) throw new Error(GKK_89_HINT);
     if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql and 0040_gkk_previous_households.sql migrations in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
@@ -1157,6 +1169,7 @@ export const api = {
     if (gkk44Missing(error)) throw new Error(GKK_44_HINT);
     if (gkk46Missing(error)) throw new Error(GKK_46_HINT);
     if (gkk79Missing(error)) throw new Error(GKK_79_HINT);
+    if (gkk89Missing(error)) throw new Error(GKK_89_HINT);
     if (error?.code === '42703' || error?.code === 'PGRST204') throw new Error('Run the 0018_gkk_chapel.sql and 0040_gkk_previous_households.sql migrations in Supabase to save GKK details');
     if (error) throw mapError(error);
     return data;
@@ -2342,7 +2355,7 @@ const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'dire
 
 const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles', 'history_articles'];
 
-const GKK_DETAIL_FIELDS = ['puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'previous_families', 'history', 'history_photos', 'history_published', 'photo_url', 'photos'];
+const GKK_DETAIL_FIELDS = ['barangay', 'puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'previous_families', 'history', 'history_photos', 'history_published', 'photo_url', 'photos'];
 
 const GKK_DOCS_BUCKET = 'gkk-documents';
 
@@ -2357,6 +2370,8 @@ const GKK_46_HINT = "Run the 0046_gkk_photos.sql migration in Supabase to save t
 /** Before 0079 there's no Families last year column. */
 const gkk79Missing = (error) => ['42703', 'PGRST204'].includes(error?.code) && /previous_families/.test(error?.message || '');
 const GKK_79_HINT = 'Run the 0079_census_families.sql migration in Supabase to save Families last year';
+const gkk89Missing = (error) => ['42703', 'PGRST204'].includes(error?.code) && /barangay/.test(error?.message || '');
+const GKK_89_HINT = "Run the 0089_gkk_barangay.sql migration in Supabase to save the GKK's barangay";
 
 async function listWebsite(table, order, migration = '0011_website_content.sql') {
   const { data, error } = await order(supabase.from(table).select('*'));

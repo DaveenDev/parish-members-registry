@@ -19,6 +19,8 @@ const COLS = 'lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_56px_84px_150px_110p
 // A parish has a few dozen GKKs at most: they all show on one page.
 const ALL_GKKS = 1000;
 const missingAddress = (g) => !String(g.chapel_address || '').trim();
+// A GKK's barangay: saved in its Details (0089), else the end of its name.
+const barangayOfRow = (g) => String(g.barangay || '').trim() || gkkParts(g.name).area;
 /** The Households page filtered to one GKK, on the All tab so Pending and Verified both show. */
 const householdsPath = (gkk) => `/admin/households?status=All&gkk=${encodeURIComponent(gkk)}`;
 const websitePath = (name) => `/komunidad/gkk/${encodeURIComponent(name)}`;
@@ -93,7 +95,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
   const [structures, setStructures] = useState(new Map());
   // Each barangay's reference code by lower-case name; null before 0047.
   const [codes, setCodes] = useState(null);
-  const codeOf = (name) => codes?.get(gkkParts(name).area.toLowerCase())?.code;
+  const codeOf = (g) => codes?.get(barangayOfRow(g).toLowerCase())?.code;
 
   useEffect(() => {
     api.lastYearCounts().then(setListCounts).catch(() => {});
@@ -186,8 +188,8 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
           {[['all', 'All GKKs', rows.length], ...GKK_ATTENTION.map(([key, label]) => [key, label, gaps[key]])].map(([key, label, n]) => {
             if (key !== 'all' && !n && show !== key) return null;
             const on = show === key;
-            // A missing chapel address is required, so its chip stays orange until it's fixed.
-            const urgent = key === 'address' && n > 0;
+            // A missing barangay or chapel address is required, so its chip stays orange until it's fixed.
+            const urgent = (key === 'address' || key === 'barangay') && n > 0;
             return (
               <button
                 key={key} type="button" aria-pressed={on} onClick={() => setShow(on && key !== 'all' ? 'all' : key)}
@@ -216,7 +218,8 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
         {list.rows.map((g) => {
           const p = gkkProgress(progress?.rows, g.name);
           const fp = gkkFamilyProgress(progress?.families, g.name);
-          const info = [g.puroks, g.year_established && `Est. ${g.year_established}`].filter(Boolean).join(' · ');
+          const brgy = barangayOfRow(g);
+          const info = [brgy && `Brgy. ${brgy}`, g.puroks, g.year_established && `Est. ${g.year_established}`].filter(Boolean).join(' · ');
           // The GKK's households: the Households page filtered to it, every status.
           const householdsLink = (children, className = '') => (!g.count ? <span className="text-parish-text2">{children}</span> :
             <Link to={householdsPath(g.name)} title={`Open the households of ${g.name}`} className={`font-semibold text-parish-blue hover:underline ${className}`}>{children}</Link>
@@ -234,8 +237,8 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
                 <div className="font-semibold text-[14.5px] text-parish-navy">
                   {/* Its GKK Config page, as its leader sees it; Edit (and the rest of the row) opens the edit panel. */}
                   <Link to={`/admin/settings?tab=gkk&open=${g.id}`} title={`Open ${g.name}'s GKK Config page, as its GKK leader sees it`} className="font-semibold text-[14.5px] text-parish-blue hover:underline">{g.name}</Link>
-                  {codeOf(g.name) && (
-                    <span title={`Its families' reference numbers start with ${codeOf(g.name)}`} className="ml-2 align-[1px] inline-block px-1.5 py-px rounded-md bg-parish-sunk font-bold text-[11px] tracking-[.08em] text-parish-text2">{codeOf(g.name)}</span>
+                  {codeOf(g) && (
+                    <span title={`Its families' reference numbers start with ${codeOf(g)}`} className="ml-2 align-[1px] inline-block px-1.5 py-px rounded-md bg-parish-sunk font-bold text-[11px] tracking-[.08em] text-parish-text2">{codeOf(g)}</span>
                   )}
                 </div>
                 <div className="text-[12.5px] text-parish-text2 lg:hidden">
@@ -291,7 +294,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
 }
 
 /**
- * The reference number code of the barangay in the GKK's name (0047): the
+ * The reference number code of the GKK's barangay (0047, 0089): the
  * start of its families' numbers, shared by every GKK in that barangay.
  * `current` is the barangay's saved code row, if it has one yet;
  * `sameBarangay` is true when this GKK was already in it.
@@ -299,7 +302,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
 function RefCodeField({ barangay, current, code, sameBarangay, error, onChange }) {
   const hint = 'text-[13px] text-parish-muted';
   if (!barangay) {
-    return <div className={hint}>Families' reference numbers start with a code for the GKK's barangay. Put the barangay after “ -” in the name (e.g. “Santo Rosario -Meohao”) to give it one.</div>;
+    return <div className={hint}>Families' reference numbers start with a code for the GKK's barangay. Enter the barangay above to give it one.</div>;
   }
   const shown = code || barangayCodeSuggestion(barangay);
   const year = new Date().getFullYear();
@@ -360,11 +363,12 @@ function GkkPanel({ initial, codes, listNames = 0, onClose, onSaved, onOpenList 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [addressError, setAddressError] = useState('');
-  // The reference code belongs to the barangay in the name, so a typed code
-  // only applies while the name keeps that barangay.
+  const [barangayError, setBarangayError] = useState('');
+  // The reference code belongs to the GKK's barangay (0089), so a typed code
+  // only applies while the GKK keeps that barangay.
   const [codeDraft, setCodeDraft] = useState({ barangay: '', value: '' });
   const [codeError, setCodeError] = useState('');
-  const barangay = gkkParts(form.name.trim()).area;
+  const barangay = String(form.barangay || '').trim();
   const current = barangay ? codes?.get(barangay.toLowerCase()) : null;
   const code = codeDraft.barangay === barangay.toLowerCase() ? codeDraft.value : (current?.code || '');
   const pagePhotos = useGkkPhotos(setError);
@@ -382,6 +386,7 @@ function GkkPanel({ initial, codes, listNames = 0, onClose, onSaved, onOpenList 
     const name = form.name.trim();
     const fail = (message) => { setTab('details'); setError(message); };
     if (!name) { fail('Enter the GKK name.'); return; }
+    if (!barangay) { setBarangayError('Enter the barangay'); fail('Enter the barangay the GKK is in.'); return; }
     const problem = chapelProblem(form);
     if (problem) { if (!form.chapel_address.trim()) setAddressError(problem); fail(problem); return; }
     const previous = String(form.previous_households ?? '').trim();
@@ -398,6 +403,8 @@ function GkkPanel({ initial, codes, listNames = 0, onClose, onSaved, onOpenList 
     // While the GKK has names on the list, a count that doesn't match them saves empty (as 0058 does).
     const count = previous ? Number(previous) : null;
     const details = { ...chapelPatch(form), previous_households: listNames > 0 && count !== listNames ? null : count };
+    // The barangay (0089) only when new or changed, so other details still save before 0089.
+    if (isNew || barangay !== String(initial.barangay || '').trim()) details.barangay = barangay;
     // Only when they changed, so the details still save before the 0044 and 0046 migrations.
     if (!samePhotos(form, initial)) Object.assign(details, photosPatch(form));
     if (!sameHistory(form, initial)) Object.assign(details, historyPatch(form));
@@ -453,7 +460,16 @@ function GkkPanel({ initial, codes, listNames = 0, onClose, onSaved, onOpenList 
           <Field label="GKK name" required>
             <TextInput autoFocus value={form.name} placeholder="e.g. GKK San Pedro Calungsod -Poblacion" onChange={(e) => { setForm((f) => ({ ...f, name: e.target.value })); setError(''); }} />
           </Field>
-          {codes && <RefCodeField barangay={barangay} current={current} code={code} sameBarangay={!isNew && gkkParts(initial.original).area.toLowerCase() === barangay.toLowerCase()} error={codeError}
+          <Field label="Barangay" required error={barangayError}>
+            <TextInput
+              value={form.barangay} placeholder="e.g. Meohao"
+              onChange={(e) => { setForm((f) => ({ ...f, barangay: e.target.value })); setBarangayError(''); setError(''); }}
+            />
+          </Field>
+          <div className="-mt-2 text-[13px] text-parish-muted">
+            The barangay the GKK is in. Registration lists these barangays and puts each one's GKKs first; families' reference numbers start with its code.
+          </div>
+          {codes && <RefCodeField barangay={barangay} current={current} code={code} sameBarangay={!isNew && String(initial.barangay || '').trim().toLowerCase() === barangay.toLowerCase()} error={codeError}
             onChange={(value) => { setCodeDraft({ barangay: barangay.toLowerCase(), value }); setCodeError(''); setError(''); }} />}
           <ChapelFields form={form} setForm={setForm} setError={setError} addressError={addressError} setAddressError={setAddressError} />
           <Field label="Households last year">

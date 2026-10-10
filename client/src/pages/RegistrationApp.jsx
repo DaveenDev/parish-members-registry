@@ -20,7 +20,8 @@ import ParticipationSurvey, { ParticipationReview } from '../components/Particip
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
 import { formatAccessCode, registrationAnswers, censusCardPatch } from '../lib/census.js';
 import MemberCensusCards, { MemberCensusReview } from '../components/MemberCensusCards.jsx';
-import { gkkBarangays } from '../lib/site.js';
+import { barangayPatch, gkkBarangays, isListedBarangay } from '../lib/site.js';
+import { BarangayInput, GkkSelect, useGkkBarangayMap } from '../components/BarangayGkkFields.jsx';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 import ChurchEmblem from '../components/ChurchEmblem.jsx';
 
@@ -898,6 +899,7 @@ function JoinHouseCard({ join, joinStatus, error, onJoinField, onCheckJoin }) {
 function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, nameStatus, nameSuggestion, mode, onMode, join, joinStatus, onJoinField, onCheckJoin }) {
   const f = (field) => ({ value: household[field], onChange: (e) => onHouseholdField(field, e.target.value) });
   const head = memberViews[0];
+  const barangayOf = useGkkBarangayMap();
   if (mode === 'join') {
     return (
       <div className="animate-fadeUp">
@@ -915,11 +917,15 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
       </div>
     );
   }
-  // Keep a GKK saved in an older draft selectable even if it's no longer in the list.
-  const gkks = household.gkk && !gkkOptions.includes(household.gkk) ? [household.gkk, ...gkkOptions] : gkkOptions;
-  // Barangays come from the GKK names; likewise keep an older draft's barangay selectable.
-  const listed = gkkBarangays(gkkOptions);
-  const barangays = household.barangay && !listed.includes(household.barangay) ? [household.barangay, ...listed] : listed;
+  // The parish's barangays, from the GKKs' own Barangay field (0089); a family
+  // living outside them types theirs. The GKK list then puts that barangay's
+  // GKKs first, and picks its only one for them.
+  const barangays = gkkBarangays(gkkOptions, barangayOf);
+  const outside = !!String(household.barangay || '').trim() && !isListedBarangay(household.barangay, barangays);
+  function chooseBarangay(value) {
+    const patch = barangayPatch(household, value, gkkOptions, barangayOf);
+    Object.entries(patch).forEach(([k, v]) => onHouseholdField(k, v));
+  }
   return (
     <div className="animate-fadeUp">
       <h2 className="font-serif font-semibold text-[clamp(28px,6vw,38px)] m-0 mb-1 text-parish-navy">Pamilya ug Ulo sa Pamilya</h2>
@@ -953,14 +959,12 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
         <div className="grid gap-4 mb-[18px]" style={GRID}>
           <Field label="Barangay" required error={err.barangay}>
             {/* Free text only if the GKK list couldn't load, so nobody gets stuck. */}
-            {listed.length ? (
-              <Select {...f('barangay')}>
-                <option value="">Pilia ang inyong barangay…</option>
-                {barangays.map((b) => <option key={b} value={b}>{b}</option>)}
-              </Select>
-            ) : (
-              <TextInput placeholder="pananglitan: Mua-an" {...f('barangay')} />
-            )}
+            <BarangayInput
+              value={household.barangay}
+              onChange={chooseBarangay}
+              barangays={barangays}
+              labels={{ choose: 'Pilia ang inyong barangay…', outside: 'Lain nga barangay (gawas sa parokya)', outsideName: 'Isulat ang inyong barangay', typePlaceholder: 'pananglitan: Mua-an' }}
+            />
           </Field>
           <Field label="Siyudad / Lungsod" required error={err.city}><TextInput {...f('city')} /></Field>
         </div>
@@ -974,10 +978,15 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
         </div>
         <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
           <Field label="Nasakop sa unsa nga GKK" required={gkkOptions.length > 0} error={err.gkk}>
-            <Select {...f('gkk')}>
-              <option value="">Pilia ang inyong GKK…</option>
-              {gkks.map((g) => <option key={g} value={g}>{g}</option>)}
-            </Select>
+            <GkkSelect
+              value={household.gkk}
+              onChange={(v) => onHouseholdField('gkk', v)}
+              names={gkkOptions}
+              barangay={household.barangay}
+              barangayOf={barangayOf}
+              labels={{ choose: 'Pilia ang inyong GKK…', here: (b) => `Sa ${b}`, others: 'Ubang GKK' }}
+            />
+            {outside && <div className="text-[13px] text-parish-text2 mt-1.5">Pilia ang GKK nga inyong gi-apilan, bisan gawas sa inyong barangay ang inyong puy-anan.</div>}
           </Field>
           <Field label="Family Grouping (FG)" required error={err.familyGrouping}><FamilyGroupingSelect placeholder="Pili…" value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
         </div>

@@ -486,10 +486,53 @@ export function barangayCodeSuggestion(barangay) {
   return first[0] + consonant + words[words.length - 1][0];
 }
 
-/** The barangays the GKKs are in (the part of each name after " -"), once each, A–Z. */
-export function gkkBarangays(names) {
-  const areas = new Set((names || []).map((n) => gkkParts(n).area).filter(Boolean));
-  return [...areas].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true }));
+const byName = (a, b) => a.localeCompare(b, undefined, { sensitivity: 'base', numeric: true });
+const sameText = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+
+/**
+ * A GKK's barangay: the one saved for it in Parish GKK (0089; `barangayOf`
+ * is a Map of GKK name → barangay), else the part of its name after " -".
+ */
+export function gkkBarangayOf(name, barangayOf = null) {
+  return String(barangayOf?.get(name) || '').trim() || gkkParts(name).area;
+}
+
+/** The barangays the GKKs are in, once each (ignoring case), A–Z. */
+export function gkkBarangays(names, barangayOf = null) {
+  const seen = new Map();
+  for (const n of names || []) {
+    const b = gkkBarangayOf(n, barangayOf);
+    if (b && !seen.has(b.toLowerCase())) seen.set(b.toLowerCase(), b);
+  }
+  return [...seen.values()].sort(byName);
+}
+
+/** Whether `barangay` is one of `barangays` (ignoring case and spaces at the ends). */
+export const isListedBarangay = (barangay, barangays) => (barangays || []).some((b) => sameText(b, barangay));
+
+/**
+ * The GKKs for a household in `barangay`: { here, others }, each A–Z. `here`
+ * are the GKKs in that barangay; `others` the rest, still choosable, since a
+ * family can belong to a GKK outside the barangay it lives in. With no
+ * barangay, or one with no GKK, everything is in `others`.
+ */
+export function gkksByBarangay(names, barangay, barangayOf = null) {
+  const here = [];
+  const others = [];
+  for (const n of [...(names || [])].sort(byName)) {
+    (barangay && sameText(gkkBarangayOf(n, barangayOf), barangay) ? here : others).push(n);
+  }
+  return { here, others };
+}
+
+/**
+ * What choosing a barangay does to a household being registered: the
+ * barangay, and when it has exactly one GKK and no GKK is chosen yet, that
+ * GKK. A GKK already chosen stays, even in another barangay.
+ */
+export function barangayPatch(household, barangay, names, barangayOf = null) {
+  const { here } = gkksByBarangay(names, barangay, barangayOf);
+  return here.length === 1 && !String(household?.gkk || '').trim() ? { barangay, gkk: here[0] } : { barangay };
 }
 
 /**
@@ -499,8 +542,9 @@ export function gkkBarangays(names) {
 export function filterGkks(gkks, query = '') {
   const q = query.trim().toLowerCase();
   return gkks
-    .filter((g) => !q || `${g.name} ${g.puroks || ''} ${g.chapel_address || ''}`.toLowerCase().includes(q))
-    .map((g) => ({ ...g, ...gkkParts(g.name) }));
+    .filter((g) => !q || `${g.name} ${g.barangay || ''} ${g.puroks || ''} ${g.chapel_address || ''}`.toLowerCase().includes(q))
+    // Its saved barangay (0089) over the one in its name.
+    .map((g) => { const parts = gkkParts(g.name); return { ...g, ...parts, area: g.barangay || parts.area }; });
 }
 
 /**

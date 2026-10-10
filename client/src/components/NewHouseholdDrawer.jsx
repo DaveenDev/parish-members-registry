@@ -1,7 +1,8 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Field, TextInput, Select, Checkbox, PrimaryButton, GhostButton, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect, FlagEmptyRequired } from './ui.jsx';
-import { gkkBarangays } from '../lib/site.js';
+import { barangayPatch, gkkBarangays, isListedBarangay } from '../lib/site.js';
+import { BarangayInput, GkkSelect, useGkkBarangayMap } from './BarangayGkkFields.jsx';
 import ParticipationSurvey, { ParticipationReview } from './ParticipationSurvey.jsx';
 import MemberCensusCards, { MemberCensusReview } from './MemberCensusCards.jsx';
 import { registrationAnswers, censusCardPatch } from '../lib/census.js';
@@ -548,10 +549,15 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
 function StepHousehold({ household, err, onHouseholdField, gkkOptions, nameTaken, memberViews, onMemberField, onParticipation, onToggleHelpWay }) {
   const f = (field) => ({ value: household[field], onChange: (e) => onHouseholdField(field, e.target.value) });
   const head = memberViews[0];
-  // Barangays come from the GKK names, as in the public wizard; a value
-  // already typed stays selectable.
-  const listed = gkkBarangays(gkkOptions);
-  const barangays = household.barangay && !listed.includes(household.barangay) ? [household.barangay, ...listed] : listed;
+  // As in the public wizard: the parish's barangays from the GKKs' Barangay
+  // field (0089), or one outside typed in; the barangay's GKKs listed first.
+  const barangayOf = useGkkBarangayMap();
+  const barangays = gkkBarangays(gkkOptions, barangayOf);
+  const outside = !!String(household.barangay || '').trim() && !isListedBarangay(household.barangay, barangays);
+  function chooseBarangay(value) {
+    const patch = barangayPatch(household, value, gkkOptions, barangayOf);
+    Object.entries(patch).forEach(([k, v]) => onHouseholdField(k, v));
+  }
   return (
     <div className="animate-fadeUp">
       <Panel title="Household Head" hint="Start with the head of the family; the household name fills in from their last name.">
@@ -568,14 +574,12 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, nameTaken
           <div className="grid gap-4" style={GRID}>
             <Field label="Barangay" required error={err.barangay}>
               {/* Free text only if the GKK list couldn't load, so nobody gets stuck. */}
-              {listed.length ? (
-                <Select {...f('barangay')}>
-                  <option value="">Select the barangay…</option>
-                  {barangays.map((b) => <option key={b} value={b}>{b}</option>)}
-                </Select>
-              ) : (
-                <TextInput placeholder="e.g. Mua-an" {...f('barangay')} />
-              )}
+              <BarangayInput
+                value={household.barangay}
+                onChange={chooseBarangay}
+                barangays={barangays}
+                labels={{ choose: 'Select the barangay…', outside: 'Another barangay (outside the parish)', outsideName: 'Type the barangay', typePlaceholder: 'e.g. Mua-an' }}
+              />
             </Field>
             <Field label="City / Municipality" required error={err.city}><TextInput {...f('city')} /></Field>
           </div>
@@ -589,9 +593,15 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, nameTaken
           </div>
           <div className="grid gap-4" style={GRID}>
             <Field label="GKK" required={gkkOptions.length > 0} error={err.gkk}>
-              <Select {...f('gkk')}>
-                <option value="">Select…</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
-              </Select>
+              <GkkSelect
+                value={household.gkk}
+                onChange={(v) => onHouseholdField('gkk', v)}
+                names={gkkOptions}
+                barangay={household.barangay}
+                barangayOf={barangayOf}
+                labels={{ choose: 'Select…', here: (b) => `In ${b}`, others: 'Other GKKs' }}
+              />
+              {outside && <div className="text-[12.5px] text-parish-muted mt-1">The GKK the family belongs to, even if it's outside the barangay they live in.</div>}
             </Field>
             <Field label="Family Grouping" required error={err.familyGrouping}><FamilyGroupingSelect value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
           </div>

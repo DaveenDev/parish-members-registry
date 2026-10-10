@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { Field, TextInput } from './ui.jsx';
 import { RowButton, SectionLabel, TextArea } from './panels.jsx';
 import { FilePick, PhotoIcon, PublishSwitch, UploadOverlay, UploadingNote, useUploadCount } from './website/shared.jsx';
+import { gkkParts } from '../lib/site.js';
 
 // The GKK form parts that Parish Config → Parish GKK (full-access staff) and
 // My GKK (a GKK leader, 0045) share: the chapel details, the page's photos
@@ -13,9 +14,10 @@ const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 /** Keep in sync with the gkks_photos_is_short_array check in 0046. */
 export const MAX_GKK_PHOTOS = 5;
 
-/** A gkks row as form values. */
+/** A gkks row as form values. The barangay (0089) starts from the name's for a GKK saved before it. */
 export function gkkForm(g) {
   return {
+    barangay: g?.barangay || gkkParts(g?.name || '').area,
     chapel_address: g?.chapel_address || '', puroks: g?.puroks || '', year_established: g?.year_established ?? '',
     meeting_schedule: g?.meeting_schedule || '', meeting_place: g?.meeting_place || '',
     photo_url: g?.photo_url || '', photos: g?.photos || [],
