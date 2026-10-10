@@ -7,7 +7,8 @@ church photos/
 client/.env.local
 *.log
 .DS_Store
-Needed.txt
 # Database export: contains member data and secrets
 supabase/export/01_schema.sql
 supabase/export/02_data.sql
+OLGQP Needed.txt
+Needed.txt
