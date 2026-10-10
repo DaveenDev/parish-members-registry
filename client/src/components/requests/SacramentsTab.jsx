@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { api } from '../../api.js';
 import { fmtDate } from '../../constants.js';
-import { useUrlState, urlListPage } from '../../hooks.js';
+import { useLiveRefresh, useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { Field, TextInput, Select, Checkbox, Badge } from '../ui.jsx';
-import { SearchInput, FilterSelect, Pagination, EmptyState, LoadingState, ErrorState } from '../admin.jsx';
+import { SearchInput, FilterSelect, Pagination, EmptyState, LoadingState, ErrorState, NewItemsNote } from '../admin.jsx';
 import { SidePanel, TextArea, RowButton, Panel, TabIntro, AddButton } from '../panels.jsx';
 import { useRows, StatusBadge, ContactLinks, FilterChips, receivedText, SourceNote } from './common.jsx';
 import { MemberSearch } from './MemberMatch.jsx';
@@ -31,6 +31,8 @@ export default function SacramentsTab({ onCountsChanged }) {
   const { view, sac } = url;
   const [busy, setBusy] = useState(false);
   const [editing, setEditing] = useState(null);
+  // New OCIA and anointing requests, unless one is being edited (useLiveRefresh).
+  const live = useLiveRefresh(list.reload, { kinds: ['ocia', 'anointing'], busy: !!(editing || busy) });
 
   // Open: urgent first, then oldest first (who has waited longest). Others: newest first.
   const filtered = list.rows
@@ -71,6 +73,7 @@ export default function SacramentsTab({ onCountsChanged }) {
           Add request
         </AddButton>
       </TabIntro>
+      <NewItemsNote count={live.waiting} noun="request" onShow={live.showNow} />
 
       <div className="flex gap-2.5 flex-wrap items-center mb-4">
         <FilterChips label="Which requests" options={[['Open', 'Open', openCount], ['Done', 'Done'], ['Cancelled', 'Cancelled'], ['All', 'All']]} value={view} onChange={(v) => setUrl({ view: v })} />

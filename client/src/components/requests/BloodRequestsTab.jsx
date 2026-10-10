@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { fmtDate, fmtDateTime, BLOOD_TYPES } from '../../constants.js';
-import { useUrlState } from '../../hooks.js';
+import { useLiveRefresh, useUrlState } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { Field, TextInput, Select, Checkbox, Badge } from '../ui.jsx';
-import { EmptyState, LoadingState, ErrorState, rowActivationProps } from '../admin.jsx';
+import { EmptyState, LoadingState, ErrorState, rowActivationProps, NewItemsNote } from '../admin.jsx';
 import { SidePanel, SectionLabel, TextArea, RowButton, Panel, TabIntro, AddButton, Detail } from '../panels.jsx';
 import { useRows, StatusBadge, ContactLinks, FilterChips, receivedText, SourceNote } from './common.jsx';
 import {
@@ -32,6 +32,8 @@ export default function BloodRequestsTab({ onCountsChanged }) {
   const setView = (v) => setUrl({ view: v });
   const [openId, setOpenId] = useState(null);
   const [creating, setCreating] = useState(false);
+  // New blood calls from the website, unless a request is open (useLiveRefresh).
+  const live = useLiveRefresh(list.reload, { kinds: ['blood'], busy: !!(openId || creating) });
 
   const openCount = list.rows.filter((r) => BLOOD_OPEN.includes(r.status)).length;
   const shown = list.rows
@@ -51,6 +53,7 @@ export default function BloodRequestsTab({ onCountsChanged }) {
       <TabIntro text="Families asking for blood. Open a request to see the donors whose blood type matches, then call or text them yourself. Donor names and numbers are never shown to the public.">
         <AddButton onClick={() => setCreating(true)}>Walk-in / phone request</AddButton>
       </TabIntro>
+      <NewItemsNote count={live.waiting} noun="request" onShow={live.showNow} />
 
       <div className="mb-4">
         <FilterChips label="Which requests" options={[['open', 'Open', openCount], ['all', 'All']]} value={view} onChange={setView} />

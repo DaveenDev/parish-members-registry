@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, ErrorState, LoadingState, Panel } from '../../components/admin.jsx';
-import { useAsyncData } from '../../hooks.js';
+import { useAsyncData, useLiveRefresh } from '../../hooks.js';
 import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
 import { todayItems } from '../../lib/today.js';
@@ -221,6 +221,8 @@ function TodayPanel({ counts }) {
 export default function Dashboard() {
   const { data: stats, loading, error, reload } = useAsyncData(() => api.dashboardStats(), []);
   const layout = useOutletContext();
+  // The totals follow whatever comes in from the website (useLiveRefresh).
+  useLiveRefresh(reload);
   // A GKK leader's totals are their GKK's (row rules, 0014).
   const gkk = leaderGkk(useAuth().user);
 

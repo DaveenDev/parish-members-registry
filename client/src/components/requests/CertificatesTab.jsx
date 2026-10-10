@@ -2,11 +2,11 @@ import React, { useRef, useState } from 'react';
 import { useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
 import { fmtDate, fmtDateTime } from '../../constants.js';
-import { useUrlState, urlListPage } from '../../hooks.js';
+import { useLiveRefresh, useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { Field, TextInput, Select, Badge } from '../ui.jsx';
-import { SearchInput, FilterSelect, Pagination, EmptyState, LoadingState, ErrorState, rowActivationProps } from '../admin.jsx';
+import { SearchInput, FilterSelect, Pagination, EmptyState, LoadingState, ErrorState, rowActivationProps, NewItemsNote } from '../admin.jsx';
 import { SidePanel, SectionLabel, TextArea, RowButton, Panel, TabIntro, AddButton, Detail } from '../panels.jsx';
 import MemberMatch from './MemberMatch.jsx';
 import { useRows, StatusBadge, ContactLinks, FilterChips, receivedText, SourceNote } from './common.jsx';
@@ -27,6 +27,8 @@ export default function CertificatesTab({ onCountsChanged }) {
   const setType = (v) => setUrl({ type: v });
   const [openId, setOpenId] = useState(null);
   const [creating, setCreating] = useState(false);
+  // New certificate requests from the website, unless a request is open (useLiveRefresh).
+  const live = useLiveRefresh(list.reload, { kinds: ['certificate'], busy: !!(openId || creating) });
 
   const count = (pred) => list.rows.filter(pred).length;
   const views = [
@@ -55,6 +57,7 @@ export default function CertificatesTab({ onCountsChanged }) {
       <TabIntro text="Requests for baptismal, confirmation and marriage certificates. Link each to the person's member record to check the sacrament against the parish register, then move it along until it's released.">
         <AddButton onClick={() => setCreating(true)}>Walk-in / phone request</AddButton>
       </TabIntro>
+      <NewItemsNote count={live.waiting} noun="request" onShow={live.showNow} />
 
       <div className="flex gap-2.5 flex-wrap items-center mb-4">
         <FilterChips label="Which requests" options={views} value={view} onChange={setView} />

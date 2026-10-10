@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { api, downloadWithAuth } from './api.js';
 import { useToast } from './ToastContext.jsx';
 import { searchAndPage, readUrlState, mergeUrlState } from './lib/paging.js';
@@ -133,4 +133,50 @@ export function urlListPage(items, toText, url, setUrl) {
     pageSize: url.size, setPageSize: (size) => setUrl({ size }),
     rows: result.rows, total: result.total,
   };
+}
+
+/**
+ * Keeps a staff queue current while it's open. `refresh` runs when the bell
+ * hears a new notification of one of `kinds` (any kind when left out), and
+ * when the browser tab comes back after a minute or more away. While `busy`
+ * (a drawer or dialog open, rows ticked) nothing moves under the user: new
+ * ones are counted in `waiting` for a "2 new · Show" note (`showNow`), and
+ * loaded as soon as `busy` ends. Uses the bell's Realtime feed, no polling.
+ */
+export function useLiveRefresh(refresh, { kinds = null, busy = false } = {}) {
+  const subscribe = useOutletContext()?.bell?.subscribe;
+  const [waiting, setWaiting] = useState(0);
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  const kindsKey = kinds ? kinds.join(',') : '';
+
+  useEffect(() => {
+    if (!subscribe) return undefined;
+    return subscribe((n) => {
+      if (kindsKey && !kindsKey.split(',').includes(n.kind)) return;
+      if (busyRef.current) setWaiting((w) => w + 1);
+      else refreshRef.current();
+    });
+  }, [subscribe, kindsKey]);
+
+  useEffect(() => {
+    let hiddenAt = null;
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+      const away = hiddenAt ? Date.now() - hiddenAt : 0;
+      hiddenAt = null;
+      if (away >= 60000 && !busyRef.current) refreshRef.current();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (!busy && waiting) { setWaiting(0); refreshRef.current(); }
+  }, [busy, waiting]);
+
+  const showNow = useCallback(() => { setWaiting(0); refreshRef.current(); }, []);
+  return { waiting, showNow };
 }

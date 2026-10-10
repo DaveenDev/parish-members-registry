@@ -47,6 +47,12 @@ export function useStaffNotifications({ onNew } = {}) {
   const [state, setState] = useState({ available: false, items: [], seenAt: null });
   const onNewRef = useRef(onNew);
   onNewRef.current = onNew;
+  // Pages that want to hear each new notification too (useLiveRefresh).
+  const listeners = useRef(new Set());
+  const subscribe = useCallback((fn) => {
+    listeners.current.add(fn);
+    return () => { listeners.current.delete(fn); };
+  }, []);
 
   const reload = useCallback(() => {
     api.listNotifications().then((r) => {
@@ -62,6 +68,7 @@ export function useStaffNotifications({ onNew } = {}) {
       chime(n.urgent);
       toast.success(n.title, { action: { label: 'Open', onClick: () => navigate(n.link || '/admin') } });
       onNewRef.current?.(n);
+      listeners.current.forEach((fn) => fn(n));
     });
     const onVisible = () => { if (document.visibilityState === 'visible') reload(); };
     document.addEventListener('visibilitychange', onVisible);
@@ -81,7 +88,7 @@ export function useStaffNotifications({ onNew } = {}) {
     api.markNotificationsSeen().then((t) => setState((s) => ({ ...s, seenAt: t }))).catch(() => {});
   }, []);
 
-  return { ...state, unread, reload, markSeen };
+  return { ...state, unread, reload, markSeen, subscribe };
 }
 
 function BellIcon({ size = 18 }) {

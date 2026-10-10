@@ -141,6 +141,20 @@ export function LoadingState({ label = 'Loading…', compact = false }) {
   );
 }
 
+/**
+ * "2 new registrations came in · Show" above a live list that held still
+ * while someone was busy with it (useLiveRefresh). Nothing when `count` is 0.
+ */
+export function NewItemsNote({ count, noun, onShow }) {
+  if (!count) return null;
+  return (
+    <div role="status" className="mb-3 flex items-center gap-3 px-4 py-2.5 rounded-xl border border-parish-borderSoft bg-[var(--p-gold-tint)] text-[13.5px] text-parish-ink">
+      <span className="flex-1"><strong>{count} new</strong> {noun}{count === 1 ? '' : 's'} came in.</span>
+      <button type="button" onClick={onShow} className="appearance-none cursor-pointer bg-transparent border-0 p-0 font-semibold text-[13.5px] text-parish-blue">Show</button>
+    </div>
+  );
+}
+
 export function EmptyState({ title, subtitle }) {
   return (
     <div className="py-14 px-5 text-center">

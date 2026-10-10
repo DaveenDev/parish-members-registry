@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api, triggerDownload } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote, rowActivationProps } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, Panel, ViewOnlyNote, rowActivationProps, NewItemsNote } from '../../components/admin.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../components/ui.jsx';
@@ -17,7 +17,7 @@ import ReportPrintSheet from '../../components/ReportPrintSheet.jsx';
 import { groupRuns, groupHeading } from '../../lib/household.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
-import { useClientList, useDebounced, useUrlState } from '../../hooks.js';
+import { useClientList, useDebounced, useLiveRefresh, useUrlState } from '../../hooks.js';
 
 const PROGRESS = ['Not started', 'Partly confirmed', 'Confirmed'];
 const PROGRESS_TONES = { 'Not started': 'gray', 'Partly confirmed': 'gold', Confirmed: 'green' };
@@ -110,6 +110,10 @@ export default function Census() {
     if (!cycleId) return;
     api.pendingCensusSubmissionCount(cycleId).then(setPendingCount).catch(() => setPendingCount(0));
   }, [cycleId, refreshKey]);
+  // The tab's count follows new online updates as they arrive (useLiveRefresh).
+  useLiveRefresh(() => {
+    if (cycleId) api.pendingCensusSubmissionCount(cycleId).then(setPendingCount).catch(() => {});
+  }, { kinds: ['census'] });
 
   async function closeCycle() {
     const ok = await confirm({
@@ -717,6 +721,8 @@ function UpdatesTab({ cycle, parish, refreshKey, onChanged, initialQuery = '' })
   }
   useEffect(() => { setRows(null); load(); }, [cycle.id, refreshKey]);
   useEffect(() => { waiting.setPage(1); log.setPage(1); }, [cycle.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  // New updates from families, unless one is open for review.
+  const live = useLiveRefresh(load, { kinds: ['census'], busy: !!openRow });
 
   const pendingTotal = rows ? rows.filter((r) => r.status === 'Pending').length : null;
   return (
@@ -734,6 +740,7 @@ function UpdatesTab({ cycle, parish, refreshKey, onChanged, initialQuery = '' })
       <h3 className="m-0 mb-2 font-serif text-[20px] font-semibold text-parish-navy">
         Waiting for review{pendingTotal ? ` (${pendingTotal})` : ''}
       </h3>
+      <NewItemsNote count={live.waiting} noun="update" onShow={live.showNow} />
       {!rows && !error && <LoadingState label="Loading online updates…" />}
       {error && <ErrorState message={error} onRetry={load} />}
       {rows && (

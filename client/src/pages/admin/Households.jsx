@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState, Panel, ActionMenu, Tabs } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState, Panel, ActionMenu, Tabs, NewItemsNote } from '../../components/admin.jsx';
 import { StatusPill, PrimaryButton, Badge, Checkbox } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import HouseholdEditDrawer from '../../components/HouseholdEditDrawer.jsx';
@@ -12,7 +12,7 @@ import PrintSheet, { printHouseholdSheet } from '../../components/PrintSheet.jsx
 import CensusCodesDialog from '../../components/CensusCodesDialog.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
-import { useDebounced, useUrlState } from '../../hooks.js';
+import { useDebounced, useLiveRefresh, useUrlState } from '../../hooks.js';
 import { VerifiedLine } from '../../components/VerifiedLine.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
@@ -101,9 +101,10 @@ export default function Households() {
   // Only the latest load may fill the list: with quick filter or page
   // changes, an earlier, slower answer would otherwise land last.
   const loadSeq = useRef(0);
-  function reload() {
+  // `quiet` keeps the rows on screen while they reload (a live refresh).
+  function reload({ quiet = false } = {}) {
     const seq = ++loadSeq.current;
-    setLoading(true);
+    if (!quiet) setLoading(true);
     setError('');
     api.listHouseholds({ ...filters, sortKey: sort, sortDir: dir, groupBy: groupKey, page, pageSize })
       .then((res) => { if (seq === loadSeq.current) { setRows(res.rows); setTotal(res.total); } })
@@ -115,6 +116,17 @@ export default function Households() {
     loadCounts();
     layout?.refreshNavCounts?.();
   }
+
+  // New online registrations: the tab counts always follow; the list itself
+  // only on the verification queue, and never while a panel is open or rows
+  // are ticked (then a "new · Show" note waits above it).
+  const live = useLiveRefresh(() => {
+    loadCounts();
+    if (status === 'Pending') reload({ quiet: true });
+  }, {
+    kinds: ['registration'],
+    busy: !!(creating || viewing || editing || openMemberId || codesFor || bulkBusy || selected.size),
+  });
 
   // An empty table means something different when no filters are applied:
   // the register itself is empty, not the search.
@@ -356,6 +368,8 @@ export default function Households() {
             )}
           </div>
         </div>
+
+        {status === 'Pending' && <NewItemsNote count={live.waiting} noun="registration" onShow={live.showNow} />}
 
         {selectedRows.length > 0 && (
           <div role="region" aria-label="Selected households" className="sticky top-2 lg:top-[92px] z-[5] mb-3 flex items-center gap-2.5 flex-wrap px-4 py-3 rounded-xl bg-parish-navy text-white shadow-card">
