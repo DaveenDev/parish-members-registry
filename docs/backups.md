@@ -43,7 +43,7 @@ repository secret**, one for each:
 |---|---|
 | `SUPABASE_DB_URL` | Supabase → **Connect** → *Session pooler* connection string, with the database password filled in |
 | `BACKUP_PASSPHRASE` | the passphrase from step 2 |
-| `R2_ACCOUNT_ID` | the Account ID |
+| `R2_ACCOUNT_ID` | the Account ID (32 digits and letters a–f; not the S3 API address, though that's taken apart if pasted) |
 | `R2_ACCESS_KEY_ID` | the token's Access Key ID |
 | `R2_SECRET_ACCESS_KEY` | the token's Secret Access Key |
 | `R2_BACKUP_BUCKET` | the bucket name, e.g. `parish-backups` |
@@ -73,8 +73,27 @@ red step:
   Database → **Reset database password**, then put the new one in the secret.
   With *could not translate host name* or a timeout: use the **Session
   pooler** string (port 5432), not the Direct connection one.
-- **Upload to R2**: check `R2_ACCOUNT_ID`, the token's keys, the bucket name,
-  and that the token may write to that bucket.
+- **Check the R2 settings** or **Check the R2 bucket**: the error names the
+  secret to fix. These run before the dump, so a mistake here costs seconds.
+  - *SSL handshake failure* / *Cloudflare refused the connection*:
+    `R2_ACCOUNT_ID` isn't the Account ID (Cloudflare refuses any address
+    with an unknown account in it). Copy it again from R2 Object Storage →
+    Overview → Account ID.
+  - *the token's keys are wrong*: `R2_ACCESS_KEY_ID` and
+    `R2_SECRET_ACCESS_KEY` are the **Access Key ID** and **Secret Access
+    Key**, not the token value above them. If they're lost, make a new token.
+  - *no bucket by that name*: check `R2_BACKUP_BUCKET`. A bucket made with
+    the EU jurisdiction needs its S3 API address (`https://<account
+    id>.eu.r2.cloudflarestorage.com`) in `R2_ACCOUNT_ID`.
+  - *may read the bucket but not write to it* (*AccessDenied … PutObject*):
+    the token has Object Read only. R2 Object Storage → **Manage API
+    tokens**: give it **Object Read & Write**, or make a new token with that
+    on the backup bucket and put its two keys in the secrets.
+  - *may not use this bucket*: the token is for another bucket (e.g. the
+    photo one). Use a token for the bucket named in `R2_BACKUP_BUCKET`.
+
+  The check writes and deletes a tiny `database/.write-check` file; if it's
+  ever left behind, it's harmless.
 
 ## Restoring
 
