@@ -1,6 +1,7 @@
 node_modules/
 dist/
 build/
+church photos/
 .env
 .env.local
 client/.env.local
