@@ -9,7 +9,8 @@
 #                         string, with the database password filled in
 #   BACKUP_PASSPHRASE     a long passphrase; keep a copy somewhere safe
 #                         offline: without it the backups can't be opened
-#   R2_ACCOUNT_ID         Cloudflare → R2 → Account ID
+#   R2_ACCOUNT_ID         Cloudflare → R2 → Account ID (32 characters; the
+#                         S3 API address is taken apart if pasted instead)
 #   R2_ACCESS_KEY_ID      an R2 API token with Object Read & Write on the
 #   R2_SECRET_ACCESS_KEY  backup bucket only
 #   R2_BACKUP_BUCKET      the backup bucket's name, e.g. parish-backups
@@ -62,7 +63,6 @@ jobs:
             echo "::error::No backup was made. Add these repository secrets:$missing (see docs/backups.md)."
             exit 1
           fi
-          echo "R2_ENDPOINT=https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com" >> "$GITHUB_ENV"
 
       - uses: actions/checkout@v4
         with:
@@ -74,6 +74,38 @@ jobs:
       # printing it; stops with the reason if it can't. Gives DB_URL.
       - name: Check the database connection string
         run: node .github/scripts/db-url.mjs
+
+      # Takes the Account ID out of a pasted address, the bucket name out of a
+      # pasted path, and says what's wrong otherwise. Gives R2_ENDPOINT and
+      # R2_BUCKET.
+      - name: Check the R2 settings
+        run: node .github/scripts/r2-target.mjs
+
+      # A wrong account ID, key or bucket shows up here in seconds, before the
+      # dump, with which secret to fix.
+      - name: Check the R2 bucket
+        run: |
+          # list-objects-v2, not s3 ls, which fails on an empty bucket.
+          if out=$(aws s3api list-objects-v2 --bucket "$R2_BUCKET" --max-keys 1 \
+                     --endpoint-url "$R2_ENDPOINT" 2>&1 > /dev/null); then
+            echo "Reached the bucket."
+            exit 0
+          fi
+          echo "$out"
+          case "$out" in
+            *[Hh]andshake*|*HANDSHAKE*|*SSL*)
+              why="Cloudflare refused the connection, which means it doesn't know the account in the address. R2_ACCOUNT_ID must be the Account ID from Cloudflare → R2 Object Storage → Overview (32 digits and letters a-f)." ;;
+            *"Credential access key"*|*InvalidAccessKeyId*|*SignatureDoesNotMatch*|*Unauthorized*)
+              why="the token's keys are wrong. R2_ACCESS_KEY_ID and R2_SECRET_ACCESS_KEY are the Access Key ID and Secret Access Key shown when the R2 token was made, not the token value; make a new token if they're lost." ;;
+            *NoSuchBucket*)
+              why="this account has no bucket by that name. Check R2_BACKUP_BUCKET against Cloudflare → R2 Object Storage. If the bucket was made in the EU jurisdiction, put its S3 API address (ending in .eu.r2.cloudflarestorage.com) in R2_ACCOUNT_ID." ;;
+            *AccessDenied*)
+              why="the token may not use this bucket. Give it Object Read & Write on the backup bucket." ;;
+            *)
+              why="see the message above." ;;
+          esac
+          echo "::error::Can't reach the R2 bucket: $why No backup was made (see docs/backups.md)."
+          exit 1
 
       - uses: supabase/setup-cli@v1
         with:
@@ -104,17 +136,17 @@ jobs:
 
       - name: Upload to R2
         run: |
-          aws s3 cp "$BACKUP_FILE" "s3://$R2_BACKUP_BUCKET/database/$BACKUP_FILE" \
+          aws s3 cp "$BACKUP_FILE" "s3://$R2_BUCKET/database/$BACKUP_FILE" \
             --endpoint-url "$R2_ENDPOINT" --no-progress
-          echo "Stored database/$BACKUP_FILE in $R2_BACKUP_BUCKET."
+          echo "Stored database/$BACKUP_FILE in $R2_BUCKET."
 
       - name: Remove old backups
         run: |
           # Names carry the date, so sorting them by name sorts them by age.
-          aws s3 ls "s3://$R2_BACKUP_BUCKET/database/" --endpoint-url "$R2_ENDPOINT" \
+          aws s3 ls "s3://$R2_BUCKET/database/" --endpoint-url "$R2_ENDPOINT" \
             | awk '{print $4}' | grep '^parish-backup-' | sort -r | tail -n +"$((BACKUP_KEEP + 1))" \
             | while read -r old; do
-                aws s3 rm "s3://$R2_BACKUP_BUCKET/database/$old" --endpoint-url "$R2_ENDPOINT"
+                aws s3 rm "s3://$R2_BUCKET/database/$old" --endpoint-url "$R2_ENDPOINT"
               done
           echo "Backups kept:"
-          aws s3 ls "s3://$R2_BACKUP_BUCKET/database/" --endpoint-url "$R2_ENDPOINT"
+          aws s3 ls "s3://$R2_BUCKET/database/" --endpoint-url "$R2_ENDPOINT"
