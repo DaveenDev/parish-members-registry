@@ -12,7 +12,7 @@ import HouseholdRef from '../../components/HouseholdRef.jsx';
 import LastYearList, { NotYetPrintSheet } from '../../components/LastYearList.jsx';
 import LastYearListSwitch from '../../components/LastYearListSwitch.jsx';
 import { fmtDate } from '../../constants.js';
-import { defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, vsLastYearTable, familiesTable, statusTable, unnamedNotYet, publicSiteUrl } from '../../lib/census.js';
+import { censusInItsYear, defaultCensusLabel, nextCensusDue, summarizeCensus, diffSubmission, vsLastYearTable, familiesTable, statusTable, unnamedNotYet, publicSiteUrl } from '../../lib/census.js';
 import ReportPrintSheet from '../../components/ReportPrintSheet.jsx';
 import { groupRuns, groupHeading } from '../../lib/household.js';
 import { useToast } from '../../ToastContext.jsx';
@@ -56,6 +56,7 @@ export default function Census() {
   const [parish, setParish] = useState(null);
   const [starting, setStarting] = useState(false);
   const [editing, setEditing] = useState(false);
+  const [reopening, setReopening] = useState(false);
   // The tab is in the address bar: ?tab=lastYear&gkk=… (the links from Parish
   // Config → Parish GKK) opens that GKK's list, and ?tab=updates&q=<ref no>
   // (the Dashboard and census update notifications) that household's update.
@@ -101,6 +102,9 @@ export default function Census() {
   const cycle = cycles?.find((c) => c.id === cycleId) || null;
   const openCycle = cycles?.find((c) => c.status === 'Open') || null;
   const latest = cycles?.[0] || null;
+  // A closed census can be reopened, and its dates changed, while it is
+  // still its year (0091); after that, a new census is started instead.
+  const inItsYear = censusInItsYear(cycle, today());
   const interval = parish?.census_interval_months || 12;
   const due = nextCensusDue(latest?.starts_on, interval);
   const refresh = () => setRefreshKey((k) => k + 1);
@@ -128,23 +132,6 @@ export default function Census() {
       loadCycles(cycle.id);
     } catch (e) {
       toast.error(e.message || 'Could not close the census');
-    }
-  }
-
-  async function reopenCycle() {
-    const ok = await confirm({
-      title: `Reopen the ${cycle.label}?`,
-      message: 'Families can send updates again and staff can record answers. The results kept when it closed are let go: Results by GKK '
-        + 'is worked out from the registry again until you close it, which keeps them afresh.',
-      confirmLabel: 'Reopen census',
-    });
-    if (!ok) return;
-    try {
-      await api.reopenCensusCycle(cycle.id);
-      toast.success(`${cycle.label} reopened`);
-      loadCycles(cycle.id);
-    } catch (e) {
-      toast.error(e.message || 'Could not reopen the census');
     }
   }
 
@@ -198,7 +185,7 @@ export default function Census() {
     <>
       <PageHeader title="Parish Census" subtitle="Re-confirm every member and their standing in the parish">
         {cycles.length > 0 && (
-          <FilterSelect aria-label="Census" value={cycleId ?? ''} onChange={(e) => { setCycleId(Number(e.target.value)); setEditing(false); }}>
+          <FilterSelect aria-label="Census" value={cycleId ?? ''} onChange={(e) => { setCycleId(Number(e.target.value)); setEditing(false); setReopening(false); }}>
             {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
           </FilterSelect>
         )}
@@ -265,11 +252,14 @@ export default function Census() {
                 Started {fmtDate(cycle.starts_on)}
                 {cycle.ends_on && ` · target end ${fmtDate(cycle.ends_on)}`}
                 {cycle.closed_at && ` · closed ${new Date(cycle.closed_at).toLocaleDateString()}`}
+                {canManage && cycle.status === 'Closed' && !inItsYear && ' · from an earlier year, so it stays closed'}
               </span>
               <div className="ml-auto flex gap-2">
-                {canManage && !editing && <GhostButton onClick={() => setEditing(true)} className="px-4 py-2 text-[13.5px]">Edit</GhostButton>}
+                {canManage && !editing && !reopening && <GhostButton onClick={() => setEditing(true)} className="px-4 py-2 text-[13.5px]">Edit</GhostButton>}
                 {canManage && cycle.status === 'Open' && <GhostButton onClick={closeCycle} className="px-4 py-2 text-[13.5px]">Close census</GhostButton>}
-                {canManage && cycle.status === 'Closed' && !openCycle && <GhostButton onClick={reopenCycle} className="px-4 py-2 text-[13.5px]">Reopen</GhostButton>}
+                {canManage && cycle.status === 'Closed' && !openCycle && inItsYear && !reopening && (
+                  <GhostButton onClick={() => { setEditing(false); setReopening(true); }} className="px-4 py-2 text-[13.5px]">Reopen</GhostButton>
+                )}
                 {cycle.status === 'Closed' && <AnalysisLink cycle={cycle} gkk={ownGkk} className="px-4 py-2 text-[13.5px]" />}
               </div>
             </div>
@@ -278,9 +268,19 @@ export default function Census() {
               <CensusCycleForm
                 key={cycle.id}
                 cycle={cycle}
+                datesLocked={cycle.status === 'Closed' && !inItsYear}
                 onCancel={() => setEditing(false)}
                 onSaved={(c) => { setEditing(false); toast.success(`${c.label} saved`); loadCycles(c.id); }}
                 onDelete={deleteCycle}
+              />
+            )}
+            {reopening && (
+              <CensusCycleForm
+                key={`reopen-${cycle.id}`}
+                cycle={cycle}
+                reopen
+                onCancel={() => setReopening(false)}
+                onSaved={(c) => { setReopening(false); toast.success(`${c.label} reopened`); loadCycles(c.id); }}
               />
             )}
 
@@ -338,8 +338,10 @@ function CensusMenuSwitch({ parish, onChanged }) {
  * Start a new census, or with `cycle` change one's name and dates (and
  * delete it, through `onDelete`). `previous` is the last census held here,
  * which a new census is measured against (the households that answered it).
+ * With `reopen`, reopen a closed `cycle` with its new dates (0091);
+ * `datesLocked`: a closed census from an earlier year keeps its dates.
  */
-function CensusCycleForm({ cycle = null, previous = null, onCancel, onStarted, onSaved, onDelete }) {
+function CensusCycleForm({ cycle = null, previous = null, reopen = false, datesLocked = false, onCancel, onStarted, onSaved, onDelete }) {
   const [label, setLabel] = useState(cycle?.label || defaultCensusLabel());
   const [startsOn, setStartsOn] = useState(cycle?.starts_on || today());
   const [endsOn, setEndsOn] = useState(cycle?.ends_on || '');
@@ -351,10 +353,13 @@ function CensusCycleForm({ cycle = null, previous = null, onCancel, onStarted, o
     if (!label.trim()) { setError('Give the census a name.'); return; }
     setSaving(true);
     try {
-      if (cycle) onSaved(await api.updateCensusCycle(cycle.id, { label: label.trim(), startsOn, endsOn }));
+      if (reopen) {
+        if (endsOn && endsOn < today()) { setError('The target end has passed. Give a later date, or leave it empty.'); return; }
+        onSaved(await api.reopenCensusCycle(cycle.id, { startsOn, endsOn }));
+      } else if (cycle) onSaved(await api.updateCensusCycle(cycle.id, { label: label.trim(), startsOn, endsOn }));
       else onStarted(await api.openCensusCycle({ label: label.trim(), startsOn, endsOn }));
     } catch (e) {
-      setError(e.message || (cycle ? 'Could not save the census' : 'Could not start the census'));
+      setError(e.message || (reopen ? 'Could not reopen the census' : cycle ? 'Could not save the census' : 'Could not start the census'));
     } finally {
       setSaving(false);
     }
@@ -362,9 +367,14 @@ function CensusCycleForm({ cycle = null, previous = null, onCancel, onStarted, o
 
   return (
     <div className="bg-parish-fillSoft border-[1.5px] border-parish-focusLine rounded-2xl px-5 py-5 mb-5">
-      <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{cycle ? `Edit the ${cycle.label}` : 'Start a new census'}</div>
+      <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{reopen ? `Reopen the ${cycle.label}` : cycle ? `Edit the ${cycle.label}` : 'Start a new census'}</div>
       <p className="text-[13px] text-parish-muted mt-0 mb-4">
-        {cycle
+        {reopen
+          ? 'Families can send updates again and staff can record answers. Set its dates for this round. The results kept when it closed '
+            + 'are let go: Results by GKK is worked out from the registry again until you close it, which keeps them afresh.'
+          : datesLocked
+          ? `It closed and started in ${String(cycle.starts_on).slice(0, 4)}, so its dates stay as they are. Its name can still be changed.`
+          : cycle
           ? 'Change its name or dates. Recorded answers stay as they are.'
           : 'Every current member starts as “not confirmed”. Nothing changes in the records until staff save a household\'s answers.'}
       </p>
@@ -376,9 +386,9 @@ function CensusCycleForm({ cycle = null, previous = null, onCancel, onStarted, o
       )}
       {error && <div className="mb-3 text-parish-error text-[13.5px]" role="alert">{error}</div>}
       <div className="grid gap-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))' }}>
-        <Field label="Name" required><TextInput value={label} onChange={(e) => setLabel(e.target.value)} /></Field>
-        <Field label="Starts on"><TextInput type="date" value={startsOn} onChange={(e) => setStartsOn(e.target.value)} /></Field>
-        <Field label="Target end (optional)"><TextInput type="date" value={endsOn} onChange={(e) => setEndsOn(e.target.value)} /></Field>
+        {!reopen && <Field label="Name" required><TextInput value={label} onChange={(e) => setLabel(e.target.value)} /></Field>}
+        <Field label="Starts on"><TextInput type="date" value={startsOn} disabled={datesLocked} onChange={(e) => setStartsOn(e.target.value)} /></Field>
+        <Field label="Target end (optional)"><TextInput type="date" value={endsOn} disabled={datesLocked} onChange={(e) => setEndsOn(e.target.value)} /></Field>
       </div>
       <div className="flex gap-2.5 justify-end items-center flex-wrap mt-4">
         {cycle && onDelete && (
@@ -388,7 +398,7 @@ function CensusCycleForm({ cycle = null, previous = null, onCancel, onStarted, o
         )}
         <GhostButton onClick={onCancel} className="px-4 py-2 text-[13.5px]">Cancel</GhostButton>
         <PrimaryButton onClick={start} disabled={saving} className="px-5 py-2 text-[13.5px]">
-          {cycle ? (saving ? 'Saving…' : 'Save') : (saving ? 'Starting…' : 'Start census')}
+          {reopen ? (saving ? 'Reopening…' : 'Reopen census') : cycle ? (saving ? 'Saving…' : 'Save') : (saving ? 'Starting…' : 'Start census')}
         </PrimaryButton>
       </div>
     </div>
