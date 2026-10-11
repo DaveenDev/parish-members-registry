@@ -25,7 +25,8 @@ const pairKey = (ids) => ids.join('-');
  * (people, phone, email, previous reference number, address, name); staff
  * compare them side by side, then delete the extra one from the Households
  * page, or mark the pair "Not the same household" (which can be taken back
- * below the list).
+ * below the list). Shown on the Duplicates page and as a tab of the
+ * Households page.
  */
 export default function HouseholdDuplicates() {
   const toast = useToast();
@@ -85,8 +86,9 @@ export default function HouseholdDuplicates() {
         Two households are listed when they share enough of: the same people, a phone number or email, the reference number from the
         previous census, the address, or the household name. A family that registered with the wrong Household Head and then again
         with the right one shows up here. Compare the two. If they're the same house, keep the one with the right Household Head:
-        add anyone missing to it, merge the people in both on the <strong>Members</strong> tab, then delete the extra household from
-        the Households page (it stays in the Trash for 30 days). If they're different houses, choose <strong>Not the same household</strong>.
+        add anyone missing to it, merge the people in both under{' '}
+        <Link to="/admin/duplicates" className="font-semibold text-parish-blue">Possible duplicates → Members</Link>, then delete the extra
+        household from the Households list (it stays in the Trash for 30 days). If they're different houses, choose <strong>Not the same household</strong>.
       </div>
 
       {loading && !pairs && <LoadingState label="Looking for duplicate households…" />}

@@ -7,6 +7,7 @@ import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import HouseholdEditDrawer from '../../components/HouseholdEditDrawer.jsx';
 import HouseholdViewDrawer from '../../components/HouseholdViewDrawer.jsx';
 import NewHouseholdDrawer from '../../components/NewHouseholdDrawer.jsx';
+import HouseholdDuplicates from '../../components/HouseholdDuplicates.jsx';
 import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 import PrintSheet, { printHouseholdSheet } from '../../components/PrintSheet.jsx';
 import CensusCodesDialog from '../../components/CensusCodesDialog.jsx';
@@ -23,11 +24,13 @@ import { groupRuns, groupHeading } from '../../lib/household.js';
 const SORTS = [['registered', 'Registered'], ['name', 'Household'], ['gkk', 'GKK'], ['members', 'Members'], ['updated', 'Last updated']];
 // The status tabs; the page opens on the verification queue, or on Verified
 // when the queue is empty. Keys are the ?status= values, so links like
-// ?status=Verified open on that tab.
-const STATUS_TABS = [['Pending', 'On Queue for Verification'], ['Verified', 'Verified Households'], ['All', 'All Households']];
+// ?status=Verified open on that tab. Possible Duplicates isn't a status:
+// it's the households that look like one house registered twice (0092), as
+// on the Duplicates page.
+const STATUS_TABS = [['Pending', 'On Queue for Verification'], ['Verified', 'Verified Households'], ['All', 'All Households'], ['Duplicates', 'Possible Duplicates']];
 
 const URL_DEFAULTS = { status: 'Pending', gkk: 'All', q: '', sort: 'registered', dir: '', page: 1, size: 10 };
-const URL_ALLOWED = { status: ['All', 'Verified', 'Pending'], sort: SORTS.map(([k]) => k), dir: ['', 'asc', 'desc'], size: [10, 20, 50] };
+const URL_ALLOWED = { status: ['All', 'Verified', 'Pending', 'Duplicates'], sort: SORTS.map(([k]) => k), dir: ['', 'asc', 'desc'], size: [10, 20, 50] };
 // Dates sort newest first by default, everything else A→Z (see householdQuery in api.js).
 const defaultDir = (key) => (key === 'registered' || key === 'updated' ? 'desc' : 'asc');
 const MAX_BULK_PRINT = 50;
@@ -132,7 +135,9 @@ export default function Households() {
   // the register itself is empty, not the search.
   const isFiltered = gkk !== 'All' || !!debouncedSearch;
 
-  useEffect(() => { if (tabChosen) reload(); }, [tabChosen, status, gkk, debouncedSearch, sort, dir, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The Possible Duplicates tab has no list to load.
+  const duplicatesTab = status === 'Duplicates';
+  useEffect(() => { if (tabChosen && !duplicatesTab) reload(); }, [tabChosen, status, gkk, debouncedSearch, sort, dir, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
   // A selection only ever covers the rows on screen.
   useEffect(() => { setSelected(new Set()); }, [status, gkk, debouncedSearch, sort, dir, page, pageSize]);
   useEffect(() => { api.listGkks().then((res) => setGkkOptions(res.rows.map((r) => r.name))).catch(() => {}); }, []);
@@ -318,40 +323,20 @@ export default function Households() {
   return (
     <>
       <PageHeader title="Households" subtitle={leaderGkk(user) ? `The registered families of ${leaderGkk(user)}` : 'All registered families'}>
-        <FilterSelect value={gkk} onChange={(e) => setUrl({ gkk: e.target.value })} aria-label="Filter by GKK">
-          <option value="All">All GKKs</option>
-          {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
-        </FilterSelect>
-        <SearchInput placeholder="Search household, member, address, ref no…" aria-label="Search households or members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
-      </PageHeader>
-      <PageBody>
-        <Tabs
-          value={status}
-          onChange={(k) => setUrl({ status: k, page: 1 })}
-          tabs={STATUS_TABS.map(([k, label]) => [k, (
-            <span key={k} className="inline-flex items-center gap-2">
-              {label}
-              {counts[k] != null && (
-                <span className={`min-w-[22px] px-1.5 py-px rounded-full text-[12px] font-bold text-center ${k === 'Pending' && counts[k] ? 'bg-parish-errorBg text-parish-error' : 'bg-parish-sunk text-parish-text2'}`}>{counts[k]}</span>
-              )}
-            </span>
-          )])}
-        />
-        <div className="flex items-center gap-3 flex-wrap mb-4">
-          <div className="text-[13px] text-parish-muted">{total} household(s)</div>
-          {isFiltered && <button onClick={() => setUrl({ gkk: 'All', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">Clear</button>}
-          {/* Phones and tablets have no column headers to click (nor small laptops a Registered one), so sorting gets its own control. */}
-          <FilterSelect aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} className="xl:hidden">
-            {SORTS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}
-          </FilterSelect>
-          {status !== 'Pending' && sortedByHand && (
-            <button onClick={() => setUrl({ sort: URL_DEFAULTS.sort, dir: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">
-              Group by {groupBy === 'gkk' ? 'GKK' : 'Family Grouping'} again
-            </button>
-          )}
-          {/* Phones: the buttons share a full-width row of their own. */}
-          <div className="w-full sm:w-auto sm:ml-auto flex items-center gap-2.5">
-            {can(user, 'exports') && (
+        {/* The pairs of possible duplicates aren't filtered. */}
+        {!duplicatesTab && (
+          <>
+            <FilterSelect value={gkk} onChange={(e) => setUrl({ gkk: e.target.value })} aria-label="Filter by GKK">
+              <option value="All">All GKKs</option>
+              {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+            </FilterSelect>
+            <SearchInput placeholder="Search household, member, address, ref no…" aria-label="Search households or members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
+          </>
+        )}
+        {/* Beside the search; on phones the buttons share a full-width row of their own. */}
+        {((can(user, 'exports') && !duplicatesTab) || canEdit) && (
+          <div className="w-full sm:w-auto flex items-center gap-2.5">
+            {can(user, 'exports') && !duplicatesTab && (
               <button
                 onClick={() => exportCsv(filters, 'households.csv')}
                 disabled={exporting || !total}
@@ -367,6 +352,39 @@ export default function Households() {
               </PrimaryButton>
             )}
           </div>
+        )}
+      </PageHeader>
+      <PageBody>
+        <Tabs
+          value={status}
+          onChange={(k) => setUrl({ status: k, page: 1 })}
+          tabs={STATUS_TABS.map(([k, label]) => {
+            // The pairs' count comes with the sidebar's (0092); the statuses' follow the filters.
+            const n = k === 'Duplicates' ? layout?.navCounts?.duplicate_households : counts[k];
+            return [k, (
+              <span key={k} className="inline-flex items-center gap-2">
+                {label}
+                {n != null && (
+                  <span className={`min-w-[22px] px-1.5 py-px rounded-full text-[12px] font-bold text-center ${(k === 'Pending' || k === 'Duplicates') && n ? 'bg-parish-errorBg text-parish-error' : 'bg-parish-sunk text-parish-text2'}`}>{n}</span>
+                )}
+              </span>
+            )];
+          })}
+        />
+        {duplicatesTab ? <HouseholdDuplicates /> : (
+        <>
+        <div className="flex items-center gap-3 flex-wrap mb-4">
+          <div className="text-[13px] text-parish-muted">{total} household(s)</div>
+          {isFiltered && <button onClick={() => setUrl({ gkk: 'All', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">Clear</button>}
+          {/* Phones and tablets have no column headers to click (nor small laptops a Registered one), so sorting gets its own control. */}
+          <FilterSelect aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} className="xl:hidden">
+            {SORTS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}
+          </FilterSelect>
+          {status !== 'Pending' && sortedByHand && (
+            <button onClick={() => setUrl({ sort: URL_DEFAULTS.sort, dir: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">
+              Group by {groupBy === 'gkk' ? 'GKK' : 'Family Grouping'} again
+            </button>
+          )}
         </div>
 
         {status === 'Pending' && <NewItemsNote count={live.waiting} noun="registration" onShow={live.showNow} />}
@@ -520,6 +538,8 @@ export default function Households() {
           {empty}
           <Pagination page={page} pageSize={pageSize} total={total} onPage={(p) => setUrl({ page: p })} onPageSize={(size) => setUrl({ size })} />
         </Panel>
+        </>
+        )}
       </PageBody>
 
       {openMemberId && (
