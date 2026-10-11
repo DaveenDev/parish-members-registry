@@ -2,7 +2,8 @@
 // form and their tests. The database (0007_census.sql) has the same lists and
 // suggestion rule — keep the two in sync.
 
-import { PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, ageFromDob } from '../constants.js';
+import { PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, ageFromDob, blankMember } from '../constants.js';
+import { familyNoOf, toPayloadMember } from './household.js';
 
 // Keep in sync with census_member_statuses() in the 0007 migration.
 export const MEMBERSHIP_STATUSES = ['Active', 'Inactive', 'Moved away', 'Deceased', 'Left the Church'];
@@ -672,6 +673,21 @@ export const PORTAL_MEMBER_FIELDS = [
   ['contact', 'Contact no.'],
 ];
 
+// What a new member also brings in (0090), asked as at registration. Blood
+// types aren't asked online: GKK leaders review these updates (0050).
+export const PORTAL_NEW_MEMBER_FIELDS = [
+  ['place_of_birth', 'Place of birth'], ['tribe', 'Tribe'], ['email', 'Email'], ['occupation', 'Occupation'], ['religion', 'Religion'],
+];
+// Each sacrament: whether it was received, its label, then its details.
+export const PORTAL_SACRAMENTS = [
+  ['has_baptism', 'Baptism', ['baptism_date', 'baptism_church']],
+  ['has_communion', 'First Communion', ['communion_date', 'communion_church']],
+  ['has_confirmation', 'Confirmation', ['conf_date', 'conf_church', 'conf_name', 'conf_sponsor']],
+  ['has_matrimony', 'Matrimony', ['mat_date', 'mat_church']],
+];
+// The rest: the kind of wedding (even when it isn't the sacrament) and the roles.
+const PORTAL_NEW_MEMBER_EXTRAS = ['mat_type', 'gkk_role', 'parish_role'];
+
 const blankToNull = (v) => {
   if (v === undefined || v === null) return null;
   const t = String(v).trim();
@@ -682,10 +698,66 @@ function pickFields(source, fields) {
   return Object.fromEntries(fields.map(([k]) => [k, blankToNull(source?.[k])]));
 }
 
+/** A stored key as the registration form spells it: "place_of_birth" → "placeOfBirth". */
+const formKey = (key) => key.replace(/_([a-z])/g, (_, c) => c.toUpperCase());
+
 /**
- * What the portal form sends to portal_submit(). New-member rows left
- * completely empty are dropped; everything else goes to the server, which
- * has the final say on what is valid.
+ * A new member on the portal form, kept like a registration member
+ * (blankMember() with censusStatus, statusPicked, participation and notes) so
+ * it's asked the same questions: blank, starting with the family's surname,
+ * or as an update already sent has it (portal_open()'s newMembers:
+ * { fields, status, participation, notes }).
+ */
+export function portalNewMember(saved = null, { lastName = '', familyNo = 1 } = {}) {
+  const m = { ...blankMember(), familyNo, lastName, censusStatus: '', statusPicked: false, participation: {}, notes: '' };
+  if (!saved) return m;
+  const f = saved.fields || {};
+  const text = [...PORTAL_MEMBER_FIELDS, ...PORTAL_NEW_MEMBER_FIELDS].map(([k]) => k)
+    .concat(PORTAL_SACRAMENTS.flatMap(([, , details]) => details), PORTAL_NEW_MEMBER_EXTRAS);
+  for (const k of text) if (f[k] !== null && f[k] !== undefined) m[formKey(k)] = String(f[k]);
+  for (const [k] of PORTAL_SACRAMENTS) m[formKey(k)] = f[k] === true;
+  const status = MEMBERSHIP_STATUSES.includes(saved.status) ? saved.status : '';
+  return {
+    ...m,
+    familyNo: Number(f.family_no) || 1,
+    organizations: Array.isArray(f.organizations) ? f.organizations.map(String) : [],
+    censusStatus: status,
+    statusPicked: !!status,
+    participation: cleanParticipation(saved.participation),
+    notes: saved.notes ? String(saved.notes) : '',
+  };
+}
+
+/**
+ * A portal new member as portal_submit() takes it (0090): stored keys, names
+ * tidied, nothing the member is too young for, the wedding rule
+ * (toPayloadMember), a sacrament's details only while it's ticked, and the
+ * census answers as registration gives them (registrationAnswers).
+ */
+function newMemberPayload(member) {
+  const m = toPayloadMember(member);
+  const out = Object.fromEntries([...PORTAL_MEMBER_FIELDS, ...PORTAL_NEW_MEMBER_FIELDS].map(([k]) => [k, blankToNull(m[formKey(k)])]));
+  for (const [k, , details] of PORTAL_SACRAMENTS) {
+    out[k] = !!m[formKey(k)];
+    for (const d of details) out[d] = out[k] ? blankToNull(m[formKey(d)]) : null;
+  }
+  for (const k of PORTAL_NEW_MEMBER_EXTRAS) out[k] = blankToNull(m[formKey(k)]);
+  const { censusStatus, participation } = registrationAnswers(m);
+  return {
+    ...out,
+    // Which of the house's families the new member joins (0054); the server checks it.
+    family_no: familyNoOf(m),
+    organizations: [...new Set(m.organizations || [])],
+    status: MEMBERSHIP_STATUSES.includes(censusStatus) ? censusStatus : null,
+    participation,
+    notes: blankToNull(m.notes),
+  };
+}
+
+/**
+ * What the portal form sends to portal_submit(). `newMembers` are
+ * portalNewMember()s; any left completely empty are dropped. Everything else
+ * goes to the server, which has the final say on what is valid.
  */
 export function portalPayload({ household, members, newMembers, message, consent }) {
   const answer = (m) => ({
@@ -697,9 +769,8 @@ export function portalPayload({ household, members, newMembers, message, consent
     household: pickFields(household, PORTAL_HOUSEHOLD_FIELDS),
     members: (members || []).map((m) => ({ id: m.id, ...pickFields(m, PORTAL_MEMBER_FIELDS), ...answer(m) })),
     newMembers: (newMembers || [])
-      .filter((m) => PORTAL_MEMBER_FIELDS.some(([k]) => blankToNull(m[k])))
-      // Which of the house's families the new member joins (0054); the server checks it.
-      .map((m) => ({ ...pickFields(m, PORTAL_MEMBER_FIELDS), family_no: Number(m.family_no) || 1, ...answer(m) })),
+      .filter((m) => PORTAL_MEMBER_FIELDS.some(([k]) => blankToNull(m[formKey(k)])))
+      .map(newMemberPayload),
     message: blankToNull(message),
     consent: !!consent,
   };

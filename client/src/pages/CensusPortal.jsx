@@ -1,31 +1,73 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GhostButton, Spinner, FlagEmptyRequired } from '../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GhostButton, Spinner, FlagEmptyRequired, ComboInput, OptionSelect } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
-import { HEADS, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
-import { familiesOf, familyHeadName } from '../lib/household.js';
+import MemberCensusCards from '../components/MemberCensusCards.jsx';
+import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationChecks } from '../components/MemberFields.jsx';
+import { HEADS, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, PARTNERED_STATUSES, GKK_ROLES, fmtDate } from '../constants.js';
+import { familiesOf, familyHeadName, familyNoOf, samePerson, spouseSex, askedForAge, toPayloadMember } from '../lib/household.js';
 import { bis, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
-import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParticipation, isYoungChild, YOUNG_CHILD_MAX_AGE, portalPayload, formatAccessCode, codeFromHash, cleanParticipation } from '../lib/census.js';
+import {
+  MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, suggestStatus, asksParticipation, isYoungChild, YOUNG_CHILD_MAX_AGE, portalPayload, portalNewMember,
+  formatAccessCode, codeFromHash, cleanParticipation, registrationAnswers, censusCardPatch,
+} from '../lib/census.js';
 
 const BG = { background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' };
 const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(min(180px,100%),1fr))' };
 const SACRAMENTS_SHORT = [['has_baptism', 'Bunyag'], ['has_communion', 'Komunyon'], ['has_confirmation', 'Kumpirma'], ['has_matrimony', 'Kasal']];
+const NEW_SACRAMENTS_SHORT = [['hasBaptism', 'Bunyag'], ['hasCommunion', 'Komunyon'], ['hasConfirmation', 'Kumpirma'], ['hasMatrimony', 'Kasal']];
 // Nobody becomes, or stops being, a family head online (0054): staff do that.
 const NEW_RELATIONSHIPS = RELATIONSHIPS.filter((r) => !HEADS.includes(r));
+// A new member is entered as at registration, one step at a time (0090).
+const NEW_MEMBER_STEPS = ['Mga detalye', 'Mga sakramento', 'Pag-apil', 'Census'];
+const LAST_STEP = NEW_MEMBER_STEPS.length;
 
-function blankNewMember(lastName = '', familyNo = 1) {
-  return { family_no: familyNo, first_name: '', middle_name: '', last_name: lastName, suffix: '', relationship: '', sex: '', dob: '', civil_status: '', contact: '', status: '', participation: {}, notes: '', statusPicked: false };
+let newMemberSeq = 0;
+/**
+ * A new member's card: portalNewMember() plus where the family is in it
+ * (`step`, 1–4; `done` once finished; `tried` after a "Padayon" that found
+ * something missing) and a `key` that stays with it when another is removed.
+ */
+function newMemberCard(member, done = false) {
+  newMemberSeq += 1;
+  return { ...member, key: `new-${newMemberSeq}`, step: done ? LAST_STEP : 1, done, tried: false };
+}
+
+const newMemberName = (m) => [m.firstName, m.lastName, m.suffix].filter(Boolean).join(' ');
+
+/**
+ * What still stops a new member's step, as { field: message }: registration's
+ * rules. `others` are the members already on the form, so nobody is added
+ * twice.
+ */
+function newMemberErrors(m, step, others) {
+  const e = {};
+  if (step === 1) {
+    [['lastName', 'Kinahanglan ang apelyido'], ['firstName', 'Kinahanglan ang ngalan'], ['relationship', 'Pilia ang relasyon sa ulo sa pamilya'],
+      ['sex', 'Pilia ang kasarian'], ['dob', 'Kinahanglan ang adlaw sa pagkatawo'], ['civilStatus', 'Pilia ang kahimtang sibil']]
+      .forEach(([k, msg]) => { if (!String(m[k] || '').trim()) e[k] = msg; });
+    if (m.email && !/.+@.+\..+/.test(m.email)) e.email = 'Isulat ang saktong email';
+    if (!e.firstName && others.some((o) => samePerson(m, o))) e.firstName = 'Nalista na kini nga tawo';
+  }
+  if (step === LAST_STEP && !registrationAnswers(m).censusStatus) e.censusStatus = 'Pilia ang kahimtang karon';
+  return e;
+}
+
+/** Whom new member `i` must not repeat: the members on record, then the new ones before it. */
+const othersFor = (form, i) => [...form.members, ...form.newMembers.slice(0, i)];
+
+/** The first step of a new member with something missing, 0 when it's complete. */
+function incompleteStep(m, others) {
+  for (let step = 1; step <= LAST_STEP; step++) if (Object.keys(newMemberErrors(m, step, others)).length) return step;
+  return 0;
 }
 
 /** "Pamilya ni Pedro Dela Cruz": what a family in the house is called. */
 function familyLabel(group) {
   return `Pamilya ni ${familyHeadName(group?.head) || (group?.familyNo === 1 ? 'Ulo sa Panimalay' : `#${group?.familyNo}`)}`;
 }
-
-/** A new-member card the family has started filling in (an untouched one is ignored). */
-const isFilledNew = (m) => !!(m.first_name || m.last_name || m.relationship);
 
 /** A young child with no status yet (or Aktibo) is Aktibo, with no participation answers. */
 function childDefaults(m) {
@@ -46,15 +88,7 @@ function formFrom(data) {
       participation: m.participation || {},
       statusPicked: !!m.status,
     })),
-    newMembers: (data.newMembers || []).map((m) => childDefaults({
-      ...blankNewMember(),
-      ...text(m.fields || {}, ['first_name', 'middle_name', 'last_name', 'suffix', 'relationship', 'sex', 'dob', 'civil_status', 'contact']),
-      family_no: Number(m.fields?.family_no) || 1,
-      status: m.status || '',
-      participation: m.participation || {},
-      notes: asText(m.notes),
-      statusPicked: !!m.status,
-    })),
+    newMembers: (data.newMembers || []).map((m) => newMemberCard(portalNewMember(m), true)),
     message: asText(data.message),
     consent: false,
   };
@@ -91,10 +125,15 @@ export default function CensusPortal() {
   // No details changed: the answers went straight into the census (0083).
   const [approved, setApproved] = useState(false);
   const [logo, setLogo] = useState(null);
+  // What a new member's "Pag-apil" step offers (0090), as at registration.
+  const [orgOptions, setOrgOptions] = useState([]);
+  const [parishRoleOptions, setParishRoleOptions] = useState([]);
 
   useEffect(() => {
     api.portalStatus().then(setStatus).catch(() => setStatus({ open: false }));
     api.publicParishLogo().then(setLogo).catch(() => {});
+    api.listPublicOrganizations().then(setOrgOptions).catch(() => {});
+    api.listPublicParishPositions().then(setParishRoleOptions).catch(() => {});
   }, []);
 
   // Take the code out of the address bar straight away, so it isn't kept in
@@ -135,12 +174,30 @@ export default function CensusPortal() {
     }
   }
 
+  // A new member's card changes with a patch (functional, so two calls in a row both count).
+  function updateNewMember(i, patch) {
+    setForm((f) => ({ ...f, newMembers: f.newMembers.map((m, j) => (j === i ? { ...m, ...patch } : m)) }));
+  }
+  /** One of a new member's registration fields. */
+  function setNewMemberField(i, field, value) {
+    setForm((f) => ({
+      ...f,
+      newMembers: f.newMembers.map((m, j) => {
+        if (j !== i) return m;
+        const next = { ...m, [field]: value };
+        // A new Spouse starts with the other sex from the head of their family, and the head's Married / Live-in (still editable).
+        const head = field === 'relationship' && value === 'Spouse' ? familiesOf(f.members).find((g) => g.familyNo === familyNoOf(m))?.head : null;
+        if (head && !m.sex) next.sex = spouseSex(head.sex);
+        if (head && !m.civilStatus && PARTNERED_STATUSES.includes(head.civil_status)) next.civilStatus = head.civil_status;
+        return next;
+      }),
+    }));
+  }
+
   async function submit() {
     setError('');
-    const missing = form.newMembers.find((m) => isFilledNew(m) && (!m.first_name.trim() || !m.last_name.trim() || !m.relationship));
-    if (missing) { setError('Ibutang ang pangalan, apelyido ug relasyon sa matag bag-ong miyembro.'); return; }
-    // Every member (and every new member being added) needs a "Kahimtang karon".
-    const unmarked = [...form.members, ...form.newMembers.filter(isFilledNew)].filter((m) => !MEMBERSHIP_STATUSES.includes(m.status));
+    // Every member needs a "Kahimtang karon".
+    const unmarked = form.members.filter((m) => !MEMBERSHIP_STATUSES.includes(m.status));
     if (unmarked.length) {
       setShowStatusErrors(true);
       setError(`Pilia ang kahimtang karon sa matag miyembro (${unmarked.length} pa ang kulang).`);
@@ -148,9 +205,25 @@ export default function CensusPortal() {
       setTimeout(() => document.querySelector('[data-census-status][aria-invalid=true]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
       return;
     }
+    // Each new member, step by step: the first with something missing opens at that step.
+    const k = form.newMembers.findIndex((m, i) => incompleteStep(m, othersFor(form, i)));
+    if (k >= 0) {
+      const m = form.newMembers[k];
+      const step = incompleteStep(m, othersFor(form, k));
+      updateNewMember(k, { step, done: false, tried: true });
+      const who = newMemberName(m) ? `ni ${newMemberName(m)}` : 'sa bag-ong miyembro';
+      setError(`Kompletoha ang “${NEW_MEMBER_STEPS[step - 1]}” ${who}, o tangtanga siya.`);
+      setTimeout(() => document.querySelector(`[data-new-member="${m.key}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+      return;
+    }
     // An adult marked Aktibo with no activity answers can't be scored: ask once, then send anyway.
-    const unanswered = [...form.members, ...form.newMembers.filter(isFilledNew)]
-      .filter((m) => m.status === 'Active' && !isYoungChild(m.dob) && !Object.keys(cleanParticipation(m.participation)).length);
+    const unanswered = [
+      ...form.members.filter((m) => m.status === 'Active' && !isYoungChild(m.dob) && !Object.keys(cleanParticipation(m.participation)).length),
+      ...form.newMembers.filter((m) => {
+        const answers = registrationAnswers(m);
+        return answers.censusStatus === 'Active' && !isYoungChild(m.dob) && !Object.keys(answers.participation).length;
+      }),
+    ];
     if (unanswered.length && !noticeShown) {
       setNoticeShown(true);
       setNotice(`${unanswered.length} ka miyembro nga Aktibo wala pay tubag sa mga pangutana (Misa, Debosyon, ug uban pa). `
@@ -328,16 +401,22 @@ export default function CensusPortal() {
         </Section>
 
         <Section title="Bag-ong miyembro">
-          <p className="text-[14px] text-parish-text2 mt-0">Bag-ong natawo, bag-ong minyo, o bag-ong nipuyo sa inyong panimalay.</p>
+          <p className="text-[14px] text-parish-text2 mt-0">
+            Bag-ong natawo, bag-ong minyo, o bag-ong nipuyo sa inyong panimalay. Sama sa rehistro: ang iyang mga detalye, mga sakramento,
+            pag-apil sa parokya, ug sa katapusan ang census.
+          </p>
           <div className="flex flex-col gap-4">
             {form.newMembers.map((m, i) => (
-              <MemberCard
-                key={i}
+              <NewMemberCard
+                key={m.key}
                 member={m}
-                isNew
+                index={i}
+                others={othersFor(form, i)}
                 families={severalFamilies ? families : null}
-                showStatusError={showStatusErrors && isFilledNew(m)}
-                onChange={(patch) => updateList('newMembers', i, patch)}
+                orgOptions={orgOptions}
+                parishRoleOptions={parishRoleOptions}
+                onChange={(patch) => updateNewMember(i, patch)}
+                onField={(field, value) => setNewMemberField(i, field, value)}
                 onRemove={() => setForm((f) => ({ ...f, newMembers: f.newMembers.filter((_, j) => j !== i) }))}
               />
             ))}
@@ -345,7 +424,7 @@ export default function CensusPortal() {
           {form.newMembers.length < 10 && (
             <button
               type="button"
-              onClick={() => setForm((f) => ({ ...f, newMembers: [...f.newMembers, blankNewMember(headOf(1)?.last_name || '')] }))}
+              onClick={() => setForm((f) => ({ ...f, newMembers: [...f.newMembers, newMemberCard(portalNewMember(null, { lastName: toNameCase(headOf(1)?.last_name || '') }))] }))}
               className="mt-3 w-full appearance-none cursor-pointer py-3.5 font-bold text-[15px] text-parish-blue bg-white border-[1.5px] border-dashed border-[#b9c6de] rounded-xl hover:bg-[#f4f7fc]"
             >
               + Idugang ang bag-ong miyembro
@@ -396,16 +475,17 @@ function Section({ title, children }) {
   );
 }
 
-function MemberCard({ member: m, isNew = false, families = null, showStatusError = false, onChange, onRemove }) {
-  // Names, birthdays and the like rarely change: existing members keep them
-  // folded away and open them only to correct a mistake.
-  const [editing, setEditing] = useState(isNew);
+/** A member on record: the census questions, with their details folded away. */
+function MemberCard({ member: m, showStatusError = false, onChange }) {
+  // Names, birthdays and the like rarely change: they stay folded away and
+  // open only to correct a mistake.
+  const [editing, setEditing] = useState(false);
   const set = (k) => (e) => onChange({ [k]: e.target.value });
   const tidy = (k, format = toNameCase) => (e) => onChange({ [k]: format(e.target.value) });
   const suggestion = suggestStatus(m.participation);
-  const name = [m.first_name, m.last_name].filter(Boolean).join(' ') || 'Bag-ong miyembro';
+  const name = [m.first_name, m.last_name].filter(Boolean).join(' ');
   // A family head stays one; anyone else can't be made one here.
-  const isHead = !isNew && HEADS.includes(m.relationship);
+  const isHead = HEADS.includes(m.relationship);
   const relationships = isHead ? [m.relationship] : NEW_RELATIONSHIPS;
   // Young children count as Aktibo, and someone inactive, moved, deceased or
   // gone has no participation to answer.
@@ -420,13 +500,10 @@ function MemberCard({ member: m, isNew = false, families = null, showStatusError
       <div className="flex items-start gap-3 mb-3">
         <div className="min-w-0 flex-1">
           <div className="font-semibold text-[16px] text-parish-navy">{name}</div>
-          {!isNew && (
-            <div className="text-[12.5px] text-parish-muted">
-              Sakramento: {SACRAMENTS_SHORT.filter(([k]) => m[k]).map(([, l]) => l).join(', ') || 'wala pa narekord'}
-            </div>
-          )}
+          <div className="text-[12.5px] text-parish-muted">
+            Sakramento: {SACRAMENTS_SHORT.filter(([k]) => m[k]).map(([, l]) => l).join(', ') || 'wala pa narekord'}
+          </div>
         </div>
-        {onRemove && <button type="button" onClick={onRemove} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[13px] text-parish-error bg-parish-errorBg rounded-lg">Tangtangon</button>}
       </div>
 
       <div className="grid gap-3" style={GRID}>
@@ -478,30 +555,21 @@ function MemberCard({ member: m, isNew = false, families = null, showStatusError
       </div>
       )}
 
-      {!isNew && (
-        <button
-          type="button"
-          aria-expanded={editing}
-          onClick={() => setEditing((v) => !v)}
-          className="mt-3 appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13.5px] text-parish-blue"
-        >
-          {editing ? '▾ Itago ang mga detalye' : '▸ Usba ang mga detalye (kung adunay sayop)'}
-        </button>
-      )}
+      <button
+        type="button"
+        aria-expanded={editing}
+        onClick={() => setEditing((v) => !v)}
+        className="mt-3 appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13.5px] text-parish-blue"
+      >
+        {editing ? '▾ Itago ang mga detalye' : '▸ Usba ang mga detalye (kung adunay sayop)'}
+      </button>
       {editing && (
         <div className="grid gap-3 mt-3" style={GRID}>
-          <Field label="Pangalan" required={isNew}><TextInput value={m.first_name} onChange={set('first_name')} onBlur={tidy('first_name')} /></Field>
+          <Field label="Pangalan"><TextInput value={m.first_name} onChange={set('first_name')} onBlur={tidy('first_name')} /></Field>
           <Field label="Tunga nga apelyido"><TextInput value={m.middle_name} onChange={set('middle_name')} onBlur={tidy('middle_name')} /></Field>
-          <Field label="Apelyido" required={isNew}><TextInput value={m.last_name} onChange={set('last_name')} onBlur={tidy('last_name')} /></Field>
+          <Field label="Apelyido"><TextInput value={m.last_name} onChange={set('last_name')} onBlur={tidy('last_name')} /></Field>
           <Field label="Suffix"><TextInput value={m.suffix} placeholder="Jr., Sr., III" onChange={set('suffix')} onBlur={tidy('suffix', toSuffixCase)} /></Field>
-          {isNew && families && (
-            <Field label="Pamilya">
-              <Select value={String(m.family_no || 1)} onChange={(e) => onChange({ family_no: Number(e.target.value) })}>
-                {families.map((g) => <option key={g.familyNo} value={String(g.familyNo)}>{familyLabel(g)}</option>)}
-              </Select>
-            </Field>
-          )}
-          <Field label={families || (!isNew && (m.family_no || 1) > 1) ? 'Relasyon sa ulo sa iyang pamilya' : 'Relasyon'} required={isNew}>
+          <Field label={(m.family_no || 1) > 1 ? 'Relasyon sa ulo sa iyang pamilya' : 'Relasyon'}>
             <Select value={m.relationship} onChange={set('relationship')} disabled={isHead}>
               {!isHead && <option value="">Pili…</option>}
               {/* Keep an unusual value on record selectable. */}
@@ -523,6 +591,201 @@ function MemberCard({ member: m, isNew = false, families = null, showStatusError
           <Field label="Numero sa kontak"><TextInput value={m.contact} onChange={set('contact')} inputMode="tel" /></Field>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Where a new member is: four bars, the steps done and the one open in blue; a step done can be opened again. */
+function NewMemberSteps({ step, onPick }) {
+  return (
+    <ol className="flex gap-1.5 m-0 p-0 list-none" aria-label="Mga lakang">
+      {NEW_MEMBER_STEPS.map((label, i) => {
+        const n = i + 1;
+        const active = n === step;
+        const done = n < step;
+        return (
+          <li key={label} className="flex-1 min-w-0">
+            <button
+              type="button"
+              disabled={!done}
+              onClick={() => onPick(n)}
+              aria-current={active ? 'step' : undefined}
+              aria-label={`Lakang ${n}: ${label}`}
+              className="w-full appearance-none border-none bg-transparent p-0 text-left cursor-pointer disabled:cursor-default"
+            >
+              <span className="block h-[5px] rounded-full" style={{ background: active || done ? 'var(--p-blue)' : '#eaddc2' }} />
+              <span className={`hidden sm:block mt-1.5 text-[12px] font-semibold truncate ${active ? 'text-parish-navy' : done ? 'text-parish-blue' : 'text-[#a79f8a]'}`}>
+                {n}. {label}
+              </span>
+            </button>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+/**
+ * A new member, asked as at registration (0090) one step at a time: their
+ * details, their sacraments, their part in the parish (organizations and
+ * Katungdanan), and lastly the census questions. Once done it folds into a
+ * summary, with "Usba" to go through it again.
+ */
+function NewMemberCard({ member: m, index, others, families, orgOptions, parishRoleOptions, onChange, onField, onRemove }) {
+  const ref = useRef(null);
+  const name = newMemberName(m);
+  const errors = m.tried && !m.done ? newMemberErrors(m, m.step, others) : {};
+  // As the registration fields take a member: its place, its errors and its name.
+  const mv = { ...m, mi: index, err: errors, displayName: name || 'Bag-ong miyembro' };
+  const field = (_, k, v) => onField(k, v);
+  const asked = askedForAge(m.dob);
+
+  // A new step opens at its top, so a phone doesn't land halfway down it.
+  function go(patch) {
+    onChange(patch);
+    setTimeout(() => ref.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50);
+  }
+  function next() {
+    if (Object.keys(newMemberErrors(m, m.step, others)).length) {
+      onChange({ tried: true });
+      // Once the errors show, bring the first into view.
+      setTimeout(() => {
+        const invalid = ref.current?.querySelector('[aria-invalid="true"]');
+        invalid?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        invalid?.focus({ preventScroll: true });
+      }, 50);
+      return;
+    }
+    go(m.step < LAST_STEP ? { step: m.step + 1, tried: false } : { done: true, tried: false });
+  }
+  const toggleOrganization = (org) => onField('organizations', m.organizations.includes(org)
+    ? m.organizations.filter((o) => o !== org)
+    : [...m.organizations, org]);
+  const removeButton = (
+    <button type="button" onClick={onRemove} className="flex-none appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[13px] text-parish-error bg-parish-errorBg rounded-lg">Tangtangon</button>
+  );
+
+  if (m.done) {
+    // What will be sent: nothing they're too young for, and the wedding rule.
+    const p = toPayloadMember(m);
+    const { censusStatus } = registrationAnswers(m);
+    const roles = [p.gkkRole && `GKK: ${p.gkkRole}`, p.parishRole && `Parish: ${p.parishRole}`].filter(Boolean);
+    const rows = [
+      ['Sakramento', NEW_SACRAMENTS_SHORT.filter(([k]) => p[k]).map(([, l]) => l).join(', ') || 'wala pa'],
+      p.organizations.length > 0 && ['Organisasyon', p.organizations.join(', ')],
+      roles.length > 0 && ['Katungdanan', roles.join(' · ')],
+      ['Census', MEMBERSHIP_STATUS_LABELS[censusStatus] || '—'],
+    ].filter(Boolean);
+    return (
+      <div ref={ref} data-new-member={m.key} className="scroll-mt-4 border border-[#eee3ce] rounded-xl bg-[#fdfbf6] p-4">
+        <div className="flex items-start gap-3">
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold text-[16px] text-parish-navy">{name}</div>
+            <div className="text-[12.5px] text-parish-muted">
+              {[bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), m.dob && `natawo ${fmtDate(m.dob)}`, bis(CIVIL_STATUS_LABELS, m.civilStatus)].filter(Boolean).join(' · ')}
+            </div>
+            <dl className="m-0 mt-2 flex flex-col gap-0.5 text-[13px]">
+              {rows.map(([label, value]) => (
+                <div key={label} className="flex gap-2">
+                  <dt className="flex-none font-semibold text-parish-blue">{label}</dt>
+                  <dd className="m-0 text-parish-text2 min-w-0 break-words">{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 flex-none">
+            <button type="button" onClick={() => go({ done: false, step: 1, tried: false })} className="appearance-none border-none cursor-pointer px-3 py-2 font-semibold text-[13px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">Usba</button>
+            {removeButton}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  let body;
+  if (m.step === 1) {
+    body = (
+      <>
+        <MemberNameFields mv={mv} onField={field} />
+        <div className="mt-4">
+          <MemberFieldsGrid mv={mv} onField={field} bloodType={false}>
+            {families && (
+              <Field label="Pamilya">
+                <Select value={String(familyNoOf(m))} onChange={(e) => onField('familyNo', Number(e.target.value))}>
+                  {families.map((g) => <option key={g.familyNo} value={String(g.familyNo)}>{familyLabel(g)}</option>)}
+                </Select>
+              </Field>
+            )}
+          </MemberFieldsGrid>
+        </div>
+      </>
+    );
+  } else if (m.step === 2) {
+    body = (
+      <>
+        <p className="text-[13.5px] text-parish-muted mt-0 mb-3">I-tsek ang mga sakramento nga nadawat na niya. Dili kinahanglan ang mga detalye, apan makatabang kini sa among rekord.</p>
+        <MemberSacraments mv={mv} onField={field} />
+      </>
+    );
+  } else if (m.step === 3) {
+    const nothing = !orgOptions.length && !asked.roles;
+    body = (
+      <div className="flex flex-col gap-5">
+        <p className="text-[13.5px] text-parish-muted m-0">
+          {nothing ? 'Wala nay pangutana niini nga lakang para kaniya. Pindota ang “Padayon”.' : 'Ang pag-assign sa mga ministeryo himoon sa kawani sa parokya.'}
+        </p>
+        {orgOptions.length > 0 && (
+          <div>
+            <div className="font-semibold text-[14.5px] text-parish-navy">Mga Organisasyon</div>
+            <div className="text-[13px] text-parish-muted mb-2.5">I-tsek ang matag organisasyon sa parokya nga miyembro siya.</div>
+            <OrganizationChecks options={orgOptions} selected={m.organizations} onToggle={toggleOrganization} />
+          </div>
+        )}
+        {/* Children aren't asked about a Katungdanan (see askedForAge). */}
+        {asked.roles && (
+          <div>
+            <div className="grid gap-4" style={GRID}>
+              <Field label="Katungdanan sa GKK">
+                <ComboInput placeholder="Pili o isulat ang katungdanan" toggleLabel="Ipakita ang mga katungdanan" options={GKK_ROLES} value={m.gkkRole} onChange={(v) => onField('gkkRole', v)} />
+              </Field>
+              {parishRoleOptions.length > 0 && (
+                <Field label="Katungdanan sa Parish">
+                  <OptionSelect placeholder="Walay katungdanan" options={parishRoleOptions} value={m.parishRole} onChange={(v) => onField('parishRole', v)} />
+                </Field>
+              )}
+            </div>
+            <div className="text-[12.5px] text-parish-muted mt-1.5">Biyai nga blangko kung walay katungdanan.</div>
+          </div>
+        )}
+      </div>
+    );
+  } else {
+    body = (
+      <>
+        <p className="text-[13.5px] text-parish-muted mt-0 mb-3">Pilia ang iyang kahimtang karon ug i-tsek kung unsa siya ka aktibo sa matag kalihokan. Kini ang iyang tubag sa census.</p>
+        <MemberCensusCards memberViews={[mv]} onChange={(_, patch) => onChange(censusCardPatch(m, patch))} />
+        <div className="mt-3">
+          <Field label="Pahibalo (kung naa)"><TextInput value={m.notes} placeholder="pananglitan: nagtrabaho sa abroad" onChange={(e) => onChange({ notes: e.target.value })} /></Field>
+        </div>
+      </>
+    );
+  }
+
+  return (
+    <div ref={ref} data-new-member={m.key} className="scroll-mt-4 border-[1.5px] border-[#d4e0f2] rounded-xl bg-[#fdfbf6] p-4">
+      <div className="flex items-start gap-3 mb-3">
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold text-[16px] text-parish-navy">{mv.displayName}</div>
+          <div className="text-[12.5px] text-parish-muted" aria-live="polite">Lakang {m.step} sa {LAST_STEP} · {NEW_MEMBER_STEPS[m.step - 1]}</div>
+        </div>
+        {removeButton}
+      </div>
+      <NewMemberSteps step={m.step} onPick={(n) => go({ step: n, tried: false })} />
+      <div className="mt-4">{body}</div>
+      <div className="flex items-center justify-between gap-3 mt-5">
+        {m.step > 1 ? <GhostButton onClick={() => go({ step: m.step - 1, tried: false })} className="px-4 py-2.5 text-[14px]">← Balik</GhostButton> : <span />}
+        <PrimaryButton onClick={next} className="px-5 py-2.5 text-[14px]">{m.step < LAST_STEP ? 'Padayon →' : 'Human na'}</PrimaryButton>
+      </div>
     </div>
   );
 }
