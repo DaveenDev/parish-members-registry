@@ -4,7 +4,7 @@ import { pageWindow } from '../lib/paging.js';
 
 export function PageHeader({ title, subtitle, children }) {
   return (
-    <div className="lg:sticky lg:top-0 z-10 bg-parish-bg/90 backdrop-blur-md border-b border-parish-border px-4 py-4 sm:px-[26px] sm:py-[18px] flex items-start sm:items-center justify-between gap-3 sm:gap-4 flex-wrap">
+    <div className="md:sticky md:top-0 z-10 bg-parish-bg/90 backdrop-blur-md border-b border-parish-border px-4 py-4 sm:px-[26px] sm:py-[18px] flex items-start sm:items-center justify-between gap-3 sm:gap-4 flex-wrap">
       <div className="min-w-0">
         <h1 className="font-serif text-[clamp(22px,3vw,30px)] font-semibold m-0 text-parish-navy">{title}</h1>
         {subtitle && <div className="text-[13.5px] text-parish-muted mt-0.5">{subtitle}</div>}
@@ -51,22 +51,26 @@ export function SearchInput(props) {
 }
 
 // A table's first column pinned while it scrolls sideways, so a wide table of
-// numbers keeps its row names in view on a phone. Total rows (bg-parish-sunk)
+// numbers keeps its row names in view on a phone or tablet. Total rows (bg-parish-sunk)
 // keep their shading.
-const STICKY_FIRST = 'max-md:[&_tr>*:first-child]:sticky max-md:[&_tr>*:first-child]:left-0 max-md:[&_tr>*:first-child]:z-[1] '
-  + 'max-md:[&_tr>*:first-child]:bg-parish-card max-md:[&_tr.bg-parish-sunk>*:first-child]:bg-parish-sunk '
-  + 'max-md:[&_tr>*:first-child]:shadow-[1px_0_0_rgb(var(--c-line))]';
+const STICKY_FIRST = 'max-lg:[&_tr>*:first-child]:sticky max-lg:[&_tr>*:first-child]:left-0 max-lg:[&_tr>*:first-child]:z-[1] '
+  + 'max-lg:[&_tr>*:first-child]:bg-parish-card max-lg:[&_tr.bg-parish-sunk>*:first-child]:bg-parish-sunk '
+  + 'max-lg:[&_tr>*:first-child]:shadow-[1px_0_0_rgb(var(--c-line))]';
 
 /**
  * Table on a Panel. `mobile`, when given, replaces the table below the md
- * breakpoint (cards read better than a sideways-scrolling table on a phone).
- * `stickyFirst` pins the first column instead, for tables of figures.
+ * breakpoint (cards read better than a sideways-scrolling table on a phone),
+ * and on tablets too (below lg) when the table is wider than a tablet's page
+ * beside the icon rail. `stickyFirst` pins the first column instead, for
+ * tables of figures.
  */
 export function DataTable({ columns, children, minWidth = 700, footer, mobile, stickyFirst = false }) {
+  // 768px less the 72px rail and the page padding leaves about 640px.
+  const tabletCards = minWidth > 640;
   return (
     <Panel className="overflow-hidden">
-      {mobile && <div className="md:hidden">{mobile}</div>}
-      <div className={`overflow-x-auto ${mobile ? 'hidden md:block' : ''}`}>
+      {mobile && <div className={tabletCards ? 'lg:hidden' : 'md:hidden'}>{mobile}</div>}
+      <div className={`overflow-x-auto ${!mobile ? '' : tabletCards ? 'hidden lg:block' : 'hidden md:block'}`}>
         <table className={`w-full border-collapse ${stickyFirst ? STICKY_FIRST : ''}`} style={{ minWidth }}>
           <thead>
             <tr className="bg-parish-sunk">

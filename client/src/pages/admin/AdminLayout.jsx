@@ -13,6 +13,7 @@ import { NAV_GROUPS, censusMenuShown, navAllowed, navCollapsible, navItemFor, na
 import { accessLabel } from '../../lib/access.js';
 import { keepServiceWorker } from '../../lib/push.js';
 import ChurchEmblem from '../../components/ChurchEmblem.jsx';
+import NavIcon from '../../components/NavIcon.jsx';
 
 // Lets a phone add the admin panel to its Home Screen (needed on iPhone for
 // notifications). Only on admin pages, so the public website isn't offered
@@ -77,6 +78,89 @@ function NavItem({ to, end, label, count, badgeLabel, onNavigate }) {
   );
 }
 
+/**
+ * The sidebar folded to an icon rail, for tablets and small laptops (md up to
+ * 1400px), so the page keeps the width a table or chart needs. Each section
+ * is an icon with its name in a tooltip; `onExpand` opens the full menu over
+ * the page. `groups` is the visible nav, as the full sidebar shows it.
+ */
+function NavRail({ groups, badges, bell, nameInitials, userName, onExpand, onSearch, onLogout }) {
+  const [tip, setTip] = useState(null);
+  const tipProps = (label) => ({
+    onMouseEnter: (e) => setTip({ label, top: e.currentTarget.getBoundingClientRect().top + e.currentTarget.offsetHeight / 2 }),
+    onFocus: (e) => setTip({ label, top: e.currentTarget.getBoundingClientRect().top + e.currentTarget.offsetHeight / 2 }),
+    onMouseLeave: () => setTip(null),
+    onBlur: () => setTip(null),
+  });
+  const btn = 'relative appearance-none border-none cursor-pointer w-11 h-10 rounded-xl flex items-center justify-center flex-none transition';
+  const quiet = `${btn} bg-transparent text-white/70 hover:text-white hover:bg-white/10`;
+
+  return (
+    <aside className="hidden md:flex min-[1400px]:hidden flex-none w-[72px] text-white flex-col items-center sticky top-0 h-screen z-30" style={{ background: 'linear-gradient(180deg,var(--p-sidebar-a),var(--p-sidebar-b))' }} aria-label="Admin menu">
+      <div className="w-full flex flex-col items-center gap-1.5 pt-3.5 pb-3 border-b border-white/10">
+        <button type="button" onClick={onExpand} {...tipProps('Full menu')} aria-label="Open the full menu" className={quiet}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden><path d="M4 6h16M4 12h10M4 18h16" /><path d="M17 9.5l2.5 2.5-2.5 2.5" /></svg>
+        </button>
+        <button type="button" onClick={onSearch} {...tipProps('Search (Ctrl K)')} aria-label="Search" className={`${btn} border border-white/15 bg-white/5 hover:bg-white/10 text-white/80`}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
+        </button>
+        <NotificationBell bell={bell} dark className="!w-11" />
+      </div>
+
+      <nav onScroll={() => setTip(null)} className="w-full flex-1 overflow-y-auto overflow-x-hidden [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col items-center py-2" aria-label="Admin sections">
+        {groups.map((g, gi) => (
+          <div key={g.label} role="group" aria-label={g.label} className="w-full flex flex-col items-center gap-0.5">
+            {gi > 0 && <div className="w-8 h-px bg-white/15 my-1.5" aria-hidden />}
+            {g.items.map((n) => {
+              const count = n.badge ? badges[n.badge] || 0 : 0;
+              const label = count > 0 ? `${n.label} (${count} ${n.badgeLabel || 'waiting'})` : n.label;
+              return (
+                <NavLink
+                  key={n.to} to={n.to} end={n.end} aria-label={label} {...tipProps(label)}
+                  className={({ isActive }) => `${btn} !h-9 ${isActive ? 'bg-white/[.14] text-white' : 'text-white/65 hover:text-white hover:bg-white/[.07]'}`}
+                >
+                  {({ isActive }) => (
+                    <>
+                      <span className="absolute -left-[14px] top-1.5 bottom-1.5 w-[3px] rounded" style={{ background: isActive ? 'var(--p-gold-light)' : 'transparent' }} />
+                      <NavIcon to={n.whileCensusOpen ? '/admin/census' : n.to} />
+                      {count > 0 && (
+                        <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 rounded-full bg-[var(--p-gold-light)] text-parish-navy text-[10.5px] font-bold leading-[18px] text-center shadow" aria-hidden>
+                          {count > 99 ? '99+' : count}
+                        </span>
+                      )}
+                    </>
+                  )}
+                </NavLink>
+              );
+            })}
+            {g.folded && (
+              <button type="button" onClick={g.onToggle} aria-expanded={false} aria-label={`${g.label}: show its pages`} {...tipProps(g.label)} className={`${quiet} !h-9`}>
+                <NavIcon to="/admin/settings" />
+                {g.badge > 0 && <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-[var(--p-gold-light)]" aria-hidden />}
+              </button>
+            )}
+          </div>
+        ))}
+      </nav>
+
+      <div className="w-full flex flex-col items-center gap-2 py-2.5 border-t border-white/10">
+        <button type="button" onClick={onExpand} {...tipProps(`${userName || 'Account'}: theme and account`)} aria-label="Account and theme" className="appearance-none border-none cursor-pointer w-9 h-9 rounded-full bg-[var(--p-gold-light)] text-parish-navy flex items-center justify-center font-bold text-[13px]">
+          {nameInitials}
+        </button>
+        <button type="button" onClick={onLogout} {...tipProps('Sign out')} aria-label="Sign out" className={`${btn} !w-9 !h-9 bg-white/10 hover:bg-white/15 text-white`}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><path d="M16 17l5-5-5-5M21 12H9" /></svg>
+        </button>
+      </div>
+
+      {tip && (
+        <div role="tooltip" className="fixed left-[80px] z-[75] -translate-y-1/2 pointer-events-none px-2.5 py-1.5 rounded-lg bg-parish-navy text-white text-[12.5px] font-semibold whitespace-nowrap shadow-card animate-fadeIn" style={{ top: tip.top }}>
+          {tip.label}
+        </div>
+      )}
+    </aside>
+  );
+}
+
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -131,6 +215,18 @@ export default function AdminLayout() {
     navigate('/admin/login', { replace: true, state: { reason: 'idle' } });
   }, [logout, navigate]);
 
+  // The nav this account sees, for the sidebar and the icon rail.
+  const visibleGroups = NAV_GROUPS.map((g) => ({
+    ...g,
+    items: g.items.filter((n) => navAllowed(n, user) && (!n.whileCensusOpen || showCensusMenu)).map((n) => ({ ...n, label: navLabel(n, user) })),
+  })).filter((g) => g.items.length);
+  const groupOpen = (g) => !navCollapsible(g, user) || (openGroups[g.label] ?? g.items.some((n) => n === current || n.to === current?.to));
+  const toggleGroup = (g) => setOpenGroups((o) => ({ ...o, [g.label]: !groupOpen(g) }));
+  const railGroups = visibleGroups.map((g) => (groupOpen(g) ? g : {
+    ...g, items: [], folded: true, onToggle: () => toggleGroup(g),
+    badge: g.items.reduce((s, n) => s + (n.badge ? badges[n.badge] || 0 : 0), 0),
+  }));
+
   const nameInitials = (user?.name || '?').split(' ').map((s) => s[0]).slice(0, 2).join('').toUpperCase();
 
   const sidebar = (
@@ -156,22 +252,20 @@ export default function AdminLayout() {
         >
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden><circle cx="11" cy="11" r="7" /><path d="M21 21l-4-4" /></svg>
           <span className="flex-1">Search</span>
-          <kbd className={`text-[10.5px] font-semibold text-white/55 border border-white/20 rounded px-1.5 py-px ${bell.available ? 'lg:hidden' : ''}`}>Ctrl K</kbd>
+          <kbd className={`text-[10.5px] font-semibold text-white/55 border border-white/20 rounded px-1.5 py-px ${bell.available ? 'min-[1400px]:hidden' : ''}`}>Ctrl K</kbd>
         </button>
-        {/* On phones the bell is in the top bar instead. */}
-        <NotificationBell bell={bell} dark className="hidden lg:flex" />
+        {/* On phones the bell is in the top bar instead, on tablets in the icon rail. */}
+        <NotificationBell bell={bell} dark className="hidden min-[1400px]:flex" />
       </div>
 
       <nav className="px-3 py-1.5 flex flex-col flex-1 overflow-auto" aria-label="Admin sections">
-        {NAV_GROUPS.map((g) => {
-          const items = g.items.filter((n) => navAllowed(n, user) && (!n.whileCensusOpen || showCensusMenu)).map((n) => ({ ...n, label: navLabel(n, user) }));
-          if (!items.length) return null;
+        {visibleGroups.map((g) => {
+          const { items } = g;
           if (navCollapsible(g, user)) {
             // Collapsed by default; opens on its own while one of its pages is showing.
-            const hasCurrent = items.some((n) => n === current || n.to === current?.to);
-            const open = openGroups[g.label] ?? hasCurrent;
+            const open = groupOpen(g);
             const groupBadge = items.reduce((s, n) => s + (n.badge ? badges[n.badge] || 0 : 0), 0);
-            const toggle = () => setOpenGroups((o) => ({ ...o, [g.label]: !open }));
+            const toggle = () => toggleGroup(g);
             return (
               <div key={g.label} role="group" aria-label={g.label} className="flex flex-col">
                 <button
@@ -227,14 +321,20 @@ export default function AdminLayout() {
 
   return (
     <div className="flex min-h-screen font-sans">
-      {/* Desktop sidebar */}
-      <aside className="hidden lg:flex flex-none w-[208px] text-white flex-col sticky top-0 h-screen" style={sidebarBg}>
+      {/* Desktop sidebar, from 1400px */}
+      <aside className="hidden min-[1400px]:flex flex-none w-[208px] text-white flex-col sticky top-0 h-screen" style={sidebarBg}>
         {sidebar}
       </aside>
 
-      {/* Mobile drawer */}
+      {/* Tablets and small laptops (768–1399px): the sidebar folds to icons. */}
+      <NavRail
+        groups={railGroups} badges={badges} bell={bell} nameInitials={nameInitials} userName={user?.name}
+        onExpand={() => setDrawerOpen(true)} onSearch={openSearch} onLogout={onLogout}
+      />
+
+      {/* The full menu over the page: phones, and the rail's "full menu" */}
       {drawerOpen && (
-        <div className="lg:hidden fixed inset-0 z-[70] flex" role="dialog" aria-modal="true" aria-label="Navigation menu">
+        <div className="min-[1400px]:hidden fixed inset-0 z-[70] flex" role="dialog" aria-modal="true" aria-label="Navigation menu">
           <div className="absolute inset-0 bg-parish-scrim/50 backdrop-blur-sm" onClick={() => setDrawerOpen(false)} />
           <aside className="relative w-[248px] max-w-[82vw] text-white flex flex-col h-full shadow-2xl animate-fadeUp" style={sidebarBg}>
             {sidebar}
@@ -243,8 +343,8 @@ export default function AdminLayout() {
       )}
 
       <main className="flex-1 min-w-0 flex flex-col bg-parish-bg">
-        {/* Mobile top bar */}
-        <div className="lg:hidden sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-parish-border bg-parish-bg/95 backdrop-blur-md">
+        {/* Phone top bar */}
+        <div className="md:hidden sticky top-0 z-20 flex items-center gap-3 px-4 py-3 border-b border-parish-border bg-parish-bg/95 backdrop-blur-md">
           <button
             onClick={() => setDrawerOpen(true)}
             aria-label="Open navigation menu"

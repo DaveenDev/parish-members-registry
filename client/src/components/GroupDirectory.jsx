@@ -161,7 +161,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                 )}
               </div>
               {/* Phones: one line per member instead of a sideways-scrolling table. */}
-              <ul className="md:hidden list-none m-0 p-0 divide-y divide-parish-line" aria-label={`${activeLabel} members`}>
+              <ul className="lg:hidden list-none m-0 p-0 divide-y divide-parish-line" aria-label={`${activeLabel} members`}>
                 {(isParish ? [{ gkk: null, members: rows, flat: true }] : groupByGkk(rows)).map((g) => (
                   <React.Fragment key={g.gkk || 'no-gkk'}>
                     {!g.flat && (
@@ -192,7 +192,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
                   </React.Fragment>
                 ))}
               </ul>
-              <div className="hidden md:block overflow-x-auto">
+              <div className="hidden lg:block overflow-x-auto">
                 <table className="w-full border-collapse" style={{ minWidth: 720 }}>
                   <thead>
                     <tr className="bg-parish-sunk">
