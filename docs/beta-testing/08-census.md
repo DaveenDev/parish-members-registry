@@ -222,19 +222,38 @@ window or a second browser for the family, so it is not signed in as staff.
 **Steps**
 1. Sign in as the Dela Cruz Family. Change the contact number, mark the first
    member's Mass as **Wala** and the second member's Mass as **Aktibo**.
-2. Add a new member (a newborn): name, relationship, sex, birth date, status
-   Aktibo.
-3. Write a message, and try to send without ticking the consent box. Then tick
+2. Add a new member (a newborn) and go through its four steps: **Mga
+   detalye** (name, relationship, sex, birth date, civil status), **Mga
+   sakramento** (tick Bunyag), **Pag-apil** (leave it blank),
+   **Census**. Press **Human na**.
+3. Add a second new member, an adult who married into the house: pick
+   **Asawa**, then change it to **Ugangan / Bayaw / Bilas**, and press
+   **Padayon** with the birthday still empty, then fill it in. Make them
+   Married, and on **Mga sakramento** pick **Kasal sa Simbahang Katoliko**;
+   on **Pag-apil** tick an organization and pick a Katungdanan sa GKK; on
+   **Census** press **Human na** without a status, then pick **Aktibo**.
+4. Write a message, and try to send without ticking the consent box. Then tick
    it and send.
-4. Choose **Usba pag-usab**.
+5. Choose **Usba pag-usab**.
 
 **Expected**
 - The first member's status follows the answers (Dili aktibo / Aktibo) until
   the family picks one.
+- A new member's step doesn't move on with something required missing: the
+  fields are marked in Bisaya. The baby's **Census** step says Aktibo (bata
+  pa) with nothing to answer, and only Bunyag is offered among the
+  sacraments. No step asks for a blood type.
+- Picking **Asawa** fills in the other sex from the head's, and the head's
+  civil status when it's Married or Live-in (both can still be changed).
+  **Census** won't finish without a status.
+- **Human na** folds each new member into a summary (sacraments,
+  organization, Katungdanan, census status) with **Usba** and
+  **Tangtangon**.
 - Sending without consent is stopped with a message in Bisaya.
 - After sending: the thank-you page. On the staff side, **nothing** in Members or
   Households has changed yet.
-- **Usba pag-usab** reopens the form with what was sent and a note that an
+- **Usba pag-usab** reopens the form with what was sent (the new members as
+  summaries, everything still there under **Usba**) and a note that an
   update is waiting for review. Sending again replaces the earlier one (staff
   still see only one).
 
@@ -254,9 +273,11 @@ window or a second browser for the family, so it is not signed in as staff.
 - The review lists only what changed (old value struck through, new value
   bold), each member's census answers, the new member and the message. A
   member whose answers suggest a different status from the one chosen is
-  flagged.
+  flagged. Each new member shows their other details, their sacraments
+  (with dates and parish), organizations and roles.
 - After approving: the contact number changed, the email you edited in step 2
-  was **not** overwritten, the newborn is in the household, and the answered
+  was **not** overwritten, both new members are in the household with
+  their sacraments, organization and Katungdanan, and the answered
   members show **Confirmed** with source "Portal".
 - It leaves **Waiting for review**; in **Recent online updates** it shows
   "Approved by" your name.

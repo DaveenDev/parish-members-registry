@@ -2,31 +2,30 @@ import React, { useState, useRef, useEffect, useId } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { useDebounced } from '../hooks.js';
-import { toNameCase, toSuffixCase } from '../lib/util.js';
+import { toNameCase } from '../lib/util.js';
 import {
   syncSpouses, weddingCouples, toPayloadMember, WEDDING_FIELDS, familiesOf, familyNoOf, nextFamilyNo, familyHeadName, familyHeadIndex,
   familyTag, compactFamilies, repeatedMember, spouseSex, askedForAge,
 } from '../lib/household.js';
 import {
-  bis, serverErrorInBisaya, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS,
+  bis, serverErrorInBisaya, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS,
 } from '../lib/bisaya.js';
 import {
-  blankMember, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES,
-  HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate, ageFromDob,
+  blankMember, HEAD, FAMILY_HEAD, HEADS, MAX_FAMILIES, HELP_WAYS, DEFAULT_ADDRESS, GKK_ROLES, fmtDate,
 } from '../constants.js';
-import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, TribeSelect, FamilyGroupingSelect, ComboInput, OptionSelect, FlagEmptyRequired } from '../components/ui.jsx';
+import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GoldButton, GhostButton, Spinner, FamilyGroupingSelect, ComboInput, OptionSelect, FlagEmptyRequired } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
 import ParticipationSurvey, { ParticipationReview } from '../components/ParticipationSurvey.jsx';
 import { ConfirmationPrintSheet } from '../components/PrintSheet.jsx';
 import { formatAccessCode, registrationAnswers, censusCardPatch } from '../lib/census.js';
 import MemberCensusCards, { MemberCensusReview } from '../components/MemberCensusCards.jsx';
+import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationChecks } from '../components/MemberFields.jsx';
 import { barangayPatch, gkkBarangays, isListedBarangay } from '../lib/site.js';
 import { BarangayInput, GkkSelect, useGkkBarangayMap } from '../components/BarangayGkkFields.jsx';
 import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 import ChurchEmblem from '../components/ChurchEmblem.jsx';
 
 const STEPS = ['Pamilya ug Ulo', 'Mga Miyembro', 'Mga Sakramento', 'Pag-apil', 'Pagsusi'];
-const MEMBER_RELATIONSHIPS = RELATIONSHIPS.filter((r) => !HEADS.includes(r));
 // A family joining a registered house (0054) is sent as one family; the
 // server gives it its number, so in the form it's just "not family 1".
 const JOIN_FAMILY_NO = 2;
@@ -999,72 +998,6 @@ function SectionTitle({ children }) {
   return <h3 className="font-serif text-[22px] font-semibold text-parish-navy m-0 mb-4">{children}</h3>;
 }
 
-function MemberNameFields({ mv, onField }) {
-  const set = (field) => (e) => onField(mv.mi, field, e.target.value);
-  // Tidy to "Dela Cruz" style when the field is left, not while typing.
-  const tidy = (field, format = toNameCase) => (e) => {
-    const formatted = format(e.target.value);
-    if (formatted !== e.target.value) onField(mv.mi, field, formatted);
-  };
-  return (
-    <div className="grid gap-4" style={GRID}>
-      <Field label="Apelyido" required error={mv.err.lastName}><TextInput value={mv.lastName} onChange={set('lastName')} onBlur={tidy('lastName')} autoCapitalize="words" /></Field>
-      <Field label="Ngalan" required error={mv.err.firstName}><TextInput value={mv.firstName} onChange={set('firstName')} onBlur={tidy('firstName')} autoCapitalize="words" /></Field>
-      <Field label="Tunga nga ngalan"><TextInput placeholder="apelyido sa inahan" value={mv.middleName} onChange={set('middleName')} onBlur={tidy('middleName')} autoCapitalize="words" /></Field>
-      <Field label="Suffix"><TextInput placeholder="Jr., Sr., III" value={mv.suffix || ''} onChange={set('suffix')} onBlur={tidy('suffix', toSuffixCase)} /></Field>
-    </div>
-  );
-}
-
-/** Personal details for one member. `head` hides Relationship (the head's is fixed). */
-function MemberFieldsGrid({ mv, onField, head = false }) {
-  const set = (field) => (e) => onField(mv.mi, field, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
-  return (
-    <div className="grid gap-4" style={GRID}>
-      {!head && (
-        <Field label="Relasyon sa ulo sa pamilya" required error={mv.err.relationship}>
-          <Select value={mv.relationship} onChange={set('relationship')}>
-            <option value="">Pili…</option>
-            {MEMBER_RELATIONSHIPS.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
-          </Select>
-        </Field>
-      )}
-      <Field label="Kasarian" required error={mv.err.sex}>
-        <Select value={mv.sex} onChange={set('sex')}>
-          <option value="">Pili…</option>
-          {Object.entries(SEX_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </Select>
-      </Field>
-      <Field label="Birthday" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
-      <Field label="Lugar sa pagkatawo"><TextInput placeholder="Asa gipanganak" value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
-      <Field label="Tribu"><TribeSelect placeholder="Pili…" value={mv.tribe} onChange={(v) => onField(mv.mi, 'tribe', v)} /></Field>
-      <Field label="Kahimtang sibil (Civil status)" required error={mv.err.civilStatus}>
-        <Select value={mv.civilStatus} onChange={set('civilStatus')}>
-          <option value="">Pili…</option>
-          {CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
-        </Select>
-      </Field>
-      <Field label="Numero sa kontak"><TextInput type="tel" placeholder="0917…" value={mv.contact} onChange={set('contact')} /></Field>
-      <Field label="Email" error={mv.err.email}><TextInput type="email" placeholder="opsyonal" value={mv.email} onChange={set('email')} /></Field>
-      <Field label="Trabaho"><TextInput placeholder="opsyonal" value={mv.occupation} onChange={set('occupation')} /></Field>
-      <Field label="Relihiyon">
-        <Select value={mv.religion} onChange={set('religion')}>
-          {RELIGIONS.map((r) => <option key={r} value={r}>{bis(RELIGION_LABELS, r)}</option>)}
-        </Select>
-      </Field>
-      <div>
-        <Field label="Tipo sa dugo (Blood type)">
-          <Select value={mv.bloodType} onChange={set('bloodType')}>
-            <option value="">Wala mahibal-i / dili gustong isulti</option>
-            {BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
-          </Select>
-        </Field>
-        <div className="text-[12.5px] text-parish-muted mt-1">Makatabang kini sa parokya sa pagpangita og mohatag og dugo kung adunay emerhensya.</div>
-      </div>
-    </div>
-  );
-}
-
 /** "Pamilya ni Pedro Dela Cruz", the heading over one family's members. */
 function FamilyHeading({ group, className = 'mb-3' }) {
   const name = familyHeadName(group.head) || bis(RELATIONSHIP_LABELS, group.familyNo === 1 ? HEAD : FAMILY_HEAD);
@@ -1208,39 +1141,6 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember, 
   );
 }
 
-/** Under a ticked sacrament: the tick alone is enough when the date isn't known. */
-function OptionalDetailsHint() {
-  return (
-    <div className="text-[12.5px] text-parish-muted mt-1.5 mb-2.5">
-      Kon wala mahinumdumi ang petsa o parokya, pwede ra kini biyaan nga blangko. Igo na ang pag-tsek aron matala ang sakramento.
-    </div>
-  );
-}
-
-function SacramentBlock({ mv, field, dateField, churchField, label, extra, onField }) {
-  const checked = mv[field];
-  const set = (f) => (e) => onField(mv.mi, f, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
-  return (
-    <div className="border border-[#eee3ce] rounded-xl px-4 py-1.5 bg-[#fdfbf6]">
-      {/* The whole row is the tap target, not just the small checkbox. */}
-      <label className="flex items-center gap-2.5 cursor-pointer min-h-[44px]">
-        <Checkbox checked={checked} onChange={set(field)} />
-        <span className="font-semibold text-[15px] text-parish-navy">{label}</span>
-      </label>
-      {checked && (
-        <>
-          <div className="grid gap-3 mt-1" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-            <input type="date" aria-label={`Petsa sa ${label}`} value={mv[dateField]} onChange={set(dateField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-            <input type="text" placeholder="Parokya / Simbahan" value={mv[churchField]} onChange={set(churchField)} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-            {extra && extra(set)}
-          </div>
-          <OptionalDetailsHint />
-        </>
-      )}
-    </div>
-  );
-}
-
 function StepSacraments({ memberViews, onMemberField }) {
   // A family head and a married Spouse share one wedding; each card names the other.
   const couples = weddingCouples(memberViews);
@@ -1251,92 +1151,16 @@ function StepSacraments({ memberViews, onMemberField }) {
       <p className="text-parish-text2 text-[15.5px] mb-[26px]">I-tsek ang mga sakramento nga nadawat na sa matag miyembro. Dili kinahanglan ang mga detalye, apan makatabang kini sa among rekord.</p>
       <ByFamily
         memberViews={memberViews}
-        render={(mv, i) => {
-          // Only the sacraments they're old enough for (see askedForAge).
-          const asked = askedForAge(mv.dob);
-          const tooYoung = !asked.communion || !asked.confirmation || !asked.matrimony;
-          return (
-            <Card key={i} className="p-[clamp(18px,4vw,28px)]">
-              <div className="flex items-center gap-2.5 mb-4 pb-3.5 border-b border-[#f0e8d6]">
-                <div className="w-8 h-8 flex-none rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[14px]">{i + 1}</div>
-                <NameWithFamily mv={mv} className="font-serif text-[21px] font-semibold text-parish-navy" />
-              </div>
-              <div className="flex flex-col gap-3">
-                <SacramentBlock mv={mv} field="hasBaptism" dateField="baptismDate" churchField="baptismChurch" label="Bunyag (Baptism)" onField={onMemberField} />
-                {asked.communion && <SacramentBlock mv={mv} field="hasCommunion" dateField="communionDate" churchField="communionChurch" label="Unang Kumunyon (First Communion)" onField={onMemberField} />}
-                {asked.confirmation && (
-                  <SacramentBlock
-                    mv={mv} field="hasConfirmation" dateField="confDate" churchField="confChurch" label="Kumpil (Confirmation)" onField={onMemberField}
-                    extra={(set) => (
-                      <>
-                        <input type="text" placeholder="Ngalan sa kumpil" value={mv.confName} onChange={set('confName')} className="w-full px-3 py-2.5 text-[15px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-                        <input type="text" placeholder="Maninoy / Maninay" value={mv.confSponsor} onChange={set('confSponsor')} className="w-full px-3 py-2.5 text-[15px] bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-                      </>
-                    )}
-                  />
-                )}
-                {asked.matrimony && (mv.civilStatus === 'Married'
-                  ? <WeddingBlock mv={mv} sharedWith={sharedWith(i)} onField={onMemberField} />
-                  : <SacramentBlock mv={mv} field="hasMatrimony" dateField="matDate" churchField="matChurch" label="Kasal (Matrimony)" onField={onMemberField} />)}
-                {tooYoung && (
-                  <div className="text-[13px] text-parish-muted">
-                    {ageFromDob(mv.dob)} anyos pa: ang mga sakramento nga dili pa angay sa iyang edad wala na ipakita.
-                  </div>
-                )}
-              </div>
-            </Card>
-          );
-        }}
+        render={(mv, i) => (
+          <Card key={i} className="p-[clamp(18px,4vw,28px)]">
+            <div className="flex items-center gap-2.5 mb-4 pb-3.5 border-b border-[#f0e8d6]">
+              <div className="w-8 h-8 flex-none rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[14px]">{i + 1}</div>
+              <NameWithFamily mv={mv} className="font-serif text-[21px] font-semibold text-parish-navy" />
+            </div>
+            <MemberSacraments mv={mv} sharedWith={sharedWith(i)} onField={onMemberField} />
+          </Card>
+        )}
       />
-    </div>
-  );
-}
-
-/**
- * Married members say how they were wed; only a Catholic marriage counts as
- * the sacrament. `sharedWith` names the spouse whose wedding is the same one.
- */
-function WeddingBlock({ mv, sharedWith, onField }) {
-  const set = (f) => (e) => onField(mv.mi, f, e.target.value);
-  function choose(type) {
-    onField(mv.mi, 'matType', type);
-    onField(mv.mi, 'hasMatrimony', type === 'Catholic Marriage');
-  }
-  const catholic = mv.matType === 'Catholic Marriage';
-  return (
-    <div className="border border-[#eee3ce] rounded-xl px-4 py-3.5 bg-[#fdfbf6]">
-      <div className="font-semibold text-[15px] text-parish-navy">Kasal (Matrimony)</div>
-      <div className="text-[13px] text-parish-muted mb-3">Unsang klase sa kasal?</div>
-      {sharedWith && (
-        <div className="text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] border border-[#d4e0f2] rounded-lg px-3 py-2 mb-3">
-          Parehas ang kasal ninyo ni <strong>{sharedWith}</strong>: ang klase, petsa ug parokya nga isulat dinhi mausab usab sa iyang rekord.
-        </div>
-      )}
-      <div role="radiogroup" aria-label={`Klase sa kasal ni ${mv.displayName}`} className="flex flex-wrap gap-2">
-        {WEDDING_TYPES.map((type) => {
-          const checked = mv.matType === type;
-          return (
-            <label
-              key={type}
-              className={`cursor-pointer select-none px-3.5 py-2.5 rounded-full border-[1.5px] text-[13.5px] font-semibold transition focus-within:ring-2 focus-within:ring-parish-blue/30 ${
-                checked ? 'bg-parish-blue border-parish-blue text-white' : 'bg-white border-parish-borderSoft text-parish-text2 hover:border-parish-blue'
-              }`}
-            >
-              <input type="radio" name={`wedding-${mv.mi}`} value={type} checked={checked} onChange={() => choose(type)} className="sr-only" />
-              {bis(WEDDING_TYPE_LABELS, type)}
-            </label>
-          );
-        })}
-      </div>
-      {catholic && (
-        <>
-          <div className="grid gap-3 mt-3.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' }}>
-            <input type="date" aria-label="Petsa sa kasal" value={mv.matDate} onChange={set('matDate')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-            <input type="text" placeholder="Parokya / Simbahan" value={mv.matChurch} onChange={set('matChurch')} className="w-full px-3 py-2.5 text-[15px] text-parish-ink bg-white border-[1.5px] border-parish-borderSoft rounded-lg outline-none focus:border-parish-blue" />
-          </div>
-          <OptionalDetailsHint />
-        </>
-      )}
     </div>
   );
 }
@@ -1365,17 +1189,7 @@ function StepEngagement({ household, onParticipation, onToggleHelpWay, memberVie
                 <legend className="font-semibold text-[15px] text-parish-navy mb-2">
                   {mv.displayName} <span className="font-medium text-[12.5px] text-parish-muted">· {bis(RELATIONSHIP_LABELS, mv.relationship) || '—'}</span>
                 </legend>
-                <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))' }}>
-                  {orgOptions.map((name) => {
-                    const checked = (mv.organizations || []).includes(name);
-                    return (
-                      <label key={name} className="flex items-center gap-2.5 cursor-pointer border-[1.5px] rounded-xl px-3 py-2.5" style={{ borderColor: checked ? '#9db9e0' : '#e0d6c1', background: checked ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
-                        <Checkbox checked={checked} onChange={() => onToggleOrganization(mv.mi, name)} className="flex-none" />
-                        <span className="text-[14px] text-parish-ink">{name}</span>
-                      </label>
-                    );
-                  })}
-                </div>
+                <OrganizationChecks options={orgOptions} selected={mv.organizations || []} onToggle={(name) => onToggleOrganization(mv.mi, name)} />
               </fieldset>
             ))}
           </div>

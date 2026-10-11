@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { PrimaryButton, GhostButton, Badge } from './ui.jsx';
 import { fmtDate, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
-import { STATUS_TONES, diffSubmission, suggestStatus } from '../lib/census.js';
+import { STATUS_TONES, diffSubmission, suggestStatus, PORTAL_NEW_MEMBER_FIELDS, PORTAL_SACRAMENTS } from '../lib/census.js';
 import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { useAuth } from '../AuthContext.jsx';
@@ -80,6 +80,39 @@ function Changes({ rows }) {
             <td className="py-1.5 pr-3 text-parish-muted whitespace-nowrap align-top w-[140px]">{c.label}</td>
             <td className="py-1.5 pr-2 text-parish-muted line-through align-top">{show(c.key, c.from)}</td>
             <td className="py-1.5 font-semibold text-parish-navy align-top">→ {show(c.key, c.to)}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// How a sacrament's details read: dates as dates, the Confirmation name and sponsor named.
+const SACRAMENT_DETAIL = { conf_name: (v) => `name ${v}`, conf_sponsor: (v) => `sponsor ${v}` };
+
+/** What a new member brings in besides the basics (0090): other details, sacraments, organizations and roles. */
+function NewMemberDetails({ fields: f }) {
+  // Sent before 0090: only the basics were asked.
+  if (!('has_baptism' in f)) return null;
+  const sacraments = PORTAL_SACRAMENTS.filter(([k]) => f[k]).map(([, label, details]) => {
+    const parts = details.map((d) => f[d] && (d.endsWith('_date') ? fmtDate(f[d]) : SACRAMENT_DETAIL[d] ? SACRAMENT_DETAIL[d](f[d]) : f[d])).filter(Boolean);
+    return parts.length ? `${label} (${parts.join(', ')})` : label;
+  });
+  const rows = [
+    ...PORTAL_NEW_MEMBER_FIELDS.filter(([k]) => f[k]).map(([k, label]) => [label, f[k]]),
+    ['Sacraments', sacraments.join(' · ') || 'None ticked'],
+    f.mat_type && !f.has_matrimony && ['Wedding', f.mat_type],
+    f.organizations?.length > 0 && ['Organizations', f.organizations.join(' · ')],
+    f.gkk_role && ['GKK role', f.gkk_role],
+    f.parish_role && ['Parish role', f.parish_role],
+  ].filter(Boolean);
+  return (
+    <table className="w-full border-collapse text-[13px] mt-2">
+      <tbody>
+        {rows.map(([label, value]) => (
+          <tr key={label} className="border-t border-parish-line first:border-t-0">
+            <td className="py-1.5 pr-3 text-parish-muted whitespace-nowrap align-top w-[140px]">{label}</td>
+            <td className="py-1.5 text-parish-text2 align-top">{value}</td>
           </tr>
         ))}
       </tbody>
@@ -216,6 +249,7 @@ export default function CensusSubmissionDrawer({ submission: s, cycle, onClose, 
                       {[show('relationship', m.fields.relationship), m.fields.sex && show('sex', m.fields.sex), m.fields.dob && `born ${show('dob', m.fields.dob)}`, m.fields.civil_status && show('civil_status', m.fields.civil_status), m.fields.contact]
                         .filter((x) => x && x !== '—').join(' · ')}
                     </div>
+                    <NewMemberDetails fields={m.fields} />
                     <Answer {...m} pending={!reviewed} />
                   </div>
                 ))}

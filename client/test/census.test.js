@@ -5,7 +5,7 @@ import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
-  normalizeAccessCode, formatAccessCode, portalPayload, diffSubmission,
+  normalizeAccessCode, formatAccessCode, portalPayload, portalNewMember, diffSubmission,
   DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, vsLastYearTable, familiesTable, statusTable, censusBaselineMode, censusVsLastYearFrom, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
@@ -151,8 +151,8 @@ describe('portalPayload', () => {
       household: { street: ' 24 Rizal St. ', email: '', gkk: 'ignored', contact: '0917' },
       members: [{ id: 1, first_name: 'Juan', middle_name: '', blood_type: 'O+', status: 'Inactive', participation: { mass: 'Wala', x: 'y' }, notes: ' ' }],
       newMembers: [
-        { first_name: '', last_name: '', status: '' },
-        { first_name: 'Baby', last_name: 'Dela Cruz', relationship: 'Grandchild', status: 'Active' },
+        portalNewMember(),
+        { ...portalNewMember(null, { lastName: 'Dela Cruz' }), firstName: 'Baby', relationship: 'Grandchild', censusStatus: 'Active', statusPicked: true },
       ],
       message: '  ',
       consent: true,
@@ -174,6 +174,126 @@ describe('portalPayload', () => {
   test('an unknown status is sent as null', () => {
     const payload = portalPayload({ members: [{ id: 2, status: 'Maybe' }] });
     assert.equal(payload.members[0].status, null);
+  });
+});
+
+describe('portal new members (0090)', () => {
+  const ADULT = '1990-04-02';
+  const adult = (patch = {}) => ({
+    ...portalNewMember(null, { lastName: 'dela cruz' }),
+    firstName: 'maria', relationship: 'Spouse', sex: 'Female', dob: ADULT, civilStatus: 'Married',
+    ...patch,
+  });
+  const send = (m) => portalPayload({ newMembers: [m] }).newMembers[0];
+
+  test('a new member starts blank, Catholic, in the family given, with the surname to start from', () => {
+    const m = portalNewMember(null, { lastName: 'Dela Cruz', familyNo: 2 });
+    assert.equal(m.lastName, 'Dela Cruz');
+    assert.equal(m.familyNo, 2);
+    assert.equal(m.religion, 'Roman Catholic');
+    assert.equal(m.hasBaptism, false);
+    assert.deepEqual(m.organizations, []);
+    assert.equal(m.censusStatus, '');
+  });
+
+  test('sends the details, sacraments and participation under their stored names', () => {
+    const p = send(adult({
+      placeOfBirth: ' Cebu ', tribe: 'Bisaya', email: 'maria@example.org', occupation: '', religion: 'Roman Catholic',
+      hasBaptism: true, baptismDate: '1990-05-01', baptismChurch: 'Sto. Niño',
+      hasConfirmation: true, confDate: '', confName: 'Teresa', confSponsor: 'Ana Reyes',
+      matType: 'Catholic Marriage', matDate: '2015-02-14', matChurch: 'OLG Mua-an',
+      organizations: ['Legion of Mary', 'Legion of Mary', 'Youth Ministry'], gkkRole: 'Secretary', parishRole: 'PPC Officer',
+      censusStatus: 'Active', statusPicked: true, participation: { mass: 'Aktibo', bogus: 'x' }, notes: ' newly married ',
+    }));
+    assert.equal(p.first_name, 'Maria', 'names are tidied as at registration');
+    assert.equal(p.last_name, 'Dela Cruz');
+    assert.equal(p.civil_status, 'Married');
+    assert.equal(p.place_of_birth, 'Cebu');
+    assert.equal(p.occupation, null);
+    assert.equal(p.baptism_church, 'Sto. Niño');
+    assert.equal(p.has_confirmation, true);
+    assert.equal(p.conf_date, null);
+    assert.equal(p.conf_name, 'Teresa');
+    assert.equal(p.has_communion, false);
+    assert.equal(p.has_matrimony, true, 'a Catholic wedding is the sacrament');
+    assert.equal(p.mat_type, 'Catholic Marriage');
+    assert.equal(p.mat_church, 'OLG Mua-an');
+    assert.deepEqual(p.organizations, ['Legion of Mary', 'Youth Ministry']);
+    assert.equal(p.gkk_role, 'Secretary');
+    assert.equal(p.parish_role, 'PPC Officer');
+    assert.equal(p.family_no, 1);
+    assert.equal(p.status, 'Active');
+    assert.deepEqual(p.participation, { mass: 'Aktibo' });
+    assert.equal(p.notes, 'newly married');
+    assert.equal('bloodType' in p || 'blood_type' in p, false, 'blood types are not asked online');
+    assert.equal('firstName' in p, false);
+  });
+
+  test('a civil wedding is kept but is not the sacrament', () => {
+    const p = send(adult({ matType: 'Civil Wedding', hasMatrimony: true, matDate: '2015-02-14' }));
+    assert.equal(p.has_matrimony, false);
+    assert.equal(p.mat_type, 'Civil Wedding');
+    assert.equal(p.mat_date, null, 'no date without the sacrament');
+  });
+
+  test("a sacrament's details are dropped once it's unticked", () => {
+    const p = send(adult({ hasBaptism: false, baptismDate: '1990-05-01', baptismChurch: 'Sto. Niño' }));
+    assert.equal(p.has_baptism, false);
+    assert.equal(p.baptism_date, null);
+    assert.equal(p.baptism_church, null);
+  });
+
+  test('a young child: nothing they are too young for, and Aktibo with no questions', () => {
+    const dob = `${new Date().getFullYear() - 3}-01-15`;
+    const p = send(adult({
+      firstName: 'Baby', relationship: 'Grandchild', sex: 'Male', dob, civilStatus: 'Single',
+      hasBaptism: true, hasCommunion: true, hasConfirmation: true, confName: 'Pedro', gkkRole: 'Secretary', parishRole: 'PPC Officer',
+      participation: { mass: 'Wala' },
+    }));
+    assert.equal(p.has_baptism, true);
+    assert.equal(p.has_communion, false);
+    assert.equal(p.has_confirmation, false);
+    assert.equal(p.conf_name, null);
+    assert.equal(p.gkk_role, null);
+    assert.equal(p.parish_role, null);
+    assert.equal(p.status, 'Active');
+    assert.deepEqual(p.participation, {});
+  });
+
+  test('the status follows the answers until one is picked', () => {
+    assert.equal(send(adult({ participation: { mass: 'Aktibo' } })).status, 'Active');
+    assert.equal(send(adult({ participation: { mass: 'Wala' } })).status, 'Inactive');
+    assert.equal(send(adult()).status, null);
+  });
+
+  test('an update already sent opens as it was entered', () => {
+    const entered = adult({
+      hasBaptism: true, baptismDate: '1990-05-01', hasMatrimony: true, matType: 'Catholic Marriage', familyNo: 2,
+      organizations: ['Legion of Mary'], parishRole: 'PPC Officer', censusStatus: 'Inactive', statusPicked: true, notes: 'abroad',
+    });
+    const sent = send(entered);
+    const { status, participation, notes, ...fields } = sent;
+    const reopened = portalNewMember({ fields, status, participation, notes });
+    assert.equal(reopened.firstName, 'Maria');
+    assert.equal(reopened.hasBaptism, true);
+    assert.equal(reopened.baptismDate, '1990-05-01');
+    assert.equal(reopened.matType, 'Catholic Marriage');
+    assert.equal(reopened.familyNo, 2);
+    assert.deepEqual(reopened.organizations, ['Legion of Mary']);
+    assert.equal(reopened.censusStatus, 'Inactive');
+    assert.equal(reopened.statusPicked, true);
+    assert.equal(reopened.notes, 'abroad');
+    assert.deepEqual(send(reopened), sent, 'sending it again sends the same');
+  });
+
+  test('an update sent before 0090 opens with the usual blanks', () => {
+    const m = portalNewMember({ fields: { first_name: 'Juan', last_name: 'Dela Cruz', relationship: 'Son', sex: 'Male', dob: null, family_no: 1 }, status: null });
+    assert.equal(m.firstName, 'Juan');
+    assert.equal(m.dob, '');
+    assert.equal(m.religion, 'Roman Catholic');
+    assert.equal(m.hasBaptism, false);
+    assert.equal(m.censusStatus, '');
+    assert.equal(m.statusPicked, false);
   });
 });
 
