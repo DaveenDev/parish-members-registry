@@ -226,6 +226,8 @@ export default function Dashboard() {
   useLiveRefresh(reload);
   // A GKK leader's totals are their GKK's (row rules, 0014).
   const gkk = leaderGkk(useAuth().user);
+  // Households that look like one house registered twice (0092), from the sidebar counts.
+  const duplicateHouseholds = layout?.navCounts?.duplicate_households || 0;
 
   if (!stats) {
     return (
@@ -247,11 +249,13 @@ export default function Dashboard() {
           {stats.statCards.map((c) => <StatCard key={c.label} {...c} />)}
         </div>
 
-        {stats.duplicateGroups > 0 && (
-          <Link to="/admin/duplicates" className={`flex items-center gap-3 mb-[18px] px-[18px] py-3.5 rounded-2xl border border-parish-warnBorder bg-parish-warnBg text-parish-warnStrong hover:border-parish-warnBorder ${LINK_FOCUS}`}>
+        {(stats.duplicateGroups > 0 || duplicateHouseholds > 0) && (
+          <Link to={stats.duplicateGroups > 0 ? '/admin/duplicates' : '/admin/duplicates?tab=households'} className={`flex items-center gap-3 mb-[18px] px-[18px] py-3.5 rounded-2xl border border-parish-warnBorder bg-parish-warnBg text-parish-warnStrong hover:border-parish-warnBorder ${LINK_FOCUS}`}>
             <span className="w-8 h-8 rounded-full bg-parish-warnTint flex items-center justify-center font-bold flex-none" aria-hidden>!</span>
             <span className="flex-1 text-[14px]">
-              <strong>Possible duplicates: {stats.duplicateGroups}</strong> group{stats.duplicateGroups === 1 ? '' : 's'} of members share a name and date of birth.
+              <strong>Possible duplicates:</strong>{' '}
+              {[stats.duplicateGroups > 0 && `${stats.duplicateGroups} group${stats.duplicateGroups === 1 ? '' : 's'} of members share a name and date of birth`,
+                duplicateHouseholds > 0 && `${duplicateHouseholds} pair${duplicateHouseholds === 1 ? '' : 's'} of households look like the same house`].filter(Boolean).join('; ')}.
             </span>
             <span className="font-semibold text-[13px] whitespace-nowrap">Review →</span>
           </Link>

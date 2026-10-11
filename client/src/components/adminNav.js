@@ -115,7 +115,7 @@ export function navBadges(counts) {
   const r = counts.requests;
   return {
     pending: counts.pending_households || 0,
-    duplicates: counts.duplicate_groups || 0,
+    duplicates: (counts.duplicate_groups || 0) + (counts.duplicate_households || 0),
     sacraments: counts.sacraments_waiting || 0,
     census: counts.census_updates || 0,
     requests: r ? (r.certificates || 0) + (r.ready || 0) + (r.blood || 0) + (r.sacraments || 0) : 0,

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Link, useOutletContext } from 'react-router-dom';
+import { Link, useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, EmptyState, ErrorState, LoadingState, Modal } from '../../components/admin.jsx';
+import { PageHeader, PageBody, EmptyState, ErrorState, LoadingState, Modal, Tabs } from '../../components/admin.jsx';
+import HouseholdDuplicates from '../../components/HouseholdDuplicates.jsx';
 import { StatusPill, Badge, Checkbox, PrimaryButton, GhostButton } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useAsyncData } from '../../hooks.js';
@@ -15,13 +16,44 @@ import { bis, RELATIONSHIP_LABELS } from '../../lib/bisaya.js';
 const fullName = (m) => [m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ');
 
 /**
+ * Records that may have been entered twice, in two tabs: members (one
+ * person twice) and households (one house registered twice, 0092). ?tab=
+ * picks the tab.
+ */
+export default function Duplicates() {
+  const layout = useOutletContext();
+  const { user } = useAuth();
+  const [params, setParams] = useSearchParams();
+  const tab = params.get('tab') === 'households' ? 'households' : 'members';
+  const counts = layout?.navCounts;
+  const label = (text, n) => (n ? `${text} (${n})` : text);
+  const scope = leaderGkk(user) ? ` in ${leaderGkk(user)}` : '';
+  return (
+    <>
+      <PageHeader
+        title="Possible duplicates"
+        subtitle={tab === 'households' ? `Households${scope} that look like one house registered twice` : `Members${scope} who share a name and date of birth`}
+      />
+      <PageBody>
+        <Tabs
+          tabs={[['members', label('Members', counts?.duplicate_groups)], ['households', label('Households', counts?.duplicate_households)]]}
+          value={tab}
+          onChange={(k) => setParams(k === 'members' ? {} : { tab: k }, { replace: true })}
+        />
+        {tab === 'members' ? <MemberDuplicates /> : <HouseholdDuplicates />}
+      </PageBody>
+    </>
+  );
+}
+
+/**
  * Members who look like the same person entered twice: same first name,
  * last name and date of birth (ignoring case and spacing). Families register
  * anonymously, so a second registration is the usual cause. Staff open each
  * record, then merge the records into one, or mark the group "not
  * duplicates" (which can be taken back below the list).
  */
-export default function Duplicates() {
+function MemberDuplicates() {
   const toast = useToast();
   const confirm = useConfirm();
   const layout = useOutletContext();
@@ -76,13 +108,11 @@ export default function Duplicates() {
 
   return (
     <>
-      <PageHeader title="Possible duplicates" subtitle={leaderGkk(user) ? `Members of ${leaderGkk(user)} who share a name and date of birth` : 'Members who share a name and date of birth'} />
-      <PageBody>
         <div>
           <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
             Matches ignore capital letters, extra spaces, middle names and suffixes. Members without a date of birth aren't checked.
             Open each record to compare. If they're the same person, choose <strong>Merge</strong>: one record keeps everything from both and
-            the other goes to the Trash. If the whole household was registered twice, delete the extra household from the Households page instead.
+            the other goes to the Trash. If the whole household was registered twice, see the <strong>Households</strong> tab.
             If they really are different people, choose <strong>Not duplicates</strong>.
           </div>
 
@@ -181,7 +211,6 @@ export default function Duplicates() {
             </details>
           )}
         </div>
-      </PageBody>
 
       {merging && <MergeDialog group={merging} onClose={() => setMerging(null)} onMerged={() => { setMerging(null); reload(); }} />}
       {openMemberId && <MemberDetailModal memberId={openMemberId} onClose={() => setOpenMemberId(null)} onChanged={reload} />}

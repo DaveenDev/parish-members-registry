@@ -788,6 +788,47 @@ export const api = {
     return null;
   },
 
+  // ---- possible duplicate households (admin, 0092) ----------------------
+  /**
+   * Pairs of households that look like one house registered twice (shared
+   * members, phone, email, previous reference number, address or name),
+   * most likely first, each with both households and their members
+   * (find_duplicate_households).
+   */
+  async findDuplicateHouseholds() {
+    const { data, error } = await supabase.rpc('find_duplicate_households');
+    if (error) throw missingMigration(error, '0092_household_duplicates.sql') || mapError(error);
+    return data || [];
+  },
+
+  /** "Not the same household": hide a pair from the list. */
+  async dismissHouseholdDuplicate(householdIds) {
+    const { error } = await supabase.rpc('dismiss_household_duplicate', { p_household_ids: householdIds });
+    if (error) throw missingMigration(error, '0092_household_duplicates.sql') || mapError(error);
+    return null;
+  },
+
+  /** Take back "Not the same household": the pair shows again if it still matches. */
+  async undismissHouseholdDuplicate(householdIds) {
+    const { error } = await supabase.rpc('undismiss_household_duplicate', { p_household_ids: householdIds });
+    if (error) throw missingMigration(error, '0092_household_duplicates.sql') || mapError(error);
+    return null;
+  },
+
+  /** Pairs marked "Not the same household", newest first: [{ household_ids, households, dismissed_by_name, dismissed_at }]. */
+  async listDismissedHouseholdDuplicates() {
+    const { data, error } = await supabase.from('household_duplicate_dismissals').select('*').order('dismissed_at', { ascending: false });
+    if (error) throw mapError(error);
+    const ids = [...new Set((data || []).flatMap((d) => d.household_ids))];
+    if (!ids.length) return [];
+    const { data: households, error: hErr } = await supabase.from('households').select('id, household_name, ref_no').in('id', ids);
+    if (hErr) throw mapError(hErr);
+    const byId = new Map((households || []).map((h) => [h.id, h]));
+    // A pair with a household since deleted has nothing left to compare.
+    return (data || []).map((d) => ({ ...d, households: d.household_ids.map((id) => byId.get(id)).filter(Boolean) }))
+      .filter((d) => d.households.length === 2);
+  },
+
   /**
    * Merge `otherId` into `keepId` (two records of one person): the kept
    * record gets what it lacks, and the other goes to the Trash (0075).

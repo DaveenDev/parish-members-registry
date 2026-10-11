@@ -153,6 +153,12 @@ describe('admin nav', async () => {
     assert.deepEqual(navBadges({ pending_households: 2, requests: { certificates: 1, ready: 2, blood: 0, sacraments: 3 } }),
       { pending: 2, duplicates: 0, sacraments: 0, census: 0, requests: 6 });
   });
+
+  test('counts duplicate members and duplicate households in one badge', () => {
+    assert.equal(navBadges({ duplicate_groups: 2, duplicate_households: 3 }).duplicates, 5);
+    // Before 0092 there's no household count.
+    assert.equal(navBadges({ duplicate_groups: 2 }).duplicates, 2);
+  });
 });
 
 test('an account without a staff profile has no access (0062)', () => {
