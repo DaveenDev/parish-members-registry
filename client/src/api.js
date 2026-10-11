@@ -1419,8 +1419,15 @@ export const api = {
     return data;
   },
 
-  async reopenCensusCycle(id) {
-    const { data, error } = await supabase.rpc('census_reopen_cycle', { p_cycle_id: id });
+  /**
+   * Reopen a closed census from this year, with its new start date and
+   * target end (0091). Before 0091 it reopens with the dates it had.
+   */
+  async reopenCensusCycle(id, { startsOn, endsOn } = {}) {
+    let { data, error } = await supabase.rpc('census_reopen_cycle', {
+      p_cycle_id: id, p_starts_on: startsOn || null, p_ends_on: endsOn || null,
+    });
+    if (isMissingFunction(error)) ({ data, error } = await supabase.rpc('census_reopen_cycle', { p_cycle_id: id }));
     if (error) throw mapError(error);
     return data;
   },

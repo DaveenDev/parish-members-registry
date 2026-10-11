@@ -131,6 +131,16 @@ export function defaultCensusLabel(date = new Date()) {
 }
 
 /**
+ * Whether a census is still in its year (the year it started in), as of
+ * `todayIso` (YYYY-MM-DD). Only then can a closed one be reopened or have
+ * its dates changed (0091).
+ */
+export function censusInItsYear(cycle, todayIso) {
+  const started = String(cycle?.starts_on || '').slice(0, 4);
+  return !!started && started === String(todayIso || '').slice(0, 4);
+}
+
+/**
  * When the next census is due: `intervalMonths` after the latest census
  * started. null when there has never been one.
  */

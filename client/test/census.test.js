@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
-  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
+  cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, censusInItsYear, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
   normalizeAccessCode, formatAccessCode, portalPayload, portalNewMember, diffSubmission,
   DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, vsLastYearTable, familiesTable, statusTable, censusBaselineMode, censusVsLastYearFrom, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
@@ -89,6 +89,13 @@ describe('labels and dates', () => {
       assert.ok(MEMBERSHIP_STATUS_LABELS[s], s);
       assert.ok(STATUS_TONES[s], s);
     }
+  });
+
+  test('censusInItsYear: only a census that started this year', () => {
+    assert.equal(censusInItsYear({ starts_on: '2026-03-01' }, '2026-10-11'), true);
+    assert.equal(censusInItsYear({ starts_on: '2025-12-30' }, '2026-01-02'), false);
+    assert.equal(censusInItsYear(null, '2026-10-11'), false);
+    assert.equal(censusInItsYear({ starts_on: null }, '2026-10-11'), false);
   });
 
   test('defaultCensusLabel uses the year', () => {
