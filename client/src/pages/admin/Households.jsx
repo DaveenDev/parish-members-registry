@@ -340,8 +340,8 @@ export default function Households() {
         <div className="flex items-center gap-3 flex-wrap mb-4">
           <div className="text-[13px] text-parish-muted">{total} household(s)</div>
           {isFiltered && <button onClick={() => setUrl({ gkk: 'All', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">Clear</button>}
-          {/* Phones have no column headers to click, so sorting gets its own control. */}
-          <FilterSelect aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} className="md:hidden">
+          {/* Phones and tablets have no column headers to click (nor small laptops a Registered one), so sorting gets its own control. */}
+          <FilterSelect aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} className="xl:hidden">
             {SORTS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}
           </FilterSelect>
           {status !== 'Pending' && sortedByHand && (
@@ -372,7 +372,7 @@ export default function Households() {
         {status === 'Pending' && <NewItemsNote count={live.waiting} noun="registration" onShow={live.showNow} />}
 
         {selectedRows.length > 0 && (
-          <div role="region" aria-label="Selected households" className="sticky top-2 lg:top-[92px] z-[5] mb-3 flex items-center gap-2.5 flex-wrap px-4 py-3 rounded-xl bg-parish-navy text-white shadow-card">
+          <div role="region" aria-label="Selected households" className="sticky top-2 md:top-[92px] z-[5] mb-3 flex items-center gap-2.5 flex-wrap px-4 py-3 rounded-xl bg-parish-navy text-white shadow-card">
             <span className="font-semibold text-[13.5px] mr-1">{selectedRows.length} selected</span>
             {canEdit && <button onClick={bulkVerify} disabled={!!bulkBusy} className="appearance-none border-none cursor-pointer px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 font-semibold text-[13px] text-white disabled:opacity-60">{bulkBusy === 'verify' ? 'Verifying…' : 'Mark verified'}</button>}
             <button onClick={bulkPrint} disabled={!!bulkBusy} className="appearance-none border-none cursor-pointer px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 font-semibold text-[13px] text-white disabled:opacity-60">{bulkBusy === 'print' ? 'Preparing…' : 'Print records'}</button>
@@ -382,9 +382,9 @@ export default function Households() {
         )}
 
         <Panel className="overflow-hidden">
-          {/* Tablets and up: a table. */}
-          <div className="hidden md:block overflow-x-auto">
-            <table className="w-full border-collapse" style={{ minWidth: 1130 }}>
+          {/* Laptops and up: a table. Below 1280px "Registered" goes under the GKK and "Verified by" under the status, so it fits beside the icon rail. */}
+          <div className="hidden lg:block overflow-x-auto">
+            <table className="w-full border-collapse min-w-[860px] xl:min-w-[1130px]">
               <caption className="sr-only">Registered households</caption>
               <thead>
                 <tr className="bg-parish-sunk">
@@ -394,9 +394,9 @@ export default function Households() {
                   {sortHeader('name', 'Household')}
                   {sortHeader('gkk', 'GKK / Grouping')}
                   {sortHeader('members', 'Members')}
-                  {sortHeader('registered', 'Registered')}
+                  {sortHeader('registered', 'Registered', 'hidden xl:table-cell')}
                   <th scope="col" className="text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2">Status</th>
-                  <th scope="col" className="text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">Verified by</th>
+                  <th scope="col" className="hidden xl:table-cell text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2 whitespace-nowrap">Verified by</th>
                   <th scope="col" className="text-right px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2">Actions</th>
                 </tr>
               </thead>
@@ -431,15 +431,21 @@ export default function Households() {
                               </span>
                             </button>
                           </td>
-                          <td className="px-4 py-3.5 text-[13.5px] text-parish-text3 whitespace-nowrap">{h.gkk || '—'}<div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div></td>
+                          <td className="px-4 py-3.5 text-[13.5px] text-parish-text3 whitespace-nowrap">
+                            {h.gkk || '—'}<div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div>
+                            <div className="xl:hidden text-[12px] text-parish-muted mt-1" title={fmtDateTime(h.created_at)}>registered {daysAgo(h.created_at)}</div>
+                          </td>
                           <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.family_count > 1 && <span className="block mb-1"><Badge tone="gold">{h.family_count} families</Badge></span>}{h.member_count} member(s)</td>
-                          <td className="px-4 py-3.5 text-[13px] text-parish-text2 whitespace-nowrap" title={fmtDateTime(h.created_at)}>
+                          <td className="hidden xl:table-cell px-4 py-3.5 text-[13px] text-parish-text2 whitespace-nowrap" title={fmtDateTime(h.created_at)}>
                             {daysAgo(h.created_at)}
                             <div className="text-[12px] text-parish-muted">{fmtDateTime(h.created_at)}</div>
                             {sort === 'updated' && h.updated_at && <div className="text-[12px] text-parish-muted">updated {daysAgo(h.updated_at)}</div>}
                           </td>
-                          <td className="px-4 py-3.5 align-top"><StatusPill status={h.status} /></td>
-                          <td className="px-4 py-3.5 align-top w-[230px]">
+                          <td className="px-4 py-3.5 align-top">
+                            <StatusPill status={h.status} />
+                            {h.status === 'Verified' && <VerifiedLine household={h} className="xl:hidden mt-1.5 max-w-[170px] text-[12px] leading-snug text-parish-muted" />}
+                          </td>
+                          <td className="hidden xl:table-cell px-4 py-3.5 align-top w-[230px]">
                             {h.status === 'Verified'
                               ? <VerifiedLine household={h} className="text-[12px] leading-snug text-parish-muted" />
                               : <span className="text-[13px] text-parish-muted">—</span>}
@@ -472,8 +478,8 @@ export default function Households() {
             </table>
           </div>
 
-          {/* Phones: one card per household. */}
-          <ul className="md:hidden list-none m-0 p-0 divide-y divide-parish-line" aria-label="Registered households">
+          {/* Phones and tablets: one card per household. */}
+          <ul className="lg:hidden list-none m-0 p-0 divide-y divide-parish-line" aria-label="Registered households">
             {groupRuns(rows, groupKey).map((g) => (
               <React.Fragment key={g.key ?? 'none'}>
                 {groupKey && <li className="px-4 py-2 bg-parish-sunk font-serif text-[16.5px] font-semibold text-parish-navy">{groupHeading(g.key, groupKey)}</li>}

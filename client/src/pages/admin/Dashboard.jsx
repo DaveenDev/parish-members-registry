@@ -20,12 +20,13 @@ function MaybeLink({ to, className, children, label }) {
 
 function StatCard({ label, value, note, accent, to }) {
   return (
-    <MaybeLink to={to} label={`${label}: ${value}. Open the list`} className={`${CARD} px-[18px] py-4 min-w-0`}>
-      <div className="flex items-center gap-2 mb-2.5" style={{ color: accent }}>
-        <span className="w-2 h-2 rounded-full" style={{ background: accent }} />
-        <span className="font-semibold text-[12px] tracking-wide uppercase text-parish-muted">{label}</span>
+    <MaybeLink to={to} label={`${label}: ${value}. Open the list`} className={`${CARD} px-[18px] md:max-lg:px-3.5 py-4 min-w-0`}>
+      {/* Five in a row on a tablet: a smaller label and dot, so it isn't cut short. */}
+      <div className="flex items-center gap-2 md:max-lg:gap-1.5 mb-2.5" style={{ color: accent }}>
+        <span className="w-2 h-2 md:max-lg:w-1.5 md:max-lg:h-1.5 rounded-full flex-none" style={{ background: accent }} />
+        <span className="font-semibold text-[12px] md:max-lg:text-[11px] tracking-wide md:max-lg:tracking-normal uppercase text-parish-muted truncate">{label}</span>
       </div>
-      <div className="font-serif text-[38px] font-semibold leading-none text-parish-navy">{value}</div>
+      <div className="font-serif text-[clamp(30px,3.2vw,38px)] font-semibold leading-none text-parish-navy">{value}</div>
       <div className="text-[12.5px] text-parish-muted mt-1.5">{note}</div>
     </MaybeLink>
   );
@@ -241,7 +242,8 @@ export default function Dashboard() {
     <>
       <PageHeader title="Dashboard" subtitle={gkk ? `${gkk} overview` : 'Parish registry overview'} />
       <PageBody>
-        <div className="grid gap-3.5 mb-[22px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(150px,100%),1fr))', marginBottom: '22px' }}>
+        {/* Narrow enough for five in a row beside the tablet icon rail. */}
+        <div className="grid gap-3.5 mb-[22px]" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(112px,100%),1fr))', marginBottom: '22px' }}>
           {stats.statCards.map((c) => <StatCard key={c.label} {...c} />)}
         </div>
 
