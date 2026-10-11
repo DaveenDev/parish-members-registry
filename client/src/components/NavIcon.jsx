@@ -20,7 +20,6 @@ const PATHS = {
   '/admin/settings': <><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></>,
   '/admin/settings/notifications': <><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z" /><path d="M10 20.5a2 2 0 0 0 4 0" /></>,
   '/admin/settings/organizations': <><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.4 1.4 0 0 1 0 2l-6.7 6.7a1.4 1.4 0 0 1-2 0z" /><circle cx="8" cy="8" r="1.4" /></>,
-  '/admin/duplicates': <><rect x="8" y="8" width="12.5" height="12.5" rx="2" /><path d="M16 8V5.5A2 2 0 0 0 14 3.5H5.5a2 2 0 0 0-2 2V14a2 2 0 0 0 2 2H8" /></>,
   '/admin/settings/staff': <><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z" /><path d="M9 12l2 2 4-4" /></>,
   '/admin/settings/activity': <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>,
   '/admin/settings/trash': <><path d="M4 7h16M9.5 7V4.5h5V7" /><path d="M6 7l1 13h10l1-13M10 11v6M14 11v6" /></>,

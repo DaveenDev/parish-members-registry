@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, rowActivationProps } from '../../components/admin.jsx';
+import { useOutletContext } from 'react-router-dom';
+import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, rowActivationProps } from '../../components/admin.jsx';
+import MemberDuplicates from '../../components/MemberDuplicates.jsx';
 import { StatusPill, Badge, Checkbox } from '../../components/ui.jsx';
 import { ageFromDob, CIVIL_STATUSES, AGE_OPTS, DASHBOARD_AGE_OPTS } from '../../constants.js';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
@@ -23,8 +25,10 @@ const DEFAULT_FILTERS = { status: 'All', civil: 'All', sacrament: 'All', ministr
 const MAIN_FILTERS = ['gkk', 'status', 'membership', 'practice', 'sacrament'];
 // Rows are grouped under GKK headings; inside each GKK the default order is
 // household name, then member name. Column headers re-sort within the GKKs.
-const URL_DEFAULTS = { ...DEFAULT_FILTERS, q: '', sort: 'household', dir: 'asc', page: 1, size: 10 };
+const URL_DEFAULTS = { ...DEFAULT_FILTERS, view: 'list', q: '', sort: 'household', dir: 'asc', page: 1, size: 10 };
 const URL_ALLOWED = {
+  // The tabs: the members, or the possible duplicates (members who share a name and date of birth).
+  view: ['list', 'duplicates'],
   status: ['All', 'Verified', 'Pending'],
   // The Dashboard's age bars link here with their own ranges.
   age: [...AGE_OPTS, ...DASHBOARD_AGE_OPTS].map(([v]) => v),
@@ -59,6 +63,8 @@ function PracticeBadge({ m }) {
 export default function Members() {
   const toast = useToast();
   const { user } = useAuth();
+  // The duplicates' count comes with the sidebar's.
+  const layout = useOutletContext();
   const [rows, setRows] = useState([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -109,7 +115,9 @@ export default function Members() {
   // the register itself is empty, not the search.
   const isFiltered = !!debouncedSearch || Object.keys(DEFAULT_FILTERS).some((k) => filters[k] !== DEFAULT_FILTERS[k]);
 
-  useEffect(() => { reload(); }, [filterKey, debouncedSearch, sortKey, sortDir, page, pageSize]);
+  // The Possible Duplicates tab has no list to load.
+  const duplicatesTab = url.view === 'duplicates';
+  useEffect(() => { if (!duplicatesTab) reload(); }, [duplicatesTab, filterKey, debouncedSearch, sortKey, sortDir, page, pageSize]);
   useEffect(() => { setSelected(new Set()); }, [filterKey, debouncedSearch, sortKey, sortDir, page, pageSize]);
   useEffect(() => {
     api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {});
@@ -184,9 +192,24 @@ export default function Members() {
   return (
     <>
       <PageHeader title="Members" subtitle={leaderGkk(user) ? `Every registered member of ${leaderGkk(user)}` : 'Every registered parishioner, grouped by GKK'}>
-        <SearchInput placeholder="Search name, household, contact…" aria-label="Search members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
+        {/* The possible duplicates aren't searched. */}
+        {!duplicatesTab && <SearchInput placeholder="Search name, household, contact…" aria-label="Search members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />}
       </PageHeader>
       <PageBody>
+        <Tabs
+          value={url.view}
+          onChange={(k) => setUrl({ view: k, page: 1 })}
+          tabs={[['list', 'All Members'], ['duplicates', (
+            <span key="duplicates" className="inline-flex items-center gap-2">
+              Possible Duplicates
+              {layout?.navCounts?.duplicate_groups != null && (
+                <span className={`min-w-[22px] px-1.5 py-px rounded-full text-[12px] font-bold text-center ${layout.navCounts.duplicate_groups ? 'bg-parish-errorBg text-parish-error' : 'bg-parish-sunk text-parish-text2'}`}>{layout.navCounts.duplicate_groups}</span>
+              )}
+            </span>
+          )]]}
+        />
+        {duplicatesTab ? <MemberDuplicates /> : (
+        <>
         <div className="flex flex-wrap gap-2.5 items-center mb-2.5">
           {MAIN_FILTERS.map(select)}
           <button
@@ -319,6 +342,8 @@ export default function Members() {
             </React.Fragment>
           ))}
         </DataTable>
+        </>
+        )}
       </PageBody>
 
       {openMemberId && <MemberDetailModal memberId={openMemberId} onClose={() => setOpenMemberId(null)} onChanged={reload} />}

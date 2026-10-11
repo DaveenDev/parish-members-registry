@@ -75,7 +75,7 @@ test('every access level has a label', () => {
 });
 
 describe('admin nav', async () => {
-  const { navItemFor, navAllowed, navBadges } = await import('../src/components/adminNav.js');
+  const { NAV_GROUPS, navItemFor, navAllowed, navBadges } = await import('../src/components/adminNav.js');
 
   test('finds the page a path belongs to', () => {
     assert.equal(navItemFor('/admin').label, 'Dashboard');
@@ -154,10 +154,13 @@ describe('admin nav', async () => {
       { pending: 2, duplicates: 0, sacraments: 0, census: 0, requests: 6 });
   });
 
-  test('counts duplicate members and duplicate households in one badge', () => {
-    assert.equal(navBadges({ duplicate_groups: 2, duplicate_households: 3 }).duplicates, 5);
-    // Before 0092 there's no household count.
-    assert.equal(navBadges({ duplicate_groups: 2 }).duplicates, 2);
+  test("the Members badge counts duplicate members only; household pairs show on the Households tab", () => {
+    assert.equal(navBadges({ duplicate_groups: 2, duplicate_households: 3 }).duplicates, 2);
+  });
+
+  test('the old Duplicates page is no longer in the menu', () => {
+    assert.equal(NAV_GROUPS.flatMap((g) => g.items).some((i) => i.to === '/admin/duplicates'), false);
+    assert.equal(NAV_GROUPS.flatMap((g) => g.items).find((i) => i.to === '/admin/members').badge, 'duplicates');
   });
 });
 

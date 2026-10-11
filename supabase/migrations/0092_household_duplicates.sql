@@ -33,7 +33,8 @@
 -- GKK's households only).
 --
 -- household_duplicate_pairs() finds the pairs; find_duplicate_households()
--- adds each household's details and members for the Duplicates page, and
+-- adds each household's details and members for Households → Possible
+-- Duplicates, and
 -- admin_nav_counts() counts the pairs (duplicate_households) for its badge.
 
 do $$
@@ -269,7 +270,7 @@ revoke all on function public.household_duplicate_pairs() from public, anon;
 grant execute on function public.household_duplicate_pairs() to authenticated;
 
 /**
- * The pairs for the Duplicates page, most likely first: [{ key,
+ * The pairs for Households → Possible Duplicates, most likely first: [{ key,
  * household_ids, score, likely, members, names, phone, email, previous_ref,
  * address, name, households }]. Each household comes with its members; the
  * one registered first comes first.

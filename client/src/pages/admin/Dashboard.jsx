@@ -250,7 +250,7 @@ export default function Dashboard() {
         </div>
 
         {(stats.duplicateGroups > 0 || duplicateHouseholds > 0) && (
-          <Link to={stats.duplicateGroups > 0 ? '/admin/duplicates' : '/admin/duplicates?tab=households'} className={`flex items-center gap-3 mb-[18px] px-[18px] py-3.5 rounded-2xl border border-parish-warnBorder bg-parish-warnBg text-parish-warnStrong hover:border-parish-warnBorder ${LINK_FOCUS}`}>
+          <Link to={stats.duplicateGroups > 0 ? '/admin/members?view=duplicates' : '/admin/households?status=Duplicates'} className={`flex items-center gap-3 mb-[18px] px-[18px] py-3.5 rounded-2xl border border-parish-warnBorder bg-parish-warnBg text-parish-warnStrong hover:border-parish-warnBorder ${LINK_FOCUS}`}>
             <span className="w-8 h-8 rounded-full bg-parish-warnTint flex items-center justify-center font-bold flex-none" aria-hidden>!</span>
             <span className="flex-1 text-[14px]">
               <strong>Possible duplicates:</strong>{' '}

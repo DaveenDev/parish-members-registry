@@ -29,7 +29,6 @@ const AdminLayout = React.lazy(() => import('./pages/admin/AdminLayout.jsx'));
 const Dashboard = React.lazy(() => import('./pages/admin/Dashboard.jsx'));
 const Households = React.lazy(() => import('./pages/admin/Households.jsx'));
 const Members = React.lazy(() => import('./pages/admin/Members.jsx'));
-const Duplicates = React.lazy(() => import('./pages/admin/Duplicates.jsx'));
 const Sacraments = React.lazy(() => import('./pages/admin/Sacraments.jsx'));
 const BloodTypes = React.lazy(() => import('./pages/admin/BloodTypes.jsx'));
 const Ministries = React.lazy(() => import('./pages/admin/Ministries.jsx'));
@@ -58,6 +57,17 @@ function Lazy({ children }) {
 function ToSimbahan() {
   const { search, hash } = useLocation();
   return <Navigate to={`/simbahan${search}${hash}`} replace />;
+}
+
+/**
+ * The old Duplicates page: its tabs are now the Possible Duplicates tabs of
+ * the Members page and (?tab=households) of the Households page.
+ */
+function ToDuplicatesTab() {
+  const { search } = useLocation();
+  return new URLSearchParams(search).get('tab') === 'households'
+    ? <Navigate to="/admin/households?status=Duplicates" replace />
+    : <Navigate to="/admin/members?view=duplicates" replace />;
 }
 
 function RequireAuth({ children }) {
@@ -123,7 +133,7 @@ export default function App() {
           {/* Old link to the full-page form: open the New Household panel instead. */}
           <Route path="households/new" element={<Navigate to="/admin/households" replace state={{ newHousehold: true }} />} />
           <Route path="members" element={<Members />} />
-          <Route path="duplicates" element={<Duplicates />} />
+          <Route path="duplicates" element={<ToDuplicatesTab />} />
           <Route path="sacraments" element={<Sacraments />} />
           <Route path="blood" element={<BloodTypes />} />
           <Route path="ministries" element={<Ministries />} />

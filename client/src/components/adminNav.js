@@ -20,7 +20,7 @@ export const NAV_GROUPS = [
     items: [
       { to: '/admin', end: true, label: 'Dashboard', need: 'registry' },
       { to: '/admin/households', label: 'Households', need: 'registry', badge: 'pending', badgeLabel: 'awaiting verification' },
-      { to: '/admin/members', label: 'Members', need: 'registry' },
+      { to: '/admin/members', label: 'Members', need: 'registry', badge: 'duplicates', badgeLabel: 'possible duplicates to review' },
       { to: '/admin/sacraments', label: 'Sacraments', need: 'registry', badge: 'sacraments', badgeLabel: 'claims to verify' },
       { to: '/admin/census', label: 'Census', need: 'census', badge: 'census', badgeLabel: 'online updates to review' },
       { to: '/admin/blood', label: 'Blood Types', need: 'bloodTypes' },
@@ -50,7 +50,6 @@ export const NAV_GROUPS = [
       { to: '/admin/settings', end: true, label: 'Parish Config', leaderLabel: 'GKK Config', ownLabel: 'My Account' },
       { to: '/admin/settings/notifications', label: 'Notifications' },
       { to: '/admin/settings/organizations', label: 'Ministries & organizations', need: 'manageLists' },
-      { to: '/admin/duplicates', label: 'Duplicates', need: 'registry', badge: 'duplicates', badgeLabel: 'groups to review' },
       { to: '/admin/settings/staff', label: 'Staff', adminOnly: true },
       { to: '/admin/settings/activity', label: 'Activity log', need: 'activity' },
       { to: '/admin/settings/trash', label: 'Trash', need: 'trash' },
@@ -115,7 +114,8 @@ export function navBadges(counts) {
   const r = counts.requests;
   return {
     pending: counts.pending_households || 0,
-    duplicates: (counts.duplicate_groups || 0) + (counts.duplicate_households || 0),
+    // Members' Possible Duplicates tab; the households' pairs show on their own tab.
+    duplicates: counts.duplicate_groups || 0,
     sacraments: counts.sacraments_waiting || 0,
     census: counts.census_updates || 0,
     requests: r ? (r.certificates || 0) + (r.ready || 0) + (r.blood || 0) + (r.sacraments || 0) : 0,
