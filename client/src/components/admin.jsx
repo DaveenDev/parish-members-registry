@@ -58,6 +58,20 @@ const STICKY_FIRST = 'max-lg:[&_tr>*:first-child]:sticky max-lg:[&_tr>*:first-ch
   + 'max-lg:[&_tr>*:first-child]:shadow-[1px_0_0_rgb(var(--c-line))]';
 
 /**
+ * The cue beside a clickable column heading. Both triangles show faintly on
+ * a column that can be sorted, and the one it is sorted toward turns solid.
+ * `dir` is 'asc', 'desc' or anything else for a column that isn't the sort.
+ */
+export function SortIcon({ dir }) {
+  return (
+    <svg width="9" height="13" viewBox="0 0 9 13" fill="currentColor" className="inline-block align-[-2px] ml-1.5" aria-hidden>
+      <path d="M4.5 .5 8.5 5.5H.5z" opacity={dir === 'asc' ? 1 : 0.3} />
+      <path d="M4.5 12.5 .5 7.5h8z" opacity={dir === 'desc' ? 1 : 0.3} />
+    </svg>
+  );
+}
+
+/**
  * Table on a Panel. `mobile`, when given, replaces the table below the md
  * breakpoint (cards read better than a sideways-scrolling table on a phone),
  * and on tablets too (below lg) when the table is wider than a tablet's page
@@ -82,7 +96,7 @@ export function DataTable({ columns, children, minWidth = 700, footer, mobile, s
                   className={`text-left px-4 py-3.5 font-bold text-[12px] tracking-wide uppercase text-parish-text2 whitespace-nowrap ${c.align === 'center' ? 'text-center' : c.align === 'right' ? 'text-right' : ''} ${c.className || ''}`}
                 >
                   {c.header || (c.onSort
-                    ? <button type="button" onClick={c.onSort} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-bold text-[12px] tracking-wide uppercase text-parish-text2">{c.label} <span aria-hidden>{c.arrow || ''}</span></button>
+                    ? <button type="button" onClick={c.onSort} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-bold text-[12px] tracking-wide uppercase text-parish-text2">{c.label}<SortIcon dir={c.arrow === '↑' ? 'asc' : c.arrow === '↓' ? 'desc' : ''} /></button>
                     : c.label)}
                 </th>
               ))}

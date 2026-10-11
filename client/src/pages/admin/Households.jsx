@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState, Panel, ActionMenu, Tabs, NewItemsNote } from '../../components/admin.jsx';
+import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState, Panel, ActionMenu, Tabs, NewItemsNote, SortIcon } from '../../components/admin.jsx';
 import { StatusPill, PrimaryButton, Badge, Checkbox } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import HouseholdEditDrawer from '../../components/HouseholdEditDrawer.jsx';
@@ -299,7 +299,7 @@ export default function Households() {
     return (
       <th scope="col" aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'} className={`text-left px-4 py-3.5 whitespace-nowrap ${extra}`}>
         <button type="button" onClick={() => setSort(key)} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-bold text-[12px] tracking-wide uppercase text-parish-text2">
-          {label} <span aria-hidden>{active ? (dir === 'asc' ? '↑' : '↓') : ''}</span>
+          {label}<SortIcon dir={active ? dir : ''} />
         </button>
       </th>
     );
