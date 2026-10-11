@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useOutletContext } from 'react-router-dom';
-import { api } from '../../api.js';
+import { api, NO_GKK } from '../../api.js';
 import { PageHeader, PageBody, FilterSelect, SearchInput, Pagination, EmptyState, ErrorState, LoadingState, Panel, ActionMenu, Tabs, NewItemsNote, SortIcon } from '../../components/admin.jsx';
 import { StatusPill, PrimaryButton, Badge, Checkbox } from '../../components/ui.jsx';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
@@ -75,7 +75,8 @@ export default function Households() {
   // (filtered to it, or a GKK leader's own), until staff sort by a column:
   // then it's one list in that order, with a link back to the groups.
   const sortedByHand = sort !== URL_DEFAULTS.sort || !!url.dir;
-  const groupBy = gkk === 'All' && !leaderGkk(user) ? 'gkk' : 'family_grouping';
+  // "No assigned GKK" groups by GKK too, so each old GKK name has its heading.
+  const groupBy = (gkk === 'All' || gkk === NO_GKK) && !leaderGkk(user) ? 'gkk' : 'family_grouping';
   const groupKey = status === 'Pending' || sortedByHand ? null : groupBy;
 
   // Opened without a tab in the link: start on the queue, but go straight to
@@ -329,6 +330,8 @@ export default function Households() {
             <FilterSelect value={gkk} onChange={(e) => setUrl({ gkk: e.target.value })} aria-label="Filter by GKK">
               <option value="All">All GKKs</option>
               {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+              {/* A GKK leader's households are all in their GKK. */}
+              {!leaderGkk(user) && <option value={NO_GKK}>No assigned GKK</option>}
             </FilterSelect>
             <SearchInput placeholder="Search household, member, address, ref no…" aria-label="Search households or members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
           </>

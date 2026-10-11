@@ -2795,24 +2795,46 @@ async function memberNameMatches(search) {
 
 /** listHouseholds-style params plus the households a member-name search adds. */
 async function withMemberMatches(params = {}) {
-  const matches = await memberNameMatches(params.search);
-  return { params: matches ? { ...params, memberHouseholdIds: matches.ids } : params, matches };
+  const [matches, gkkNames] = await Promise.all([
+    memberNameMatches(params.search),
+    // "No assigned GKK" needs the GKKs there are now (householdQuery).
+    params.gkk === NO_GKK ? supabase.from('gkks').select('name').then(({ data, error }) => { if (error) throw mapError(error); return data.map((g) => g.name); }) : null,
+  ]);
+  const query = { ...params, ...(matches ? { memberHouseholdIds: matches.ids } : {}), ...(gkkNames ? { gkkNames } : {}) };
+  return { params: query, matches };
 }
+
+/**
+ * The GKK filter's "No assigned GKK": households with no GKK, or with a GKK
+ * name that isn't in the GKK list any more (an old record, or a GKK renamed
+ * before renaming moved its households).
+ */
+export const NO_GKK = '__none__';
+
+/** A PostgREST in-list of `names`, each quoted. */
+const quotedList = (names) => `(${names.map((n) => `"${String(n).replace(/["\\]/g, '\\$&')}"`).join(',')})`;
 
 // groupBy: 'gkk' or 'family_grouping' sorts by that first, so the Households
 // page can show the rows in groups; the chosen sort applies within a group.
 // Without it (the verification queue) the rows are in the chosen order alone.
 // family_grouping orders FG 1, FG 2 … FG 10 (family_grouping_no, 0057).
-function householdQuery(q, { status = 'All', gkk = 'All', search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir, groupBy } = {}) {
+function householdQuery(q, { status = 'All', gkk = 'All', gkkNames, search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir, groupBy } = {}) {
   if (status !== 'All') q = q.eq('status', status);
-  if (gkk !== 'All') q = q.eq('gkk', gkk);
+  if (gkk !== 'All' && gkk !== NO_GKK) q = q.eq('gkk', gkk);
   if (ids) q = q.in('id', ids);
+  // Either condition is an "or" of its own; with both, they go in one "and".
+  const either = [];
+  // No GKK, or one not in the list (an empty one is "not in" too). With no
+  // GKKs in the list at all, that's every household.
+  if (gkk === NO_GKK && gkkNames?.length) either.push(`gkk.is.null,gkk.not.in.${quotedList(gkkNames)}`);
   if (search && search.trim()) {
     const s = `%${search.trim()}%`;
     // Also any household with a member whose name matches (memberNameMatches).
     const byMember = memberHouseholdIds?.length ? `,id.in.(${memberHouseholdIds.join(',')})` : '';
-    q = q.or(`household_name.ilike.${s},head_name.ilike.${s},street.ilike.${s},barangay.ilike.${s},city.ilike.${s},contact.ilike.${s},ref_no.ilike.${s}${byMember}`);
+    either.push(`household_name.ilike.${s},head_name.ilike.${s},street.ilike.${s},barangay.ilike.${s},city.ilike.${s},contact.ilike.${s},ref_no.ilike.${s}${byMember}`);
   }
+  if (either.length === 1) q = q.or(either[0]);
+  else if (either.length) q = q.or(`and(${either.map((c) => `or(${c})`).join(',')})`);
   const col = HOUSEHOLD_SORTS[sortKey] || HOUSEHOLD_SORTS.registered;
   // Dates read newest first unless asked otherwise; names and counts A→Z / low→high.
   const ascending = sortDir ? sortDir === 'asc' : !['created_at', 'updated_at'].includes(col);
