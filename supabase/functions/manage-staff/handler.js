@@ -7,9 +7,9 @@
 //
 // Only staff admins (profiles.is_admin, added in 0010_admin_tools.sql) may
 // call it, and a disabled account is refused even while its last access
-// token is still valid. Guards: nobody can disable or remove admin rights
-// from their own account, and the last active admin can't be disabled or
-// demoted, so the parish can never lock itself out.
+// token is still valid. Guards: nobody can disable, delete or remove admin
+// rights from their own account, and the last active admin can't be
+// disabled, deleted or demoted, so the parish can never lock itself out.
 
 export const MIN_PASSWORD_LENGTH = 10; // same rule as Parish Config → Change password
 const DISABLE_FOR = '876000h'; // ~100 years: Supabase's way of disabling a login
@@ -207,7 +207,7 @@ export async function handleStaffRequest({ admin, token, body }) {
     }
 
     const id = clean(body?.id);
-    if (!['update', 'reset_password', 'disable', 'enable'].includes(action)) return fail(400, 'Unknown action');
+    if (!['update', 'reset_password', 'disable', 'enable', 'delete'].includes(action)) return fail(400, 'Unknown action');
     if (!id) return fail(400, 'Choose a staff account');
 
     const staff = await loadStaff(admin);
@@ -257,6 +257,18 @@ export async function handleStaffRequest({ admin, token, body }) {
       const { error } = await admin.auth.admin.updateUserById(id, { ban_duration: DISABLE_FOR });
       if (error) return fail(400, error.message || 'Could not disable the account');
       await logStaff(admin, actor, 'update', target, { disabled: [false, true] });
+      return ok({});
+    }
+
+    if (action === 'delete') {
+      if (isSelf) return fail(400, 'You can’t delete your own account');
+      if (lastAdmin) return fail(400, 'This is the only active admin. Make someone else an admin first.');
+      // The profile goes with the login (on delete cascade, 0001), as do
+      // their notifications and push subscriptions (0034). Records they
+      // made or handled stay, with the staff link cleared (on delete set null).
+      const { error } = await admin.auth.admin.deleteUser(id);
+      if (error) return fail(400, error.message || 'Could not delete the account');
+      await logStaff(admin, actor, 'delete', target, { email: target.email, role: target.role || null, access: target.access });
       return ok({});
     }
 

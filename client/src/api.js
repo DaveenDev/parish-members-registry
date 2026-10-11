@@ -748,6 +748,7 @@ export const api = {
     update: (id, { name, role, isAdmin, access, accessGkkId }) => callStaffFunction({ action: 'update', id, name, role, is_admin: !!isAdmin, access, access_gkk_id: accessGkkId }),
     resetPassword: (id, password) => callStaffFunction({ action: 'reset_password', id, password }),
     setDisabled: (id, disabled) => callStaffFunction({ action: disabled ? 'disable' : 'enable', id }),
+    remove: (id) => callStaffFunction({ action: 'delete', id }),
   },
 
   // ---- possible duplicate members (admin) ------------------------------
