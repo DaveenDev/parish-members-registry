@@ -82,14 +82,18 @@ function fullName(m) {
   return [m.firstName, m.middleName, m.lastName, m.suffix].filter(Boolean).join(' ');
 }
 
-/** Alternatives offered when the household name is already taken. */
+/**
+ * Alternatives when the household name is already taken, best first. The
+ * first, "{Lastname} {Firstname} Household", replaces a taken auto-filled
+ * name on its own.
+ */
 function householdNameCandidates(household, head) {
   const last = toNameCase(head.lastName);
   if (!last) return [];
   const first = toNameCase(head.firstName);
   const barangay = String(household.barangay || '').trim();
   return [
-    first && `${first} ${last} Household`,
+    first && `${last} ${first} Household`,
     barangay && `${last} Household (${barangay})`,
     first && barangay && `${first} ${last} Household (${barangay})`,
   ].filter(Boolean);
@@ -139,6 +143,8 @@ export default function RegistrationApp() {
   const [parishRoleOptions, setParishRoleOptions] = useState([]);
   const [nameCheck, setNameCheck] = useState({ name: '', status: 'idle' }); // idle | available | taken | error
   const [nameSuggestion, setNameSuggestion] = useState('');
+  // The taken name an auto-filled household name was swapped away from, to say so.
+  const [nameAutoFrom, setNameAutoFrom] = useState('');
   const [volunteer, setVolunteer] = useState(draft?.volunteer || '');
   const [notifyOptin, setNotifyOptin] = useState(!!draft?.notifyOptin);
   const [consent, setConsent] = useState(!!draft?.consent);
@@ -181,7 +187,9 @@ export default function RegistrationApp() {
   }, []);
 
   // Household names are unique parish-wide. Check as the name settles, and if
-  // it's taken, find the first free alternative to offer as a one-tap fix.
+  // it's taken, find the first free alternative: an auto-filled name (the
+  // family hasn't typed one) switches to it on its own; a typed name gets
+  // it offered as a one-tap fix.
   const trimmedName = household.householdName.trim();
   const debouncedName = useDebounced(trimmedName, 400);
   useEffect(() => {
@@ -204,7 +212,13 @@ export default function RegistrationApp() {
         if (candidate.toLowerCase() === trimmedName.toLowerCase()) continue;
         try {
           if (await api.householdNameAvailable(candidate)) {
-            if (!cancelled) setNameSuggestion(candidate);
+            if (cancelled) return;
+            if (mode === 'new' && !householdNameTouched) {
+              setHousehold((h) => ({ ...h, householdName: candidate }));
+              setNameAutoFrom(trimmedName);
+            } else {
+              setNameSuggestion(candidate);
+            }
             return;
           }
         } catch {
@@ -242,7 +256,7 @@ export default function RegistrationApp() {
   function updateHousehold(field, value) {
     setHousehold((h) => ({ ...h, [field]: value }));
     // Clearing the name hands it back to the "{Lastname} Household" auto-fill.
-    if (field === 'householdName') setHouseholdNameTouched(!!value);
+    if (field === 'householdName') { setHouseholdNameTouched(!!value); setNameAutoFrom(''); }
     setErr((e) => ({ ...e, [field]: '' }));
     setBanner('');
   }
@@ -280,9 +294,12 @@ export default function RegistrationApp() {
     const cleared = field === 'relationship' ? [field, 'civilStatus', 'sex'] : [field];
     setMemberErr((me) => me.map((e, idx) => (idx === i && e ? { ...e, ...Object.fromEntries(cleared.map((f) => [f, ''])) } : e)));
     setBanner('');
-    if (mode === 'new' && i === 0 && field === 'lastName' && !householdNameTouched) {
-      const last = toNameCase(value);
+    // The first name counts too: if "{Lastname} Household" is taken, the
+    // name becomes "{Lastname} {Firstname} Household" (see the name check).
+    if (mode === 'new' && i === 0 && (field === 'lastName' || field === 'firstName') && !householdNameTouched) {
+      const last = toNameCase(field === 'lastName' ? value : members[0].lastName);
       setHousehold((h) => ({ ...h, householdName: last ? `${last} Household` : '' }));
+      setNameAutoFrom('');
       setErr((e) => ({ ...e, householdName: '' }));
     }
   }
@@ -481,7 +498,7 @@ export default function RegistrationApp() {
     clearDraft();
     setScreen('wizard'); setStep(1);
     setModeState('new'); setJoin(EMPTY_JOIN); setJoinStatus({ checking: false, error: '' }); setJoined(null);
-    setHousehold(EMPTY_HOUSEHOLD); setHouseholdNameTouched(false);
+    setHousehold(EMPTY_HOUSEHOLD); setHouseholdNameTouched(false); setNameAutoFrom('');
     setMembers([blankHead()]); setVolunteer(''); setNotifyOptin(false); setConsent(false);
     setErr({}); setMemberErr([]); setBanner(''); setRefNo('');
     top();
@@ -508,7 +525,7 @@ export default function RegistrationApp() {
         <Wizard
           step={step} banner={banner}
           household={household} err={err} onHouseholdField={updateHousehold} gkkOptions={gkkOptions}
-          nameStatus={nameStatus} nameSuggestion={nameSuggestion}
+          nameStatus={nameStatus} nameSuggestion={nameSuggestion} nameAutoFrom={nameAutoFrom}
           onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay}
           memberViews={memberViews} onMemberField={updateMember} onMemberCensus={updateMemberCensus}
           orgOptions={orgOptions} onToggleOrganization={toggleOrganization}
@@ -783,7 +800,7 @@ const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' };
  * Household name: filled in automatically from the head's last name and
  * locked until "Edit" is pressed. Shows whether the name is still free.
  */
-function HouseholdNameField({ value, error, status, suggestion, onChange }) {
+function HouseholdNameField({ value, error, status, suggestion, autoFrom, onChange }) {
   const [editing, setEditing] = useState(false);
   const inputRef = useRef(null);
   const inputId = useId();
@@ -823,6 +840,11 @@ function HouseholdNameField({ value, error, status, suggestion, onChange }) {
         </GhostButton>
       </div>
       {!error && statusLine && <div className="text-[12.5px] mt-1.5">{statusLine}</div>}
+      {!error && autoFrom && status !== 'taken' && (
+        <div className="text-[12.5px] mt-1 text-parish-text2">
+          Narehistro na ang “{autoFrom}”, mao nga gigamit ang “{value.trim()}”. Pindota ang “Usba” aron usbon.
+        </div>
+      )}
       {status === 'taken' && suggestion && (
         <button
           type="button"
@@ -895,7 +917,7 @@ function JoinHouseCard({ join, joinStatus, error, onJoinField, onCheckJoin }) {
   );
 }
 
-function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, nameStatus, nameSuggestion, mode, onMode, join, joinStatus, onJoinField, onCheckJoin }) {
+function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, nameStatus, nameSuggestion, nameAutoFrom, mode, onMode, join, joinStatus, onJoinField, onCheckJoin }) {
   const f = (field) => ({ value: household[field], onChange: (e) => onHouseholdField(field, e.target.value) });
   const head = memberViews[0];
   const barangayOf = useGkkBarangayMap();
@@ -940,6 +962,7 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
             error={err.householdName}
             status={nameStatus}
             suggestion={nameSuggestion}
+            autoFrom={nameAutoFrom}
             onChange={(v) => onHouseholdField('householdName', v)}
           />
         </div>
