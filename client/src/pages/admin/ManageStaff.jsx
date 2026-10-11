@@ -443,6 +443,26 @@ export default function ManageStaff() {
     }
   }
 
+  async function remove(s) {
+    const ok = await confirm({
+      title: `Delete ${s.name || s.email}’s account?`,
+      message: 'Their login and staff profile are removed for good, and they can’t sign in again. Records they entered or handled stay, without their name attached. To keep the account for later, disable it instead.',
+      confirmLabel: 'Delete account',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    setRowBusy(s.id);
+    try {
+      await api.staff.remove(s.id);
+      toast.success('Account deleted');
+      staff.reload();
+    } catch (e) {
+      toast.error(e.message || 'Could not delete the account');
+    } finally {
+      setRowBusy(null);
+    }
+  }
+
   const rows = view.rows;
   const people = all.length;
   const leaders = counts.gkk_leader;
@@ -461,6 +481,7 @@ export default function ManageStaff() {
         items={[
           { label: 'Reset password', onClick: () => resetPassword(s) },
           !isSelf && { label: s.disabled ? 'Enable account' : 'Disable account', tone: s.disabled ? undefined : 'danger', onClick: () => toggleDisabled(s) },
+          !isSelf && { label: 'Delete account', tone: 'danger', onClick: () => remove(s) },
         ]}
       />
     </div>
@@ -478,7 +499,7 @@ export default function ManageStaff() {
       </PageHeader>
       <PageBody>
         <div className="mb-4 px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
-          Choose each account's access: full, read only, one GKK (a census coordinator), or the website and requests. Keep this list to people who need it, and disable accounts when someone leaves.
+          Choose each account's access: full, read only, one GKK (a census coordinator), or the website and requests. Keep this list to people who need it, and disable or delete accounts when someone leaves.
           New accounts and password resets get a temporary password for you to pass on.
         </div>
 

@@ -182,6 +182,29 @@ describe('manage-staff: guards against locking the parish out', () => {
   });
 });
 
+describe('manage-staff: delete', () => {
+  test('deletes another account and logs it', async () => {
+    const res = await call('u1', { action: 'delete', id: 'u2' });
+    assert.equal(res.status, 200);
+    assert.deepEqual(admin.calls.at(-1), ['deleteUser', 'u2']);
+    assert.deepEqual(admin.logs.at(-1), {
+      actor: 'u1', actor_name: 'Ma. Assumpta', action: 'delete', table_name: 'profiles',
+      record_id: 'u2', label: 'Pedro', changes: { email: 'staff@parish.test', role: 'Encoder', access: 'none' },
+    });
+  });
+
+  test('cannot delete yourself', async () => {
+    const res = await call('u1', { action: 'delete', id: 'u1' });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /your own account/);
+    assert.equal(admin.calls.length, 0);
+  });
+
+  test('an id that no longer exists is a 404', async () => {
+    assert.equal((await call('u1', { action: 'delete', id: 'gone' })).status, 404);
+  });
+});
+
 describe('manage-staff: edit and reset', () => {
   test('promotes another member of staff', async () => {
     const res = await call('u1', { action: 'update', id: 'u2', name: 'Pedro S.', role: 'Encoder', is_admin: true });
