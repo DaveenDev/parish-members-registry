@@ -4,6 +4,7 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
 import { AnnouncementCard, ArticleChip, CardShare, EventCard, MassRow } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
+import VerseOfDay from '../../components/site/VerseOfDay.jsx';
 import { ARTICLES_PAGE, KALENDARYO_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
@@ -102,9 +103,14 @@ export default function Home() {
 
       <CensusNotice />
 
-      {/* A full-width navy band right under the hero, like the census notice, so the
-          page keeps one when no census is open. It joins the notice when that shows. */}
-      <div className={`pb-7 bg-parish-navy lg:py-12 ${censusOpen ? 'border-t border-white/15' : ''}`}>
+      {/* Pulong sa Dios: a random Bible verse with what the Catechism teaches
+          about it, under the census notice (under the hero when none is open). */}
+      <section className="px-3.5 py-6 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:py-11">
+        <VerseOfDay />
+      </section>
+
+      {/* A full-width navy band under the verse, for the news. */}
+      <div className="pb-7 bg-parish-navy lg:py-12">
       {/* Desktop: announcements and events half and half, in one grid
           (lg:contents) so both sides share a height: up to two announcement
           cards stacked on the left, the next event's card on the right with

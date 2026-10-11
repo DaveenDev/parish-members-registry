@@ -4,7 +4,6 @@ import { Icon } from '../../components/site/Icons.jsx';
 import SacramentIcon from '../../components/SacramentIcon.jsx';
 import { BAND_PAD, Band, BigButton, DataState, EmptyNote, Eyebrow, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { Organisasyon } from '../../components/site/OrgCharts.jsx';
-import VerseOfDay from '../../components/site/VerseOfDay.jsx';
 import { MassRow } from '../../components/site/cards.jsx';
 import { KALENDARYO_PAGE, guideShortTitle, massLocations, massSections } from '../../lib/site.js';
 import { HISTORY_PAGE, openingParagraph } from '../../lib/history.js';
@@ -17,9 +16,8 @@ const TEACH_TABS = [['sakramento', 'Mga Sakramento ug Pormasyon', 'Mga Sakrament
 const NO_SCROLLBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
 
 /**
- * Ang Simbahan: a random Bible verse with what the Catechism teaches about
- * it (and a way to the day's readings, /simbahan/pagbasa), on the light-blue
- * band; then the Mass schedule; then the sacrament guides and the parish's
+ * Ang Simbahan: the page's title and its jumps on the light-blue band (the
+ * Bible verse that was here is on the home page now); then the Mass schedule; then the sacrament guides and the parish's
  * organization charts, as two tabs on the band again; last, the parish's
  * history (its main article's photo and opening paragraph, on to
  * /simbahan/kasaysayan). Old /misa links land here (?view=sakramento still
@@ -37,22 +35,19 @@ export default function Simbahan() {
   };
   // Arriving for the sacraments or the org charts: go straight to them.
   const [jump] = useState(() => params.get('view') === 'sakramento' || params.has('tab'));
-  // The verse above changes the page's height when it comes in: jump after it.
-  const [verseIn, setVerseIn] = useState(false);
 
   if (params.get('view') === 'kalendaryo') return <Navigate replace to={KALENDARYO_PAGE} />;
   return (
     <main className="animate-fadeUp">
       <Band aria-labelledby="simbahan-title">
         <div className={`${WRAP} ${BAND_PAD}`}>
-          <div className="lg:flex lg:items-end lg:justify-between lg:gap-6 lg:mb-[22px]">
+          <div className="lg:flex lg:items-end lg:justify-between lg:gap-6">
             <div>
               <Eyebrow>Pulong, Misa ug Sakramento</Eyebrow>
               <h1 id="simbahan-title" className="font-serif font-semibold text-[32px] lg:text-[46px] leading-[1.08] mt-0.5 mb-3 lg:mb-0 text-parish-navy">Ang Simbahan</h1>
             </div>
             <PageJumps onTab={(t) => update({ tab: t === 'sakramento' ? null : t, view: null })} />
           </div>
-          <VerseOfDay onLoad={() => setVerseIn(true)} />
         </div>
       </Band>
 
@@ -66,7 +61,7 @@ export default function Simbahan() {
         </div>
       </section>
 
-      <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={jump && verseIn} />
+      <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={jump} />
 
       <HistoryFeature />
     </main>
@@ -85,7 +80,7 @@ function PageJumps({ onTab }) {
   const icon = (name) => <Icon name={name} size={16} className="hidden sm:block" />;
   const open = (t) => { onTab(t); requestAnimationFrame(() => scrollTo('tudlo')); };
   return (
-    <nav aria-label="Niini nga panid" className={`flex gap-2 overflow-x-auto ${NO_SCROLLBAR} -mx-3.5 px-3.5 mb-3.5 lg:mb-0 lg:mx-0 lg:px-0 lg:flex-wrap`}>
+    <nav aria-label="Niini nga panid" className={`flex gap-2 overflow-x-auto ${NO_SCROLLBAR} -mx-3.5 px-3.5 lg:mx-0 lg:px-0 lg:flex-wrap`}>
       <button type="button" className={btn} onClick={() => scrollTo('misa')}>{icon('clock')}<span className="lg:hidden">Misa ↓</span><span className="hidden lg:inline">Iskedyul sa Misa ↓</span></button>
       {guides.rows.length > 0 && <button type="button" className={btn} onClick={() => open('sakramento')}>{icon('church')}<span className="lg:hidden">Sakramento ↓</span><span className="hidden lg:inline">Mga Sakramento ↓</span></button>}
       {charts.rows.length > 0 && <button type="button" className={btn} onClick={() => open('organisasyon')}>{icon('people')}Organisasyon ↓</button>}

@@ -37,7 +37,7 @@ export default function VerseOfDay({ onLoad }) {
   const go = (step) => setI((i + step + VERSES.length) % VERSES.length);
   const shareVerse = () => share(
     `Pulong sa Dios — ${v.ref}`,
-    '/simbahan',
+    '/',
     `"${v.text}" — ${v.ref}\n\nAng gitudlo sa Simbahan (CCC ${v.ccc}):\n${v.explain}`
   );
 

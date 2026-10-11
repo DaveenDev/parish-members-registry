@@ -5,7 +5,7 @@ import { useSiteTitle } from './SiteLayout.jsx';
 
 /**
  * /simbahan/pagbasa: the day's Mass readings on a page of their own, opened
- * from the Bible verse on Ang Simbahan. The card (DailyReadings) has the
+ * from the Bible verse on the home page. The card (DailyReadings) has the
  * readings, the day switch and the Universalis notice.
  */
 export default function Pagbasa() {
