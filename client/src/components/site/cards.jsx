@@ -177,9 +177,10 @@ export function eventTone(e) {
  * Card in the agenda list, with a span bar for multi-day events. An event
  * with a cover photo shows it across the top; one without keeps the simple
  * card with the type icon. `fill` stretches it to its grid cell's height
- * (Home, beside the announcement cards).
+ * (Home, beside the announcement cards). `spotlight` shows the cover as big
+ * as the event's own page does (Pahibalo's next event).
  */
-export function EventCard({ e, showDate = false, fill = false }) {
+export function EventCard({ e, showDate = false, fill = false, spotlight = false }) {
   const tone = eventTone(e);
   const span = eventSpan(e);
   const soon = eventCountdown(e, todayIso());
@@ -190,7 +191,7 @@ export function EventCard({ e, showDate = false, fill = false }) {
         <div className="font-bold text-[11.5px] tracking-[.06em] uppercase" style={{ color: tone.color }}>{EVENT_TYPE_LABELS[e.type] || e.type}</div>
         {soon && !e.photo_url && <span className="font-bold text-[11.5px] rounded-full px-2 py-px bg-[var(--p-gold-light)] text-parish-navy">{soon}</span>}
       </div>
-      <div className="font-semibold text-[15.5px] leading-[1.3] mt-px mb-[3px]">{e.title}</div>
+      <div className={`font-semibold leading-[1.3] mt-px mb-[3px] ${spotlight ? 'text-[17px] lg:text-[24px] lg:font-serif lg:font-bold lg:text-parish-navy' : 'text-[15.5px]'}`}>{e.title}</div>
       {showDate && <div className="text-[13.5px] font-semibold text-parish-navy">{fmtShort(e.start_date)}{e.end_date && e.end_date !== e.start_date ? ` – ${fmtShort(e.end_date)}` : ''}</div>}
       <div className="text-[13.5px] text-parish-text2">{[eventTime(e), e.location].filter(Boolean).join(' · ')}</div>
       {span && (
@@ -208,8 +209,9 @@ export function EventCard({ e, showDate = false, fill = false }) {
         <CardShare title={e.title} path={path} />
         <Link to={path} className={`w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'flex flex-col h-full' : 'block'}`}>
           {/* The whole cover (posters keep their text) over a blurred copy that
-              fills the sides. With `fill` it grows to take the card's spare height. */}
-          <div className={`relative bg-[#efe6d3] overflow-hidden ${fill ? 'flex-1 min-h-[190px] lg:min-h-[260px]' : 'h-[170px] lg:h-[200px]'}`}>
+              fills the sides. With `fill` it grows to take the card's spare height;
+              in the spotlight it's the event page's size (Photo h 260, hLg 560). */}
+          <div className={`relative bg-[#efe6d3] overflow-hidden ${spotlight ? 'flex-none h-[260px] lg:h-[560px]' : fill ? 'flex-1 min-h-[190px] lg:min-h-[260px]' : 'h-[170px] lg:h-[200px]'}`}>
             <img src={e.photo_url} alt="" aria-hidden loading="lazy" className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-70" />
             <img src={e.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-contain" />
             <span className="absolute left-2.5 top-2.5 w-12 rounded-xl overflow-hidden text-center bg-parish-card shadow-cardSm" aria-label={fmtShort(e.start_date)}>
@@ -220,7 +222,7 @@ export function EventCard({ e, showDate = false, fill = false }) {
               <span className="absolute left-2.5 bottom-2.5 rounded-full px-2.5 py-1 font-bold text-[12px] bg-[var(--p-gold-light)] text-parish-navy shadow-cardSm">{soon}</span>
             )}
           </div>
-          <div className="p-3">{details}</div>
+          <div className={spotlight ? 'p-3 lg:px-5 lg:py-4' : 'p-3'}>{details}</div>
         </Link>
       </div>
     );

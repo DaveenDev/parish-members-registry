@@ -288,16 +288,19 @@ function ArticlesPointer() {
 
 /**
  * The next few parish events, above the announcements, with a link to the
- * full calendar. On phones they're a row you swipe sideways (the next card
- * peeks in), so six events don't push the announcements a screen down;
- * desktop keeps the grid. Hidden while loading, on error, or when nothing is
- * coming up.
+ * full calendar. Events are rare, so the next one takes the spotlight: its
+ * cover as big as on its own page, across the full width on desktop, with
+ * the rest in a grid under it. On phones they're a row you swipe sideways
+ * (the next card peeks in), so six events don't push the announcements a
+ * screen down. Hidden while loading, on error, or when nothing is coming up.
  */
 function UpcomingEvents() {
   const events = listState(useEvents());
   if (events.loading || events.error || !events.rows.length) return null;
   const next = events.rows.slice(0, 6);
   const one = next.length === 1;
+  // The grid's columns are for the events after the spotlit one.
+  const rest = Math.max(1, next.length - 1);
   return (
     <section id="kalihokan" className={`mb-5 lg:mb-7 ${JUMP_TARGET}`} aria-labelledby="upcoming-events">
       <div className="flex items-baseline justify-between gap-3 mb-2.5 lg:mb-3">
@@ -308,11 +311,11 @@ function UpcomingEvents() {
       </div>
       <div
         role="list" aria-label="Umaabot nga kalihokan"
-        className={`flex gap-2.5 overflow-x-auto snap-x snap-mandatory scroll-px-3.5 -mx-3.5 px-3.5 pb-1.5 lg:grid lg:gap-3 lg:overflow-visible lg:mx-0 lg:px-0 lg:pb-0 ${cols(next.length)}`}
+        className={`flex gap-2.5 overflow-x-auto snap-x snap-mandatory scroll-px-3.5 -mx-3.5 px-3.5 pb-1.5 lg:grid lg:gap-3 lg:overflow-visible lg:mx-0 lg:px-0 lg:pb-0 ${cols(rest)}`}
       >
-        {next.map((e) => (
-          <div key={e.id} role="listitem" className={`snap-start flex-none ${one ? 'w-full' : 'w-[82%] max-w-[340px]'} lg:w-auto lg:max-w-none`}>
-            <EventCard e={e} showDate fill />
+        {next.map((e, i) => (
+          <div key={e.id} role="listitem" className={`snap-start flex-none ${one ? 'w-full' : 'w-[82%] max-w-[340px]'} lg:w-auto lg:max-w-none ${i === 0 ? 'lg:col-span-full' : ''}`}>
+            <EventCard e={e} showDate fill spotlight={i === 0} />
           </div>
         ))}
       </div>
