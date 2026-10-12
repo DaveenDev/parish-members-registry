@@ -40,6 +40,41 @@ Not technical, or no one in the parish to do it? I can set it up for you, for a 
 
 The app itself stays free; you pay only for the time to set it up. Write to **[daveendev07@gmail.com](mailto:daveendev07@gmail.com)** or see [daveendev.vercel.app](https://daveendev.vercel.app/) with your parish's name and what you need, for a quote.
 
+## Benefits
+
+What it does for a parish, in plain terms. The details are under [Features](#features).
+
+**A parish website, included**
+- One place for parishioners to find the Mass and confession schedule, today's Masses, announcements, the weekly bulletin and the events calendar, kept up to date by the parish office without a web designer.
+- Sacrament guides with the steps, documents and fees for Baptism, First Communion, Confirmation, Weddings, OCIA and the Anointing of the Sick, so families come to the office ready.
+- A page for every GKK: its chapel, photos, history, Bible-sharing schedule and officers. The parish history, and the Church and GKK organization charts, are there too.
+- Requests from home: certificates, joining OCIA, the Anointing of the Sick and blood donor calls, each with a reference number to follow up.
+- Pulong sa Dios, a Bible verse each day with the Catechism's teaching on it, and a way to the day's Mass readings.
+- Downloads: song lyrics for the GKK Kasaulogan and other gatherings, and the parish's forms to print.
+- In Bisaya and easy to use on a phone, with share buttons to pass announcements, events and articles on through Facebook and Messenger.
+
+**For families**
+- Register the household online, from home, with a reference number to keep, instead of filling in paper forms at the office.
+- Update their record during the parish census from a phone, with the code on their census form.
+
+**For the parish office**
+- Every household and member in one searchable registry, instead of notebooks and spreadsheets: sacraments, ministries, organizations, GKK and contact details.
+- New registrations wait in a queue to be checked and verified, and possible duplicates (the same person, or the same house registered twice) are flagged.
+- Certificate and sacrament requests, blood calls and census updates in one place, with phone notifications when something comes in.
+- Ready-made reports, printable household sheets and spreadsheet exports for the diocese, the parish council and planning.
+- Nothing is lost by mistake: deleted records stay in a Trash for 30 days, and an activity log shows who changed what.
+
+**For GKK leaders**
+- Their own GKK's households and members, last year's list to tick off during the census, and their GKK's page and officers to keep up to date, without seeing the rest of the parish.
+
+**For the parish priest and council**
+- A clear picture of the parish: how many families and members each GKK has, who has received which sacraments, who still needs Baptism, Confirmation or a church wedding, and how active the community is, census after census.
+- The census done once, on the computer, with results by GKK compared with the census before.
+
+**Safe and low-cost**
+- Each staff member signs in with their own account and sees only what their role allows; GKK leaders only their own GKK. Member information stays private and is never shown on the public website.
+- Runs on free plans, with automatic backups. The parish owns its accounts and its data.
+
 ## Features
 
 **Public registration portal**
