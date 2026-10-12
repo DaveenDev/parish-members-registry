@@ -5,6 +5,15 @@ A few addresses and names are built into it. For another parish: copy the
 repository, change those, then set up the services with
 [01-production.md](01-production.md) and [02-staging.md](02-staging.md).
 
+The app is free for any parish, on one condition (see [`LICENSE`](../LICENSE)):
+keep the **"Built For Free by DaveenDev"** credit and the `/developer` page it
+links to. While changing the parish's details below, leave
+[`client/src/components/CreditFooter.jsx`](../client/src/components/CreditFooter.jsx),
+the credit in [`client/src/pages/admin/AdminLayout.jsx`](../client/src/pages/admin/AdminLayout.jsx)
+and [`client/src/pages/site/Developer.jsx`](../client/src/pages/site/Developer.jsx)
+as they are. Rather have it set up for you? See
+[Paid setup assistance](../README.md#paid-setup-assistance).
+
 ## Step 1. A copy of the repository, and the parish's own accounts
 
 - Make a **new GitHub repository** for the parish and push a copy of this

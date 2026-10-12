@@ -4,6 +4,42 @@ A full-stack parish membership registry: a public household registration wizard 
 
 Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres + Auth) — no separate backend server. Row Level Security policies and Postgres functions (in `supabase/migrations/`) enforce who can read/write what.
 
+> **Free for any parish.** Copy it, set it up for your own parish and change it as you need, at no cost. The one condition: keep the **"Built For Free by DaveenDev"** credit in the app. See [Free for your parish](#free-for-your-parish).
+
+## Free for your parish
+
+This registry was built for Our Lady of Guadalupe Quasi-Parish, Mua-an, and is given freely to any parish, chapel or diocese that wants it.
+
+**You may**, at no cost:
+
+- copy this repository and set up your own copy of the app for your parish;
+- change it: your parish's name, logo, GKKs, ministries, pages and anything else;
+- run it for as long as you like, for one parish or several.
+
+**On one condition:** keep the credit **"Built For Free by DaveenDev"** where it appears in the app, linked to the developer page (`/developer`) or to [daveendev.vercel.app](https://daveendev.vercel.app/), and keep the [`LICENSE`](LICENSE) file. The credit shows in the public website's footer, on the registration and census pages, on the staff sign-in page and in the admin panel's sidebar; you may restyle it to match your site, but not remove or reword it. That's the whole price.
+
+**What it costs to run:** nothing, on the free plans of [Supabase](https://supabase.com) (the database and staff logins), [Vercel](https://vercel.com) (the website) and [Cloudflare R2](https://www.cloudflare.com/developer-platform/products/r2/) (photos), for a parish of a few thousand households. A domain name of your own is optional. See [Staying on the free tier](#staying-on-the-free-tier-keep-alive-and-backups).
+
+### Setting it up yourself
+
+If someone in your parish is comfortable with GitHub and following a technical guide:
+
+1. Copy this repository into a **new GitHub repository for your parish** (one repository per parish).
+2. Follow [`deploy/03-new-parish.md`](deploy/03-new-parish.md): what to change in the code for your parish (name, address, logo, website address), then the live site ([`deploy/01-production.md`](deploy/01-production.md)) and, if you want one for training staff, the training site ([`deploy/02-staging.md`](deploy/02-staging.md)).
+3. Create the accounts (Supabase, Vercel, Cloudflare, GitHub) under the **parish's own Gmail**, so the parish owns its parishioners' data.
+
+### Paid setup assistance
+
+Not technical, or no one in the parish to do it? I can set it up for you, for a fee. This covers:
+
+- creating the accounts under your parish's own Gmail (the parish keeps ownership of everything and of its data);
+- putting in your parish's name, logo, address, GKKs, ministries and organizations;
+- setting up the live site and, if you want it, a training site for practice;
+- photo storage, the parish email for password resets, and the automatic backups;
+- your first staff accounts, and a walkthrough for the parish office and GKK leaders.
+
+The app itself stays free; you pay only for the time to set it up. Write to **[daveendev07@gmail.com](mailto:daveendev07@gmail.com)** or see [daveendev.vercel.app](https://daveendev.vercel.app/) with your parish's name and what you need, for a quote.
+
 ## Features
 
 **Public registration portal**
@@ -273,8 +309,8 @@ households (removable in one step). Setup, removing and reseeding are in
 
 ## License
 
-MIT
+MIT, with one added condition: copies and deployments keep the "Built For Free by DaveenDev" credit in the app. See [`LICENSE`](LICENSE) and [Free for your parish](#free-for-your-parish).
 
 ## Credit
 
-Built for free by [DaveenDev](https://daveendev.vercel.app/).
+Built For Free by [DaveenDev](https://daveendev.vercel.app/). Setup assistance for other parishes: [daveendev07@gmail.com](mailto:daveendev07@gmail.com).
