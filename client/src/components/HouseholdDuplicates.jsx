@@ -12,6 +12,7 @@ import { fmtDate, fmtDateTime } from '../constants.js';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
 import { bis, RELATIONSHIP_LABELS } from '../lib/bisaya.js';
+import { useDuplicateFlags, SendButton, FlagStrip, OtherGkkNote } from './DuplicateFlag.jsx';
 
 const fullName = (m) => [m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ');
 // As the database compares names (dup_text_key, 0092): lower case, letters and digits only.
@@ -26,6 +27,9 @@ const pairKey = (ids) => ids.join('-');
  * compare them side by side, then delete the extra one from the Households
  * page, or mark the pair "Not the same household" (which can be taken back
  * below the list). The Households page's Possible Duplicates tab.
+ *
+ * A GKK leader sees the pairs with a household of their GKK, other GKKs'
+ * included (0094), and sends any pair to the parish office to fix.
  */
 export default function HouseholdDuplicates() {
   const toast = useToast();
@@ -44,6 +48,7 @@ export default function HouseholdDuplicates() {
     dismissed.reload();
     layout?.refreshNavCounts?.();
   }
+  const flags = useDuplicateFlags('households', reload);
 
   async function dismiss(pair) {
     const [a, b] = pair.households;
@@ -88,6 +93,10 @@ export default function HouseholdDuplicates() {
         add anyone missing to it, merge the people in both under{' '}
         <Link to="/admin/members?view=duplicates" className="font-semibold text-parish-blue">Members → Possible Duplicates</Link>, then delete the extra
         household from the Households list (it stays in the Trash for 30 days). If they're different houses, choose <strong>Not the same household</strong>.
+        {flags.canSend && (
+          <> Pairs with a household of another GKK show here too. Only the parish office can delete a household or change another
+          GKK's, so choose <strong>Send to the parish office</strong>: the office is alerted, and you're told when it's fixed.</>
+        )}
       </div>
 
       {loading && !pairs && <LoadingState label="Looking for duplicate households…" />}
@@ -102,7 +111,7 @@ export default function HouseholdDuplicates() {
           <div className="flex flex-col gap-4">
             {pairs.map((p) => (
               <PairCard
-                key={p.key} pair={p} canReview={canReview} busy={busyKey === p.key}
+                key={p.key} pair={p} canReview={canReview} busy={busyKey === p.key} flags={flags}
                 onDismiss={() => dismiss(p)} onOpen={setViewing}
               />
             ))}
@@ -142,6 +151,7 @@ export default function HouseholdDuplicates() {
         </details>
       )}
 
+      {flags.dialog}
       {/* At the page's root, so the card's text styles don't reach the panel. */}
       {viewing && createPortal(<HouseholdViewDrawer household={viewing} readOnly onClose={() => setViewing(null)} />, document.body)}
     </div>
@@ -161,8 +171,10 @@ function reasons(p) {
   return list;
 }
 
-function PairCard({ pair: p, canReview, busy, onDismiss, onOpen }) {
+function PairCard({ pair: p, canReview, busy, flags, onDismiss, onOpen }) {
   const [a, b] = p.households;
+  // A leader marks "Not the same household" only for their own GKK's households (0092).
+  const bothMine = a.mine !== false && b.mine !== false;
   // The people in both, to mark them in each list.
   const shared = new Set(a.members.map(nameKey).filter((k) => b.members.some((m) => nameKey(m) === k)));
   return (
@@ -173,6 +185,7 @@ function PairCard({ pair: p, canReview, busy, onDismiss, onOpen }) {
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-serif text-[19px] font-semibold text-parish-navy">{a.household_name} · {b.household_name}</span>
             <Badge tone={p.likely ? 'red' : 'gold'}>{p.likely ? 'Very likely the same house' : 'Possibly the same house'}</Badge>
+            {a.gkk !== b.gkk && <Badge tone="gray">Different GKKs</Badge>}
           </div>
           {/* Label beside value; on a phone, above it. */}
           <dl className="m-0 mt-2 grid sm:grid-cols-[auto_minmax(0,1fr)] gap-x-3 sm:gap-y-1 text-[13px]">
@@ -184,16 +197,22 @@ function PairCard({ pair: p, canReview, busy, onDismiss, onOpen }) {
             ))}
           </dl>
         </div>
-        {canReview && (
-          <button
-            onClick={onDismiss}
-            disabled={busy}
-            className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg whitespace-nowrap disabled:opacity-60"
-          >
-            {busy ? 'Saving…' : 'Not the same household'}
-          </button>
-        )}
+        <div className="flex gap-2 flex-wrap">
+          {flags.canSend && !p.flag && (
+            <SendButton disabled={busy} onClick={() => flags.open(p.household_ids, `${a.household_name} and ${b.household_name}`)} />
+          )}
+          {canReview && bothMine && (
+            <button
+              onClick={onDismiss}
+              disabled={busy}
+              className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg whitespace-nowrap disabled:opacity-60"
+            >
+              {busy ? 'Saving…' : 'Not the same household'}
+            </button>
+          )}
+        </div>
       </div>
+      {p.flag && <FlagStrip flag={p.flag} flags={flags} />}
       <div className="grid gap-px bg-parish-track" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(260px,1fr))' }}>
         {p.households.map((h, i) => (
           <HouseholdColumn key={h.id} household={h} first={i === 0} shared={shared} onOpen={() => onOpen(h)} />
@@ -230,10 +249,12 @@ function HouseholdColumn({ household: h, first, shared, onOpen }) {
         })}
         {!h.members.length && <li className="text-[13px] text-parish-muted">No members</li>}
       </ul>
-      <div className="flex gap-2 mt-1.5 flex-wrap">
-        <button onClick={onOpen} className="appearance-none border-none cursor-pointer px-3 py-1.5 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">Open household</button>
-        <Link to={`/admin/households?status=All&q=${encodeURIComponent(h.ref_no || h.household_name)}`} className="px-3 py-1.5 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg no-underline">Find in Households</Link>
-      </div>
+      {h.can_open === false ? <OtherGkkNote gkk={h.gkk} /> : (
+        <div className="flex gap-2 mt-1.5 flex-wrap">
+          <button onClick={onOpen} className="appearance-none border-none cursor-pointer px-3 py-1.5 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">Open household</button>
+          <Link to={`/admin/households?status=All&q=${encodeURIComponent(h.ref_no || h.household_name)}`} className="px-3 py-1.5 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg no-underline">Find in Households</Link>
+        </div>
+      )}
     </div>
   );
 }

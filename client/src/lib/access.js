@@ -5,7 +5,7 @@
 export const ACCESS_LEVELS = [
   { key: 'full', label: 'Full access', note: 'Everything in the admin panel.' },
   { key: 'read_only', label: 'Read only', note: 'Sees the registry, census, requests, website and activity log, and changes nothing. No exports, census codes, GKK documents or trash.' },
-  { key: 'gkk_leader', label: 'GKK leader', note: 'Sees and updates the households and members of one GKK (not their blood types), and those with no GKK yet, which they can move into theirs. Records their census and reviews their online updates, and gets or renews their census codes. Dashboard, reports and duplicates cover that GKK only.' },
+  { key: 'gkk_leader', label: 'GKK leader', note: 'Sees and updates the households and members of one GKK (not their blood types), and those with no GKK yet, which they can move into theirs. Records their census and reviews their online updates, and gets or renews their census codes. Dashboard and reports cover that GKK only; possible duplicates also show another GKK\'s records that match theirs, which they send to the parish office to fix.' },
   { key: 'website', label: 'Website & requests', note: 'Runs the Parish Website (including the office and contact details) and the Requests queues; views the registry and blood types but not the census.' },
   { key: 'clergy', label: 'Clergy', note: 'For the parish priests. Sees the registry, sacraments, census and reports, verifies sacraments and handles the Requests queues. Changes no household or member. No blood types, exports, census codes, website, activity log or trash.' },
 ];

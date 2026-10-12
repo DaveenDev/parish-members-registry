@@ -829,6 +829,32 @@ export const api = {
       .filter((d) => d.households.length === 2);
   },
 
+  // ---- sending possible duplicates to the parish office (0094) ----------
+  /**
+   * A GKK leader sends a group of members (`kind` 'members') or a pair of
+   * households ('households') to the parish office, which is alerted.
+   * Resolves to the flag's id.
+   */
+  async flagDuplicate(kind, ids, note) {
+    const { data, error } = await supabase.rpc('flag_duplicate', { p_kind: kind, p_ids: ids, p_note: note || null });
+    if (error) throw missingMigration(error, '0094_duplicates_across_gkks.sql') || mapError(error);
+    return data;
+  },
+
+  /** The leader takes back what their GKK sent, while the office hasn't handled it. */
+  async unflagDuplicate(flagId) {
+    const { error } = await supabase.rpc('unflag_duplicate', { p_id: flagId });
+    if (error) throw missingMigration(error, '0094_duplicates_across_gkks.sql') || mapError(error);
+    return null;
+  },
+
+  /** Full access: the records were fixed some other way; the GKK that sent it is told. */
+  async closeDuplicateFlag(flagId) {
+    const { error } = await supabase.rpc('close_duplicate_flag', { p_id: flagId });
+    if (error) throw missingMigration(error, '0094_duplicates_across_gkks.sql') || mapError(error);
+    return null;
+  },
+
   /**
    * Merge `otherId` into `keepId` (two records of one person): the kept
    * record gets what it lacks, and the other goes to the Trash (0075).

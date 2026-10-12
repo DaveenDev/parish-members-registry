@@ -11,6 +11,7 @@ import { fmtDate, fmtDateTime } from '../constants.js';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
 import { bis, RELATIONSHIP_LABELS } from '../lib/bisaya.js';
+import { useDuplicateFlags, SendButton, FlagStrip, OtherGkkNote } from './DuplicateFlag.jsx';
 
 const fullName = (m) => [m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ');
 
@@ -21,6 +22,10 @@ const fullName = (m) => [m.first_name, m.middle_name, m.last_name, m.suffix].fil
  * record, then merge the records into one, or mark the group "not
  * duplicates" (which can be taken back below the list). The Members page's
  * Possible Duplicates tab.
+ *
+ * A GKK leader sees the groups with a member of their GKK, other GKKs'
+ * members included (0094). They mark their own GKK's groups "Not
+ * duplicates", and send any group to the parish office to merge or fix.
  */
 export default function MemberDuplicates() {
   const toast = useToast();
@@ -41,6 +46,7 @@ export default function MemberDuplicates() {
     dismissed.reload();
     layout?.refreshNavCounts?.();
   }
+  const flags = useDuplicateFlags('members', reload);
 
   async function undismiss(d) {
     setBusyKey(`d-${d.member_ids.join('-')}`);
@@ -84,6 +90,10 @@ export default function MemberDuplicates() {
           the other goes to the Trash. If the whole household was registered twice, see{' '}
           <Link to="/admin/households?status=Duplicates" className="font-semibold text-parish-blue">Households → Possible Duplicates</Link>.
           If they really are different people, choose <strong>Not duplicates</strong>.
+          {flags.canSend && (
+            <> Groups with a member of another GKK show here too. Only the parish office can merge records or change another
+            GKK's, so choose <strong>Send to the parish office</strong>: the office is alerted, and you're told when it's fixed.</>
+          )}
         </div>
 
         {loading && !groups && <LoadingState label="Looking for duplicates…" />}
@@ -98,6 +108,8 @@ export default function MemberDuplicates() {
             <div className="flex flex-col gap-4">
               {groups.map((g) => {
                 const first = g.members[0];
+                // A leader marks "Not duplicates" only for their own GKK's members (0050).
+                const allMine = g.members.every((m) => m.mine !== false);
                 return (
                   <section key={g.key} className="bg-parish-card border border-parish-border rounded-2xl shadow-cardSm overflow-hidden" aria-label={`${first.first_name} ${first.last_name}, born ${fmtDate(first.dob)}`}>
                     <div className="px-[18px] py-3.5 border-b border-parish-line flex items-center gap-3 flex-wrap">
@@ -106,7 +118,8 @@ export default function MemberDuplicates() {
                         <div className="text-[12.5px] text-parish-muted">Born {fmtDate(first.dob)} · {g.members.length} records</div>
                       </div>
                       <Badge tone={g.same_household ? 'gold' : 'blue'}>{g.same_household ? 'Same household' : 'Different households'}</Badge>
-                      <div className="ml-auto flex gap-2">
+                      {g.across_gkks && <Badge tone="gray">Different GKKs</Badge>}
+                      <div className="ml-auto flex gap-2 flex-wrap">
                         {canMerge && (
                           <button
                             onClick={() => setMerging(g)}
@@ -116,7 +129,13 @@ export default function MemberDuplicates() {
                             Merge…
                           </button>
                         )}
-                        {canReview && <button
+                        {flags.canSend && !g.flag && (
+                          <SendButton
+                            disabled={busyKey === g.key}
+                            onClick={() => flags.open(g.member_ids, `${first.first_name} ${first.last_name}, born ${fmtDate(first.dob)}`)}
+                          />
+                        )}
+                        {canReview && allMine && <button
                           onClick={() => dismiss(g)}
                           disabled={busyKey === g.key}
                           className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg whitespace-nowrap disabled:opacity-60"
@@ -125,6 +144,7 @@ export default function MemberDuplicates() {
                         </button>}
                       </div>
                     </div>
+                    {g.flag && <FlagStrip flag={g.flag} flags={flags} />}
                     <div className="grid gap-px bg-parish-track" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(240px,1fr))' }}>
                       {g.members.map((m) => (
                         <div key={m.id} className="bg-parish-card px-[18px] py-3.5 flex flex-col gap-1.5">
@@ -134,11 +154,14 @@ export default function MemberDuplicates() {
                             <StatusPill status={m.household_status} />
                             {m.ref_no && <span>{m.ref_no}</span>}
                             <span>Registered {fmtDateTime(m.registered_at, { time: false })}</span>
+                            {m.gkk && <span>· {m.gkk}</span>}
                           </div>
-                          <div className="flex gap-2 mt-1">
-                            <button onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none cursor-pointer px-3 py-1.5 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">Open member</button>
-                            <Link to={`/admin/households?status=All&q=${encodeURIComponent(m.household_name)}`} className="px-3 py-1.5 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg no-underline">View household</Link>
-                          </div>
+                          {m.can_open === false ? <OtherGkkNote gkk={m.gkk} /> : (
+                            <div className="flex gap-2 mt-1">
+                              <button onClick={() => setOpenMemberId(m.id)} className="appearance-none border-none cursor-pointer px-3 py-1.5 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">Open member</button>
+                              <Link to={`/admin/households?status=All&q=${encodeURIComponent(m.household_name)}`} className="px-3 py-1.5 font-semibold text-[12.5px] text-parish-text2 bg-parish-sunk rounded-lg no-underline">View household</Link>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -182,6 +205,7 @@ export default function MemberDuplicates() {
         )}
       </div>
 
+      {flags.dialog}
       {merging && <MergeDialog group={merging} onClose={() => setMerging(null)} onMerged={() => { setMerging(null); reload(); }} />}
       {openMemberId && <MemberDetailModal memberId={openMemberId} onClose={() => setOpenMemberId(null)} onChanged={reload} />}
     </>
