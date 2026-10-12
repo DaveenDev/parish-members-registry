@@ -309,8 +309,8 @@ function DesktopFooter() {
   // The Kontak page already shows the hours, phone and Message Me, so the footer leaves them out there.
   const { pathname } = useLocation();
   const onKontak = pathname.startsWith('/kontak');
-  // Komunidad's articles sit on the page's cream, so its footer follows them with no gap.
-  const onKomunidad = pathname.startsWith('/komunidad');
+  // Komunidad's articles and the Downloads page's song lyrics sit on the cream, so the footer follows them with no gap.
+  const onKomunidad = pathname.startsWith('/komunidad') || pathname === '/downloads';
   const open = officeHourRows(o.office_hours).filter((r) => r.hours).slice(0, 2);
   const phone = o.mobile || o.contact;
   const messenger = messengerLink(o.secretary_messenger);

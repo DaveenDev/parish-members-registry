@@ -47,7 +47,7 @@ function SongsList({ url, setUrl }) {
 
   return (
     <>
-      <TabIntro text="The words of the songs sung at the GKK Kasaulogan, the Bible Service and other gatherings, free for anyone in the world to read, print and download under Downloads → Mga Kanta, and found through Google. Paste each song with a blank line between stanzas, and credit its composer. Post songs that are old and free to share, written by parishioners, or that the composer allows.">
+      <TabIntro text="The words of the songs sung at the GKK Kasaulogan, the Bible Service and other gatherings, free for anyone in the world to read, print and download in the Song Lyrics section of Downloads, and found through Google. Paste each song with a blank line between stanzas, and credit its composer. Post songs that are old and free to share, written by parishioners, or that the composer allows.">
         <SearchInput value={page.query} onChange={(e) => page.setQuery(e.target.value)} placeholder="Search songs" aria-label="Search songs" />
         <AddButton onClick={() => setEditing({ title: '', categories: [], composer: '', language: 'Bisaya', note: '', lyrics: '', published: false })}>New song</AddButton>
       </TabIntro>
@@ -118,7 +118,7 @@ function SongEditor({ row, known, onClose, onSaved }) {
   }
 
   return (
-    <SidePanel title={row.id ? 'Edit song' : 'New song'} subtitle="Downloads → Mga Kanta on the website" onClose={onClose} onSave={save} saving={saving} error={error}>
+    <SidePanel title={row.id ? 'Edit song' : 'New song'} subtitle="Downloads → Song Lyrics on the website" onClose={onClose} onSave={save} saving={saving} error={error}>
       <Field label="Title" required><TextInput value={form.title} onChange={(e) => set('title')(e.target.value)} maxLength={200} /></Field>
       <Field label="Sung at" inputId="song-new-category">
         <div className="flex flex-wrap gap-1.5">
@@ -243,7 +243,7 @@ function FileEditor({ row, known, onClose, onSaved }) {
   const shown = file ? { name: file.name, size: file.size, type: downloadFileType(file) } : row.file_path ? { name: row.file_name, size: row.size_bytes, type: row.content_type } : null;
 
   return (
-    <SidePanel title={row.id ? 'Edit form' : 'Upload form'} subtitle="Downloads → Mga Porma on the website" onClose={onClose} onSave={save} saving={saving} saveLabel={file ? 'Upload and save' : 'Save'} error={error}>
+    <SidePanel title={row.id ? 'Edit form' : 'Upload form'} subtitle="Downloads → Forms Available for Download on the website" onClose={onClose} onSave={save} saving={saving} saveLabel={file ? 'Upload and save' : 'Save'} error={error}>
       <Field label="File" required={!row.id}>
         <div className="flex items-center gap-3 flex-wrap">
           <FilePick label={shown ? 'Choose another file' : 'Choose file'} accept={DOWNLOAD_ACCEPT} onFiles={pick} disabled={saving} />

@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { BAND_PAD, Band, BigButton, Card, Chip, DataState, EmptyNote, ErrorNote, INNER, PageHeader, Pills, Segmented, Skeletons, WRAP, useShare, useSiteToast } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, BigButton, Card, Chip, DataState, EmptyNote, ErrorNote, INNER, PageHeader, Pills, Skeletons, WRAP, useShare, useSiteToast } from '../../components/site/kit.jsx';
 import { api } from '../../api.js';
 import {
   SONG_CATEGORIES, fileKindLabel, fileMatches, firstLine, fold, groupFiles, opensInBrowser, orderCategories, songByline, songFileName,
@@ -14,19 +14,25 @@ import { excerpt } from '../../lib/seo.js';
 import { PARISH_NAME, PARISH_SUB, PageMeta, useSiteTitle } from './SiteLayout.jsx';
 import { useDownloads } from './data.js';
 
-// Forms first and by default; the song lyrics are an extra (?tab=kanta).
-const TABS = [['porma', 'Mga Porma'], ['kanta', 'Mga Kanta']];
+const FORMS_ID = 'forms';
+const SONGS_ID = 'song-lyrics';
+// Where the page was when a song was opened, so Back returns there (the
+// layout starts every page at the top). Per tab, gone when it's closed.
+const SCROLL_KEY = 'pmr_downloads_y';
+// Clear of the sticky header when jumping to a section.
+const SECTION = 'scroll-mt-[70px] lg:scroll-mt-[92px]';
+const SECTION_TITLE = 'm-0 font-serif font-semibold text-[29px] lg:text-[40px] leading-[1.1] text-parish-navy';
 
 /**
- * Downloads: the forms the parish office shares (GKK forms, the manual
- * census form…) to download, and the songs sung at the GKK Kasaulogan, the
- * Bible Service and other gatherings, to read on a phone. Both are kept
- * under Parish Website in the admin (0096). The tab, search and category
- * stay in the address, so Back from a song returns to the same list.
+ * Downloads: one page, the forms the parish office shares (GKK forms, the
+ * manual census form…) first, then the lyrics of the songs sung at the GKK
+ * Kasaulogan, the Bible Service and other gatherings. Both are kept under
+ * Parish Website in the admin (0096). One search covers both; it and the
+ * song category stay in the address. ?tab=kanta (the /kanta, /lyrics and
+ * /songs addresses) opens the page at the songs.
  */
 export default function Downloads() {
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'kanta' ? 'kanta' : 'porma';
   const q = params.get('q') || '';
   const set = (patch) => {
     const next = new URLSearchParams(params);
@@ -36,34 +42,52 @@ export default function Downloads() {
   const state = useDownloads();
   const songs = state.data?.songs || [];
   const files = state.data?.files || [];
+  const loaded = !!state.data;
 
+  // Once the lists are on the page: back from a song, where it was; from a songs address, at the songs.
+  useEffect(() => {
+    if (!loaded) return undefined;
+    let y = null;
+    try { y = sessionStorage.getItem(SCROLL_KEY); sessionStorage.removeItem(SCROLL_KEY); } catch { /* not kept */ }
+    if (y === null && params.get('tab') !== 'kanta') return undefined;
+    // After the layout's own jump to the top.
+    const t = setTimeout(() => (y !== null ? window.scrollTo(0, Number(y)) : document.getElementById(SONGS_ID)?.scrollIntoView()), 0);
+    return () => clearTimeout(t);
+  }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const jump = 'min-h-[40px] inline-flex items-center gap-1.5 px-3.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-semibold text-[14.5px] text-parish-blueDeep hover:border-parish-blue';
   return (
     <main className="animate-fadeUp">
       <Band aria-label="Downloads">
         <div className={`${WRAP} ${BAND_PAD}`}>
-          <PageHeader eyebrow="Downloads" title="Mga Porma ug Kanta">
-            <Segmented label="Unsa ang pangitaon" options={TABS} value={tab} onChange={(v) => set({ tab: v === 'porma' ? '' : v, q: '', cat: '' })} />
-          </PageHeader>
-          <p className="m-0 mb-4 lg:mt-1 lg:mb-6 text-[15px] lg:text-[17px] leading-normal text-[#4d4636] max-w-[720px]">
-            {tab === 'kanta'
-              ? 'Ang mga liriko sa mga kanta sa Kasaulogan sa GKK, sa Bible Service ug sa uban pang panagtigom.'
-              : 'Mga porma ug dokumento gikan sa opisina sa parokya: porma sa GKK, census ug uban pa. I-download ug i-print.'}
+          <PageHeader eyebrow="Downloads" title="Forms and Song Lyrics" />
+          <p className="m-0 mb-3.5 lg:mt-1 lg:mb-5 text-[15px] lg:text-[17px] leading-normal text-[#4d4636] max-w-[720px]">
+            Mga porma gikan sa opisina sa parokya nga ma-download ug ma-print, ug ang mga liriko sa mga kanta sa Kasaulogan sa GKK, Bible Service ug uban pa.
           </p>
-          <SearchField
-            value={q}
-            onChange={(v) => set({ q: v })}
-            label={tab === 'kanta' ? 'Pangitaa ang kanta' : 'Pangitaa ang porma'}
-            placeholder={tab === 'kanta' ? 'Titulo o pulong sa kanta' : 'Pangalan sa porma'}
-          />
+          <nav aria-label="Sa niini nga panid" className="flex flex-wrap gap-2 mb-4 lg:mb-5">
+            <a href={`#${FORMS_ID}`} className={jump}><Icon name="doc" size={17} />Forms Available for Download</a>
+            <a href={`#${SONGS_ID}`} className={jump}><Icon name="music" size={17} />Song Lyrics</a>
+          </nav>
+          <SearchField value={q} onChange={(v) => set({ q: v })} label="Pangitaa ang porma o kanta" placeholder="Porma, titulo o pulong sa kanta" />
         </div>
       </Band>
-      <section className={`${WRAP} py-6 lg:py-10`}>
-        <DataState state={state} skeleton={<Skeletons n={4} h={76} />} errorText="Wala ma-load ang downloads.">
-          {tab === 'kanta'
-            ? <SongList songs={songs} q={q} cat={params.get('cat') || ''} onCat={(c) => set({ cat: c })} />
-            : <FileList files={files} q={q} />}
-        </DataState>
-      </section>
+
+      <DataState state={state} skeleton={<div className={`${WRAP} py-6 lg:py-10`}><Skeletons n={4} h={76} /></div>} errorText="Wala ma-load ang downloads.">
+        <section id={FORMS_ID} aria-labelledby={`${FORMS_ID}-title`} className={`${WRAP} ${SECTION} pt-7 pb-8 lg:pt-11 lg:pb-12`}>
+          <h2 id={`${FORMS_ID}-title`} className={`${SECTION_TITLE} mb-4 lg:mb-6`}>Forms Available for Download</h2>
+          <FileList files={files} q={q} />
+        </section>
+
+        <section id={SONGS_ID} aria-labelledby={`${SONGS_ID}-title`} className={`${SECTION} border-t border-parish-border`} style={{ background: '#f1ead9' }}>
+          <div className={`${WRAP} pt-7 pb-8 lg:pt-11 lg:pb-12`}>
+            <h2 id={`${SONGS_ID}-title`} className={`${SECTION_TITLE} mb-1.5`}>Song Lyrics</h2>
+            <p className="m-0 mb-4 lg:mb-5 text-[15px] lg:text-[16.5px] leading-normal text-[#4d4636] max-w-[720px]">
+              Ang mga liriko sa mga kanta sa Kasaulogan sa GKK, sa Bible Service ug sa uban pang panagtigom. Libre basahon, i-print ug i-download.
+            </p>
+            <SongList songs={songs} q={q} cat={params.get('cat') || ''} onCat={(c) => set({ cat: c })} />
+          </div>
+        </section>
+      </DataState>
     </main>
   );
 }
@@ -110,7 +134,7 @@ function SongList({ songs, q, cat, onCat }) {
         <ul className="m-0 p-0 list-none flex flex-col gap-2.5 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3.5">
           {shown.map((s) => (
             <li key={s.id}>
-              <Link to={songPath(s)} className="h-full flex items-center gap-3.5 bg-parish-card border border-parish-border rounded-2xl p-3.5 lg:p-4 shadow-cardSm hover:border-[var(--p-blue-border)]">
+              <Link to={songPath(s)} onClick={() => { try { sessionStorage.setItem(SCROLL_KEY, String(window.scrollY)); } catch { /* not kept */ } }} className="h-full flex items-center gap-3.5 bg-parish-card border border-parish-border rounded-2xl p-3.5 lg:p-4 shadow-cardSm hover:border-[var(--p-blue-border)]">
                 <span className="w-11 h-11 flex-none rounded-[13px] flex items-center justify-center bg-[var(--p-blue-tint)] text-parish-blue">
                   <Icon name="music" size={21} />
                 </span>
@@ -135,10 +159,10 @@ function FileList({ files, q }) {
   if (!files.length) return <EmptyNote>Wala pay porma nga gi-post. Balik unya!</EmptyNote>;
   if (!groups.length) return <EmptyNote>Walay porma nga nakit-an para sa “{q}”.</EmptyNote>;
   return (
-    <div className="flex flex-col gap-7 lg:gap-10">
+    <div className="flex flex-col gap-6 lg:gap-9">
       {groups.map((g) => (
         <section key={g.category} aria-label={g.category}>
-          <h2 className="m-0 mb-3 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy">{g.category}</h2>
+          <h3 className="m-0 mb-2.5 font-bold text-[12px] lg:text-[12.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)]">{g.category}</h3>
           <ul className="m-0 p-0 list-none flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:gap-3.5">
             {g.files.map((f) => <li key={f.id}><FileCard f={f} /></li>)}
           </ul>
