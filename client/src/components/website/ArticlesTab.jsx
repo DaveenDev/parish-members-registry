@@ -146,7 +146,7 @@ function ArticleEditor({ row, onClose, onSaved }) {
 
       <PhotoFields
         form={form} photos={photos}
-        coverHint="Shown on the article card. A wide photo works best."
+        coverHint="Shown on the article card and at the top of the article."
         galleryHint="Old parish photos, the event itself, the people involved. Pick several at once."
       />
 

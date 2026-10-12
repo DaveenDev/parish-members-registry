@@ -5,7 +5,7 @@ import { useToast } from '../../ToastContext.jsx';
 import { Modal, Panel } from '../admin.jsx';
 import { Field, GhostButton, PrimaryButton, TextInput } from '../ui.jsx';
 import { RowButton } from '../panels.jsx';
-import { FilePick, UploadOverlay } from '../website/shared.jsx';
+import { FilePick, PhotoSizeHint, UploadOverlay } from '../website/shared.jsx';
 import { HolderAvatar } from './NodePanel.jsx';
 import { usePhotoUploads } from './usePhotoUploads.js';
 
@@ -131,6 +131,7 @@ function PhotoEditor({ gkk, position, onClose, onSaved }) {
             <FilePick label={form.photoUrl ? 'Replace photo' : 'Upload photo'} onFiles={pickPhoto} busy={photos.uploading} />
             {form.photoUrl && !photos.uploading && <button type="button" onClick={() => { photos.drop(form.photoUrl); set({ photoUrl: '' }); }} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove photo</button>}
           </div>
+          <PhotoSizeHint kind="portrait" />
           <Field label="Note">
             <TextInput value={form.note} maxLength={300} onChange={(e) => set({ note: e.target.value })} placeholder="e.g. 2025–2028" />
           </Field>

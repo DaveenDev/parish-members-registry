@@ -3,7 +3,7 @@ import { GKK_ROLES } from '../../constants.js';
 import { nameInitials } from '../../lib/orgChart.js';
 import { Field, GhostButton, Select, TextInput } from '../ui.jsx';
 import { RowButton, SectionLabel } from '../panels.jsx';
-import { FilePick, UploadOverlay } from '../website/shared.jsx';
+import { FilePick, PhotoSizeHint, UploadOverlay } from '../website/shared.jsx';
 import MemberPicker, { pickedName } from './MemberPicker.jsx';
 
 /** A round photo, or the holder's initials when there's none. */
@@ -133,6 +133,7 @@ export default function NodePanel({ node, scope, positions, canEdit, onChange, o
               </div>
             )}
           </div>
+          {canEdit && <PhotoSizeHint kind="portrait" />}
           <p className="m-0 text-[12.5px] text-parish-muted">The photo and name show on the public website once the chart is published. With no photo, the initials show instead.</p>
         </>
       )}

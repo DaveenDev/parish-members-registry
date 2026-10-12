@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { TextInput } from '../ui.jsx';
-import { SectionLabel, RowButton, PhotoIcon, FilePick, UploadOverlay, UploadingNote, useUploadCount } from './shared.jsx';
+import { SectionLabel, RowButton, PhotoIcon, FilePick, PhotoSizeHint, UploadOverlay, UploadingNote, useUploadCount } from './shared.jsx';
 
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 // As the media-upload function allows (History page only).
@@ -136,8 +136,12 @@ export function VideoField({ form, photos, field = 'video_url', label = 'Video',
   );
 }
 
-/** One photo in `field` of the form (the cover by default): its preview, upload/replace and remove. `children` go under the buttons. */
-export function SinglePhotoField({ form, photos, field = 'photo_url', label, hint, children }) {
+/**
+ * One photo in `field` of the form (the cover by default): its preview,
+ * upload/replace and remove, and with `shape` (a PHOTO_SHAPES key) the shape
+ * and size it looks best in. `children` go under the buttons.
+ */
+export function SinglePhotoField({ form, photos, field = 'photo_url', label, hint, shape, children }) {
   const url = form[field];
   const name = label.toLowerCase();
   const [pending, run] = useUploadCount();
@@ -155,6 +159,7 @@ export function SinglePhotoField({ form, photos, field = 'photo_url', label, hin
           <FilePick label={url ? `Replace ${name}` : `Upload ${name}`} onFiles={pick} busy={busy} disabled={photos.uploading > 0} />
           {url && !busy && <button type="button" onClick={() => photos.setPhoto(field, '')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove {name}</button>}
           {hint && <span className="text-[12px] text-parish-muted max-w-[260px]">{hint}</span>}
+          <PhotoSizeHint kind={shape} />
           {children}
         </div>
       </div>
@@ -170,7 +175,7 @@ export function PhotoFields({ form, photos, coverLabel = 'Cover photo', coverHin
   const addPhotos = (files) => run(files, photos.withUploads, photos.addPhoto);
   return (
     <>
-      <SinglePhotoField form={form} photos={photos} label={coverLabel} hint={coverHint} />
+      <SinglePhotoField form={form} photos={photos} label={coverLabel} hint={coverHint} shape="cover" />
 
       <SectionLabel>Gallery</SectionLabel>
       {form.photos.length > 0 && (

@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Field, TextInput } from './ui.jsx';
 import { RowButton, SectionLabel, TextArea } from './panels.jsx';
-import { FilePick, PhotoIcon, PublishSwitch, UploadOverlay, UploadingNote, useUploadCount } from './website/shared.jsx';
+import { FilePick, PhotoIcon, PhotoSizeHint, PublishSwitch, UploadOverlay, UploadingNote, useUploadCount } from './website/shared.jsx';
 import { gkkParts } from '../lib/site.js';
 
 // The GKK form parts that Parish Config → Parish GKK (full-access staff) and
@@ -201,7 +201,8 @@ export function PagePhotoFields({ form, setForm, photos }) {
         <div className="flex flex-col gap-2 items-start">
           <FilePick label={form.photo_url ? 'Replace photo' : 'Upload photo'} onFiles={(files) => runMain(files.slice(0, 1), photos.upload, setMain)} busy={mainPending > 0} disabled={photos.uploading > 0} />
           {form.photo_url && !mainPending && <button type="button" onClick={() => setMain('')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove photo</button>}
-          <span className="text-[12px] text-parish-muted max-w-[260px]">Across the top of the GKK's page on the website. The chapel or the community, a wide photo works best.</span>
+          <span className="text-[12px] text-parish-muted max-w-[260px]">Across the top of the GKK's page on the website: the chapel or the community.</span>
+          <PhotoSizeHint kind="gkk" />
         </div>
       </div>
 

@@ -93,6 +93,44 @@ export function PhotoIcon({ size = 26 }) {
 }
 
 /**
+ * The shape and size each main photo looks best in, from how the website
+ * shows it. Bigger photos are shrunk on upload, so the size is a minimum.
+ *   parish    behind the home page's title on computers (its left side
+ *             faded), a banner on phones
+ *   gkk       a GKK page's main photo: 16:10 on phones, 2:1 on computers
+ *   cover     article and History covers: 16:9 cards, wide on the page
+ *   event     shown whole over a soft fill, so a poster keeps its text
+ *   portrait  the org chart's round photos
+ *   logo      the parish logo
+ */
+export const PHOTO_SHAPES = {
+  parish: { w: 16, h: 7, shape: 'Wide landscape', size: '1600 × 700 px', note: 'On computers the left side fades behind the parish name, so keep the church in the middle or on the right.' },
+  gkk: { w: 16, h: 9, shape: 'Landscape', size: '1600 × 900 px', note: 'Phones show it a little taller and computers a little wider, so keep the chapel in the middle.' },
+  cover: { w: 16, h: 9, shape: 'Landscape', size: '1600 × 900 px', note: 'Some screens trim the edges, so keep what matters in the middle.' },
+  event: { w: 16, h: 9, shape: 'Landscape', size: '1600 × 900 px', note: 'A poster of another shape is shown whole, with soft edges filling the space.' },
+  portrait: { w: 1, h: 1, shape: 'Square', size: '400 × 400 px', note: 'Shown in a circle, so keep the face in the middle.' },
+  // Saved at 256 × 256 (resizeLogo).
+  logo: { w: 1, h: 1, shape: 'Square', size: '256 × 256 px', note: 'A plain or clear (transparent) background.' },
+};
+
+/** Under an upload button: a small outline of the best shape, its ratio and size (PHOTO_SHAPES). */
+export function PhotoSizeHint({ kind, className = '' }) {
+  const s = PHOTO_SHAPES[kind];
+  if (!s) return null;
+  const scale = 20 / Math.max(s.w, s.h);
+  return (
+    <div className={`flex items-start gap-2 text-[12px] text-parish-muted max-w-[300px] ${className}`}>
+      <span aria-hidden className="flex-none w-6 h-[22px] flex items-center justify-center">
+        <span className="block rounded-[3px] border-[1.5px] border-[var(--p-gold-deep)] bg-[var(--p-gold-tint)]" style={{ width: Math.round(s.w * scale), height: Math.round(s.h * scale) }} />
+      </span>
+      <span>
+        <strong className="font-semibold text-parish-text2">Best: {s.shape.toLowerCase()} {s.w}:{s.h}, at least {s.size}.</strong> {s.note}
+      </span>
+    </div>
+  );
+}
+
+/**
  * A button that opens the file picker for images. While `busy` (this
  * button's upload is running) it shows a spinner and "Uploading…" (or
  * `busyLabel`) and can't be pressed; `disabled` alone just greys it out.

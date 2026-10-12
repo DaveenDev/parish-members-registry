@@ -8,7 +8,7 @@ import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 import { ownSettingsOnly } from '../../components/adminNav.js';
 import { Field, TextInput, PrimaryButton, GhostButton, Badge, Spinner } from '../../components/ui.jsx';
-import { UploadOverlay } from '../../components/website/shared.jsx';
+import { PhotoSizeHint, UploadOverlay } from '../../components/website/shared.jsx';
 import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
 import { useTheme, THEMES } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
@@ -37,15 +37,20 @@ function ConfigCard({ title, note, children, footer }) {
   );
 }
 
-/** One image of the Logo & photo card: its name, where it shows, then the picture and its buttons. */
-function ImageBlock({ title, usedOn, note, children }) {
+/**
+ * One image of the Logo & photo card: its name, where it shows, the shape
+ * and size it looks best in (`shape`, a PHOTO_SHAPES key), then the picture
+ * and its buttons.
+ */
+function ImageBlock({ title, usedOn, note, shape, children }) {
   return (
     <section className="first:pt-0 first:mt-0 first:border-t-0 border-t border-parish-line pt-5 mt-5">
       <div className="flex items-center gap-2 flex-wrap mb-1">
         <span className="font-bold text-[15px] text-parish-ink">{title}</span>
         {usedOn.map((u) => <Badge key={u} tone="gray">{u}</Badge>)}
       </div>
-      <div className="text-[13px] text-parish-muted mb-3.5">{note}</div>
+      <div className="text-[13px] text-parish-muted mb-2">{note}</div>
+      <PhotoSizeHint kind={shape} className="mb-3.5 !max-w-[520px]" />
       {children}
     </section>
   );
@@ -118,7 +123,7 @@ function LogoSection({ settings, onSaved }) {
   }
 
   return (
-    <ImageBlock title="Logo" usedOn={['Sign-in', 'Sidebar', 'Printed sheets']} note={<>PNG or JPG, ideally square with a plain or clear background. It's resized for you.</>}>
+    <ImageBlock title="Logo" usedOn={['Sign-in', 'Sidebar', 'Printed sheets']} shape="logo" note={<>PNG or JPG. It's resized for you.</>}>
       <div className="flex items-center gap-5 flex-wrap">
         <div className={`relative w-24 h-24 rounded-[18px] bg-parish-field flex items-center justify-center overflow-hidden flex-none ${settings.logo ? 'border border-parish-line2 p-1.5' : 'border-2 border-dashed border-parish-borderStrong'}`}>
           <UploadOverlay busy={!!busy} label={IMAGE_BUSY_LABELS[busy]} />
@@ -200,7 +205,7 @@ function HeroImageSection({ settings, onSaved }) {
   }
 
   return (
-    <ImageBlock title="Parish photo" usedOn={['Website home page']} note="The church front or a parish gathering. A wide (landscape) photo works best; it's resized for you.">
+    <ImageBlock title="Parish photo" usedOn={['Website home page']} shape="parish" note="The church front or a parish gathering. It's resized for you.">
       <div className={`relative aspect-[16/7] w-full rounded-[14px] bg-parish-field overflow-hidden flex items-center justify-center mb-3.5 ${settings.hero_image ? 'border border-parish-line2' : 'border-2 border-dashed border-parish-borderStrong'}`}>
         <UploadOverlay busy={!!busy} label={IMAGE_BUSY_LABELS[busy]} />
         {settings.hero_image ? (

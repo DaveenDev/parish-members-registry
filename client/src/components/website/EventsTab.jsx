@@ -6,7 +6,7 @@ import { FilterSelect, EmptyState, LoadingState, ErrorState } from '../admin.jsx
 import { fmtDate } from '../../constants.js';
 import { useToast } from '../../ToastContext.jsx';
 import { EVENT_TYPES, EVENT_TONES, fmtTime, toTimeInput, todayIso, addDays } from '../../lib/website.js';
-import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon, FilePick, UploadOverlay } from './shared.jsx';
+import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon, FilePick, PhotoSizeHint, UploadOverlay } from './shared.jsx';
 
 const describe = (r) => r.title;
 const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
@@ -238,8 +238,9 @@ function EventEditor({ row, gkks, onClose, onSaved }) {
           <FilePick label={form.photo_url ? 'Replace cover' : 'Upload cover'} onFiles={pickCover} busy={uploading} />
           {form.photo_url && !uploading && <button type="button" onClick={() => setCover('')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove cover</button>}
           <span className="text-[12px] text-parish-muted max-w-[260px]">
-            A poster or photo for the event. With one, the website shows the event with its picture; without, the simple layout. A wide photo works best.
+            A poster or photo for the event. With one, the website shows the event with its picture; without, the simple layout.
           </span>
+          <PhotoSizeHint kind="event" />
         </div>
       </div>
 

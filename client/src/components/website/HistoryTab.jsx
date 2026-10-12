@@ -252,7 +252,7 @@ function HistoryEditor({ row, onClose, onSaved }) {
       <PhotoFields
         form={form} photos={photos}
         coverLabel={isMain ? 'Main photo' : 'Cover photo'}
-        coverHint={isMain ? 'The large photo at the top of the History page and on Ang Simbahan. A wide photo works best.' : 'Shown at the top of the chapter. A wide photo works best.'}
+        coverHint={isMain ? 'The large photo at the top of the History page and on Ang Simbahan.' : 'Shown at the top of the chapter.'}
         galleryHint={isMain ? 'Shown beside the main photo at the top of the page. Pick several at once.' : 'Old photos from this period. Pick several at once.'}
       />
 
