@@ -158,48 +158,61 @@ function FileList({ files, q }) {
   const groups = groupFiles(files.filter((f) => fileMatches(f, q)));
   if (!files.length) return <EmptyNote>Wala pay porma nga gi-post. Balik unya!</EmptyNote>;
   if (!groups.length) return <EmptyNote>Walay porma nga nakit-an para sa “{q}”.</EmptyNote>;
+  // One panel per category with its files as a list; on computers the panels
+  // flow in two columns, each kept whole.
   return (
-    <div className="flex flex-col gap-6 lg:gap-9">
+    <div className="flex flex-col gap-4 lg:block lg:columns-2 lg:gap-6">
       {groups.map((g) => (
-        <section key={g.category} aria-label={g.category}>
-          <h3 className="m-0 mb-2.5 font-bold text-[12px] lg:text-[12.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)]">{g.category}</h3>
-          <ul className="m-0 p-0 list-none flex flex-col gap-2.5 lg:grid lg:grid-cols-2 lg:gap-3.5">
-            {g.files.map((f) => <li key={f.id}><FileCard f={f} /></li>)}
+        <Card as="section" key={g.category} aria-label={g.category} className="overflow-hidden lg:break-inside-avoid lg:mb-6">
+          <h3 className="m-0 px-4 py-3 flex items-baseline justify-between gap-3 border-b border-parish-border bg-[#faf6ec]">
+            <span className="font-serif font-semibold text-[21px] lg:text-[23px] leading-tight text-parish-navy">{g.category}</span>
+            <span className="flex-none text-[12.5px] font-semibold text-parish-text2">{g.files.length} {g.files.length === 1 ? 'file' : 'files'}</span>
+          </h3>
+          <ul className="m-0 p-0 list-none divide-y divide-[#f0e8d6]">
+            {g.files.map((f) => <li key={f.id}><FileRow f={f} /></li>)}
           </ul>
-        </section>
+        </Card>
       ))}
     </div>
   );
 }
 
-function FileCard({ f }) {
+// Each kind of file in its own colour, so a list is easy to scan.
+const KIND_TONES = { PDF: 'red', Word: 'blue', Excel: 'green', Photo: 'gold' };
+
+/**
+ * One file in its category's list: its kind, title, a line of description
+ * and size, and a download button. The title opens a PDF or picture in the
+ * browser and downloads anything else.
+ */
+function FileRow({ f }) {
   const kind = fileKindLabel(f.content_type, f.file_name);
+  const download = api.downloadFileUrl(f, { download: true });
+  const opens = opensInBrowser(f.content_type);
   return (
-    <Card className="h-full p-3.5 lg:p-[18px] flex flex-col gap-3">
-      <div className="flex gap-3.5 items-start">
-        <span className="w-11 h-11 flex-none rounded-[13px] flex flex-col items-center justify-center bg-[var(--p-blue-tint)] text-parish-blue">
-          <Icon name="doc" size={20} />
-        </span>
-        <div className="flex-1 min-w-0">
-          <div className="font-bold text-[16.5px] lg:text-[17px] text-parish-navy leading-snug">{f.title}</div>
-          {f.description && <div className="text-[14.5px] text-[#4d4636] leading-normal mt-0.5 whitespace-pre-line">{f.description}</div>}
-          <div className="flex items-center gap-2 mt-1.5 text-[13px] text-parish-text2">
-            <Chip tone="gray">{kind}</Chip>
-            {f.size_bytes ? <span>{fmtFileSize(f.size_bytes)}</span> : null}
-          </div>
+    <div className="flex items-center gap-3 px-4 py-2.5 hover:bg-[var(--p-blue-tint)]">
+      <span className="flex-none w-[52px] text-center"><Chip tone={KIND_TONES[kind] || 'gray'}>{kind}</Chip></span>
+      <div className="flex-1 min-w-0">
+        <a
+          href={opens ? api.downloadFileUrl(f) : download}
+          {...(opens ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+          className="block font-semibold text-[15.5px] leading-snug text-parish-navy hover:text-parish-blue hover:underline underline-offset-2"
+        >
+          {f.title}
+        </a>
+        <div className="text-[13px] text-parish-text2 leading-snug line-clamp-2" title={f.description || undefined}>
+          {[f.description, f.size_bytes ? fmtFileSize(f.size_bytes) : ''].filter(Boolean).join(' · ')}
         </div>
       </div>
-      <div className="flex gap-2 mt-auto">
-        <a href={api.downloadFileUrl(f, { download: true })} className="flex-1 min-h-[48px] rounded-xl inline-flex items-center justify-center gap-2 font-bold text-[15.5px] bg-parish-blue text-white hover:bg-parish-blueDeep">
-          <Icon name="down" size={19} />I-download
-        </a>
-        {opensInBrowser(f.content_type) && (
-          <a href={api.downloadFileUrl(f)} target="_blank" rel="noopener noreferrer" className="flex-1 min-h-[48px] rounded-xl inline-flex items-center justify-center gap-2 font-bold text-[15.5px] text-parish-blueDeep bg-parish-card border-[1.5px] border-[var(--p-blue-border)] hover:border-parish-blue">
-            Ablihi
-          </a>
-        )}
-      </div>
-    </Card>
+      <a
+        href={download}
+        aria-label={`I-download ang ${f.title}`}
+        title="I-download"
+        className="flex-none w-11 h-11 rounded-xl flex items-center justify-center bg-parish-blue text-white hover:bg-parish-blueDeep"
+      >
+        <Icon name="down" size={19} />
+      </a>
+    </div>
   );
 }
 
