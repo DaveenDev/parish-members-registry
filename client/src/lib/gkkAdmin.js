@@ -3,13 +3,18 @@
 
 import { gkkParts } from './site.js';
 
-/** The filter chips, in order: [key, label, test(gkk)]. A gkk row carries `count` (households). */
+/**
+ * The filter chips, in order: [key, label, test(gkk)]. A gkk row carries
+ * `count` (households) and `coordinators`: the names of its GKK leader
+ * accounts that can sign in (0098), or null when they couldn't be read.
+ */
 export const GKK_ATTENTION = [
   // Required (0089): registration lists the barangays, and reference numbers use them.
   ['barangay', 'No barangay', (g) => !String(g.barangay || '').trim() && !gkkParts(g.name).area],
   ['address', 'No chapel address', (g) => !String(g.chapel_address || '').trim()],
   ['history', 'History to publish', (g) => !g.history_published && (!!String(g.history || '').trim() || (g.history_photos || []).length > 0)],
-  ['coordinator', 'No coordinator', (g) => !String(g.coordinator_name || '').trim()],
+  // A GKK leader account (Staff accounts), not the old coordinator_name nothing fills any more.
+  ['coordinator', 'No coordinator', (g) => Array.isArray(g.coordinators) && !g.coordinators.length],
   ['meeting', 'No meeting schedule', (g) => !String(g.meeting_schedule || '').trim()],
   ['empty', 'No households yet', (g) => !g.count],
 ];

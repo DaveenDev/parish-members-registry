@@ -13,15 +13,24 @@ describe('gkkFamilyProgress (0079)', () => {
 });
 
 const rows = [
-  { name: 'A', barangay: 'Meohao', chapel_address: 'Purok 1', coordinator_name: 'X', meeting_schedule: 'Sun', count: 4, history_published: true, history: 'Text' },
-  { name: 'B', barangay: ' ', chapel_address: '', coordinator_name: '', meeting_schedule: '', count: 0, history_published: false, history: 'Draft' },
-  { name: 'C -Balabag', chapel_address: 'Purok 3', coordinator_name: ' ', meeting_schedule: 'Sat', count: 2, history_published: false, history: '', history_photos: ['p.jpg'] },
-  { name: 'D', barangay: 'Mua-an', chapel_address: 'Purok 4', coordinator_name: 'Y', meeting_schedule: 'Fri', count: 1, history_published: false, history: '' },
+  { name: 'A', barangay: 'Meohao', chapel_address: 'Purok 1', coordinators: ['X'], meeting_schedule: 'Sun', count: 4, history_published: true, history: 'Text' },
+  { name: 'B', barangay: ' ', chapel_address: '', coordinators: [], meeting_schedule: '', count: 0, history_published: false, history: 'Draft' },
+  { name: 'C -Balabag', chapel_address: 'Purok 3', coordinators: [], meeting_schedule: 'Sat', count: 2, history_published: false, history: '', history_photos: ['p.jpg'] },
+  { name: 'D', barangay: 'Mua-an', chapel_address: 'Purok 4', coordinators: ['Y', 'Z'], meeting_schedule: 'Fri', count: 1, history_published: false, history: '' },
 ];
 
 describe('Parish GKK attention chips', () => {
   test('counts each gap', () => {
     assert.deepEqual(attentionCounts(rows), { barangay: 1, address: 1, history: 2, coordinator: 2, meeting: 1, empty: 1 });
+  });
+
+  test('no coordinator: no GKK leader account (0098), whatever the old coordinator_name says', () => {
+    assert.deepEqual(filterByAttention(rows, 'coordinator').map((r) => r.name), ['B', 'C -Balabag']);
+    assert.deepEqual(filterByAttention([{ name: 'E', coordinators: [], coordinator_name: 'Old name' }], 'coordinator').map((r) => r.name), ['E']);
+  });
+
+  test("no coordinator isn't claimed when the accounts couldn't be read (before 0098)", () => {
+    assert.deepEqual(filterByAttention([{ name: 'F', coordinators: null }, { name: 'G' }], 'coordinator'), []);
   });
 
   test('no barangay: none saved and none at the end of the name (0089)', () => {

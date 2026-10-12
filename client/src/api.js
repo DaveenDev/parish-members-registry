@@ -896,6 +896,19 @@ export const api = {
   async listGkks() {
     return { rows: await listCounts('gkks') };
   },
+  /**
+   * Each GKK's GKK leader accounts that can sign in (its census coordinators),
+   * for Parish GKK: Map(gkk id → [name…]). Full access only (0098); null
+   * before 0098, when who has an account can't be read.
+   */
+  async gkkCoordinators() {
+    const { data, error } = await supabase.rpc('gkk_coordinators');
+    if (error) {
+      if (isMissingFunction(error)) return null;
+      throw mapError(error);
+    }
+    return new Map((data || []).map((r) => [r.gkk_id, r.names || []]));
+  },
   /** Every GKK's id and name, for choosing a GKK leader's GKK (0063). */
   async gkkChoices() {
     const { data, error } = await supabase.from('gkks').select('id, name').order('name');

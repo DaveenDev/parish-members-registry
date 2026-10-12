@@ -134,11 +134,12 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
 
   function reload() {
     setLoadError('');
-    // Household counts come from the name list; the details from the gkks rows.
-    Promise.all([api.listGkks(), api.listGkkDetails()])
-      .then(([counts, details]) => {
+    // Household counts come from the name list; the details from the gkks rows;
+    // the coordinators from the GKK leader accounts (0098; unknown if that fails).
+    Promise.all([api.listGkks(), api.listGkkDetails(), api.gkkCoordinators().catch(() => null)])
+      .then(([counts, details, coordinators]) => {
         const n = Object.fromEntries(counts.rows.map((r) => [r.name, r.count]));
-        setRows(details.rows.map((g) => ({ ...g, count: n[g.name] || 0 })));
+        setRows(details.rows.map((g) => ({ ...g, count: n[g.name] || 0, coordinators: coordinators ? coordinators.get(g.id) || [] : null })));
       })
       .catch((e) => setLoadError(e.message || 'Could not load the GKKs'))
       .finally(() => setLoading(false));
@@ -284,6 +285,12 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
                   {' · '}{householdsLink(`${g.count} household(s)`)}
                 </div>
                 <div className="lg:hidden mt-0.5"><Progress p={p} words={words} compact /><FamilyProgress p={fp} words={words} /></div>
+                {/* Its census coordinators: GKK leader accounts that can sign in (0098). */}
+                {g.coordinators && (
+                  g.coordinators.length
+                    ? <div className="text-[12px] text-parish-text2">Coordinator: {g.coordinators.join(', ')}</div>
+                    : <div className="text-[12px] font-semibold text-[#c2410c]">No coordinator account</div>
+                )}
                 {g.history_published
                   ? <div className="text-[12px] text-parish-muted">History on the website</div>
                   : (String(g.history || '').trim() || (g.history_photos || []).length > 0) && <div className="text-[12px] font-semibold text-[#c2410c]">History draft, not published</div>}
