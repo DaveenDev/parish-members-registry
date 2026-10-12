@@ -17,14 +17,16 @@ import { useDuplicateFlags, SendButton, FlagStrip, OtherGkkNote } from './Duplic
 const fullName = (m) => [m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ');
 // As the database compares names (dup_text_key, 0092): lower case, letters and digits only.
 const nameKey = (m) => `${m.first_name}|${m.last_name}`.toLowerCase().replace(/[^\p{L}\p{N}|]+/gu, '');
+// Surname and birthday, which find "Ma. Cristina" and "Maria Cristina" alike.
+const bornKey = (m) => `${m.last_name}|`.toLowerCase().replace(/[^\p{L}\p{N}|]+/gu, '') + m.dob;
 const pairKey = (ids) => ids.join('-');
 
 /**
  * Households that look like one house registered twice (0092): a family
  * that registered with the wrong Household Head and then again with the
- * right one, or registered by two people. Pairs come from what the two share
- * (people, phone, email, previous reference number, address, name); staff
- * compare them side by side, then delete the extra one from the Households
+ * right one, or registered by two people. Each pair shows how it was
+ * checked (0095: address, contact, then members); staff compare them side
+ * by side, then delete the extra one from the Households
  * page, or mark the pair "Not the same household" (which can be taken back
  * below the list). The Households page's Possible Duplicates tab.
  *
@@ -87,9 +89,9 @@ export default function HouseholdDuplicates() {
   return (
     <div>
       <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
-        Two households are listed when they share enough of: the same people, a phone number or email, the reference number from the
-        previous census, the address, or the household name. A family that registered with the wrong Household Head and then again
-        with the right one shows up here. Compare the two. If they're the same house, keep the one with the right Household Head:
+        Each pair is checked like you would: the address and barangay, then the phone number or email, then the members by name
+        and birthday, which are what confirm it's one house ("Ma." and "Maria" count as the same name when the surname and birthday
+        match). A family that registered with the wrong Household Head and then again with the right one shows up here. Compare the two. If they're the same house, keep the one with the right Household Head:
         add anyone missing to it, merge the people in both under{' '}
         <Link to="/admin/members?view=duplicates" className="font-semibold text-parish-blue">Members → Possible Duplicates</Link>, then delete the extra
         household from the Households list (it stays in the Trash for 30 days). If they're different houses, choose <strong>Not the same household</strong>.
@@ -158,25 +160,83 @@ export default function HouseholdDuplicates() {
   );
 }
 
-/** What the two households have in common, one line each. */
-function reasons(p) {
+// The address step (0095): how the two places compare.
+const ADDRESS_STEP = {
+  same: ['match', 'Same address and barangay'],
+  purok: ['partial', 'Same purok and barangay, no house number or street to compare'],
+  barangay: ['partial', 'Same barangay, a different street or purok'],
+  different: ['miss', 'Different barangays'],
+};
+// "Same phone 0917…", or just "Same phone" when it's another GKK's ('' from 0095).
+const same = (what, value) => (value ? `Same ${what} ${value}` : `Same ${what}`);
+
+/**
+ * The pair compared step by step, as the database did (0095): where they
+ * are, how to reach them, then who lives there, the members being what
+ * confirms one house. Each step: [tone, title, text, details].
+ */
+function steps(p) {
   const list = [];
-  if (p.members.length) list.push(['In both', p.members.join(', ')]);
-  if (p.names.length) list.push(['Same name, different or no birth date', p.names.join(', ')]);
-  if (p.previous_ref) list.push(['Same previous ref no.', p.previous_ref]);
-  if (p.phone) list.push(['Same phone', p.phone]);
-  if (p.email) list.push(['Same email', p.email]);
-  if (p.address) list.push(['Same address', p.address]);
-  if (p.name) list.push(['Same household name', p.name]);
+  const [addrTone, addrText] = ADDRESS_STEP[p.address] || ['none', 'No address to compare'];
+  list.push([addrTone, 'Address', addrText]);
+  const contact = [p.phone != null && same('phone', p.phone), p.email != null && same('email', p.email)].filter(Boolean);
+  list.push([contact.length ? 'match' : 'none', 'Contact', contact.length ? contact.join(' · ') : 'No phone number or email in common']);
+  const confirmed = p.same_people.length + p.near_people.length;
+  const smaller = Math.min(p.members_a, p.members_b);
+  const details = [
+    p.same_people.length > 0 && `Same name and birthday: ${p.same_people.join(', ')}`,
+    p.near_people.length > 0 && `Same surname and birthday, first name spelled differently: ${p.near_people.join(', ')}`,
+    p.name_only.length > 0 && `Same name, a different or no birthday: ${p.name_only.join(', ')}`,
+  ].filter(Boolean);
+  if (!smaller) list.push(['none', 'Members', 'No members to compare']);
+  else {
+    list.push([
+      confirmed && (confirmed >= 2 || confirmed >= smaller) ? 'match' : confirmed || p.name_only.length ? 'partial' : 'miss',
+      'Members',
+      confirmed ? `${confirmed} of ${smaller} match by name and birthday` : 'Nobody matches by name and birthday',
+      details,
+    ]);
+  }
+  if (p.previous_ref != null) list.push(['match', 'Previous census', same('reference number', p.previous_ref)]);
+  if (p.name) list.push(['match', 'Household name', `Same name, ${p.name}`]);
   return list;
+}
+
+const STEP_TONES = {
+  match: ['✓', 'bg-parish-okBg text-parish-ok', 'matches'],
+  partial: ['~', 'bg-[var(--p-gold-tint)] text-[var(--p-gold-deep)]', 'partly matches'],
+  miss: ['✗', 'bg-parish-errorBg text-parish-error', "doesn't match"],
+  none: ['–', 'bg-parish-sunk text-parish-muted', 'nothing to compare'],
+};
+
+function Steps({ pair }) {
+  return (
+    <ol className="list-none m-0 mt-2.5 p-0 flex flex-col gap-1.5 text-[13px]">
+      {steps(pair).map(([tone, title, text, details]) => {
+        const [mark, cls, said] = STEP_TONES[tone];
+        return (
+          <li key={title} className="flex items-start gap-2.5">
+            <span className={`flex-none w-5 h-5 mt-px rounded-full flex items-center justify-center font-bold text-[12px] ${cls}`} aria-label={said}>{mark}</span>
+            <div className="min-w-0">
+              <span className="font-semibold text-parish-text2">{title}: </span>
+              <span className="text-parish-ink break-words">{text}</span>
+              {details?.map((d) => <div key={d} className="text-[12.5px] text-parish-muted break-words">{d}</div>)}
+            </div>
+          </li>
+        );
+      })}
+    </ol>
+  );
 }
 
 function PairCard({ pair: p, canReview, busy, flags, onDismiss, onOpen }) {
   const [a, b] = p.households;
   // A leader marks "Not the same household" only for their own GKK's households (0092).
   const bothMine = a.mine !== false && b.mine !== false;
-  // The people in both, to mark them in each list.
-  const shared = new Set(a.members.map(nameKey).filter((k) => b.members.some((m) => nameKey(m) === k)));
+  // The people in both, to mark them in each list: by name, or by surname and birthday (0095).
+  const keys = (m) => [nameKey(m), m.dob && bornKey(m)].filter(Boolean);
+  const inB = new Set(b.members.flatMap(keys));
+  const shared = new Set(a.members.flatMap(keys).filter((k) => inB.has(k)));
   return (
     <section className="bg-parish-card border border-parish-border rounded-2xl shadow-cardSm overflow-hidden" aria-label={`${a.household_name} and ${b.household_name}`}>
       <div className="px-[18px] py-3.5 border-b border-parish-line flex items-start gap-3 flex-wrap">
@@ -187,15 +247,7 @@ function PairCard({ pair: p, canReview, busy, flags, onDismiss, onOpen }) {
             <Badge tone={p.likely ? 'red' : 'gold'}>{p.likely ? 'Very likely the same house' : 'Possibly the same house'}</Badge>
             {a.gkk !== b.gkk && <Badge tone="gray">Different GKKs</Badge>}
           </div>
-          {/* Label beside value; on a phone, above it. */}
-          <dl className="m-0 mt-2 grid sm:grid-cols-[auto_minmax(0,1fr)] gap-x-3 sm:gap-y-1 text-[13px]">
-            {reasons(p).map(([label, value]) => (
-              <React.Fragment key={label}>
-                <dt className="font-semibold text-parish-text2">{label}</dt>
-                <dd className="m-0 mb-1.5 sm:mb-0 text-parish-ink break-words">{value}</dd>
-              </React.Fragment>
-            ))}
-          </dl>
+          <Steps pair={p} />
         </div>
         <div className="flex gap-2 flex-wrap">
           {flags.canSend && !p.flag && (
@@ -236,7 +288,7 @@ function HouseholdColumn({ household: h, first, shared, onOpen }) {
       {(address || h.contact) && <div className="text-[13px] text-parish-text2 break-words">{[address, h.contact].filter(Boolean).join(' · ')}</div>}
       <ul className="list-none m-0 mt-1 p-0 flex flex-col gap-1">
         {h.members.map((m) => {
-          const both = shared.has(nameKey(m));
+          const both = shared.has(nameKey(m)) || (m.dob && shared.has(bornKey(m)));
           return (
             <li key={m.id} className="flex items-baseline gap-2 flex-wrap text-[13px]">
               <span className={m.relationship === 'Head of Household' ? 'font-semibold text-parish-navy' : 'text-parish-ink'}>{fullName(m)}</span>

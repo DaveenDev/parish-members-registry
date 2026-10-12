@@ -790,8 +790,8 @@ export const api = {
 
   // ---- possible duplicate households (admin, 0092) ----------------------
   /**
-   * Pairs of households that look like one house registered twice (shared
-   * members, phone, email, previous reference number, address or name),
+   * Pairs of households that look like one house registered twice, checked
+   * by address, then contact, then members by name and birthday (0095),
    * most likely first, each with both households and their members
    * (find_duplicate_households).
    */
