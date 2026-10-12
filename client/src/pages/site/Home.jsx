@@ -2,10 +2,10 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
-import { AnnouncementCard, ArticleChip, CardShare, EventCard, MassRow } from '../../components/site/cards.jsx';
+import { AnnouncementCard, ArticleChip, CardShare, EventCard } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
 import VerseOfDay from '../../components/site/VerseOfDay.jsx';
-import { ARTICLES_PAGE, KALENDARYO_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, upcomingToday } from '../../lib/site.js';
+import { ARTICLES_PAGE, BIS_DAYS, KALENDARYO_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, fmtTime12, massKindLabel, nextMassDays, parseIso } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
@@ -143,9 +143,9 @@ export default function Home() {
       </section>
       </div>
 
-      {/* Today's Masses: the band's last row, under the news. */}
+      {/* The next three days' Masses: the band's last row, under the news. */}
       <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-10">
-        <MassToday mass={mass} />
+        <UpcomingMasses mass={mass} />
       </section>
       </div>
 
@@ -245,33 +245,83 @@ function CensusNotice() {
 }
 
 /**
- * Today's remaining Masses, in the navy news band: a white heading like the
- * news above it, then a card with the Masses side by side on desktop.
+ * The next three days with Masses, in the navy news band under a white
+ * heading like the news above it: today first while a Mass is still to
+ * come, then "Ugma" and the days after (nextMassDays). Each Mass is one
+ * slim line. Phones: one card, the day at the left of its first Mass.
+ * Computers: a card per day, the three side by side.
  */
-function MassToday({ mass }) {
-  const now = new Date();
-  const todays = upcomingToday(mass.rows, now);
-  const anyToday = mass.rows.some((r) => r.day_of_week === now.getDay());
+function UpcomingMasses({ mass }) {
+  const days = nextMassDays(mass.rows, new Date(), 3);
+  // "13 Okt"
+  const dayMonth = (iso) => fmtShort(iso).replace(/ \d{4}$/, '');
   return (
     <>
       <SectionHead dark title="Upcoming Mass Scheduled" to="/simbahan" action="Iskedyul" actionLg="Tibuok iskedyul sa semana →" />
-      <Card className="p-4 shadow-card lg:p-[22px] lg:rounded-[22px]">
-        <div className="font-bold text-[12px] lg:text-[12.5px] tracking-[.14em] uppercase text-[var(--p-eyebrow)] mb-2 lg:mb-2.5">
-          Karong adlawa · {fmtDayMonth(todayIso())}
-        </div>
-        {mass.loading ? <Skeletons n={2} h={52} /> : mass.error ? (
-          <ErrorNote onRetry={mass.reload}>Wala ma-load ang iskedyul.</ErrorNote>
-        ) : !todays.length ? (
-          <p className="m-0 text-parish-text2 text-[15px] lg:text-[16px]">
-            {anyToday ? 'Nahuman na ang mga Misa karong adlawa.' : 'Walay Misa nga naka-iskedyul karong adlawa.'}
-          </p>
-        ) : (
-          <div className="flex flex-col gap-1.5 lg:grid lg:grid-cols-3 lg:gap-2">
-            {todays.map((m) => <MassRow key={m.id} m={m} compact />)}
+      {mass.loading ? <div className="grid gap-2.5 lg:grid-cols-3 lg:gap-4"><Skeleton h={120} /><Skeleton h={120} className="hidden lg:block" /><Skeleton h={120} className="hidden lg:block" /></div> : mass.error ? (
+        <ErrorNote onRetry={mass.reload}>Wala ma-load ang iskedyul.</ErrorNote>
+      ) : !days.length ? (
+        <Card className="p-4 shadow-card lg:p-[22px]">
+          <p className="m-0 text-parish-text2 text-[15px] lg:text-[16px]">Walay Misa nga naka-iskedyul sa umaabot nga mga adlaw.</p>
+        </Card>
+      ) : (
+        <>
+          <Card className="lg:hidden overflow-hidden shadow-card">
+            <ul className="m-0 p-0 list-none">
+              {days.flatMap((d, di) => d.rows.map((m, i) => (
+                <SlimMass
+                  key={`${d.iso}-${m.id}`} m={m}
+                  day={{ first: i === 0, newDay: i === 0 && di > 0, short: d.short, date: dayMonth(d.iso), full: `${d.label}, ${dayMonth(d.iso)}` }}
+                />
+              )))}
+            </ul>
+          </Card>
+          <div className="hidden lg:grid lg:grid-cols-3 lg:gap-4">
+            {days.map((d) => (
+              <Card key={d.iso} className="overflow-hidden shadow-card rounded-[20px]">
+                <div className="px-[18px] pt-4 pb-2 font-bold text-[12.5px] tracking-[.14em] uppercase text-[var(--p-eyebrow)]">
+                  {d.label === BIS_DAYS[parseIso(d.iso).getDay()] ? `${d.label} · ${dayMonth(d.iso)}` : `${d.label} · ${fmtDayMonth(d.iso)}`}
+                </div>
+                <ul className="m-0 p-0 pb-2.5 list-none">
+                  {d.rows.map((m) => <SlimMass key={m.id} m={m} />)}
+                </ul>
+              </Card>
+            ))}
           </div>
-        )}
-      </Card>
+        </>
+      )}
     </>
+  );
+}
+
+/**
+ * One Mass on one line: its time, then its name and where (cut short on a
+ * narrow phone). With `day` (the phone list) a short day column comes first,
+ * filled on the day's first Mass, and a new day gets a firmer line above.
+ */
+function SlimMass({ m, day = null }) {
+  const title = massKindLabel(m);
+  const where = [title !== m.location && m.location, m.language].filter(Boolean).join(' · ');
+  return (
+    <li
+      className={`flex items-center gap-2.5 px-3.5 py-[7px] lg:gap-3 lg:px-[18px] lg:py-2 border-t first:border-t-0 ${day?.newDay ? 'border-parish-border' : 'border-[#f4eddd]'} ${m.next ? 'bg-[var(--p-blue-tint)]' : ''}`}
+      title={[day?.full, title, where, m.notes].filter(Boolean).join(' · ')}
+    >
+      {day && (
+        <span className="flex-none w-[44px] leading-tight" aria-label={day.first ? day.full : undefined}>
+          {day.first && <>
+            <span className="block font-bold text-[11px] tracking-[.1em] uppercase text-[var(--p-eyebrow)]">{day.short}</span>
+            <span className="block text-[11.5px] text-parish-text2 whitespace-nowrap">{day.date}</span>
+          </>}
+        </span>
+      )}
+      <span className="flex-none w-[70px] lg:w-[84px] font-serif font-bold text-[18px] lg:text-[21px] leading-none text-parish-blue whitespace-nowrap">{fmtTime12(m.start_time)}</span>
+      <span className="flex-1 min-w-0 truncate text-[14.5px] lg:text-[15px] leading-snug">
+        <span className="font-semibold text-parish-ink">{title}</span>
+        {where && <span className="text-parish-text2"> · {where}</span>}
+      </span>
+      {m.next && <span className="flex-none self-center font-bold text-[10px] tracking-[.12em] text-white bg-parish-blue rounded-md px-1.5 py-0.5">SUNOD</span>}
+    </li>
   );
 }
 

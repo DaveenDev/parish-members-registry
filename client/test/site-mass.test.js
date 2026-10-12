@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { massSections, upcomingToday, massKindLabel, massDateLabel, massesOnDay, massShortLabel, calendarMonths, agendaDays } from '../src/lib/site.js';
+import { massSections, nextMassDays, massKindLabel, massDateLabel, massesOnDay, massShortLabel, calendarMonths, agendaDays } from '../src/lib/site.js';
 import { dayList, groupDaily, nextOccasionDates, findOccasion, massType, isCurrentMass } from '../src/lib/website.js';
 
 let nextId = 1;
@@ -132,18 +132,44 @@ describe('massSections', () => {
   });
 });
 
-describe('upcomingToday', () => {
-  test('dated rows only count on their dates, weekly ones on their day', () => {
-    const friday = row({ kind: 'Daily Mass', day_of_week: 5, start_time: '18:00:00' });
+describe('nextMassDays', () => {
+  // Friday 2 Oct 2026: a 6 PM Daily Mass Mon-Sat (Fri here), Sunday 7 AM and 9 AM, nothing on Saturday.
+  const friEvening = row({ kind: 'Daily Mass', day_of_week: 5, start_time: '18:00:00' });
+  const sun7 = row({ start_time: '07:00:00' });
+  const sun9 = row({ start_time: '09:00:00' });
+  const monDaily = row({ kind: 'Daily Mass', day_of_week: 1, start_time: '06:00:00' });
+  const rows = [sun9, friEvening, monDaily, sun7];
+
+  test('today first while a Mass is still to come, then the next days with Masses, empty days skipped', () => {
+    const days = nextMassDays(rows, FRI);
+    assert.deepEqual(days.map((d) => [d.iso, d.label, d.short]), [['2026-10-02', 'Karong adlawa', 'Karon'], ['2026-10-04', 'Domingo', 'Dom'], ['2026-10-05', 'Lunes', 'Lun']]);
+    assert.deepEqual(days[1].rows.map((r) => r.id), [sun7.id, sun9.id]);
+  });
+
+  test('only the very next Mass is marked', () => {
+    const days = nextMassDays(rows, FRI);
+    assert.equal(days[0].rows[0].next, true);
+    assert.equal(days[1].rows.some((r) => r.next), false);
+  });
+
+  test("once today's Masses are over it starts with the next day; tomorrow reads Ugma", () => {
+    const sat = new Date(2026, 9, 3, 6, 0);
+    const days = nextMassDays([...rows, row({ kind: 'Daily Mass', day_of_week: 6, start_time: '05:00:00' })], sat);
+    assert.deepEqual(days.map((d) => d.label), ['Ugma', 'Lunes', 'Biyernes']);
+    assert.equal(days[0].rows[0].next, true);
+  });
+
+  test('nothing scheduled, no days', () => {
+    assert.deepEqual(nextMassDays([], FRI), []);
+  });
+
+  test('dated Masses only on their dates, each day of a run', () => {
     const feastToday = row({ kind: 'Special Mass', occasion: 'First Friday Mass', mass_date: '2026-10-02', day_of_week: 5, start_time: '19:00:00' });
     const feastLater = row({ kind: 'Special Mass', occasion: 'First Friday Mass', mass_date: '2026-11-06', day_of_week: 5, start_time: '17:00:00' });
-    const ids = upcomingToday([friday, feastToday, feastLater], FRI).map((r) => r.id);
-    assert.deepEqual(ids, [friday.id, feastToday.id]);
-  });
-  test('each day of a run counts', () => {
+    assert.deepEqual(nextMassDays([friEvening, feastToday, feastLater], FRI, 1)[0].rows.map((r) => r.id), [friEvening.id, feastToday.id]);
     const sg = row({ kind: 'Special Mass', occasion: 'Simbang Gabi', mass_date: '2026-12-16', mass_end_date: '2026-12-24', day_of_week: 3, start_time: '04:00:00' });
-    assert.equal(upcomingToday([sg], new Date(2026, 11, 19, 2, 0)).length, 1);
-    assert.equal(upcomingToday([sg], new Date(2026, 11, 25, 2, 0)).length, 0);
+    assert.deepEqual(nextMassDays([sg], new Date(2026, 11, 22, 2, 0)).map((d) => d.iso), ['2026-12-22', '2026-12-23', '2026-12-24']);
+    assert.deepEqual(nextMassDays([sg], new Date(2026, 11, 25, 2, 0)), []);
   });
 });
 

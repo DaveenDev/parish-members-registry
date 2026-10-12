@@ -76,18 +76,30 @@ function langMatches(rowLang, filter) {
 }
 
 /**
- * Today's schedule rows still to come (up to `limit`), the first one marked
- * `next`. `now` is a Date.
+ * The next `count` days with Masses, from today (only its Masses still to
+ * come) up to `within` days ahead: [{ iso, label, short, rows }], `label`
+ * being "Karong adlawa", "Ugma" or the weekday (`short`: "Karon", "Ugma",
+ * "Miy"), `rows` by time, the very next Mass marked `next`. Days with
+ * nothing are skipped. `now` is a Date.
  */
-export function upcomingToday(rows, now, limit = 3) {
-  const today = isoOf(now);
+export function nextMassDays(rows, now, count = 3, within = 14) {
   const nowMin = now.getHours() * 60 + now.getMinutes();
-  // Weekly rows by their day; dated ones (a feast, Simbang Gabi) only on their dates.
-  return rows
-    .filter((r) => massOnDate(r, today) && minutesOf(r.start_time) > nowMin)
-    .sort((a, b) => minutesOf(a.start_time) - minutesOf(b.start_time))
-    .slice(0, limit)
-    .map((r, i) => ({ ...r, next: i === 0 }));
+  const days = [];
+  for (let n = 0; n < within && days.length < count; n++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + n);
+    const iso = isoOf(d);
+    const masses = rows.filter((r) => massOnDate(r, iso) && (n > 0 || minutesOf(r.start_time) > nowMin)).sort(byTime);
+    if (masses.length) {
+      days.push({
+        iso,
+        label: n === 0 ? 'Karong adlawa' : n === 1 ? 'Ugma' : BIS_DAYS[d.getDay()],
+        short: n === 0 ? 'Karon' : n === 1 ? 'Ugma' : BIS_DAYS_SHORT[d.getDay()],
+        rows: masses,
+      });
+    }
+  }
+  if (days.length) days[0].rows = days[0].rows.map((r, i) => ({ ...r, next: i === 0 }));
+  return days;
 }
 
 const byTime = (a, b) => minutesOf(a.start_time) - minutesOf(b.start_time);
@@ -125,7 +137,8 @@ export function massWhen(row) {
  */
 export function massSections(rows, { location = 'all', language = 'all' } = {}, now = new Date()) {
   const today = isoOf(now);
-  const nextId = upcomingToday(rows, now, 1)[0]?.id;
+  // Today's next Mass (a one-day look ahead), if one is still to come.
+  const nextId = nextMassDays(rows, now, 1, 1)[0]?.rows[0]?.id;
   const shown = rows
     .filter((r) => (location === 'all' || r.location === location) && langMatches(r.language, language) && isCurrentMass(r, today))
     .map((r) => ({ ...r, next: r.id === nextId }));
