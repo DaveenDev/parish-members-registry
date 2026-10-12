@@ -12,3 +12,5 @@ supabase/export/01_schema.sql
 supabase/export/02_data.sql
 OLGQP Needed.txt
 Needed.txt
+# Sample Downloads made by scripts/sample-downloads.mjs
+supabase/seed/downloads-sample/

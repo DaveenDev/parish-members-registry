@@ -181,7 +181,9 @@ export const sortSongs = (songs) => [...songs].sort(byTitle);
  * categories ordered by orderCategories, each one's files A–Z.
  */
 export function groupFiles(files) {
-  const cats = orderCategories(files.map((f) => f.category), FILE_CATEGORIES);
+  // "Other Forms" is the catch-all, so it comes last, after any category staff added.
+  const isOther = (c) => fold(c) === fold(FILE_CATEGORIES[FILE_CATEGORIES.length - 1]);
+  const cats = orderCategories(files.map((f) => f.category), FILE_CATEGORIES).sort((a, b) => isOther(a) - isOther(b));
   return cats
     .map((category) => ({ category, files: files.filter((f) => fold(f.category.trim()) === fold(category)).sort(byTitle) }))
     .filter((g) => g.files.length);

@@ -65,6 +65,16 @@ test('songs A–Z by title, numbers in order', () => {
   assert.deepEqual(titles, ['A', 'b', 'Song 2', 'Song 10']);
 });
 
+test('Other Forms comes last, after the categories staff added', () => {
+  const groups = groupFiles([
+    { title: 'A', category: 'Other Forms' },
+    { title: 'B', category: 'Sacrament Forms' },
+    { title: 'C', category: 'GKK Forms' },
+    { title: 'D', category: 'Ministry Forms' },
+  ]);
+  assert.deepEqual(groups.map((g) => g.category), ['GKK Forms', 'Ministry Forms', 'Sacrament Forms', 'Other Forms']);
+});
+
 test('files are grouped by category, suggested categories first, each A–Z', () => {
   const groups = groupFiles([
     { title: 'Z', category: 'Sacraments' },
