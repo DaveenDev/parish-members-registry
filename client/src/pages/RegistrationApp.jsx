@@ -139,6 +139,9 @@ export default function RegistrationApp() {
   });
   const [joined, setJoined] = useState(null); // { householdName } after a family joins a house
   const [gkkOptions, setGkkOptions] = useState([]);
+  // 'loading' | 'ok' | 'failed': a list that didn't load leaves the GKK
+  // optional, so it's tried again and the family is told.
+  const [gkkLoad, setGkkLoad] = useState('loading');
   const [orgOptions, setOrgOptions] = useState([]);
   const [parishRoleOptions, setParishRoleOptions] = useState([]);
   const [nameCheck, setNameCheck] = useState({ name: '', status: 'idle' }); // idle | available | taken | error
@@ -180,8 +183,31 @@ export default function RegistrationApp() {
     } catch {}
   }, [screen, step, mode, join.refNo, household, householdNameTouched, members, volunteer, notifyOptin, consent]);
 
+  /**
+   * The GKK list, tried three times. Resolves to the list (empty if it never
+   * loaded). On a weak signal the first try can fail, and the GKK then wasn't
+   * asked for at all: four Meohao families on 11 Oct 2026 were registered
+   * from one phone with no GKK.
+   */
+  async function loadGkks() {
+    setGkkLoad('loading');
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        const list = await api.listPublicGkks();
+        if (list.length) {
+          setGkkOptions(list);
+          setGkkLoad('ok');
+          return list;
+        }
+      } catch {}
+      await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));
+    }
+    setGkkLoad('failed');
+    return [];
+  }
+
   useEffect(() => {
-    api.listPublicGkks().then(setGkkOptions).catch(() => {});
+    loadGkks();
     api.listPublicOrganizations().then(setOrgOptions).catch(() => {});
     api.listPublicParishPositions().then(setParishRoleOptions).catch(() => {});
   }, []);
@@ -392,7 +418,7 @@ export default function RegistrationApp() {
     return fe;
   }
 
-  function validate(currentStep) {
+  function validate(currentStep, gkks = gkkOptions) {
     const e = {};
     const me = [];
     if (currentStep === 1 && mode === 'join') {
@@ -404,7 +430,7 @@ export default function RegistrationApp() {
     if (currentStep === 1) {
       const req = { householdName: 'Kinahanglan ang ngalan sa pamilya', street: 'Kinahanglan ang dalan', barangay: 'Kinahanglan ang barangay', city: 'Kinahanglan ang siyudad / lungsod', province: 'Kinahanglan ang probinsya', zip: 'Kinahanglan ang ZIP code', familyGrouping: 'Kinahanglan ang Family Grouping' };
       // Only ask for the GKK when the list loaded, so nobody is stuck if it didn't.
-      if (gkkOptions.length) req.gkk = 'Kinahanglan ang GKK';
+      if (gkks.length) req.gkk = 'Kinahanglan ang GKK';
       Object.keys(req).forEach((k) => { if (!String(household[k] || '').trim()) e[k] = req[k]; });
       if (household.email && !/.+@.+\..+/.test(household.email)) e.email = 'Isulat ang saktong email';
       me[0] = memberErrors(members[0], { head: true });
@@ -437,7 +463,9 @@ export default function RegistrationApp() {
   }
 
   async function next() {
-    let v = validate(step);
+    // No GKK list yet: try once more before letting step 1 through without a GKK.
+    const gkks = step === 1 && mode === 'new' && !gkkOptions.length ? await loadGkks() : gkkOptions;
+    let v = validate(step, gkks);
     if (v.ok && step === 1 && mode === 'new' && (await confirmNameStatus()) === 'taken') {
       const banner = 'Narehistro na kana nga ngalan sa pamilya. Pindota ang “Usba” aron mopili og lain.';
       v = { ok: false, err: { householdName: `Narehistro na ang “${trimmedName}”` }, memberErr: [], banner };
@@ -501,6 +529,8 @@ export default function RegistrationApp() {
     setHousehold(EMPTY_HOUSEHOLD); setHouseholdNameTouched(false); setNameAutoFrom('');
     setMembers([blankHead()]); setVolunteer(''); setNotifyOptin(false); setConsent(false);
     setErr({}); setMemberErr([]); setBanner(''); setRefNo('');
+    // The next family on this phone gets the GKK list, even if it didn't load before.
+    if (!gkkOptions.length) loadGkks();
     top();
   }
 
@@ -525,6 +555,7 @@ export default function RegistrationApp() {
         <Wizard
           step={step} banner={banner}
           household={household} err={err} onHouseholdField={updateHousehold} gkkOptions={gkkOptions}
+          gkkLoad={gkkLoad} onRetryGkks={loadGkks}
           nameStatus={nameStatus} nameSuggestion={nameSuggestion} nameAutoFrom={nameAutoFrom}
           onParticipation={setParticipation} onToggleHelpWay={toggleHelpWay}
           memberViews={memberViews} onMemberField={updateMember} onMemberCensus={updateMemberCensus}
@@ -917,7 +948,7 @@ function JoinHouseCard({ join, joinStatus, error, onJoinField, onCheckJoin }) {
   );
 }
 
-function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberViews, onMemberField, nameStatus, nameSuggestion, nameAutoFrom, mode, onMode, join, joinStatus, onJoinField, onCheckJoin }) {
+function StepHousehold({ household, err, onHouseholdField, gkkOptions, gkkLoad, onRetryGkks, memberViews, onMemberField, nameStatus, nameSuggestion, nameAutoFrom, mode, onMode, join, joinStatus, onJoinField, onCheckJoin }) {
   const f = (field) => ({ value: household[field], onChange: (e) => onHouseholdField(field, e.target.value) });
   const head = memberViews[0];
   const barangayOf = useGkkBarangayMap();
@@ -1009,6 +1040,16 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, memberVie
               labels={{ choose: 'Pilia ang inyong GKK…', here: (b) => `Sa ${b}`, others: 'Ubang GKK' }}
             />
             {outside && <div className="text-[13px] text-parish-text2 mt-1.5">Pilia ang GKK nga inyong gi-apilan, bisan gawas sa inyong barangay ang inyong puy-anan.</div>}
+            {!gkkOptions.length && gkkLoad !== 'ok' && (
+              <div role="status" className="text-[13px] text-parish-error mt-1.5">
+                {gkkLoad === 'loading' ? 'Gikuha pa ang listahan sa mga GKK…' : (
+                  <>
+                    Wala ma-load ang listahan sa mga GKK. Susiha ang internet, unya{' '}
+                    <button type="button" onClick={onRetryGkks} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-blue underline">sulayi pag-usab</button>.
+                  </>
+                )}
+              </div>
+            )}
           </Field>
           <Field label="Family Grouping (FG)" required error={err.familyGrouping}><FamilyGroupingSelect placeholder="Pili…" value={household.familyGrouping} onChange={(v) => onHouseholdField('familyGrouping', v)} /></Field>
         </div>
