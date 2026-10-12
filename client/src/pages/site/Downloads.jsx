@@ -6,7 +6,7 @@ import { BAND_PAD, Band, BigButton, Card, Chip, DataState, EmptyNote, ErrorNote,
 import { api } from '../../api.js';
 import {
   SONG_CATEGORIES, fileKindLabel, fileMatches, firstLine, fold, groupFiles, opensInBrowser, orderCategories, songByline, songFileName,
-  songIdFromParam, songJsonLd, songMatches, songPath, songText, sortSongs, stanzas,
+  slugify, songIdFromParam, songJsonLd, songMatches, songPath, songText, sortSongs, stanzas,
 } from '../../lib/downloads.js';
 import { fmtFileSize } from '../../lib/gkkDocuments.js';
 import { triggerDownload } from '../../lib/csv.js';
@@ -154,25 +154,53 @@ function SongList({ songs, q, cat, onCat }) {
   );
 }
 
+// Files a category shows before "Show more".
+const FILES_SHOWN = 7;
+
 function FileList({ files, q }) {
+  // Categories opened in full with "Show more", by name.
+  const [open, setOpen] = useState(() => new Set());
+  const toggle = (category) => setOpen((s) => {
+    const next = new Set(s);
+    if (next.has(category)) next.delete(category); else next.add(category);
+    return next;
+  });
   const groups = groupFiles(files.filter((f) => fileMatches(f, q)));
   if (!files.length) return <EmptyNote>Wala pay porma nga gi-post. Balik unya!</EmptyNote>;
   if (!groups.length) return <EmptyNote>Walay porma nga nakit-an para sa “{q}”.</EmptyNote>;
-  // One panel per category with its files as a list; on computers the panels
+  // One panel per category with its files as a list, the first FILES_SHOWN
+  // until "Show more" (a search shows every match); on computers the panels
   // flow in two columns, each kept whole.
   return (
     <div className="flex flex-col gap-4 lg:block lg:columns-2 lg:gap-6">
-      {groups.map((g) => (
-        <Card as="section" key={g.category} aria-label={g.category} className="overflow-hidden lg:break-inside-avoid lg:mb-6">
-          <h3 className="m-0 px-4 py-3 flex items-baseline justify-between gap-3 border-b border-parish-border bg-[#faf6ec]">
-            <span className="font-serif font-semibold text-[21px] lg:text-[23px] leading-tight text-parish-navy">{g.category}</span>
-            <span className="flex-none text-[12.5px] font-semibold text-parish-text2">{g.files.length} {g.files.length === 1 ? 'file' : 'files'}</span>
-          </h3>
-          <ul className="m-0 p-0 list-none divide-y divide-[#f0e8d6]">
-            {g.files.map((f) => <li key={f.id}><FileRow f={f} /></li>)}
-          </ul>
-        </Card>
-      ))}
+      {groups.map((g) => {
+        const all = !!q.trim() || open.has(g.category) || g.files.length <= FILES_SHOWN;
+        const hidden = g.files.length - FILES_SHOWN;
+        const listId = `files-${slugify(g.category)}`;
+        return (
+          <Card as="section" key={g.category} aria-label={g.category} className="overflow-hidden lg:break-inside-avoid lg:mb-6">
+            <h3 className="m-0 px-4 py-3 flex items-baseline justify-between gap-3 border-b border-parish-border bg-[#faf6ec]">
+              <span className="font-serif font-semibold text-[21px] lg:text-[23px] leading-tight text-parish-navy">{g.category}</span>
+              <span className="flex-none text-[12.5px] font-semibold text-parish-text2">{g.files.length} {g.files.length === 1 ? 'file' : 'files'}</span>
+            </h3>
+            <ul id={listId} className="m-0 p-0 list-none divide-y divide-[#f0e8d6]">
+              {(all ? g.files : g.files.slice(0, FILES_SHOWN)).map((f) => <li key={f.id}><FileRow f={f} /></li>)}
+            </ul>
+            {!q.trim() && hidden > 0 && (
+              <button
+                type="button"
+                aria-expanded={open.has(g.category)}
+                aria-controls={listId}
+                onClick={() => toggle(g.category)}
+                className="w-full min-h-[46px] flex items-center justify-center gap-1.5 border-t border-parish-border bg-[#faf6ec] font-bold text-[14.5px] text-parish-blue hover:text-parish-blueDeep"
+              >
+                {open.has(g.category) ? 'Show fewer' : `Show ${hidden} more`}
+                <Icon name="down" size={16} className={open.has(g.category) ? 'rotate-180' : ''} />
+              </button>
+            )}
+          </Card>
+        );
+      })}
     </div>
   );
 }
