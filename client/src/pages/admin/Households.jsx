@@ -346,19 +346,7 @@ export default function Households() {
   return (
     <>
       <PageHeader title="Households" subtitle={mine ? `The registered families of ${mine}, and those with no GKK yet` : 'All registered families'}>
-        {/* The pairs of possible duplicates aren't filtered. */}
-        {!duplicatesTab && (
-          <>
-            <FilterSelect value={gkk} onChange={(e) => setUrl({ gkk: e.target.value })} aria-label="Filter by GKK">
-              <option value="All">All GKKs</option>
-              {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
-              {/* For a GKK leader, the households they could take in (0093). */}
-              <option value={NO_GKK}>No assigned GKK</option>
-            </FilterSelect>
-            <SearchInput placeholder="Search household, member, address, ref no…" aria-label="Search households or members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
-          </>
-        )}
-        {/* Beside the search; on phones the buttons share a full-width row of their own. */}
+        {/* On phones the buttons share a full-width row of their own. */}
         {((can(user, 'exports') && !duplicatesTab) || canEdit) && (
           <div className="w-full sm:w-auto flex items-center gap-2.5">
             {can(user, 'exports') && !duplicatesTab && (
@@ -399,6 +387,14 @@ export default function Households() {
         {duplicatesTab ? <HouseholdDuplicates /> : (
         <>
         <div className="flex items-center gap-3 flex-wrap mb-4">
+          {/* The filters sit with the count they decide (the pairs of possible duplicates aren't filtered). */}
+          <FilterSelect value={gkk} onChange={(e) => setUrl({ gkk: e.target.value })} aria-label="Filter by GKK">
+            <option value="All">All GKKs</option>
+            {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+            {/* For a GKK leader, the households they could take in (0093). */}
+            <option value={NO_GKK}>No assigned GKK</option>
+          </FilterSelect>
+          <SearchInput placeholder="Search household, member, address, ref no…" aria-label="Search households or members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
           <div className="text-[13px] text-parish-muted">{total} household(s)</div>
           {isFiltered && <button onClick={() => setUrl({ gkk: 'All', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">Clear</button>}
           {/* Phones and tablets have no column headers to click (nor small laptops a Registered one), so sorting gets its own control. */}
