@@ -10,14 +10,15 @@ import {
 import { fmtFileSize, titleFromFileName } from '../../lib/gkkDocuments.js';
 import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, FilePick } from './shared.jsx';
 
-const KINDS = [['songs', 'Song Lyrics'], ['files', 'Forms & Files']];
-const URL_DEFAULTS = { kind: 'songs', q: '', page: 1, size: 10 };
+// Forms first: they're what the office shares; the song lyrics are an extra.
+const KINDS = [['files', 'Forms & Files'], ['songs', 'Song Lyrics']];
+const URL_DEFAULTS = { kind: 'files', q: '', page: 1, size: 10 };
 const URL_ALLOWED = { kind: KINDS.map(([k]) => k), size: [10, 20, 50] };
 
 /**
- * Downloads on the public website (/downloads, 0096): song lyrics for the
- * GKK Kasaulogan, the Bible Service and other gatherings, and the forms the
- * office shares (GKK forms, the manual census form…). One tab, two lists.
+ * Downloads on the public website (/downloads, 0096): the forms the office
+ * shares (GKK forms, the manual census form…), and song lyrics for the GKK
+ * Kasaulogan, the Bible Service and other gatherings. One tab, two lists.
  */
 export default function DownloadsTab() {
   const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
@@ -30,7 +31,7 @@ export default function DownloadsTab() {
           </button>
         ))}
       </div>
-      {url.kind === 'files' ? <FilesList url={url} setUrl={setUrl} /> : <SongsList url={url} setUrl={setUrl} />}
+      {url.kind === 'songs' ? <SongsList url={url} setUrl={setUrl} /> : <FilesList url={url} setUrl={setUrl} />}
     </>
   );
 }

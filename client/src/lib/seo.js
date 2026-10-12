@@ -24,7 +24,7 @@ const DESCRIPTIONS = [
   ['/serbisyo/hangyo', 'Paghangyo og sertipiko o sakramento sa Our Lady of Guadalupe Quasi-Parish, Mua-an, online.'],
   ['/serbisyo', `Mga serbisyo sa parokya: sertipiko, sakramento, rehistro sa pamilya ug Blood Donor Call sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
   ['/downloads/kanta', `Song lyrics, libre: liriko sa kanta gikan sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
-  ['/downloads', `Free Bisaya Catholic song lyrics: mga liriko sa kanta sa Kasaulogan sa GKK, Bible Service ug Misa, libre basahon, i-print ug i-download; ug mga porma sa GKK ug census gikan sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
+  ['/downloads', `Mga porma sa GKK, census ug uban pa gikan sa opisina sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}: i-download ug i-print. Ug free Bisaya Catholic song lyrics sa Kasaulogan sa GKK, Bible Service ug Misa.`],
   ['/kontak',`Kontak, oras sa opisina ug direksyon padulong sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
 ];
 

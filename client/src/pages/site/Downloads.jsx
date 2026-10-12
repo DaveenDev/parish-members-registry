@@ -14,18 +14,19 @@ import { excerpt } from '../../lib/seo.js';
 import { PARISH_NAME, PARISH_SUB, PageMeta, useSiteTitle } from './SiteLayout.jsx';
 import { useDownloads } from './data.js';
 
-const TABS = [['kanta', 'Mga Kanta'], ['porma', 'Mga Porma']];
+// Forms first and by default; the song lyrics are an extra (?tab=kanta).
+const TABS = [['porma', 'Mga Porma'], ['kanta', 'Mga Kanta']];
 
 /**
- * Downloads: the songs sung at the GKK Kasaulogan, the Bible Service and
- * other gatherings, to read on a phone, and the forms the parish office
- * shares (GKK forms, the manual census form…) to download. Both are kept
+ * Downloads: the forms the parish office shares (GKK forms, the manual
+ * census form…) to download, and the songs sung at the GKK Kasaulogan, the
+ * Bible Service and other gatherings, to read on a phone. Both are kept
  * under Parish Website in the admin (0096). The tab, search and category
  * stay in the address, so Back from a song returns to the same list.
  */
 export default function Downloads() {
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'porma' ? 'porma' : 'kanta';
+  const tab = params.get('tab') === 'kanta' ? 'kanta' : 'porma';
   const q = params.get('q') || '';
   const set = (patch) => {
     const next = new URLSearchParams(params);
@@ -40,8 +41,8 @@ export default function Downloads() {
     <main className="animate-fadeUp">
       <Band aria-label="Downloads">
         <div className={`${WRAP} ${BAND_PAD}`}>
-          <PageHeader eyebrow="Downloads" title="Mga Kanta ug Porma">
-            <Segmented label="Unsa ang pangitaon" options={TABS} value={tab} onChange={(v) => set({ tab: v === 'kanta' ? '' : v, q: '', cat: '' })} />
+          <PageHeader eyebrow="Downloads" title="Mga Porma ug Kanta">
+            <Segmented label="Unsa ang pangitaon" options={TABS} value={tab} onChange={(v) => set({ tab: v === 'porma' ? '' : v, q: '', cat: '' })} />
           </PageHeader>
           <p className="m-0 mb-4 lg:mt-1 lg:mb-6 text-[15px] lg:text-[17px] leading-normal text-[#4d4636] max-w-[720px]">
             {tab === 'kanta'
@@ -213,7 +214,7 @@ export function SongPage() {
     return (
       <main className={`${INNER} lg:max-w-[820px]`}>
         <EmptyNote>Wala na makit-i kini nga kanta.</EmptyNote>
-        <BigButton to="/downloads" variant="secondary">Tan-awa ang tanang kanta</BigButton>
+        <BigButton to="/downloads?tab=kanta" variant="secondary">Tan-awa ang tanang kanta</BigButton>
       </main>
     );
   }
