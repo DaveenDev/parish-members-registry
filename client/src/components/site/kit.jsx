@@ -1,10 +1,28 @@
 import React, { createContext, useContext } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from './Icons.jsx';
+import { textLinks } from '../../lib/site.js';
 
 // Small building blocks for the public website. Brand colour always comes
 // from the theme variables (--p-*) so every theme in Kolor works; neutrals
 // and status colours are the fixed parchment palette from tailwind.config.js.
+
+/**
+ * Typed text with its web and email addresses as links (textLinks), e.g. a
+ * registration form in an event's details. They open in a new tab, and a
+ * long address wraps instead of widening the page on a phone.
+ */
+export function LinkedText({ text }) {
+  return textLinks(text).map((part, i) => (part.href ? (
+    <a
+      key={i} href={part.href}
+      {...(part.href.startsWith('mailto:') ? {} : { target: '_blank', rel: 'noopener noreferrer' })}
+      className="font-semibold text-parish-blue underline underline-offset-2 [overflow-wrap:anywhere] hover:text-[var(--p-blue-deep)]"
+    >
+      {part.text}
+    </a>
+  ) : <React.Fragment key={i}>{part.text}</React.Fragment>));
+}
 
 /** Category / type chip colours, by tone. */
 export const TONES = {

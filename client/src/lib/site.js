@@ -223,6 +223,37 @@ export function paragraphs(text) {
   return String(text || '').split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
 }
 
+// A web address (http://, https:// or www.) up to the next space, or an email address.
+const LINK_RE = /\b(?:https?:\/\/|www\.)[^\s<>"]+|\b[\w.+-]+@[\w-]+(?:\.[\w-]+)*\.[a-z]{2,}\b/gi;
+
+/**
+ * Typed text split into plain text and links, for the website to show the
+ * addresses staff paste into an event, announcement, bulletin or article as
+ * links: [{ text }, { text, href }, …]. A full stop, comma or bracket right
+ * after an address ("…/viewform." or "(see www.x.ph)") stays text. Only
+ * http(s) and mailto links come out, whatever was typed.
+ */
+export function textLinks(text) {
+  const s = String(text || '');
+  const out = [];
+  let last = 0;
+  for (const m of s.matchAll(LINK_RE)) {
+    let link = m[0];
+    // Trailing punctuation belongs to the sentence; a ")" only when unmatched in the address.
+    while (/[.,;:!?'"\]}]$/.test(link) || (link.endsWith(')') && (link.match(/\(/g) || []).length < (link.match(/\)/g) || []).length)) {
+      link = link.slice(0, -1);
+    }
+    if (!link) continue;
+    const at = m.index;
+    if (at > last) out.push({ text: s.slice(last, at) });
+    const email = !/^(https?:\/\/|www\.)/i.test(link);
+    out.push({ text: link, href: email ? `mailto:${link}` : /^www\./i.test(link) ? `https://${link}` : link });
+    last = at + link.length;
+  }
+  if (last < s.length) out.push({ text: s.slice(last) });
+  return out;
+}
+
 /**
  * The bulletin page's two lists, from bulletins newest first: `latest` (the
  * newest `show`, shown in full) and `earlier` (the rest). When more than

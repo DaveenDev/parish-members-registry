@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { BigButton, Card, EmptyNote, ErrorNote, INNER, InfoRow, Skeletons, useShare, useSiteToast } from '../../components/site/kit.jsx';
+import { BigButton, Card, EmptyNote, ErrorNote, INNER, InfoRow, LinkedText, Skeletons, useShare, useSiteToast } from '../../components/site/kit.jsx';
 import { AnnouncementChip, ArticleChip, eventTone } from '../../components/site/cards.jsx';
 import { triggerDownload } from '../../lib/csv.js';
 import {
@@ -34,8 +34,9 @@ const READ_TEXT = 'text-[17px] lg:text-[19px] leading-[1.65] lg:leading-[1.7] te
 const DETAIL_TITLE = 'font-serif font-semibold text-[31px] lg:text-[48px] leading-[1.1] lg:leading-[1.06] m-0 mb-3.5 lg:mb-5 text-parish-navy';
 const SHARE = 'mt-2 lg:w-auto lg:inline-flex lg:px-6 lg:min-h-[52px] lg:text-[16px]';
 
+/** Typed text as paragraphs, its web and email addresses as links. */
 export function Body({ text, className = READ_TEXT }) {
-  return paragraphs(text).map((p, i) => <p key={i} className={`m-0 mb-3.5 lg:mb-4 whitespace-pre-line ${className}`}>{p}</p>);
+  return paragraphs(text).map((p, i) => <p key={i} className={`m-0 mb-3.5 lg:mb-4 whitespace-pre-line ${className}`}><LinkedText text={p} /></p>);
 }
 
 const PHOTO_BOX = 'rounded-[14px] lg:rounded-[18px] mb-4 lg:mb-6 bg-[#efe6d3] h-[var(--h)] lg:h-[var(--h-lg)]';

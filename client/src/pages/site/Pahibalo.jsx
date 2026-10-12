@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import Kalendaryo from '../../components/site/Kalendaryo.jsx';
-import { Band, DataState, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { Band, DataState, LinkedText, PageHeader, Pills, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { AnnouncementCard, EventCard } from '../../components/site/cards.jsx';
 import { ANNOUNCEMENT_LABELS, ARTICLES_PAGE, bulletinLists, fmtLong, fmtShort, paragraphs, sortAnnouncements } from '../../lib/site.js';
 import { listState, useAnnouncements, useArticles, useBulletins, useEvents, useMassSchedule } from './data.js';
@@ -367,7 +367,7 @@ function BulletinPost({ b, newest }) {
         <span className="text-[13.5px] lg:text-[14px] text-parish-text2">Semana sa {fmtLong(b.week_of)}</span>
       </div>
       <h2 className="m-0 mb-3 font-serif text-[24px] lg:text-[30px] font-bold leading-[1.15] text-parish-navy">{b.title}</h2>
-      {paragraphs(b.body).map((p, i) => <p key={i} className="m-0 mb-3 text-[15.5px] lg:text-[16.5px] leading-[1.65] text-parish-ink whitespace-pre-line">{p}</p>)}
+      {paragraphs(b.body).map((p, i) => <p key={i} className="m-0 mb-3 text-[15.5px] lg:text-[16.5px] leading-[1.65] text-parish-ink whitespace-pre-line"><LinkedText text={p} /></p>)}
       <Link to={`/pahibalo/bulletin/${b.id}`} className="inline-flex items-center gap-1 mt-1 min-h-[40px] font-bold text-[14.5px] text-parish-blue">Ablihi sa tibuok panid ug ipaambit<Icon name="chev" size={16} /></Link>
     </article>
   );
