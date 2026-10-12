@@ -4,6 +4,8 @@ A full-stack parish membership registry: a public household registration wizard 
 
 Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres + Auth) — no separate backend server. Row Level Security policies and Postgres functions (in `supabase/migrations/`) enforce who can read/write what.
 
+**Live Parish Online Census & Website: https://guadalupe-muaan.vercel.app/**
+
 > **Free for any parish.** Copy it, set it up for your own parish and change it as you need, at no cost. The one condition: keep the **"Built For Free by DaveenDev"** credit in the app. See [Free for your parish](#free-for-your-parish).
 
 ## Free for your parish
