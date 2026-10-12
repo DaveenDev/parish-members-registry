@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
-import { PageHeader, PageBody, Panel, EmptyState, LoadingState } from '../../components/admin.jsx';
+import { PageHeader, PageBody, Panel, EmptyState, LoadingState, Tabs } from '../../components/admin.jsx';
 import { PrimaryButton, GhostButton, Checkbox } from '../../components/ui.jsx';
 import { NotificationRow } from '../../components/NotificationBell.jsx';
 import { useToast } from '../../ToastContext.jsx';
@@ -27,7 +27,10 @@ function Note({ tone = 'info', children }) {
 
 const shortDate = (iso) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila' });
 
-/** Settings → Notifications: phone notifications for this account, and the latest notifications. */
+// The settings first; the latest notifications on a tab of their own (?tab=latest).
+const TABS = [['settings', 'Settings'], ['latest', 'Latest']];
+
+/** Settings → Notifications: phone notifications for this account (Settings), and the latest notifications (Latest). */
 export default function Notifications() {
   const { bell } = useOutletContext() || {};
   const toast = useToast();
@@ -36,6 +39,9 @@ export default function Notifications() {
   const [busy, setBusy] = useState('');
   const [devices, setDevices] = useState(null);
   const [prefs, setPrefs] = useState(null);
+  const [params, setParams] = useSearchParams();
+  const tab = TABS.find(([k]) => k === params.get('tab'))?.[0] || TABS[0][0];
+  const setTab = (k) => setParams(k === TABS[0][0] ? {} : { tab: k }, { replace: true });
 
   const loadDevices = () => api.listMyPushDevices().then(setDevices).catch(() => setDevices([]));
 
@@ -113,114 +119,125 @@ export default function Notifications() {
     <>
       <PageHeader title="Notifications" subtitle="Know as soon as someone sends a request from the website" />
       <PageBody>
-        <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
-          <Section
-            title="This device"
-            subtitle="Get a notification on this phone or computer when a request comes in, even when the admin panel is closed."
-          >
-            {support === 'ios-install' && (
-              <Note tone="warn">
-                <b>On iPhone and iPad, add the admin panel to your Home Screen first.</b> In Safari, tap the Share button
-                {' '}<span aria-hidden>⬆</span>, then <b>Add to Home Screen</b>. Open <b>Parish Admin</b> from your Home Screen,
-                sign in, and come back to Settings → Notifications to turn them on.
-              </Note>
-            )}
-            {support === 'unsupported' && (
-              <Note tone="warn">
-                This browser can’t show notifications. Use Chrome or Edge on Android or a computer, or Safari on an iPhone
-                (from the Home Screen).
-              </Note>
-            )}
-            {support === 'denied' && (
-              <Note tone="warn">
-                Notifications are blocked for this site. Open the browser’s site settings (the icon left of the address),
-                allow Notifications, then reload this page.
-              </Note>
-            )}
-            {support === 'ok' && sub === undefined && <div className="text-[14px] text-parish-muted">Checking…</div>}
-            {support === 'ok' && sub === null && (
-              <div className="flex flex-wrap items-center gap-3">
-                <PrimaryButton onClick={turnOn} disabled={!!busy} className="px-5 py-3 text-[15px]">
-                  {busy === 'on' ? 'Turning on…' : 'Turn on notifications on this device'}
-                </PrimaryButton>
-                <span className="text-[13px] text-parish-muted">The browser will ask you to allow them.</span>
-              </div>
-            )}
-            {support === 'ok' && sub && (
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="inline-flex items-center gap-2 font-semibold text-parish-ok text-[15px]">
-                  <span className="w-2.5 h-2.5 rounded-full bg-parish-ok" aria-hidden /> On for this device
-                </span>
-                <span className="flex-1" />
-                <GhostButton onClick={sendTest} disabled={!!busy} className="px-4 py-2.5 text-[14px]">
-                  {busy === 'test' ? 'Sending…' : 'Send a test'}
-                </GhostButton>
-                <GhostButton onClick={turnOff} disabled={!!busy} className="px-4 py-2.5 text-[14px]">
-                  {busy === 'off' ? 'Turning off…' : 'Turn off'}
-                </GhostButton>
-              </div>
-            )}
-          </Section>
-
-          <Section title="What to send to my devices" subtitle="For every phone and computer you turned notifications on for.">
-            {!prefs ? <LoadingState label="Loading your notification choices…" compact /> : (
-              <>
-                <fieldset className="border-0 p-0 m-0 flex flex-col gap-2.5">
-                  <legend className="sr-only">New requests</legend>
-                  {PUSH_LEVELS.map((l) => (
-                    <label key={l.key} className={`flex gap-3 items-start rounded-xl border-[1.5px] px-4 py-3 cursor-pointer transition ${prefs.push_level === l.key ? 'border-parish-blue bg-[var(--p-blue-tint)]' : 'border-parish-borderSoft hover:bg-parish-hover'}`}>
-                      <input
-                        type="radio" name="push_level" value={l.key}
-                        checked={prefs.push_level === l.key}
-                        onChange={() => savePrefs({ push_level: l.key })}
-                        className="mt-1 w-[17px] h-[17px] accent-parish-blue"
-                      />
-                      <span>
-                        <span className="block font-bold text-[15px] text-parish-ink">{l.label}</span>
-                        <span className="block text-[13.5px] text-parish-muted leading-snug mt-0.5">{l.note}</span>
-                      </span>
-                    </label>
-                  ))}
-                </fieldset>
-                <label className="flex gap-3 items-start mt-4 cursor-pointer">
-                  <Checkbox checked={!!prefs.digest} onChange={(e) => savePrefs({ digest: e.target.checked })} className="mt-0.5" />
-                  <span>
-                    <span className="block font-bold text-[15px] text-parish-ink">Morning summary at 7:00 AM</span>
-                    <span className="block text-[13.5px] text-parish-muted leading-snug mt-0.5">
-                      What is still waiting: requests, households to verify and census updates, and how many have waited over 3 days. Not sent when nothing is waiting.
+        <Tabs
+          tabs={TABS.map(([k, label]) => [k, k === 'latest' && bell?.items?.length ? `${label} (${bell.items.length})` : label])}
+          value={tab}
+          onChange={setTab}
+        />
+        {tab === 'settings' ? (
+          // Wide screens: this device and the list of devices on the left, what
+          // to send beside them. Phones and tablets: one under another, in that order.
+          <div className="grid gap-5 xl:grid-cols-2 xl:items-start">
+            <div className="grid gap-5">
+              <Section
+                title="This device"
+                subtitle="Get a notification on this phone or computer when a request comes in, even when the admin panel is closed."
+              >
+                {support === 'ios-install' && (
+                  <Note tone="warn">
+                    <b>On iPhone and iPad, add the admin panel to your Home Screen first.</b> In Safari, tap the Share button
+                    {' '}<span aria-hidden>⬆</span>, then <b>Add to Home Screen</b>. Open <b>Parish Admin</b> from your Home Screen,
+                    sign in, and come back to Settings → Notifications to turn them on.
+                  </Note>
+                )}
+                {support === 'unsupported' && (
+                  <Note tone="warn">
+                    This browser can’t show notifications. Use Chrome or Edge on Android or a computer, or Safari on an iPhone
+                    (from the Home Screen).
+                  </Note>
+                )}
+                {support === 'denied' && (
+                  <Note tone="warn">
+                    Notifications are blocked for this site. Open the browser’s site settings (the icon left of the address),
+                    allow Notifications, then reload this page.
+                  </Note>
+                )}
+                {support === 'ok' && sub === undefined && <div className="text-[14px] text-parish-muted">Checking…</div>}
+                {support === 'ok' && sub === null && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <PrimaryButton onClick={turnOn} disabled={!!busy} className="px-5 py-3 text-[15px]">
+                      {busy === 'on' ? 'Turning on…' : 'Turn on notifications on this device'}
+                    </PrimaryButton>
+                    <span className="text-[13px] text-parish-muted">The browser will ask you to allow them.</span>
+                  </div>
+                )}
+                {support === 'ok' && sub && (
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="inline-flex items-center gap-2 font-semibold text-parish-ok text-[15px]">
+                      <span className="w-2.5 h-2.5 rounded-full bg-parish-ok" aria-hidden /> On for this device
                     </span>
-                  </span>
-                </label>
-              </>
-            )}
-          </Section>
-
-          <Section title="My devices" subtitle="Where this account gets notifications. Remove a phone you no longer use.">
-            {devices === null && <LoadingState label="Loading your devices…" compact />}
-            {devices && !devices.length && <div className="text-[14px] text-parish-muted">None yet.</div>}
-            {!!devices?.length && (
-              <ul className="list-none m-0 p-0 divide-y divide-parish-line border border-parish-line rounded-xl">
-                {devices.map((d) => (
-                  <li key={d.id} className="flex items-center gap-3 px-4 py-3">
-                    <span className="min-w-0 flex-1">
-                      <span className="block font-semibold text-[14.5px] text-parish-ink">
-                        {d.device || 'Device'}
-                        {sub?.endpoint === d.endpoint && <span className="ml-2 text-[12px] font-bold text-parish-ok">This device</span>}
-                      </span>
-                      <span className="block text-[12.5px] text-parish-muted">
-                        Added {shortDate(d.created_at)}{d.last_ok_at ? ` · Last notified ${timeAgo(d.last_ok_at, now).toLowerCase()}` : ''}
-                      </span>
-                    </span>
-                    <GhostButton onClick={() => removeDevice(d)} disabled={!!busy} className="px-3 py-1.5 text-[13px]">
-                      {busy === `rm-${d.id}` ? 'Removing…' : 'Remove'}
+                    <span className="flex-1" />
+                    <GhostButton onClick={sendTest} disabled={!!busy} className="px-4 py-2.5 text-[14px]">
+                      {busy === 'test' ? 'Sending…' : 'Send a test'}
                     </GhostButton>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Section>
+                    <GhostButton onClick={turnOff} disabled={!!busy} className="px-4 py-2.5 text-[14px]">
+                      {busy === 'off' ? 'Turning off…' : 'Turn off'}
+                    </GhostButton>
+                  </div>
+                )}
+              </Section>
 
-          <Section title="Latest" subtitle="The same list as the bell: the newest 30 that your account can see.">
+              <Section title="My devices" subtitle="Where this account gets notifications. Remove a phone you no longer use.">
+                {devices === null && <LoadingState label="Loading your devices…" compact />}
+                {devices && !devices.length && <div className="text-[14px] text-parish-muted">None yet.</div>}
+                {!!devices?.length && (
+                  <ul className="list-none m-0 p-0 divide-y divide-parish-line border border-parish-line rounded-xl">
+                    {devices.map((d) => (
+                      <li key={d.id} className="flex items-center gap-3 px-4 py-3">
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-semibold text-[14.5px] text-parish-ink">
+                            {d.device || 'Device'}
+                            {sub?.endpoint === d.endpoint && <span className="ml-2 text-[12px] font-bold text-parish-ok">This device</span>}
+                          </span>
+                          <span className="block text-[12.5px] text-parish-muted">
+                            Added {shortDate(d.created_at)}{d.last_ok_at ? ` · Last notified ${timeAgo(d.last_ok_at, now).toLowerCase()}` : ''}
+                          </span>
+                        </span>
+                        <GhostButton onClick={() => removeDevice(d)} disabled={!!busy} className="px-3 py-1.5 text-[13px]">
+                          {busy === `rm-${d.id}` ? 'Removing…' : 'Remove'}
+                        </GhostButton>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </Section>
+            </div>
+
+            <Section title="What to send to my devices" subtitle="For every phone and computer you turned notifications on for.">
+              {!prefs ? <LoadingState label="Loading your notification choices…" compact /> : (
+                <>
+                  <fieldset className="border-0 p-0 m-0 flex flex-col gap-2.5">
+                    <legend className="sr-only">New requests</legend>
+                    {PUSH_LEVELS.map((l) => (
+                      <label key={l.key} className={`flex gap-3 items-start rounded-xl border-[1.5px] px-4 py-3 cursor-pointer transition ${prefs.push_level === l.key ? 'border-parish-blue bg-[var(--p-blue-tint)]' : 'border-parish-borderSoft hover:bg-parish-hover'}`}>
+                        <input
+                          type="radio" name="push_level" value={l.key}
+                          checked={prefs.push_level === l.key}
+                          onChange={() => savePrefs({ push_level: l.key })}
+                          className="mt-1 w-[17px] h-[17px] accent-parish-blue"
+                        />
+                        <span>
+                          <span className="block font-bold text-[15px] text-parish-ink">{l.label}</span>
+                          <span className="block text-[13.5px] text-parish-muted leading-snug mt-0.5">{l.note}</span>
+                        </span>
+                      </label>
+                    ))}
+                  </fieldset>
+                  <label className="flex gap-3 items-start mt-4 cursor-pointer">
+                    <Checkbox checked={!!prefs.digest} onChange={(e) => savePrefs({ digest: e.target.checked })} className="mt-0.5" />
+                    <span>
+                      <span className="block font-bold text-[15px] text-parish-ink">Morning summary at 7:00 AM</span>
+                      <span className="block text-[13.5px] text-parish-muted leading-snug mt-0.5">
+                        What is still waiting: requests, households to verify and census updates, and how many have waited over 3 days. Not sent when nothing is waiting.
+                      </span>
+                    </span>
+                  </label>
+                </>
+              )}
+            </Section>
+          </div>
+        ) : (
+          <Section title="Latest notifications" subtitle="The same list as the bell: the newest 30 that your account can see.">
             {!bell?.items?.length ? (
               <div className="text-[14px] text-parish-muted">Nothing yet. Requests from the website will show up here as they come in.</div>
             ) : (
@@ -229,7 +246,7 @@ export default function Notifications() {
               </div>
             )}
           </Section>
-        </div>
+        )}
       </PageBody>
     </>
   );
