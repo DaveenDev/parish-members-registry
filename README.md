@@ -1,4 +1,4 @@
-# Parish Members Online Registry
+# Parish Members Online Registry & Website
 
 A full-stack parish membership registry: a public household registration wizard for parishioners, and an admin panel for parish staff to manage households, members, sacraments, ministries, organizations, and reports.
 
