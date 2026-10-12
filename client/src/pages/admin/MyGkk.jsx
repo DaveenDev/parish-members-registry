@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
-import { Panel, ErrorState, LoadingState } from '../../components/admin.jsx';
+import { Panel, ErrorState, LoadingState, TAB_BAR, tabClass } from '../../components/admin.jsx';
 import { FlagEmptyRequired, PrimaryButton } from '../../components/ui.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
@@ -194,11 +194,10 @@ export default function MyGkk({ gkkId = null, onBack = null }) {
 }
 
 /**
- * The My GKK sections. They sit under the page's own tabs (blue underline),
- * so they're gold to read as the second level. On phones, tablets and small
- * laptops (below the 1400px full sidebar) they're a row of pills above the
- * content, scrolling sideways if they don't fit; on wide screens, tabs down
- * the left side.
+ * The My GKK sections, in the admin's gold tabs (TAB_BAR, tabClass). On
+ * phones, tablets and small laptops (below the 1400px full sidebar) they're
+ * a row above the content, scrolling sideways if they don't fit; on wide
+ * screens, tabs down the left side.
  */
 function SideTabs({ tabs, value, onChange }) {
   const ref = useRef(null);
@@ -214,7 +213,7 @@ function SideTabs({ tabs, value, onChange }) {
       ref={ref}
       role="tablist"
       aria-label="GKK sections"
-      className="flex w-fit max-w-full gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1 rounded-xl border border-[color:color-mix(in_srgb,var(--p-gold)_50%,transparent)] bg-[var(--p-gold-tint)] min-[1400px]:w-auto min-[1400px]:flex-col min-[1400px]:gap-1.5 min-[1400px]:overflow-visible min-[1400px]:p-0 min-[1400px]:rounded-none min-[1400px]:border-none min-[1400px]:bg-transparent min-[1400px]:sticky min-[1400px]:top-4"
+      className={`${TAB_BAR} min-[1400px]:w-auto min-[1400px]:flex-col min-[1400px]:gap-1.5 min-[1400px]:overflow-visible min-[1400px]:p-0 min-[1400px]:rounded-none min-[1400px]:border-none min-[1400px]:bg-transparent min-[1400px]:sticky min-[1400px]:top-4`}
     >
       {tabs.map(([k, label]) => {
         const on = value === k;
@@ -225,12 +224,9 @@ function SideTabs({ tabs, value, onChange }) {
             role="tab"
             aria-selected={on}
             onClick={() => onChange(k)}
-            className={`appearance-none flex-none min-[1400px]:w-full text-left whitespace-nowrap cursor-pointer px-3.5 py-2 min-[1400px]:px-4 min-[1400px]:py-2.5 rounded-lg min-[1400px]:rounded-xl border-[1.5px] min-[1400px]:border-l-4 font-semibold text-[14px] min-[1400px]:text-[14.5px] transition ${
-              // Light gold with dark text, readable in every theme and in dark mode.
-              on
-                ? 'bg-[var(--p-gold-light)] border-[var(--p-gold)] min-[1400px]:border-l-[var(--p-gold-deep)] text-[color:color-mix(in_srgb,var(--p-gold-deep)_35%,black)] shadow-sm'
-                : 'bg-transparent border-transparent text-parish-text2 hover:text-[var(--p-eyebrow)] hover:bg-[var(--p-gold-tint)] min-[1400px]:text-parish-muted'
-            } focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--p-gold)]`}
+            className={`${tabClass(on)} min-[1400px]:w-full min-[1400px]:px-4 min-[1400px]:py-2.5 min-[1400px]:rounded-xl min-[1400px]:border-l-4 min-[1400px]:text-[14.5px] ${
+              on ? 'min-[1400px]:border-l-[var(--p-gold-deep)]' : 'min-[1400px]:text-parish-muted'
+            }`}
           >
             {label}
           </button>

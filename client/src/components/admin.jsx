@@ -229,9 +229,25 @@ export function Pagination({ page, pageSize, total, onPage, onPageSize, alwaysSh
 }
 
 /**
- * Underlined tab bar. `tabs` is a list of [key, label]. On phones the tabs
- * stay on one line and the bar scrolls sideways, instead of stacking into a
- * column that pushes the page down.
+ * The admin's tab look (first the GKK page's): a gold bar with the selected
+ * tab filled in light gold, dark text, readable in every theme and in dark
+ * mode. The bar is as wide as its tabs and scrolls sideways when they don't
+ * fit, staying on one line. For a tab bar of its own, TAB_BAR on the
+ * role="tablist" element and tabClass(selected) on each tab.
+ */
+export const TAB_BAR = 'flex w-fit max-w-full gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden p-1 rounded-xl '
+  + 'border border-[color:color-mix(in_srgb,var(--p-gold)_50%,transparent)] bg-[var(--p-gold-tint)]';
+
+export const tabClass = (on) => 'appearance-none flex-none text-left whitespace-nowrap cursor-pointer px-3.5 py-2 rounded-lg border-[1.5px] font-semibold text-[14px] transition '
+  + (on
+    ? 'bg-[var(--p-gold-light)] border-[var(--p-gold)] text-[color:color-mix(in_srgb,var(--p-gold-deep)_35%,black)] shadow-sm'
+    : 'bg-transparent border-transparent text-parish-text2 hover:text-[var(--p-eyebrow)] hover:bg-[var(--p-gold-tint)]')
+  + ' focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--p-gold)]';
+
+/**
+ * A page's tab bar (TAB_BAR, tabClass). `tabs` is a list of [key, label]. On
+ * phones the tabs stay on one line and the bar scrolls sideways, instead of
+ * stacking into a column that pushes the page down.
  */
 export function Tabs({ tabs, value, onChange }) {
   const ref = useRef(null);
@@ -243,13 +259,9 @@ export function Tabs({ tabs, value, onChange }) {
     bar.scrollLeft = tab.offsetLeft - (bar.clientWidth - tab.offsetWidth) / 2;
   }, [value]);
   return (
-    <div ref={ref} role="tablist" className="relative flex gap-1 mb-[22px] border-b border-parish-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
+    <div ref={ref} role="tablist" className={`${TAB_BAR} mb-[22px]`}>
       {tabs.map(([k, label]) => (
-        <button
-          key={k} role="tab" aria-selected={value === k} onClick={() => onChange(k)}
-          className="appearance-none border-none bg-none cursor-pointer px-3 sm:px-4 py-2.5 -mb-px font-semibold text-[14.5px] sm:text-[15px] whitespace-nowrap shrink-0"
-          style={{ color: value === k ? 'var(--p-blue)' : 'rgb(var(--c-muted))', borderBottom: `2.5px solid ${value === k ? 'var(--p-blue)' : 'transparent'}` }}
-        >
+        <button key={k} type="button" role="tab" aria-selected={value === k} onClick={() => onChange(k)} className={tabClass(value === k)}>
           {label}
         </button>
       ))}

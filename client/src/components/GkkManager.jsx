@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
-import { SearchInput, ErrorState, LoadingState, Panel, ActionMenu } from './admin.jsx';
+import { SearchInput, ErrorState, LoadingState, Panel, ActionMenu, TAB_BAR, tabClass } from './admin.jsx';
 import { GKK_ATTENTION, attentionCounts, filterByAttention, gkkProgress, gkkFamilyProgress } from '../lib/gkkAdmin.js';
 import { useClientList } from '../hooks.js';
 import { Field, FlagEmptyRequired, GhostButton, TextInput } from './ui.jsx';
@@ -335,13 +335,9 @@ function RefCodeField({ barangay, current, code, sameBarangay, error, onChange }
 /** The panel's own tab bar: its buttons must not submit the panel's form. */
 function PanelTabs({ tabs, value, onChange }) {
   return (
-    <div role="tablist" className="flex gap-1 -mt-1 border-b border-parish-border overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap">
+    <div role="tablist" className={`${TAB_BAR} -mt-1`}>
       {tabs.map(([k, label]) => (
-        <button
-          key={k} type="button" role="tab" aria-selected={value === k} onClick={() => onChange(k)}
-          className="appearance-none border-none bg-none cursor-pointer px-3.5 py-2 -mb-px font-semibold text-[14px] whitespace-nowrap shrink-0"
-          style={{ color: value === k ? 'var(--p-blue)' : 'rgb(var(--c-muted))', borderBottom: `2.5px solid ${value === k ? 'var(--p-blue)' : 'transparent'}` }}
-        >
+        <button key={k} type="button" role="tab" aria-selected={value === k} onClick={() => onChange(k)} className={tabClass(value === k)}>
           {label}
         </button>
       ))}
