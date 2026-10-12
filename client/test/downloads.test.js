@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
   cleanLyrics, downloadFilePath, downloadFileType, DOWNLOAD_MAX_BYTES, fileKindLabel, fileMatches, firstLine,
   groupFiles, languageCode, opensInBrowser, orderCategories, slugify, songByline, songFileName, songIdFromParam, songJsonLd,
-  songMatches, songPath, songText, sortSongs, stanzas, SONG_CATEGORIES,
+  songMatches, songPath, songText, sortSongs, stanzas, FILE_CATEGORIES, SONG_CATEGORIES,
 } from '../src/lib/downloads.js';
 
 test('PDFs, Word, Excel and photos are accepted, by type or by extension', () => {
@@ -47,8 +47,8 @@ test('a song is found by any words of its title, note or lyrics, accents or not'
 });
 
 test('a file is found by its title, category, description or file name', () => {
-  const file = { title: 'Census form', category: 'Manual Census Forms', description: 'Para sa GKK', file_name: 'census-2026.pdf' };
-  assert.equal(fileMatches(file, 'manual'), true);
+  const file = { title: 'Census form', category: 'Parish Forms', description: 'Para sa GKK', file_name: 'census-2026.pdf' };
+  assert.equal(fileMatches(file, 'parish'), true);
   assert.equal(fileMatches(file, '2026'), true);
   assert.equal(fileMatches(file, 'kasal'), false);
 });
@@ -65,26 +65,28 @@ test('songs A–Z by title, numbers in order', () => {
   assert.deepEqual(titles, ['A', 'b', 'Song 2', 'Song 10']);
 });
 
-test('Other Forms comes last, after the categories staff added', () => {
+test('the four categories in their order; an older one before Other Forms, which comes last', () => {
+  assert.deepEqual(FILE_CATEGORIES, ['GKK Forms', 'Parish Forms', 'Sacrament & Ministry Forms', 'Other Forms']);
   const groups = groupFiles([
     { title: 'A', category: 'Other Forms' },
-    { title: 'B', category: 'Sacrament Forms' },
+    { title: 'B', category: 'Sacrament & Ministry Forms' },
     { title: 'C', category: 'GKK Forms' },
     { title: 'D', category: 'Ministry Forms' },
+    { title: 'E', category: 'Parish Forms' },
   ]);
-  assert.deepEqual(groups.map((g) => g.category), ['GKK Forms', 'Ministry Forms', 'Sacrament Forms', 'Other Forms']);
+  assert.deepEqual(groups.map((g) => g.category), ['GKK Forms', 'Parish Forms', 'Sacrament & Ministry Forms', 'Ministry Forms', 'Other Forms']);
 });
 
 test('files are grouped by category, suggested categories first, each A–Z', () => {
   const groups = groupFiles([
     { title: 'Z', category: 'Sacraments' },
-    { title: 'Census form', category: 'Manual Census Forms' },
+    { title: 'Census form', category: 'Parish Forms' },
     { title: 'Officers form', category: 'GKK Forms' },
     { title: 'Attendance', category: 'gkk forms ' },
   ]);
   assert.deepEqual(groups.map((g) => [g.category, g.files.map((f) => f.title)]), [
     ['GKK Forms', ['Attendance', 'Officers form']],
-    ['Manual Census Forms', ['Census form']],
+    ['Parish Forms', ['Census form']],
     ['Sacraments', ['Z']],
   ]);
 });

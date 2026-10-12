@@ -24,8 +24,8 @@ const SECTION = 'scroll-mt-[70px] lg:scroll-mt-[92px]';
 const SECTION_TITLE = 'm-0 font-serif font-semibold text-[29px] lg:text-[40px] leading-[1.1] text-parish-navy';
 
 /**
- * Downloads: one page, the forms the parish office shares (GKK forms, the
- * manual census form…) first, then the lyrics of the songs sung at the GKK
+ * Downloads: one page, the forms the parish office shares (in the four
+ * FILE_CATEGORIES) first, then the lyrics of the songs sung at the GKK
  * Kasaulogan, the Bible Service and other gatherings. Both are kept under
  * Parish Website in the admin (0096). One search covers both; it and the
  * song category stay in the address. ?tab=kanta (the /kanta, /lyrics and

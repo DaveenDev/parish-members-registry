@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { api } from '../../api.js';
-import { Field, TextInput, ComboInput } from '../ui.jsx';
+import { Field, TextInput, ComboInput, OptionSelect } from '../ui.jsx';
 import { Pagination, EmptyState, LoadingState, ErrorState, SearchInput, TAB_BAR, tabClass } from '../admin.jsx';
 import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
@@ -17,7 +17,7 @@ const URL_ALLOWED = { kind: KINDS.map(([k]) => k), size: [10, 20, 50] };
 
 /**
  * Downloads on the public website (/downloads, 0096): the forms the office
- * shares (GKK forms, the manual census form…), and song lyrics for the GKK
+ * shares in four categories (FILE_CATEGORIES), and song lyrics for the GKK
  * Kasaulogan, the Bible Service and other gatherings. One tab, two lists.
  */
 export default function DownloadsTab() {
@@ -161,18 +161,18 @@ function FilesList({ url, setUrl }) {
   const [editing, setEditing] = useState(null);
   const sorted = [...list.rows].sort((a, b) => a.category.localeCompare(b.category) || a.title.localeCompare(b.title, undefined, { numeric: true }));
   const page = urlListPage(sorted, (r) => `${r.title} ${r.category} ${r.description || ''} ${r.file_name}`, url, setUrl);
-  const known = orderCategories([...FILE_CATEGORIES, ...list.rows.map((r) => r.category)], FILE_CATEGORIES);
+
 
   return (
     <>
-      <TabIntro text="Forms for parishioners to download and print: GKK forms, the manual census form and others (PDF, Word, Excel or a photo, up to 20 MB). Anyone with a file's link can open it, so only upload what's meant for everyone.">
+      <TabIntro text="Forms for parishioners to download and print: GKK forms, parish forms like the census form, and others (PDF, Word, Excel or a photo, up to 20 MB). Anyone with a file's link can open it, so only upload what's meant for everyone.">
         <SearchInput value={page.query} onChange={(e) => page.setQuery(e.target.value)} placeholder="Search forms" aria-label="Search forms" />
         <AddButton onClick={() => setEditing({ title: '', category: FILE_CATEGORIES[0], description: '', published: false })}>Upload form</AddButton>
       </TabIntro>
 
       <Panel className="overflow-hidden">
         {list.loading ? <LoadingState /> : list.error ? <ErrorState message={list.error} onRetry={list.reload} /> : !list.rows.length ? (
-          <EmptyState title="No forms yet" subtitle="Upload the GKK forms or the manual census form." />
+          <EmptyState title="No forms yet" subtitle="Upload the GKK forms or the parish forms, like the census form." />
         ) : !page.rows.length ? (
           <EmptyState title="No forms found" subtitle="Try another word." />
         ) : (
@@ -198,12 +198,12 @@ function FilesList({ url, setUrl }) {
         <Pagination page={page.page} pageSize={page.pageSize} total={page.total} onPage={page.setPage} onPageSize={page.setPageSize} />
       </Panel>
 
-      {editing && <FileEditor row={editing} known={known} onClose={() => setEditing(null)} onSaved={(saved) => { list.upsert(saved); setEditing(null); }} />}
+      {editing && <FileEditor row={editing} onClose={() => setEditing(null)} onSaved={(saved) => { list.upsert(saved); setEditing(null); }} />}
     </>
   );
 }
 
-function FileEditor({ row, known, onClose, onSaved }) {
+function FileEditor({ row, onClose, onSaved }) {
   const toast = useToast();
   const [form, setForm] = useState(row);
   const [file, setFile] = useState(null);
@@ -257,7 +257,8 @@ function FileEditor({ row, known, onClose, onSaved }) {
       </Field>
       <Field label="Title" required><TextInput value={form.title} onChange={(e) => set('title')(e.target.value)} maxLength={200} placeholder="e.g. GKK Officers Form" /></Field>
       <Field label="Category" required>
-        <ComboInput options={known} value={form.category || ''} onChange={set('category')} maxLength={80} toggleLabel="Show categories" />
+        {/* One of the four the website shows; a file saved under an older category keeps it until changed. */}
+        <OptionSelect options={FILE_CATEGORIES} value={form.category || ''} onChange={set('category')} placeholder="Choose a category" />
       </Field>
       <Field label="Description">
         <TextArea rows={3} value={form.description || ''} onChange={(e) => set('description')(e.target.value)} maxLength={500} placeholder="Optional: what it's for, who fills it in, where to bring it" />

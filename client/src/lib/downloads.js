@@ -5,8 +5,8 @@
 /** Suggested song categories, in the order the website lists them; staff can add others. */
 export const SONG_CATEGORIES = ['Kasaulogan sa GKK', 'Bible Service', 'Kasagarang Kanta'];
 
-/** Suggested file categories, in the order the website lists them; staff can add others. */
-export const FILE_CATEGORIES = ['GKK Forms', 'Manual Census Forms', 'Other Forms'];
+/** The four form categories, in the order the website lists them; staff choose one for each file. */
+export const FILE_CATEGORIES = ['GKK Forms', 'Parish Forms', 'Sacrament & Ministry Forms', 'Other Forms'];
 
 export const DOWNLOAD_MAX_BYTES = 20 * 1024 * 1024;
 
