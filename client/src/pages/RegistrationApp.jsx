@@ -5,7 +5,7 @@ import { useDebounced } from '../hooks.js';
 import { toNameCase } from '../lib/util.js';
 import {
   syncSpouses, weddingCouples, toPayloadMember, WEDDING_FIELDS, familiesOf, familyNoOf, nextFamilyNo, familyHeadName, familyHeadIndex,
-  familyTag, compactFamilies, repeatedMember, spouseSex, askedForAge,
+  familyTag, compactFamilies, repeatedMember, autoFill, askedForAge,
 } from '../lib/household.js';
 import {
   bis, serverErrorInBisaya, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS,
@@ -305,18 +305,15 @@ export default function RegistrationApp() {
       if (idx !== i) return m;
       const next = { ...m, [field]: value };
       const isHead = HEADS.includes(m.relationship);
-      if (!isHead && field === 'relationship') {
-        next.civilFromHead = value === 'Spouse';
-        // A Spouse is the other sex from the head of their family (still editable).
-        const hi = familyHeadIndex(ms, familyNoOf(m));
-        const sex = value === 'Spouse' && hi >= 0 && hi !== idx ? spouseSex(ms[hi].sex) : '';
-        if (sex) next.sex = sex;
-      }
+      if (!isHead && field === 'relationship') next.civilFromHead = value === 'Spouse';
       if (!isHead && field === 'civilStatus') next.civilFromHead = false;
-      return next;
+      // The sex a relationship says (a Spouse: the other from their family
+      // head), and Single for anyone under 18 (still editable).
+      const hi = familyHeadIndex(ms, familyNoOf(m));
+      return { ...next, ...autoFill(m, field, value, { headSex: hi >= 0 && hi !== idx ? ms[hi].sex : '' }) };
     }), WEDDING_FIELDS.includes(field) ? i : -1));
-    // Picking "Spouse" may fill civil status and sex in, so clear those errors too.
-    const cleared = field === 'relationship' ? [field, 'civilStatus', 'sex'] : [field];
+    // Picking "Spouse" or a son or daughter may fill sex in, a birthday civil status, so clear those errors too.
+    const cleared = field === 'relationship' ? [field, 'civilStatus', 'sex'] : field === 'dob' ? [field, 'civilStatus'] : [field];
     setMemberErr((me) => me.map((e, idx) => (idx === i && e ? { ...e, ...Object.fromEntries(cleared.map((f) => [f, ''])) } : e)));
     setBanner('');
     // The first name counts too: if "{Lastname} Household" is taken, the
@@ -735,6 +732,14 @@ function Confirmation({ refNo, accessCode, householdName, joined = false, onRest
           <GhostButton onClick={() => window.print()} className="px-6 py-3.5 text-[15px] !border-[#cdd7e8] !text-parish-blue bg-white">I-print ang kumpirmasyon</GhostButton>
           <PrimaryButton onClick={onRestart} className="px-[26px] py-3.5 text-[15px]">Magrehistro og laing pamilya</PrimaryButton>
         </div>
+        {/* Back to the parish website's home page, as a link (it can open in a new tab too). */}
+        <Link
+          to="/"
+          className="mt-3 inline-flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl border-[1.5px] border-[#cdd7e8] bg-white font-semibold text-[15px] text-parish-blue no-underline transition hover:bg-parish-sunk"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 11l9-7 9 7" /><path d="M5 10v10h14V10" /></svg>
+          Balik sa Home
+        </Link>
         <CreditFooter inline />
       </div>
     </div>

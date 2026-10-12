@@ -11,7 +11,7 @@ import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { MEN_ONLY_NOTE, isMale, menOnlyBlocked, menOnlyMessage } from '../lib/ministries.js';
 import {
   syncSpouses, weddingCouples, toPayloadMember, WEDDING_FIELDS, familiesOf, familyNoOf, nextFamilyNo, familyHeadName, familyHeadIndex,
-  familyTag, compactFamilies, repeatedMember, spouseSex, askedForAge,
+  familyTag, compactFamilies, repeatedMember, autoFill, askedForAge,
 } from '../lib/household.js';
 import { ByFamily, FamilyHeading } from './FamilyGroups.jsx';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, VOLUNTEER_LABELS, BLOOD_UNKNOWN_LABEL } from '../lib/bisaya.js';
@@ -170,21 +170,18 @@ export default function NewHouseholdDrawer({ gkkOptions = [], onClose, onSaved }
     // A Spouse follows the head's Married / Live-in status, and the two share one wedding.
     setMembers((ms) => syncSpouses(ms.map((m, idx) => {
       if (idx !== i) return m;
-      const next = { ...m, [field]: value };
       const isHead = HEADS.includes(m.relationship);
-      if (!isHead && field === 'relationship') {
-        next.civilFromHead = value === 'Spouse';
-        // A Spouse is the other sex from the head of their family (still editable).
-        const hi = familyHeadIndex(ms, familyNoOf(m));
-        const sex = value === 'Spouse' && hi >= 0 && hi !== idx ? spouseSex(ms[hi].sex) : '';
-        if (sex) next.sex = sex;
-      }
+      // The sex a relationship says (a Spouse: the other from their family
+      // head), and Single for anyone under 18 (still editable).
+      const hi = familyHeadIndex(ms, familyNoOf(m));
+      const next = { ...m, [field]: value, ...autoFill(m, field, value, { headSex: hi >= 0 && hi !== idx ? ms[hi].sex : '' }) };
+      if (!isHead && field === 'relationship') next.civilFromHead = value === 'Spouse';
       if (!isHead && field === 'civilStatus') next.civilFromHead = false;
-      // No longer male: off any men-only ministry (Kaabag) ticked earlier.
-      if (field === 'sex' && !isMale(value) && menOnly) next.ministries = (next.ministries || []).filter((n) => !menOnly.has(n));
+      // No longer male (picked, or from the relationship): off any men-only ministry (Kaabag) ticked earlier.
+      if (next.sex !== m.sex && !isMale(next.sex) && menOnly) next.ministries = (next.ministries || []).filter((n) => !menOnly.has(n));
       return next;
     }), WEDDING_FIELDS.includes(field) ? i : -1));
-    const cleared = field === 'relationship' ? [field, 'civilStatus', 'sex'] : [field];
+    const cleared = field === 'relationship' ? [field, 'civilStatus', 'sex'] : field === 'dob' ? [field, 'civilStatus'] : [field];
     setMemberErr((me) => me.map((e, idx) => (idx === i && e ? { ...e, ...Object.fromEntries(cleared.map((f) => [f, ''])) } : e)));
     setBanner('');
     if (i === 0 && field === 'lastName' && !householdNameTouched) {

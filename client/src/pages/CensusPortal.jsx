@@ -6,7 +6,7 @@ import CreditFooter from '../components/CreditFooter.jsx';
 import MemberCensusCards from '../components/MemberCensusCards.jsx';
 import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationChecks } from '../components/MemberFields.jsx';
 import { HEADS, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, PARTNERED_STATUSES, GKK_ROLES, fmtDate } from '../constants.js';
-import { familiesOf, familyHeadName, familyNoOf, samePerson, spouseSex, askedForAge, toPayloadMember } from '../lib/household.js';
+import { familiesOf, familyHeadName, familyNoOf, samePerson, autoFill, askedForAge, toPayloadMember } from '../lib/household.js';
 import { bis, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import {
@@ -184,10 +184,12 @@ export default function CensusPortal() {
       ...f,
       newMembers: f.newMembers.map((m, j) => {
         if (j !== i) return m;
-        const next = { ...m, [field]: value };
-        // A new Spouse starts with the other sex from the head of their family, and the head's Married / Live-in (still editable).
-        const head = field === 'relationship' && value === 'Spouse' ? familiesOf(f.members).find((g) => g.familyNo === familyNoOf(m))?.head : null;
-        if (head && !m.sex) next.sex = spouseSex(head.sex);
+        const familyHead = familiesOf(f.members).find((g) => g.familyNo === familyNoOf(m))?.head;
+        // The sex a relationship says (a Spouse: the other from their family
+        // head), and Single for anyone under 18 (still editable).
+        const next = { ...m, [field]: value, ...autoFill(m, field, value, { headSex: familyHead?.sex || '' }) };
+        // A new Spouse also starts with the head's Married / Live-in.
+        const head = field === 'relationship' && value === 'Spouse' ? familyHead : null;
         if (head && !m.civilStatus && PARTNERED_STATUSES.includes(head.civil_status)) next.civilStatus = head.civil_status;
         return next;
       }),

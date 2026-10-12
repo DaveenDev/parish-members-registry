@@ -195,6 +195,45 @@ export function spouseSex(headSex) {
   return '';
 }
 
+// The relationships that say a member's sex (Anak nga Lalaki is a son, …).
+const RELATIONSHIP_SEX = {
+  Son: 'Male', Daughter: 'Female', Father: 'Male', Mother: 'Female', Grandfather: 'Male', Grandmother: 'Female',
+};
+
+/** Under this age a member can't be married in the Philippines, so is Single (Ulitawo / Dalaga). */
+export const SINGLE_UNDER_AGE = 18;
+
+/**
+ * What a member's form fills in by itself when `field` changes to `value`,
+ * as a patch (all still editable):
+ *   relationship  the sex it says: a son, father or grandfather is Male, a
+ *                 daughter, mother or grandmother Female; a Spouse the other
+ *                 sex from their family head (`headSex`). Changed from
+ *                 Spouse, the head's status filled in for them is cleared.
+ *   dob          Single for anyone under SINGLE_UNDER_AGE, when no status is
+ *                 picked yet. `civilFromAge` marks that Single: a birthday
+ *                 changed to 18 or over takes it back, and a status picked
+ *                 by hand is never changed.
+ */
+export function autoFill(m, field, value, { headSex = '', today = new Date() } = {}) {
+  if (field === 'relationship') {
+    const sex = value === 'Spouse' ? spouseSex(headSex) : RELATIONSHIP_SEX[value] || '';
+    const patch = sex ? { sex } : {};
+    // No longer the Spouse: the head's Married / Live-in filled in for them goes too (civilFromHead, syncSpouses).
+    if (m.relationship === 'Spouse' && value !== 'Spouse' && m.civilFromHead) patch.civilStatus = '';
+    return patch;
+  }
+  if (field === 'dob') {
+    const age = ageFromDob(value, today);
+    const minor = age !== null && age < SINGLE_UNDER_AGE;
+    if (minor && (!m.civilStatus || m.civilFromAge)) return { civilStatus: 'Single', civilFromAge: true };
+    if (!minor && m.civilFromAge) return { civilStatus: '', civilFromAge: false };
+    return {};
+  }
+  if (field === 'civilStatus') return { civilFromAge: false };
+  return {};
+}
+
 // ---- what a member is old enough for ---------------------------------------
 
 /**
@@ -315,7 +354,7 @@ export function syncSpouses(members, source = -1) {
  * for (see clearForAge), and the wedding type only while Married, where only
  * a Catholic wedding counts as the sacrament.
  */
-export function toPayloadMember({ civilFromHead, weddingFromHead, ...rest }) {
+export function toPayloadMember({ civilFromHead, civilFromAge, weddingFromHead, ...rest }) {
   const m = clearForAge(rest);
   const named = {
     ...m,
