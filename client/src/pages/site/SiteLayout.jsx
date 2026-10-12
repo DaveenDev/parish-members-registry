@@ -1,6 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ThemePickerPopover } from '../../components/ThemePicker.jsx';
 import { Icon, IconSprite } from '../../components/site/Icons.jsx';
 import { FOOTER_CREAM, SiteToastContext } from '../../components/site/kit.jsx';
 import { usePublicData } from '../../components/site/usePublicData.js';
@@ -28,6 +27,7 @@ const TABS = [
   { to: '/simbahan', label: 'Simbahan', icon: 'church', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa') },
   { to: '/komunidad', label: 'Komunidad', icon: 'people', match: (p) => p.startsWith('/komunidad') },
   { to: '/serbisyo', label: 'Serbisyo', icon: 'grid', match: (p) => p.startsWith('/serbisyo') || p.startsWith('/kontak') },
+  { to: '/downloads', label: 'Downloads', icon: 'down', match: (p) => p.startsWith('/downloads') },
 ];
 
 const ROOTS = TABS.map((t) => t.to);
@@ -40,6 +40,7 @@ const DESK_NAV = [
   { to: '/simbahan', label: 'Ang Simbahan', short: 'Simbahan', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa') },
   { to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad') },
   { to: '/serbisyo', label: 'Mga Serbisyo', short: 'Serbisyo', match: (p) => p.startsWith('/serbisyo') },
+  { to: '/downloads', label: 'Downloads', match: (p) => p.startsWith('/downloads') },
   { to: '/kontak', label: 'Kontak', match: (p) => p.startsWith('/kontak') },
 ];
 
@@ -75,8 +76,9 @@ export function ParishMark({ size = 28, logo }) {
 
 /**
  * The public website shell, phone-first: a sticky header (parish name on the
- * five main pages, a back button and page title inside them), the Kolor theme
- * picker, and a bottom tab bar. From `lg` up the header carries the full
+ * six main pages, a back button and page title inside them) and a bottom tab
+ * bar. The colors are the parish theme the parish secretary chose (Parish
+ * Config); visitors don't pick their own. From `lg` up the header carries the full
  * navigation instead of the tab bar, inner pages get a "Balik" link under it,
  * and every page ends with the parish footer.
  */
@@ -155,7 +157,6 @@ export default function SiteLayout() {
                 <div className="flex-1 min-w-0 font-serif text-[21px] font-semibold text-parish-navy truncate">{title}</div>
               </>
             )}
-            <ThemePickerPopover align="right" label="Theme" />
           </header>
 
           {pathname !== '/' && !pathname.startsWith('/komunidad') && <CensusTicker />}
@@ -182,7 +183,7 @@ export default function SiteLayout() {
         <ToTop />
 
         <nav aria-label="Main" className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-parish-card border-t border-parish-border">
-          <div className="max-w-[560px] mx-auto h-16 grid grid-cols-5">
+          <div className="max-w-[560px] mx-auto h-16 grid grid-cols-6">
             {TABS.map((t) => {
               const on = t.match(pathname);
               return (
@@ -190,7 +191,7 @@ export default function SiteLayout() {
                   key={t.to}
                   to={t.to}
                   aria-current={on ? 'page' : undefined}
-                  className={`relative flex flex-col items-center justify-center gap-[3px] text-[11.5px] ${on ? 'text-parish-blue font-bold' : 'text-parish-text2 font-semibold'}`}
+                  className={`relative min-w-0 flex flex-col items-center justify-center gap-[3px] text-[10.5px] min-[360px]:text-[11px] min-[380px]:text-[11.5px] tracking-[-.01em] ${on ? 'text-parish-blue font-bold' : 'text-parish-text2 font-semibold'}`}
                 >
                   <span className="absolute top-0 left-[26%] right-[26%] h-[3px] rounded-b-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
                   <Icon name={t.icon} size={23} />
@@ -294,7 +295,6 @@ function DesktopHeader({ pathname, logo }) {
             );
           })}
         </nav>
-        <ThemePickerPopover align="right" label="Theme" />
       </div>
     </header>
   );

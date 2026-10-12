@@ -38,7 +38,7 @@ const RECORD_NOUNS = {
   certificate_requests: 'certificate request', sacrament_requests: 'sacrament request', blood_requests: 'blood request', blood_donors: 'blood donor',
   census_cycles: 'census',
   announcements: 'announcement', articles: 'article', bulletins: 'bulletin', events: 'event', mass_schedules: 'Mass time',
-  sacrament_guides: 'sacrament guide', history_articles: 'history page',
+  sacrament_guides: 'sacrament guide', history_articles: 'history page', songs: 'song', download_files: 'form',
   parish_settings: 'parish settings', gkks: 'GKK', ministries: 'ministry', organizations: 'organization', parish_positions: 'parish position',
   profiles: 'staff account',
 };
@@ -49,7 +49,7 @@ export const ACTIVITY_AREAS = [
   ['sacrament_verifications', 'Sacrament verifications', ['sacrament_verifications']],
   ['requests', 'Requests', ['certificate_requests', 'sacrament_requests', 'blood_requests', 'blood_donors']],
   ['census', 'Census', ['census_cycles']],
-  ['website', 'Parish website', ['announcements', 'articles', 'bulletins', 'events', 'mass_schedules', 'sacrament_guides', 'history_articles']],
+  ['website', 'Parish website', ['announcements', 'articles', 'bulletins', 'events', 'mass_schedules', 'sacrament_guides', 'history_articles', 'songs', 'download_files']],
   ['settings', 'Settings and lists', ['parish_settings', 'gkks', 'ministries', 'organizations', 'parish_positions']],
   ['staff', 'Staff accounts', ['profiles']],
   ['org_charts', 'Org charts', ['org_charts']],

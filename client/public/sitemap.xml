@@ -9,6 +9,7 @@
   <url><loc>https://guadalupe-muaan.vercel.app/komunidad</loc><changefreq>weekly</changefreq><priority>0.8</priority></url>
   <url><loc>https://guadalupe-muaan.vercel.app/komunidad/artikulo</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
   <url><loc>https://guadalupe-muaan.vercel.app/serbisyo</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
+  <url><loc>https://guadalupe-muaan.vercel.app/downloads</loc><changefreq>weekly</changefreq><priority>0.7</priority></url>
   <url><loc>https://guadalupe-muaan.vercel.app/kontak</loc><changefreq>monthly</changefreq><priority>0.8</priority></url>
   <url><loc>https://guadalupe-muaan.vercel.app/simbahan/pagbasa</loc><changefreq>daily</changefreq><priority>0.6</priority></url>
   <url><loc>https://guadalupe-muaan.vercel.app/simbahan/kasaysayan</loc><changefreq>yearly</changefreq><priority>0.6</priority></url>

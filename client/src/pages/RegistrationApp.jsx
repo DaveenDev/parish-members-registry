@@ -22,7 +22,6 @@ import MemberCensusCards, { MemberCensusReview } from '../components/MemberCensu
 import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationChecks } from '../components/MemberFields.jsx';
 import { barangayPatch, gkkBarangays, isListedBarangay } from '../lib/site.js';
 import { BarangayInput, GkkSelect, useGkkBarangayMap } from '../components/BarangayGkkFields.jsx';
-import { ThemePickerPopover } from '../components/ThemePicker.jsx';
 import ChurchEmblem from '../components/ChurchEmblem.jsx';
 
 const STEPS = ['Pamilya ug Ulo', 'Mga Miyembro', 'Mga Sakramento', 'Pag-apil', 'Pagsusi'];
@@ -608,9 +607,6 @@ function Landing({ onStart }) {
   }, []);
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
-      <div className="fixed top-4 right-4 z-40">
-        <ThemePickerPopover align="right" label="Kolor" />
-      </div>
       <div className="max-w-[560px] animate-fadeUp">
         <div data-section-id="parish-logo" className="text-parish-gold flex justify-center mb-1.5">
           {logo ? (

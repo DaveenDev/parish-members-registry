@@ -19,6 +19,8 @@ export const useOrgCharts = () => usePublicData('org-charts', () => api.publicOr
 /** One published org chart, `gkk` filling in the GKK Structure, or null. */
 export const useOrgChart = (slug, gkk = null) => usePublicData(`org-chart:${slug}:${gkk || ''}`, () => (slug ? api.publicOrgChart(slug, gkk) : null));
 export const useOffice = () => usePublicData('office', api.publicOfficeDetails);
+/** The Downloads page: { songs, files } (0096), published only. */
+export const useDownloads = () => usePublicData('downloads', api.publicDownloads);
 /** The open census, or { open: false } (also before 0013 is run). */
 export const useCensusProgress = () => usePublicData('census', () => api.publicCensusProgress().catch(() => ({ open: false })));
 /** Whether the census family portal is open (0008), for the "update your record" buttons. */

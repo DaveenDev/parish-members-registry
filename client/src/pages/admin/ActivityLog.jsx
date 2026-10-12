@@ -11,7 +11,7 @@ const TABLES = [['All', 'Everything'], ...ACTIVITY_AREAS.map(([k, l]) => [k, l])
 const AREA_TABLES = Object.fromEntries(ACTIVITY_AREAS.map(([k, , tables]) => [k, tables]));
 // Where an entry opens, for the records logged since 0076 (a request by its reference number).
 const REQUEST_TABS = { certificate_requests: '', sacrament_requests: 'sacraments', blood_requests: 'blood', blood_donors: 'blood' };
-const WEBSITE_TABS = { announcements: 'announcements', articles: 'articles', bulletins: 'bulletin', events: 'events', mass_schedules: 'mass', sacrament_guides: 'sacraments', history_articles: 'history' };
+const WEBSITE_TABS = { announcements: 'announcements', articles: 'articles', bulletins: 'bulletin', events: 'events', mass_schedules: 'mass', sacrament_guides: 'sacraments', history_articles: 'history', songs: 'downloads', download_files: 'downloads&kind=files' };
 const refOf = (label) => String(label || '').split(' · ')[0];
 const URL_DEFAULTS = { table: 'All', who: 'All', q: '', page: 1, size: 20 };
 const URL_ALLOWED = { table: TABLES.map(([k]) => k), who: ['All', 'online'], size: [10, 20, 50] };

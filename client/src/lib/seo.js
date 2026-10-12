@@ -23,7 +23,9 @@ const DESCRIPTIONS = [
   ['/serbisyo/dugo', `Blood Donor Call sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}: mga nanginahanglan og dugo ug unsaon pagtabang.`],
   ['/serbisyo/hangyo', 'Paghangyo og sertipiko o sakramento sa Our Lady of Guadalupe Quasi-Parish, Mua-an, online.'],
   ['/serbisyo', `Mga serbisyo sa parokya: sertipiko, sakramento, rehistro sa pamilya ug Blood Donor Call sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
-  ['/kontak', `Kontak, oras sa opisina ug direksyon padulong sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
+  ['/downloads/kanta', `Liriko sa kanta gikan sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
+  ['/downloads', `Mga liriko sa kanta sa Kasaulogan sa GKK ug Bible Service, ug mga porma sa GKK ug census nga ma-download gikan sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
+  ['/kontak',`Kontak, oras sa opisina ug direksyon padulong sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
 ];
 
 // Pages search engines shouldn't list: a status lookup with nothing to read.

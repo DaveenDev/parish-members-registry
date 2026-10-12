@@ -1,5 +1,39 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useTheme, MODES } from '../ThemeContext.jsx';
+import { useAuth } from '../AuthContext.jsx';
+import { useToast } from '../ToastContext.jsx';
+import { can } from '../lib/access.js';
+import { api } from '../api.js';
+
+/**
+ * Picking a theme in the admin panel. For the parish secretary (full
+ * access) it becomes the parish theme, which the public website, the
+ * registration form and every device without its own choice show; for
+ * other staff it's this device's admin panel only.
+ */
+export function useChooseTheme() {
+  const { setTheme, setParishTheme, followParishTheme, parishTheme } = useTheme();
+  const user = useAuth()?.user;
+  const toast = useToast();
+  const forParish = !!user && can(user, 'settings');
+
+  async function choose(id) {
+    if (!forParish) { setTheme(id); return; }
+    const before = parishTheme;
+    // Shown at once; put back if it can't be saved.
+    followParishTheme();
+    setParishTheme(id);
+    try {
+      const res = await api.updateSettings({ theme: id });
+      if (res.settings.theme !== id) throw new Error('Run the 0014_roles_activity_trash.sql migration in Supabase to save a parish theme');
+    } catch (e) {
+      setParishTheme(before);
+      setTheme(id);
+      toast.error(`Only this device changed: ${e.message || 'could not save the parish theme'}`);
+    }
+  }
+  return { choose, forParish };
+}
 
 /** Light / Dark / Auto segmented control for the admin panel. */
 export function ModeSwitch() {
@@ -18,9 +52,10 @@ export function ModeSwitch() {
   );
 }
 
-/** Trigger button + popover panel — used on the landing page and the admin sidebar. */
+/** Trigger button + popover panel — used in the admin sidebar. */
 export function ThemePickerPopover({ align = 'right', placement = 'down', dark = false, label = 'Theme', showMode = false }) {
-  const { theme, setTheme, themes } = useTheme();
+  const { theme, themes } = useTheme();
+  const { choose } = useChooseTheme();
   const [open, setOpen] = useState(false);
   const rootRef = useRef(null);
   const current = themes.find((t) => t.id === theme) || themes[0];
@@ -75,7 +110,7 @@ export function ThemePickerPopover({ align = 'right', placement = 'down', dark =
               <button
                 key={t.id}
                 type="button"
-                onClick={() => { setTheme(t.id); setOpen(false); }}
+                onClick={() => { choose(t.id); setOpen(false); }}
                 className="w-full flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition"
                 style={{ background: active ? 'var(--p-blue-tint)' : 'transparent' }}
               >
@@ -95,7 +130,8 @@ export function ThemePickerPopover({ align = 'right', placement = 'down', dark =
 
 /** Full labeled picker — used in Parish Config → Appearance. */
 export function ThemePickerGrid() {
-  const { theme, setTheme, themes } = useTheme();
+  const { theme, themes } = useTheme();
+  const { choose } = useChooseTheme();
   return (
     <div className="grid gap-2.5" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(190px,1fr))' }}>
       {themes.map((t) => {
@@ -104,7 +140,7 @@ export function ThemePickerGrid() {
           <button
             key={t.id}
             type="button"
-            onClick={() => setTheme(t.id)}
+            onClick={() => choose(t.id)}
             className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-left transition"
             style={{
               border: active ? '2px solid var(--p-blue)' : '2px solid rgb(var(--c-border-soft))',

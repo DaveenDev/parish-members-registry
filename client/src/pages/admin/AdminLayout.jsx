@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet, useNavigate, useLocation } from 'react-router-do
 import { useAuth } from '../../AuthContext.jsx';
 import { api } from '../../api.js';
 import { ThemePickerPopover } from '../../components/ThemePicker.jsx';
-import { useAdminColorMode } from '../../ThemeContext.jsx';
+import { useAdminColorMode, useAdminTheme } from '../../ThemeContext.jsx';
 import { PageHeader, PageBody, EmptyState, LoadingState, Panel } from '../../components/admin.jsx';
 import { PrimaryButton } from '../../components/ui.jsx';
 import CommandPalette, { useCommandPaletteShortcut } from '../../components/CommandPalette.jsx';
@@ -167,6 +167,7 @@ export default function AdminLayout() {
   const location = useLocation();
   const [drawerOpen, setDrawerOpen] = useState(false);
   useAdminColorMode();
+  useAdminTheme();
   const [parish, setParish] = useState(null);
 
   const [navCounts, setNavCounts] = useState(null);

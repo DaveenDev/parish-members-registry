@@ -12,6 +12,7 @@ import BulletinTab from '../../components/website/BulletinTab.jsx';
 import EventsTab from '../../components/website/EventsTab.jsx';
 import OfficeTab from '../../components/website/OfficeTab.jsx';
 import HistoryTab from '../../components/website/HistoryTab.jsx';
+import DownloadsTab from '../../components/website/DownloadsTab.jsx';
 
 // Ordered by how often the secretary updates each: weekly items first, the
 // office details (which almost never change) last. The first tab is also the
@@ -24,6 +25,7 @@ const TABS = [
   ['mass', 'Mass Schedule', MassScheduleTab],
   ['sacraments', 'Sacraments', SacramentGuidesTab],
   ['history', 'History', HistoryTab],
+  ['downloads', 'Downloads', DownloadsTab],
   ['office', 'Office & Contact', OfficeTab],
 ];
 
@@ -37,7 +39,7 @@ export default function Website() {
 
   return (
     <>
-      <PageHeader title="Parish Website" subtitle="Schedules, guides, news and contact details for parishioners" />
+      <PageHeader title="Parish Website" subtitle="Schedules, guides, news, downloads and contact details for parishioners" />
       <PageBody>
         {!can(user, 'editWebsite') && <ViewOnlyNote />}
         <Tabs tabs={TABS.map(([k, label]) => [k, label])} value={current[0]} onChange={setTab} />

@@ -1019,7 +1019,11 @@ function PersonalTab({ withPrivacy }) {
       <div className="flex flex-col gap-[18px] min-w-0">
         <Panel className="p-6">
           <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>
-          <div className="text-[13.5px] text-parish-muted mb-4">Choose a color theme for the registration portal and admin panel. Saved on this device.</div>
+          <div className="text-[13.5px] text-parish-muted mb-4">
+            {canEdit
+              ? 'Choose the parish color theme. The public website, the registration form and the admin panel all use it.'
+              : 'Choose a color theme for the admin panel on this device. The public website keeps the parish theme the parish office chose.'}
+          </div>
           <ThemePickerGrid />
           <ParishThemeRow canEdit={canEdit} onSaved={(saved) => layout?.setParish?.(saved)} />
           <div className="mt-5 flex items-center gap-3 flex-wrap">
@@ -1050,9 +1054,9 @@ function PrivacyCard() {
 }
 
 /**
- * The parish default theme: what the public site and every device that
- * hasn't picked its own theme use. Staff with full access can set it to the
- * theme chosen above.
+ * The parish theme: what the public site and every device that hasn't
+ * picked its own theme use. A full-access account's pick above sets it
+ * (useChooseTheme); the button is for a device that picked its own before.
  */
 function ParishThemeRow({ canEdit, onSaved }) {
   const toast = useToast();
@@ -1066,6 +1070,7 @@ function ParishThemeRow({ canEdit, onSaved }) {
       const res = await api.updateSettings({ theme });
       if (res.settings.theme !== theme) throw new Error('Run the 0014_roles_activity_trash.sql migration in Supabase to save a parish theme');
       setParishTheme(theme);
+      followParishTheme();
       onSaved(res.settings);
       toast.success(`${label(theme)} is now the parish theme`);
     } catch (e) {
@@ -1077,7 +1082,7 @@ function ParishThemeRow({ canEdit, onSaved }) {
 
   return (
     <div className="mt-4 flex items-center gap-3 flex-wrap text-[13px] text-parish-text2">
-      <span>Parish theme: <strong className="text-parish-navy">{label(parishTheme)}</strong>{deviceTheme ? ' · this device uses its own choice' : ''}</span>
+      <span>Parish theme (public website): <strong className="text-parish-navy">{label(parishTheme)}</strong>{deviceTheme ? ' · this device uses its own choice' : ''}</span>
       {canEdit && theme !== (parishTheme || 'classic') && (
         <button type="button" onClick={makeDefault} disabled={busy} className="appearance-none border-none cursor-pointer px-3 py-1.5 rounded-lg bg-[var(--p-blue-tint)] font-semibold text-[12.5px] text-parish-blue disabled:opacity-60">
           {busy ? 'Saving…' : `Make ${label(theme)} the parish theme`}

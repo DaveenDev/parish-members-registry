@@ -15,6 +15,7 @@ import { ArticlesArchive } from './pages/site/Articles.jsx';
 import Serbisyo, { Kontak, Blood } from './pages/site/Serbisyo.jsx';
 import CheckStatus from './pages/site/CheckStatus.jsx';
 import RequestForm from './pages/site/RequestForm.jsx';
+import Downloads, { SongPage } from './pages/site/Downloads.jsx';
 import SiteNotFound from './pages/site/NotFound.jsx';
 import { EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail, ArticleRedirect } from './pages/site/Details.jsx';
 
@@ -110,6 +111,8 @@ export default function App() {
           <Route path="/serbisyo/susiha" element={<CheckStatus />} />
           <Route path="/serbisyo/dugo" element={<Blood />} />
           <Route path="/serbisyo/hangyo/:form" element={<RequestForm />} />
+          <Route path="/downloads" element={<Downloads />} />
+          <Route path="/downloads/kanta/:id" element={<SongPage />} />
           <Route path="/kontak" element={<Kontak />} />
           <Route path="/developer" element={<Developer />} />
           {/* A mistyped or old public link says so, instead of quietly opening Home. */}

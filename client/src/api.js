@@ -22,6 +22,7 @@ import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
 import { MEN_ONLY_FALLBACK, menOnlyBlocked, menOnlyMessage } from './lib/ministries.js';
 import { resizePhotoBlob } from './lib/images.js';
 import { gkkDocumentPath, gkkDocumentType } from './lib/gkkDocuments.js';
+import { cleanLyrics, downloadFilePath, downloadFileType } from './lib/downloads.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -1168,6 +1169,58 @@ export const api = {
     await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
   },
 
+  // The Downloads page (0096): song lyrics, and forms as files in the public downloads bucket.
+  async listSongs() {
+    return listWebsite('songs', (q) => q.order('title').order('id'), DOWNLOADS_MIGRATION);
+  },
+  saveSong: (row) => saveWebsiteRow('songs', { ...row, lyrics: cleanLyrics(row.lyrics), categories: (row.categories || []).map((c) => c.trim()).filter(Boolean) }),
+  deleteSong: (id) => deleteWebsiteRow('songs', id),
+
+  async listDownloadFiles() {
+    return listWebsite('download_files', (q) => q.order('category').order('title').order('id'), DOWNLOADS_MIGRATION);
+  },
+  /**
+   * Save a file's details; with `file`, upload it first (a new row needs
+   * one). A replaced file is deleted once the row points at the new one;
+   * the new file is removed again if the row can't be saved.
+   */
+  async saveDownloadFile(row, file = null) {
+    if (!row.id && !file) throw new Error('Choose the file to upload.');
+    let upload = null;
+    if (file) {
+      const contentType = downloadFileType(file);
+      const path = downloadFilePath(contentType, crypto.randomUUID());
+      const { error } = await supabase.storage.from(DOWNLOADS_BUCKET).upload(path, file, { contentType, upsert: false });
+      if (error) {
+        if (/bucket not found/i.test(error.message || '')) throw new Error(`Run the ${DOWNLOADS_MIGRATION} migration in Supabase to upload forms`);
+        throw new Error(/row-level security|unauthorized/i.test(error.message || '') ? "Your account can't upload files for the website" : error.message || 'Could not upload the file');
+      }
+      upload = { file_path: path, file_name: file.name.slice(0, 255), content_type: contentType, size_bytes: file.size };
+    }
+    try {
+      const { id, title, category, description, published } = row;
+      const saved = await saveWebsiteRow('download_files', { id, title, category: (category || '').trim(), description, published, ...upload });
+      if (upload && row.file_path) await supabase.storage.from(DOWNLOADS_BUCKET).remove([row.file_path]).catch(() => {});
+      return saved;
+    } catch (e) {
+      if (upload) await supabase.storage.from(DOWNLOADS_BUCKET).remove([upload.file_path]).catch(() => {});
+      throw e;
+    }
+  },
+  /** Delete the row, then its file. */
+  async deleteDownloadFile(id) {
+    const { data: row } = await supabase.from('download_files').select('file_path').eq('id', id).maybeSingle();
+    await deleteWebsiteRow('download_files', id);
+    if (row?.file_path) {
+      const { error } = await supabase.storage.from(DOWNLOADS_BUCKET).remove([row.file_path]);
+      if (error) throw new Error(`The form was taken off the list, but its file could not be deleted: ${error.message}`);
+    }
+  },
+  /** A file's public link; `download` saves it under its own name instead of opening it. */
+  downloadFileUrl(row, { download = false } = {}) {
+    return supabase.storage.from(DOWNLOADS_BUCKET).getPublicUrl(row.file_path, download ? { download: row.file_name } : undefined).data.publicUrl;
+  },
+
   // Article photos and event covers on Cloudflare R2, through the media-upload Edge Function.
   /**
    * After saving an article or event, rename its photos on R2 to readable
@@ -1343,6 +1396,14 @@ export const api = {
   async publicHistory() {
     const rows = await listPublished('history_articles', (q) => q.order('year', { nullsFirst: true }).order('id')).catch(() => []);
     return { main: rows.find((r) => r.is_main) || null, chapters: rows.filter((r) => !r.is_main) };
+  },
+  /** The Downloads page (0096): { songs, files }, published only; empty lists before the migration is run. */
+  async publicDownloads() {
+    const [songs, files] = await Promise.all([
+      listPublished('songs', (q) => q.order('title').order('id'), { missingAsEmpty: true }),
+      listPublished('download_files', (q) => q.order('category').order('title').order('id'), { missingAsEmpty: true }),
+    ]);
+    return { songs, files };
   },
   /** One published item by id (for shared links to an event, announcement, bulletin or article), or null. */
   async publicItem(table, id) {
@@ -2428,7 +2489,10 @@ export const api = {
 
 const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'secretary_messenger'];
 
-const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles', 'history_articles'];
+const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles', 'history_articles', 'songs', 'download_files'];
+
+const DOWNLOADS_BUCKET = 'downloads';
+const DOWNLOADS_MIGRATION = '0096_downloads.sql';
 
 const GKK_DETAIL_FIELDS = ['barangay', 'puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'previous_families', 'history', 'history_photos', 'history_published', 'photo_url', 'photos'];
 
@@ -2465,8 +2529,10 @@ function todayLocal() {
 }
 
 /** Published rows of a website content table, for the public site. */
-async function listPublished(table, order) {
+async function listPublished(table, order, { missingAsEmpty = false } = {}) {
   const { data, error } = await order(supabase.from(table).select('*').eq('published', true));
+  // A table whose migration hasn't been run yet: nothing published.
+  if (missingAsEmpty && ['42P01', 'PGRST205'].includes(error?.code)) return [];
   if (error) throw mapError(error);
   // Text pasted from Facebook often uses "bold" math letters the site's fonts can't draw.
   return (data || []).map((row) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, plainLetters(v)])));

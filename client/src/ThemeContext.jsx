@@ -12,6 +12,9 @@ export const THEMES = [
 
 const DEFAULT_THEME = 'classic';
 const STORAGE_KEY = 'pmr_theme';
+// The parish theme as last loaded, so a page opens in it instead of
+// flashing Gold & Navy while it loads again.
+const PARISH_KEY = 'pmr_parish_theme';
 const MODE_KEY = 'pmr_mode';
 export const MODES = [['light', 'Light'], ['dark', 'Dark'], ['system', 'Auto']];
 
@@ -21,33 +24,45 @@ const ThemeContext = createContext(null);
 const read = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
 const write = (key, value) => { try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* not saved */ } };
 const isTheme = (id) => THEMES.some((t) => t.id === id);
+const saved = (key) => (isTheme(read(key)) ? read(key) : null);
 
 /**
- * Color theme and light/dark mode. The theme is the one chosen on this
- * device, else the parish default from Parish Config (0014 migration), else
- * Gold & Navy. Dark mode only applies inside the admin panel, which calls
- * useAdminColorMode(); the public pages stay light.
+ * Color theme and light/dark mode. The public website, the registration
+ * form and the census portal always show the parish theme (Parish Config,
+ * 0014 migration): the one the parish secretary (full access) picked, else
+ * Gold & Navy. Inside the admin panel, which calls useAdminTheme(), another
+ * staff member may pick their own theme for this device. Dark mode only
+ * applies inside the admin panel too (useAdminColorMode()).
  */
 export function ThemeProvider({ children }) {
-  const [deviceTheme, setDeviceTheme] = useState(() => (isTheme(read(STORAGE_KEY)) ? read(STORAGE_KEY) : null));
-  const [parishTheme, setParishTheme] = useState(null);
+  const [deviceTheme, setDeviceTheme] = useState(() => saved(STORAGE_KEY));
+  const [parishTheme, setParishThemeState] = useState(() => saved(PARISH_KEY));
+  const [inAdmin, setInAdmin] = useState(false);
   const [mode, setModeState] = useState(() => (MODES.some(([k]) => k === read(MODE_KEY)) ? read(MODE_KEY) : 'light'));
+  // What this account sees in the admin panel (and the pickers show as chosen).
   const theme = deviceTheme || parishTheme || DEFAULT_THEME;
+  const shown = inAdmin ? theme : parishTheme || DEFAULT_THEME;
+
+  function setParishTheme(id) {
+    const next = isTheme(id) ? id : null;
+    write(PARISH_KEY, next);
+    setParishThemeState(next);
+  }
 
   useEffect(() => {
-    api.publicParishTheme().then((t) => { if (isTheme(t)) setParishTheme(t); }).catch(() => {});
+    api.publicParishTheme().then(setParishTheme).catch(() => {});
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
+    document.documentElement.setAttribute('data-theme', shown);
+  }, [shown]);
 
   function setTheme(id) {
     if (!isTheme(id)) return;
     write(STORAGE_KEY, id);
     setDeviceTheme(id);
   }
-  /** Forget this device's choice and follow the parish default again. */
+  /** Forget this device's choice and follow the parish theme again. */
   function followParishTheme() {
     write(STORAGE_KEY, null);
     setDeviceTheme(null);
@@ -58,7 +73,7 @@ export function ThemeProvider({ children }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, themes: THEMES, deviceTheme, parishTheme, setParishTheme, followParishTheme, mode, setMode }}>
+    <ThemeContext.Provider value={{ theme, setTheme, themes: THEMES, deviceTheme, parishTheme, setParishTheme, followParishTheme, setInAdmin, mode, setMode }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -66,6 +81,15 @@ export function ThemeProvider({ children }) {
 
 export function useTheme() {
   return useContext(ThemeContext);
+}
+
+/** Show this device's own theme, if it picked one, while the calling component (the admin layout) is mounted. */
+export function useAdminTheme() {
+  const { setInAdmin } = useTheme();
+  useEffect(() => {
+    setInAdmin(true);
+    return () => setInAdmin(false);
+  }, [setInAdmin]);
 }
 
 /** Apply the chosen light/dark mode to <html> while the calling component (the admin layout) is mounted. */
