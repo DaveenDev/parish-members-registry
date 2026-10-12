@@ -75,8 +75,11 @@ export default function Households() {
   // (filtered to it, or a GKK leader's own), until staff sort by a column:
   // then it's one list in that order, with a link back to the groups.
   const sortedByHand = sort !== URL_DEFAULTS.sort || !!url.dir;
+  // A GKK leader also sees the households with no GKK (0093), to take them in.
+  const mine = leaderGkk(user);
+  const notMine = (h) => !!mine && h.gkk !== mine;
   // "No assigned GKK" groups by GKK too, so each old GKK name has its heading.
-  const groupBy = (gkk === 'All' || gkk === NO_GKK) && !leaderGkk(user) ? 'gkk' : 'family_grouping';
+  const groupBy = gkk === NO_GKK || (gkk === 'All' && !mine) ? 'gkk' : 'family_grouping';
   const groupKey = status === 'Pending' || sortedByHand ? null : groupBy;
 
   // Opened without a tab in the link: start on the queue, but go straight to
@@ -294,9 +297,28 @@ export default function Households() {
     }
   }
 
+  /** A GKK leader takes a household with no GKK into theirs (0093). */
+  async function moveToMine(h) {
+    const ok = await confirm({
+      title: `Move ${h.household_name} to ${mine}?`,
+      message: `The household and its ${h.member_count} member(s) become part of ${mine}. Only staff with full access can move it out again.`,
+      confirmLabel: `Move to ${mine}`,
+    });
+    if (!ok) return;
+    try {
+      await api.updateHousehold(h.id, { gkk: mine });
+      toast.success(`${h.household_name} is now in ${mine}`);
+      changed();
+    } catch (e) {
+      toast.error(e.message || 'Could not move the household');
+    }
+  }
+
   const rowActions = (h) => [
+    canEdit && notMine(h) && { label: `Move to ${mine}`, onClick: () => moveToMine(h) },
     { label: 'Print record', onClick: () => print([h]) },
-    can(user, 'censusCodes') && { label: 'Get codes', onClick: () => setCodesFor(h) },
+    // Census codes are the household's GKK's to give (0023).
+    can(user, 'censusCodes') && !notMine(h) && { label: 'Get codes', onClick: () => setCodesFor(h) },
     canDelete && { label: 'Delete household', tone: 'danger', onClick: () => removeHousehold(h) },
   ];
 
@@ -323,15 +345,15 @@ export default function Households() {
 
   return (
     <>
-      <PageHeader title="Households" subtitle={leaderGkk(user) ? `The registered families of ${leaderGkk(user)}` : 'All registered families'}>
+      <PageHeader title="Households" subtitle={mine ? `The registered families of ${mine}, and those with no GKK yet` : 'All registered families'}>
         {/* The pairs of possible duplicates aren't filtered. */}
         {!duplicatesTab && (
           <>
             <FilterSelect value={gkk} onChange={(e) => setUrl({ gkk: e.target.value })} aria-label="Filter by GKK">
               <option value="All">All GKKs</option>
               {gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
-              {/* A GKK leader's households are all in their GKK. */}
-              {!leaderGkk(user) && <option value={NO_GKK}>No assigned GKK</option>}
+              {/* For a GKK leader, the households they could take in (0093). */}
+              <option value={NO_GKK}>No assigned GKK</option>
             </FilterSelect>
             <SearchInput placeholder="Search household, member, address, ref no…" aria-label="Search households or members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
           </>
@@ -453,7 +475,8 @@ export default function Households() {
                             </button>
                           </td>
                           <td className="px-4 py-3.5 text-[13.5px] text-parish-text3 whitespace-nowrap">
-                            {h.gkk || '—'}<div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div>
+                            {h.gkk || '—'}{notMine(h) && <span className="block mt-1"><Badge tone="red" title="This household has no GKK. Move it to yours if the family belongs there.">No GKK</Badge></span>}
+                            <div className="text-[12px] text-parish-muted">{h.family_grouping || '—'}</div>
                             <div className="xl:hidden text-[12px] text-parish-muted mt-1" title={fmtDateTime(h.created_at)}>registered {daysAgo(h.created_at)}</div>
                           </td>
                           <td className="px-4 py-3.5 text-[14px] text-parish-text2 whitespace-nowrap">{h.family_count > 1 && <span className="block mb-1"><Badge tone="gold">{h.family_count} families</Badge></span>}{h.member_count} member(s)</td>
@@ -511,6 +534,7 @@ export default function Households() {
                       <button onClick={() => toggleExpand(h.id)} aria-expanded={!!expanded[h.id]} className="appearance-none border-none bg-transparent p-0 cursor-pointer text-left min-w-0 flex-1">
                         <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
                         <span className="block text-[12.5px] text-parish-text2 mt-0.5">
+                          {notMine(h) && <><Badge tone="red">No GKK</Badge>{' '}</>}
                           {h.family_count > 1 && <><Badge tone="gold">{h.family_count} families</Badge>{' '}</>}
                           {[h.head_name && `Head: ${h.head_name}`, `${h.member_count} member(s)`].filter(Boolean).join(' · ')}
                         </span>

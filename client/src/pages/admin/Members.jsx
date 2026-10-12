@@ -191,7 +191,7 @@ export default function Members() {
 
   return (
     <>
-      <PageHeader title="Members" subtitle={leaderGkk(user) ? `Every registered member of ${leaderGkk(user)}` : 'Every registered parishioner, grouped by GKK'}>
+      <PageHeader title="Members" subtitle={leaderGkk(user) ? `Every registered member of ${leaderGkk(user)}, and those in households with no GKK yet` : 'Every registered parishioner, grouped by GKK'}>
         {/* The possible duplicates aren't searched. */}
         {!duplicatesTab && <SearchInput placeholder="Search name, household, contact…" aria-label="Search members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />}
       </PageHeader>

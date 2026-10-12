@@ -264,6 +264,8 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
               <Field label="Parish GKK">
                 <Select value={form.gkk} onChange={set('gkk')}>
                   <option value="">Select…</option>{gkkOptions.map((g) => <option key={g} value={g}>{g}</option>)}
+                  {/* An old name no longer in the GKK list stays as it is until changed. */}
+                  {form.gkk && !gkkOptions.includes(form.gkk) && <option value={form.gkk}>{form.gkk} (not in the GKK list)</option>}
                 </Select>
               </Field>
               <Field label="Family Grouping"><FamilyGroupingSelect value={form.family_grouping} onChange={(v) => setForm((f) => ({ ...f, family_grouping: v }))} /></Field>
