@@ -103,7 +103,7 @@ export default function Home() {
 
       <CensusNotice />
 
-      {/* A full-width navy band under the census notice (the hero when none is open), for the news. */}
+      {/* A full-width navy band under the census notice (the hero when none is open), for the news and today's Masses. */}
       <div className="pb-7 bg-parish-navy lg:py-12">
       {/* Desktop: announcements and events half and half, in one grid
           (lg:contents) so both sides share a height: up to two announcement
@@ -142,14 +142,15 @@ export default function Home() {
         </div>
       </section>
       </div>
-      </div>
 
-      <section className="px-3.5 pt-[22px] lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-11">
+      {/* Today's Masses: the band's last row, under the news. */}
+      <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-10">
         <MassToday mass={mass} />
       </section>
+      </div>
 
       {/* Pulong sa Dios: a random Bible verse with what the Catechism teaches
-          about it, under today's Masses. */}
+          about it, under the news band. */}
       <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12">
         <VerseOfDay />
       </section>
@@ -243,32 +244,34 @@ function CensusNotice() {
   );
 }
 
-/** Today's remaining Masses: a card under the news band, the Masses side by side on desktop. */
+/**
+ * Today's remaining Masses, in the navy news band: a white heading like the
+ * news above it, then a card with the Masses side by side on desktop.
+ */
 function MassToday({ mass }) {
   const now = new Date();
   const todays = upcomingToday(mass.rows, now);
   const anyToday = mass.rows.some((r) => r.day_of_week === now.getDay());
   return (
-    <Card className="p-4 shadow-card lg:p-[22px] lg:rounded-[22px]">
-      <div className="flex items-baseline justify-between gap-2 mb-2.5 lg:mb-3">
-        <h2 className="font-serif font-semibold text-[23px] lg:text-[27px] m-0 text-parish-navy">Misa karong adlawa</h2>
-        <span className="font-semibold text-[13px] lg:text-[14px] text-parish-text2">{fmtDayMonth(todayIso())}</span>
-      </div>
-      {mass.loading ? <Skeletons n={2} h={52} /> : mass.error ? (
-        <ErrorNote onRetry={mass.reload}>Wala ma-load ang iskedyul.</ErrorNote>
-      ) : !todays.length ? (
-        <p className="mt-1 text-parish-text2 text-[15px] lg:text-[16px]">
-          {anyToday ? 'Nahuman na ang mga Misa karong adlawa.' : 'Walay Misa nga naka-iskedyul karong adlawa.'}
-        </p>
-      ) : (
-        <div className="flex flex-col gap-1.5 lg:grid lg:grid-cols-3 lg:gap-2">
-          {todays.map((m) => <MassRow key={m.id} m={m} compact />)}
+    <>
+      <SectionHead dark title="Upcoming Mass Scheduled" to="/simbahan" action="Iskedyul" actionLg="Tibuok iskedyul sa semana →" />
+      <Card className="p-4 shadow-card lg:p-[22px] lg:rounded-[22px]">
+        <div className="font-bold text-[12px] lg:text-[12.5px] tracking-[.14em] uppercase text-[var(--p-eyebrow)] mb-2 lg:mb-2.5">
+          Karong adlawa · {fmtDayMonth(todayIso())}
         </div>
-      )}
-      <Link to="/simbahan" className="min-h-[44px] mt-1.5 lg:mt-2 px-0.5 inline-flex items-center gap-1 font-bold text-[15px] lg:text-[15.5px] text-parish-blue hover:text-parish-blueDeep">
-        Tibuok iskedyul sa semana<Icon name="chev" size={16} />
-      </Link>
-    </Card>
+        {mass.loading ? <Skeletons n={2} h={52} /> : mass.error ? (
+          <ErrorNote onRetry={mass.reload}>Wala ma-load ang iskedyul.</ErrorNote>
+        ) : !todays.length ? (
+          <p className="m-0 text-parish-text2 text-[15px] lg:text-[16px]">
+            {anyToday ? 'Nahuman na ang mga Misa karong adlawa.' : 'Walay Misa nga naka-iskedyul karong adlawa.'}
+          </p>
+        ) : (
+          <div className="flex flex-col gap-1.5 lg:grid lg:grid-cols-3 lg:gap-2">
+            {todays.map((m) => <MassRow key={m.id} m={m} compact />)}
+          </div>
+        )}
+      </Card>
+    </>
   );
 }
 
