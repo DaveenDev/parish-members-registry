@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { SearchInput, ErrorState, LoadingState, Panel, ActionMenu, TAB_BAR, tabClass } from './admin.jsx';
-import { GKK_ATTENTION, attentionCounts, filterByAttention, gkkProgress, gkkFamilyProgress } from '../lib/gkkAdmin.js';
+import { GKK_ATTENTION, attentionCounts, censusColumnNote, censusWords, filterByAttention, gkkProgress, gkkFamilyProgress } from '../lib/gkkAdmin.js';
 import { useClientList } from '../hooks.js';
 import { Field, FlagEmptyRequired, GhostButton, TextInput } from './ui.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
@@ -15,7 +15,7 @@ import { ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProble
 
 // Desktop columns: name (with its reference code), chapel, year, households, census progress, actions.
 // The puroks are in the GKK's panel and the search; a column for them squeezed the names.
-const COLS = 'lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_56px_84px_150px_110px] lg:gap-4'; // a fixed actions column keeps the headings over their values
+const COLS = 'lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_56px_84px_170px_110px] lg:gap-4'; // a fixed actions column keeps the headings over their values
 // A parish has a few dozen GKKs at most: they all show on one page.
 const ALL_GKKS = 1000;
 const missingAddress = (g) => !String(g.chapel_address || '').trim();
@@ -25,31 +25,54 @@ const barangayOfRow = (g) => String(g.barangay || '').trim() || gkkParts(g.name)
 const householdsPath = (gkk) => `/admin/households?status=All&gkk=${encodeURIComponent(gkk)}`;
 const websitePath = (name) => `/komunidad/gkk/${encodeURIComponent(name)}`;
 
-/** A GKK's families registered of last year (0079), under its households progress; nothing without a families baseline. */
-function FamilyProgress({ p }) {
+/**
+ * A GKK's families (0079) under its households: "2 of 10 families · 20%";
+ * nothing without a families baseline. `words` from censusWords().
+ */
+function FamilyProgress({ p, words }) {
   if (!p) return null;
   return (
-    <span className="block text-[12px] text-parish-muted whitespace-nowrap mt-0.5" title={`${p.notYet} of last year's ${p.of} family(ies) not yet registered`}>
-      Families <strong className="text-parish-text2">{p.done}</strong> / {p.of} · {p.pct}%
+    <span className="block text-[12px] text-parish-muted whitespace-nowrap mt-0.5" title={`${p.done} of the ${p.of} families ${words.baseline} have ${words.verb}; ${p.notYet} not yet`}>
+      <strong className="text-parish-text2">{p.done}</strong> of {p.of} {p.of === 1 ? 'family' : 'families'} · {p.pct}%
     </span>
   );
 }
 
-/** A GKK's census progress, as the Census page counts it: done / last year, with a bar. */
-function Progress({ p, compact = false }) {
+/**
+ * A GKK's census progress, as the Census page counts it: "3 of 45
+ * households" that answered (or registered), a bar with the percentage, and
+ * how many haven't yet. `words` from censusWords() says against what.
+ */
+function Progress({ p, words, compact = false }) {
   if (!p) return <span className="text-parish-faint">—</span>;
-  if (p.of == null) return <span className="text-[12.5px] text-parish-muted">{p.registered} registered · no baseline</span>;
-  const done = p.pct >= 100;
-  return (
-    <span className="flex flex-col gap-1 min-w-0" title={`${p.notYet} of last year's ${p.of} household(s) not yet registered${p.fromList ? " (from last year's list)" : ''}`}>
-      <span className="text-[12.5px] text-parish-text2 whitespace-nowrap">
-        <strong className="text-parish-navy">{p.done}</strong> / {p.of} · {p.pct}%{compact && ' registered'}
+  if (p.of == null) {
+    return (
+      <span className="text-[12.5px] text-parish-muted" title="No count from last year to compare with: add it in the GKK's panel (Households last year)">
+        <strong className="text-parish-text2">{p.registered}</strong> {p.registered === 1 ? 'household' : 'households'} {words.verb} · nothing to compare with
       </span>
-      {!compact && (
-        <span className="block h-1.5 rounded-full bg-parish-sunk overflow-hidden" aria-hidden>
-          <span className="block h-full rounded-full" style={{ width: `${p.pct}%`, background: done ? '#3a8a5e' : 'var(--p-blue)' }} />
+    );
+  }
+  const done = p.pct >= 100;
+  const tip = `${p.done} of the ${p.of} ${p.of === 1 ? 'household' : 'households'} ${words.baseline} have ${words.verb}; ${p.notYet} not yet`;
+  if (compact) {
+    return (
+      <span className="block text-[12.5px] text-parish-text2" title={tip}>
+        Census: <strong className="text-parish-navy">{p.done}</strong> of {p.of} {p.of === 1 ? 'household' : 'households'} {words.verb} ({p.pct}%){p.notYet > 0 && `, ${p.notYet} not yet`}
+      </span>
+    );
+  }
+  return (
+    <span className="flex flex-col gap-1 min-w-0" title={tip}>
+      <span className="text-[12.5px] text-parish-text2 whitespace-nowrap">
+        <strong className="text-parish-navy">{p.done}</strong> of {p.of} {p.of === 1 ? 'household' : 'households'}
+      </span>
+      <span className="flex items-center gap-2">
+        <span className="flex-1 block h-1.5 rounded-full bg-parish-sunk overflow-hidden" aria-hidden>
+          <span className="block h-full rounded-full" style={{ width: `${Math.min(100, p.pct)}%`, background: done ? '#3a8a5e' : 'var(--p-blue)' }} />
         </span>
-      )}
+        <span className={`text-[12px] font-semibold ${done ? 'text-parish-ok' : 'text-parish-text2'}`}>{p.pct}%</span>
+      </span>
+      <span className="text-[12px] text-parish-muted whitespace-nowrap">{done ? `all ${words.verb}` : `${p.notYet} not yet ${words.verb}`}</span>
     </span>
   );
 }
@@ -120,9 +143,12 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
       .catch((e) => setLoadError(e.message || 'Could not load the GKKs'))
       .finally(() => setLoading(false));
     // The open census (or the latest), measured the way the Census page measures it.
+    // Kept with its census, whose name the note above the table gives.
     api.listCensusCycles()
-      .then((cycles) => api.censusVsLastYear(cycles.find((c) => c.status === 'Open') || cycles[0] || null, cycles))
-      .then((res) => setProgress(res))
+      .then(async (cycles) => {
+        const cycle = cycles.find((c) => c.status === 'Open') || cycles[0] || null;
+        setProgress({ ...await api.censusVsLastYear(cycle, cycles), cycle });
+      })
       .catch(() => setProgress(null));
     api.gkkStructureStates().then(setStructures).catch(() => {});
     // Listing also gives a code to each new barangay.
@@ -209,15 +235,27 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
           <SearchInput placeholder="Search GKKs, chapels or puroks…" aria-label="Search GKKs" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
         </div>
       )}
+      {/* What the Census figures count, and against what, once for the whole list. */}
+      {list.rows.length > 0 && progress && (
+        <p className="m-0 mb-2.5 flex items-start gap-2 text-[13px] text-parish-text2">
+          <span aria-hidden className="mt-[3px] w-3.5 h-1.5 flex-none rounded-full bg-[var(--p-blue)]" />
+          <span>
+            <strong className="font-semibold text-parish-navy">Census column</strong>: {censusColumnNote(progress, progress.cycle)}
+            {' '}<Link to="/admin/census" className="font-semibold text-parish-blue hover:underline whitespace-nowrap">Open the Census page</Link>
+          </span>
+        </p>
+      )}
       {list.rows.length > 0 && (
         <div className={`hidden lg:grid ${COLS} px-3.5 pb-2 font-semibold text-[11.5px] tracking-wide uppercase text-parish-muted`}>
-          <span>GKK</span><span>Chapel address</span><span>Est.</span><span>Households</span><span>Census</span><span />
+          <span>GKK</span><span>Chapel address</span><span>Est.</span><span>Households</span>
+          <span title={progress ? censusColumnNote(progress, progress.cycle) : undefined}>Census progress</span><span />
         </div>
       )}
       <div className="flex flex-col gap-2">
         {list.rows.map((g) => {
           const p = gkkProgress(progress?.rows, g.name);
           const fp = gkkFamilyProgress(progress?.families, g.name);
+          const words = censusWords(progress);
           const brgy = barangayOfRow(g);
           const info = [brgy && `Brgy. ${brgy}`, g.puroks, g.year_established && `Est. ${g.year_established}`].filter(Boolean).join(' · ');
           // The GKK's households: the Households page filtered to it, every status.
@@ -245,7 +283,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
                   {missingAddress(g) ? <span className="font-semibold text-[#c2410c]">Chapel address missing</span> : `Chapel: ${g.chapel_address}`}{info && ` · ${info}`}
                   {' · '}{householdsLink(`${g.count} household(s)`)}
                 </div>
-                <div className="lg:hidden mt-0.5"><Progress p={p} compact /><FamilyProgress p={fp} /></div>
+                <div className="lg:hidden mt-0.5"><Progress p={p} words={words} compact /><FamilyProgress p={fp} words={words} /></div>
                 {g.history_published
                   ? <div className="text-[12px] text-parish-muted">History on the website</div>
                   : (String(g.history || '').trim() || (g.history_photos || []).length > 0) && <div className="text-[12px] font-semibold text-[#c2410c]">History draft, not published</div>}
@@ -256,7 +294,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
               <span className="hidden lg:block text-[13.5px] text-parish-text2 min-w-0 break-words">{missingAddress(g) ? missing : g.chapel_address}</span>
               <span className="hidden lg:block text-[13.5px] text-parish-text2">{g.year_established || dash}</span>
               <span className="hidden lg:block text-[13.5px]">{householdsLink(g.count, 'inline-block min-w-[28px] px-1 -mx-1 rounded')}</span>
-              <span className="hidden lg:block min-w-0"><Progress p={p} /><FamilyProgress p={fp} /></span>
+              <span className="hidden lg:block min-w-0"><Progress p={p} words={words} /><FamilyProgress p={fp} words={words} /></span>
               <div className="flex items-center gap-2 lg:justify-end">
                 <RowButton onClick={() => open(g)} className="px-3.5 py-2">Edit</RowButton>
                 <ActionMenu

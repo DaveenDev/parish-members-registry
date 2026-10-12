@@ -46,3 +46,29 @@ export function gkkProgress(progressRows, name) {
   if (r.lastYear == null) return { registered: r.registered || 0 };
   return { done: r.lastYear - r.notYet, of: r.lastYear, pct: r.pct, notYet: r.notYet, fromList: !!r.fromList };
 }
+
+/**
+ * What the Census column measures, in words, from api.censusVsLastYear()'s
+ * `mode` and `previous`: the verb for a household counted ("answered" the
+ * census, or "registered" in the registry) and what it's counted out of.
+ */
+export function censusWords(res) {
+  if (res?.mode === 'census') {
+    return { verb: 'answered', baseline: res.previous ? `that answered the ${res.previous.label}` : 'from the census before' };
+  }
+  return { verb: 'registered', baseline: res?.mode === 'count' ? 'counted last year (Last year in the GKK panel)' : "on last year's list" };
+}
+
+/**
+ * The sentence above the Parish GKK table that says what the Census column
+ * shows, e.g. "2026 Census: households (and families) that answered it, out
+ * of those that answered the 2025 Census." '' while nothing is loaded.
+ */
+export function censusColumnNote(res, cycle) {
+  if (!res) return '';
+  const { verb, baseline } = censusWords(res);
+  const name = cycle?.label || 'The census';
+  const fam = res.families?.hasBaseline ? ' (and families)' : '';
+  if (!res.hasBaseline) return `${name}: households ${verb} so far. No GKK has a count from last year to compare with yet.`;
+  return `${name}: households${fam} ${verb === 'answered' ? 'that answered it' : 'registered in the registry'}, out of those ${baseline}.`;
+}

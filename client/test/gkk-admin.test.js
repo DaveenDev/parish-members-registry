@@ -1,7 +1,7 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { attentionCounts, filterByAttention, gkkProgress, gkkFamilyProgress } from '../src/lib/gkkAdmin.js';
+import { attentionCounts, censusColumnNote, censusWords, filterByAttention, gkkProgress, gkkFamilyProgress } from '../src/lib/gkkAdmin.js';
 
 describe('gkkFamilyProgress (0079)', () => {
   const families = { rows: [{ label: 'A', lastYear: 15, notYet: 3, pct: 80, registered: 12 }, { label: 'B', lastYear: null, notYet: null, pct: null, registered: 4 }] };
@@ -53,5 +53,26 @@ describe('gkkProgress', () => {
   test('no row, no progress', () => {
     assert.equal(gkkProgress(progress, 'Z'), null);
     assert.equal(gkkProgress(null, 'A'), null);
+  });
+});
+
+describe('the Census column in words', () => {
+  test('the note says which census and what it is measured against', () => {
+    const cycle = { label: '2026 Census' };
+    assert.equal(
+      censusColumnNote({ mode: 'census', previous: { label: '2025 Census' }, hasBaseline: true, families: { hasBaseline: true } }, cycle),
+      '2026 Census: households (and families) that answered it, out of those that answered the 2025 Census.',
+    );
+    assert.equal(
+      censusColumnNote({ mode: 'list', hasBaseline: true }, cycle),
+      "2026 Census: households registered in the registry, out of those on last year's list.",
+    );
+    assert.match(censusColumnNote({ mode: 'count', hasBaseline: true }, null), /^The census: households registered in the registry, out of those counted last year/);
+    assert.match(censusColumnNote({ mode: 'count', hasBaseline: false }, cycle), /No GKK has a count from last year/);
+    assert.equal(censusColumnNote(null, cycle), '');
+  });
+  test('the verb follows the baseline', () => {
+    assert.equal(censusWords({ mode: 'census', previous: null }).verb, 'answered');
+    assert.equal(censusWords({ mode: 'list' }).verb, 'registered');
   });
 });
