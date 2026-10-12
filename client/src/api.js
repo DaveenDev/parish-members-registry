@@ -248,6 +248,27 @@ export const api = {
     return { ok: true };
   },
 
+  /**
+   * Save this account's setup checklist (lib/setup.js: steps marked done,
+   * "Don't show again") in its sign-in details, so it follows the person
+   * to any device. Auth then re-reads the account with it.
+   */
+  async saveSetupChecklist(saved) {
+    const { error } = await supabase.auth.updateUser({ data: { setup_checklist: { done: saved.done || [], hide: !!saved.hide } } });
+    if (error) throw mapError(error);
+    return { ok: true };
+  },
+
+  /** For the setup checklist: how many GKKs, Mass times and sacrament guides there are (null if unknown). */
+  async setupCounts() {
+    const count = async (table) => {
+      const { count: n, error } = await supabase.from(table).select('id', { count: 'exact', head: true });
+      return error ? null : n || 0;
+    };
+    const [gkks, mass, sacraments] = await Promise.all([count('gkks'), count('mass_schedules'), count('sacrament_guides')]);
+    return { gkks, mass, sacraments };
+  },
+
   // ---- households --------------------------------------------------------
   /**
    * One page of households. Filters: status, gkk, search, ids. Sort:

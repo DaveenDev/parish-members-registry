@@ -19,6 +19,7 @@ import { DEFAULT_SITE_URL, normalizeSiteUrl } from '../../lib/census.js';
 import { projectIdFromUrl } from '../../lib/database.js';
 import { markPasswordResetWorking, saveEmailSettings, sendPasswordReset } from '../../emailApi.js';
 import ChurchEmblem from '../../components/ChurchEmblem.jsx';
+import { SetupChecklistCard } from '../../components/SetupChecklist.jsx';
 
 // The logo is shrunk before it's saved (resizeLogo), so the file picked can be big.
 const MAX_LOGO_BYTES = 5 * 1024 * 1024;
@@ -1099,6 +1100,7 @@ const CONFIG_TABS = [['mygkk', 'My GKK'], ['config', 'Parish Config'], ['gkk', '
 
 export default function ParishConfig() {
   const [params, setParams] = useSearchParams();
+  const layout = useOutletContext();
   const { user } = useAuth();
   // My GKK for GKK leaders; the parish profile and GKKs for staff who may
   // change settings; Personal Settings for everyone; integrations for staff
@@ -1128,6 +1130,8 @@ export default function ParishConfig() {
         <div>
           {tabs.length > 1 && <Tabs tabs={tabs} value={tab} onChange={setTab} />}
           {tab === 'mygkk' && <MyGkk />}
+          {/* First on the tab while any setup step is still to do, even with the pop-up turned off. */}
+          {tab === 'config' && layout?.parish && <SetupChecklistCard settings={layout.parish} />}
           {tab === 'config' && <ProfileTab />}
           {tab === 'personal' && <PersonalTab withPrivacy={!show.config} />}
           {/* A GKK's name opens its GKK Config page, as its leader sees it (?open=<id>). */}

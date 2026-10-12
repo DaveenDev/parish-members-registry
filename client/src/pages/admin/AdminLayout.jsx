@@ -14,6 +14,7 @@ import { accessLabel } from '../../lib/access.js';
 import { keepServiceWorker } from '../../lib/push.js';
 import ChurchEmblem from '../../components/ChurchEmblem.jsx';
 import NavIcon from '../../components/NavIcon.jsx';
+import { SetupChecklistPopup } from '../../components/SetupChecklist.jsx';
 
 // Lets a phone add the admin panel to its Home Screen (needed on iPhone for
 // notifications). Only on admin pages, so the public website isn't offered
@@ -364,9 +365,13 @@ export default function AdminLayout() {
         {/* Pages that change parish settings (logo, name) push them back here so the sidebar updates without a reload. */}
         {/* Each admin page loads on first visit (App.jsx): the sidebar stays while it does. */}
         {allowed ? (
-          <Suspense fallback={<LoadingState label="Loading the page…" />}>
-            <Outlet context={{ parish, setParish, requestCounts, navCounts, refreshRequestCounts: refreshNavCounts, refreshNavCounts, bell }} />
-          </Suspense>
+          <>
+            <Suspense fallback={<LoadingState label="Loading the page…" />}>
+              <Outlet context={{ parish, setParish, requestCounts, navCounts, refreshRequestCounts: refreshNavCounts, refreshNavCounts, bell }} />
+            </Suspense>
+            {/* Once a day while the parish settings aren't all set up (lib/setup.js). */}
+            {parish && <SetupChecklistPopup settings={parish} />}
+          </>
         ) : user?.access === 'none' ? (
           <WaitingForAccess email={user.email} onSignOut={onLogout} />
         ) : (

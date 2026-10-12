@@ -33,6 +33,8 @@ async function loadProfile(session, { recheck = false } = {}) {
     // Set by a staff admin on a new account or a password reset (manage-staff);
     // RequireAuth keeps the person on the change-password screen until it's cleared.
     mustChangePassword: !!session.user.user_metadata?.must_change_password,
+    // The setup checklist's marks and "Don't show again" (lib/setup.js).
+    setupChecklist: session.user.user_metadata?.setup_checklist || null,
   };
 }
 
