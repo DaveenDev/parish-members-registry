@@ -146,10 +146,15 @@ export default function Households() {
   useEffect(() => { setSelected(new Set()); }, [status, gkk, debouncedSearch, sort, dir, page, pageSize]);
   useEffect(() => { api.listGkks().then((res) => setGkkOptions(res.rows.map((r) => r.name))).catch(() => {}); }, []);
 
+  // Every sort staff choose is written with its direction, so choosing
+  // Registered (the default order) also lists the households in that order
+  // instead of putting the groups back; "Group by … again" clears it.
   function setSort(key) {
-    if (key === sort) setUrl({ dir: dir === 'asc' ? 'desc' : 'asc' });
-    else setUrl({ sort: key, dir: '' });
+    // The column already sorting the list flips; from the groups, it starts in its usual order.
+    if (key === sort && !groupKey) setUrl({ dir: dir === 'asc' ? 'desc' : 'asc' });
+    else setUrl({ sort: key, dir: defaultDir(key) });
   }
+  const regroup = () => setUrl({ sort: URL_DEFAULTS.sort, dir: '' });
 
   async function toggleExpand(id) {
     const isOpening = !expanded[id];
@@ -323,7 +328,8 @@ export default function Households() {
   ];
 
   const sortHeader = (key, label, extra = '') => {
-    const active = sort === key;
+    // While grouped, no column shows as the sort: clicking any one sorts by it.
+    const active = !groupKey && sort === key;
     return (
       <th scope="col" aria-sort={active ? (dir === 'asc' ? 'ascending' : 'descending') : 'none'} className={`text-left px-4 py-3.5 whitespace-nowrap ${extra}`}>
         <button type="button" onClick={() => setSort(key)} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-bold text-[12px] tracking-wide uppercase text-parish-text2">
@@ -398,11 +404,18 @@ export default function Households() {
           <div className="text-[13px] text-parish-muted">{total} household(s)</div>
           {isFiltered && <button onClick={() => setUrl({ gkk: 'All', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">Clear</button>}
           {/* Phones and tablets have no column headers to click (nor small laptops a Registered one), so sorting gets its own control. */}
-          <FilterSelect aria-label="Sort by" value={sort} onChange={(e) => setSort(e.target.value)} className="xl:hidden">
+          {/* Grouped is a choice of its own, so "Sort: Registered" can be picked from it. */}
+          <FilterSelect
+            aria-label="Sort by"
+            value={groupKey ? '' : sort}
+            onChange={(e) => (e.target.value ? setUrl({ sort: e.target.value, dir: defaultDir(e.target.value) }) : regroup())}
+            className="xl:hidden"
+          >
+            {status !== 'Pending' && <option value="">Grouped by {groupBy === 'gkk' ? 'GKK' : 'Family Grouping'}</option>}
             {SORTS.map(([k, l]) => <option key={k} value={k}>Sort: {l}</option>)}
           </FilterSelect>
           {status !== 'Pending' && sortedByHand && (
-            <button onClick={() => setUrl({ sort: URL_DEFAULTS.sort, dir: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">
+            <button onClick={regroup} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">
               Group by {groupBy === 'gkk' ? 'GKK' : 'Family Grouping'} again
             </button>
           )}
