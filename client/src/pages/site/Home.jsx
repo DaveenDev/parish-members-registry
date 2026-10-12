@@ -103,13 +103,7 @@ export default function Home() {
 
       <CensusNotice />
 
-      {/* Pulong sa Dios: a random Bible verse with what the Catechism teaches
-          about it, under the census notice (under the hero when none is open). */}
-      <section className="px-3.5 py-6 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:py-11">
-        <VerseOfDay />
-      </section>
-
-      {/* A full-width navy band under the verse, for the news. */}
+      {/* A full-width navy band under the census notice (the hero when none is open), for the news. */}
       <div className="pb-7 bg-parish-navy lg:py-12">
       {/* Desktop: announcements and events half and half, in one grid
           (lg:contents) so both sides share a height: up to two announcement
@@ -152,6 +146,12 @@ export default function Home() {
 
       <section className="px-3.5 pt-[22px] lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-11">
         <MassToday mass={mass} />
+      </section>
+
+      {/* Pulong sa Dios: a random Bible verse with what the Catechism teaches
+          about it, under today's Masses. */}
+      <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12">
+        <VerseOfDay />
       </section>
 
       <ParishStats mass={mass} />
