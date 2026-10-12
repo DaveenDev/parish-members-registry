@@ -8,7 +8,7 @@ import { useToast } from '../../ToastContext.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 
-const URL_DEFAULTS = { gkk: 'All', age: 'All', blood: 'Recorded', q: '', sort: 'blood', dir: 'asc', page: 1, size: 20 };
+const URL_DEFAULTS = { gkk: 'All', age: 'All', blood: 'Recorded', q: '', sort: 'blood', dir: 'asc', page: 1, size: 10 };
 const URL_ALLOWED = {
   blood: [...BLOOD_TYPES, 'Recorded', 'Unknown'],
   age: AGE_OPTS.map(([v]) => v),
