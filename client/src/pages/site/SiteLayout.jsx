@@ -53,14 +53,17 @@ export function useSiteTitle(title) {
 
 // A page about one item (an article, event, GKK…) describes itself for search
 // engines and link previews with <PageMeta title description image />: its own
-// title in the browser tab (the header keeps its short one), its text, its photo.
+// title in the browser tab (the header keeps its short one), its text, its photo,
+// and `jsonLd`, structured data saying what it is (a song's lyrics, say).
 const MetaContext = createContext(() => {});
-export function PageMeta({ title, description, image, noindex = false }) {
+export function PageMeta({ title, description, image, noindex = false, jsonLd = null }) {
   const set = useContext(MetaContext);
+  // By its text, so a new object with the same data doesn't set it again.
+  const ld = jsonLd ? JSON.stringify(jsonLd) : '';
   useEffect(() => {
-    set({ title, description, image, noindex });
+    set({ title, description, image, noindex, jsonLd: ld ? JSON.parse(ld) : null });
     return () => set(null);
-  }, [set, title, description, image, noindex]);
+  }, [set, title, description, image, noindex, ld]);
   return null;
 }
 
@@ -117,11 +120,11 @@ export default function SiteLayout() {
       url: canonicalUrl(origin, pathname),
       image: pageMeta?.image ? new URL(pageMeta.image, origin).href : null,
       noindex: !!pageMeta?.noindex || pageNoindex(pathname),
-      jsonLd: pathname === '/' ? parishJsonLd({
+      jsonLd: pageMeta?.jsonLd || (pathname === '/' ? parishJsonLd({
         name: `${PARISH_NAME} Quasi-Parish`, url: `${origin}/`, logo: logo && new URL(logo, origin).href,
         address: o.address || PARISH_ADDRESS, coords: validCoords(o.latitude, o.longitude) ? o : PARISH_COORDS,
         mapUrl: o.map_url || PARISH_MAP_URL, phone: o.mobile || o.contact, email: o.email, facebook: o.facebook_url,
-      }) : null,
+      }) : null),
     });
   }, [isRoot, pathname, title, pageMeta, office, logo]);
   // Leaving the website (the registration form, the census portal, the admin): back to index.html's tags.

@@ -1,12 +1,17 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
+import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BAND_PAD, Band, BigButton, Card, Chip, DataState, EmptyNote, ErrorNote, INNER, PageHeader, Pills, Segmented, Skeletons, WRAP, useShare, useSiteToast } from '../../components/site/kit.jsx';
 import { api } from '../../api.js';
-import { SONG_CATEGORIES, fileKindLabel, fileMatches, firstLine, fold, groupFiles, opensInBrowser, orderCategories, songMatches, sortSongs, stanzas } from '../../lib/downloads.js';
+import {
+  SONG_CATEGORIES, fileKindLabel, fileMatches, firstLine, fold, groupFiles, opensInBrowser, orderCategories, songByline, songFileName,
+  songIdFromParam, songJsonLd, songMatches, songPath, songText, sortSongs, stanzas,
+} from '../../lib/downloads.js';
 import { fmtFileSize } from '../../lib/gkkDocuments.js';
+import { triggerDownload } from '../../lib/csv.js';
 import { excerpt } from '../../lib/seo.js';
-import { PageMeta, useSiteTitle } from './SiteLayout.jsx';
+import { PARISH_NAME, PARISH_SUB, PageMeta, useSiteTitle } from './SiteLayout.jsx';
 import { useDownloads } from './data.js';
 
 const TABS = [['kanta', 'Mga Kanta'], ['porma', 'Mga Porma']];
@@ -104,13 +109,14 @@ function SongList({ songs, q, cat, onCat }) {
         <ul className="m-0 p-0 list-none flex flex-col gap-2.5 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-3.5">
           {shown.map((s) => (
             <li key={s.id}>
-              <Link to={`/downloads/kanta/${s.id}`} className="h-full flex items-center gap-3.5 bg-parish-card border border-parish-border rounded-2xl p-3.5 lg:p-4 shadow-cardSm hover:border-[var(--p-blue-border)]">
+              <Link to={songPath(s)} className="h-full flex items-center gap-3.5 bg-parish-card border border-parish-border rounded-2xl p-3.5 lg:p-4 shadow-cardSm hover:border-[var(--p-blue-border)]">
                 <span className="w-11 h-11 flex-none rounded-[13px] flex items-center justify-center bg-[var(--p-blue-tint)] text-parish-blue">
                   <Icon name="music" size={21} />
                 </span>
                 <span className="flex-1 min-w-0">
                   <span className="block font-bold text-[16.5px] lg:text-[17px] text-parish-navy leading-snug">{s.title}</span>
                   {fold(firstLine(s.lyrics)) !== fold(s.title) && <span className="block text-[14px] text-parish-text2 truncate">{firstLine(s.lyrics)}</span>}
+                  {songByline(s) && <span className="block text-[13px] text-parish-text2 truncate">{songByline(s)}</span>}
                   {(s.categories || []).length > 0 && <span className="block text-[12.5px] font-semibold text-[var(--p-eyebrow)] mt-0.5 truncate">{s.categories.join(' · ')}</span>}
                 </span>
                 <Icon name="chev" size={18} className="text-parish-muted" />
@@ -184,11 +190,17 @@ function readSize() {
   }
 }
 
-/** One song's lyrics, large and easy to follow, with a text size switch. */
+/**
+ * One song's lyrics, large and easy to follow, with a text size switch. Open
+ * to anyone anywhere, no account, nothing to pay: the lyrics are plain text
+ * on the page (so search engines read them), with the composer credited, and
+ * free to copy, print, save as a PDF or download as a text file.
+ */
 export function SongPage() {
-  const { id } = useParams();
+  const { id: param } = useParams();
   const state = useDownloads();
-  const song = (state.data?.songs || []).find((s) => String(s.id) === String(id));
+  const id = songIdFromParam(param);
+  const song = (state.data?.songs || []).find((s) => s.id === id);
   const [size, setSize] = useState(readSize);
   const share = useShare();
   const say = useSiteToast();
@@ -206,10 +218,16 @@ export function SongPage() {
     );
   }
 
+  // One address per song, with its title in it (and the new title after a rename).
+  const path = songPath(song);
+  if (`/downloads/kanta/${param}` !== path) return <Navigate to={path} replace />;
+
+  const url = new URL(path, window.location.origin).href;
   const i = SIZES.indexOf(size);
+  const byline = songByline(song);
   async function copy() {
     try {
-      await navigator.clipboard.writeText(`${song.title}\n\n${stanzas(song.lyrics).join('\n\n')}`);
+      await navigator.clipboard.writeText(songText(song, url));
       say('Na-copy ang liriko.');
     } catch {
       say('Wala ma-copy ang liriko.');
@@ -218,11 +236,16 @@ export function SongPage() {
 
   return (
     <main className={`${INNER} lg:max-w-[820px]`}>
-      <PageMeta title={song.title} description={excerpt(`${song.title}: ${stanzas(song.lyrics).join(' ')}`)} />
+      <PageMeta
+        title={`${song.title} (Lyrics)`}
+        description={excerpt(`Lyrics: ${song.title}${song.composer ? `, ni ${song.composer}` : ''}. ${stanzas(song.lyrics).join(' ')}`)}
+        jsonLd={songJsonLd({ song, url, parishName: `${PARISH_NAME} ${PARISH_SUB.split(' · ')[0]}` })}
+      />
       {(song.categories || []).length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2.5">{song.categories.map((c) => <Chip key={c} tone="gold">{c}</Chip>)}</div>
       )}
       <h1 className="font-serif font-semibold text-[31px] lg:text-[44px] leading-[1.1] m-0 mb-1.5 text-parish-navy">{song.title}</h1>
+      {byline && <p className="m-0 mb-1 font-semibold text-[15.5px] lg:text-[17px] text-parish-ink">{byline}</p>}
       {song.note && <p className="m-0 mb-1 text-[15px] lg:text-[16px] text-parish-text2">{song.note}</p>}
 
       <div className="sticky top-[58px] lg:top-[76px] z-10 -mx-4 px-4 lg:mx-0 lg:px-0 py-2.5 mb-3 flex items-center gap-2 bg-parish-bg/95 backdrop-blur-sm border-b border-parish-border">
@@ -235,10 +258,40 @@ export function SongPage() {
         {stanzas(song.lyrics).map((st, n) => <p key={n} className="m-0 mb-[1.1em] whitespace-pre-line">{st}</p>)}
       </div>
 
-      <div className="flex flex-col sm:flex-row gap-2.5 mt-6">
-        <BigButton variant="secondary" onClick={() => share(song.title, `/downloads/kanta/${song.id}`)}><Icon name="share" size={19} />Ipaambit</BigButton>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-6">
+        <BigButton variant="secondary" onClick={() => share(song.title, path)}><Icon name="share" size={19} />Ipaambit</BigButton>
         <BigButton variant="secondary" onClick={copy}><Icon name="doc" size={19} />Kopyaha ang liriko</BigButton>
+        <BigButton variant="secondary" onClick={() => window.print()}><Icon name="doc" size={19} />I-print o i-save nga PDF</BigButton>
+        <BigButton variant="secondary" onClick={() => triggerDownload(new Blob([songText(song, url)], { type: 'text/plain;charset=utf-8' }), songFileName(song))}>
+          <Icon name="down" size={19} />I-download (text)
+        </BigButton>
       </div>
+
+      <p className="mt-6 mb-0 text-[13.5px] leading-normal text-parish-text2">
+        Libre kini para sa tanan, alang sa pag-ampo ug pag-awit. Kung ikaw ang nagsulat sa kanta ug adunay ikatul-id, o dili nimo gusto nga naa kini dinhi,{' '}
+        <Link to="/kontak" className="font-semibold text-parish-blue underline underline-offset-2">kontaka ang opisina sa parokya</Link>.
+      </p>
+      <SongPrintSheet song={song} byline={byline} url={url} />
     </main>
+  );
+}
+
+/**
+ * The song on paper (or as a PDF from the print dialog): title, composer and
+ * lyrics in black on white, and where it came from. Hidden on screen and
+ * revealed by the #print-sheet print rules in index.css.
+ */
+function SongPrintSheet({ song, byline, url }) {
+  return createPortal(
+    <div id="print-sheet" aria-hidden style={{ color: '#000', background: '#fff' }}>
+      <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 30, fontWeight: 600, margin: '0 0 4px' }}>{song.title}</h1>
+      {byline && <p style={{ fontSize: 13, fontWeight: 600, margin: '0 0 2px' }}>{byline}</p>}
+      {song.note && <p style={{ fontSize: 12, margin: '0 0 2px', color: '#333' }}>{song.note}</p>}
+      <div style={{ fontSize: 15, lineHeight: 1.55, marginTop: 16, columnGap: 32 }}>
+        {stanzas(song.lyrics).map((st, n) => <p key={n} style={{ margin: '0 0 14px', whiteSpace: 'pre-line', breakInside: 'avoid' }}>{st}</p>)}
+      </div>
+      <p style={{ fontSize: 10.5, color: '#444', marginTop: 20, borderTop: '1px solid #bbb', paddingTop: 6 }}>{PARISH_NAME} {PARISH_SUB} · {url}</p>
+    </div>,
+    document.body,
   );
 }

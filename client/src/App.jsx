@@ -113,6 +113,8 @@ export default function App() {
           <Route path="/serbisyo/hangyo/:form" element={<RequestForm />} />
           <Route path="/downloads" element={<Downloads />} />
           <Route path="/downloads/kanta/:id" element={<SongPage />} />
+          {/* Short addresses to say aloud or print: the song lyrics. */}
+          {['/downloads/kanta', '/kanta', '/lyrics', '/songs'].map((p) => <Route key={p} path={p} element={<Navigate to="/downloads" replace />} />)}
           <Route path="/kontak" element={<Kontak />} />
           <Route path="/developer" element={<Developer />} />
           {/* A mistyped or old public link says so, instead of quietly opening Home. */}

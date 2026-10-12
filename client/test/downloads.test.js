@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 
 import {
   cleanLyrics, downloadFilePath, downloadFileType, DOWNLOAD_MAX_BYTES, fileKindLabel, fileMatches, firstLine,
-  groupFiles, opensInBrowser, orderCategories, songMatches, sortSongs, stanzas, SONG_CATEGORIES,
+  groupFiles, languageCode, opensInBrowser, orderCategories, slugify, songByline, songFileName, songIdFromParam, songJsonLd,
+  songMatches, songPath, songText, sortSongs, stanzas, SONG_CATEGORIES,
 } from '../src/lib/downloads.js';
 
 test('PDFs, Word, Excel and photos are accepted, by type or by extension', () => {
@@ -76,4 +77,41 @@ test('files are grouped by category, suggested categories first, each A–Z', ()
     ['Manual Census Forms', ['Census form']],
     ['Sacraments', ['Z']],
   ]);
+});
+
+test('a song page address carries its title; the number alone still finds it', () => {
+  assert.equal(slugify('Ginoo, Kaloy-i Kami!'), 'ginoo-kaloy-i-kami');
+  assert.equal(slugify('Santo Niño'), 'santo-nino');
+  assert.equal(songPath({ id: 12, title: 'Ginoo, Kaloy-i Kami!' }), '/downloads/kanta/12-ginoo-kaloy-i-kami');
+  assert.equal(songPath({ id: 3, title: '???' }), '/downloads/kanta/3');
+  assert.equal(songIdFromParam('12-ginoo-kaloy-i-kami'), 12);
+  assert.equal(songIdFromParam('12'), 12);
+  assert.equal(songIdFromParam('ginoo'), null);
+  assert.equal(songIdFromParam('12abc'), null);
+});
+
+test('the byline names the composer, and the language when it isn’t Bisaya', () => {
+  assert.equal(songByline({ composer: 'Fr. Juan', language: 'Bisaya' }), 'Fr. Juan');
+  assert.equal(songByline({ composer: '', language: 'English' }), 'English');
+  assert.equal(songByline({ composer: 'A', language: 'Latin' }), 'A · Latin');
+  assert.equal(languageCode('Bisaya'), 'ceb');
+  assert.equal(languageCode('Klingon'), undefined);
+});
+
+test('the downloaded lyrics: title, composer, stanzas and where they came from', () => {
+  const song = { title: 'Halad', composer: 'Fr. Juan', lyrics: 'Una\nlinya\n\n\n\nIkaduha' };
+  assert.equal(songText(song, 'https://x.ph/downloads/kanta/1-halad'), 'Halad\nComposer: Fr. Juan\n\nUna\nlinya\n\nIkaduha\n\nFrom https://x.ph/downloads/kanta/1-halad\n');
+  assert.equal(songText({ title: 'A', lyrics: 'b' }), 'A\n\nb\n');
+  assert.equal(songFileName({ title: 'Kanta: Una/Ikaduha?' }), 'Kanta UnaIkaduha.txt');
+});
+
+test('search engines are told it is a song with its lyrics, composer and language', () => {
+  const ld = songJsonLd({ song: { title: 'Halad', composer: 'Fr. Juan', language: 'Bisaya', categories: ['Bible Service'], lyrics: 'Una\n\nIkaduha' }, url: 'https://x.ph/k', parishName: 'OLG' });
+  assert.equal(ld['@type'], 'MusicComposition');
+  assert.equal(ld.composer.name, 'Fr. Juan');
+  assert.equal(ld.inLanguage, 'ceb');
+  assert.equal(ld.lyrics.text, 'Una\n\nIkaduha');
+  assert.equal(ld.keywords, 'Bible Service');
+  const bare = songJsonLd({ song: { title: 'X', lyrics: 'y' }, url: 'u' });
+  assert.equal('composer' in bare || 'inLanguage' in bare || 'publisher' in bare, false);
 });

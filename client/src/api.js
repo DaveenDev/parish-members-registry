@@ -1173,7 +1173,19 @@ export const api = {
   async listSongs() {
     return listWebsite('songs', (q) => q.order('title').order('id'), DOWNLOADS_MIGRATION);
   },
-  saveSong: (row) => saveWebsiteRow('songs', { ...row, lyrics: cleanLyrics(row.lyrics), categories: (row.categories || []).map((c) => c.trim()).filter(Boolean) }),
+  async saveSong(row) {
+    try {
+      return await saveWebsiteRow('songs', {
+        ...row,
+        lyrics: cleanLyrics(row.lyrics),
+        categories: (row.categories || []).map((c) => c.trim()).filter(Boolean),
+        ...('language' in row ? { language: (row.language || '').trim() || 'Bisaya' } : {}),
+      });
+    } catch (e) {
+      if (/composer|language/.test(e.message || '')) throw new Error('Run the 0097_song_credits.sql migration in Supabase to save the composer and language');
+      throw e;
+    }
+  },
   deleteSong: (id) => deleteWebsiteRow('songs', id),
 
   async listDownloadFiles() {

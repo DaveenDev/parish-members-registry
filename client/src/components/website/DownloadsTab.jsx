@@ -4,7 +4,9 @@ import { Field, TextInput, ComboInput } from '../ui.jsx';
 import { Pagination, EmptyState, LoadingState, ErrorState, SearchInput, TAB_BAR, tabClass } from '../admin.jsx';
 import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
-import { DOWNLOAD_ACCEPT, FILE_CATEGORIES, SONG_CATEGORIES, cleanLyrics, downloadFileType, fileKindLabel, firstLine, fold, orderCategories } from '../../lib/downloads.js';
+import {
+  DOWNLOAD_ACCEPT, FILE_CATEGORIES, SONG_CATEGORIES, SONG_LANGUAGES, cleanLyrics, downloadFileType, fileKindLabel, firstLine, fold, orderCategories,
+} from '../../lib/downloads.js';
 import { fmtFileSize, titleFromFileName } from '../../lib/gkkDocuments.js';
 import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, FilePick } from './shared.jsx';
 
@@ -44,9 +46,9 @@ function SongsList({ url, setUrl }) {
 
   return (
     <>
-      <TabIntro text="The words of the songs sung at the GKK Kasaulogan, the Bible Service and other gatherings. Parishioners read them on their phones under Downloads → Mga Kanta, so paste each song with a blank line between stanzas.">
+      <TabIntro text="The words of the songs sung at the GKK Kasaulogan, the Bible Service and other gatherings, free for anyone in the world to read, print and download under Downloads → Mga Kanta, and found through Google. Paste each song with a blank line between stanzas, and credit its composer. Post songs that are old and free to share, written by parishioners, or that the composer allows.">
         <SearchInput value={page.query} onChange={(e) => page.setQuery(e.target.value)} placeholder="Search songs" aria-label="Search songs" />
-        <AddButton onClick={() => setEditing({ title: '', categories: [], note: '', lyrics: '', published: false })}>New song</AddButton>
+        <AddButton onClick={() => setEditing({ title: '', categories: [], composer: '', language: 'Bisaya', note: '', lyrics: '', published: false })}>New song</AddButton>
       </TabIntro>
 
       <Panel className="overflow-hidden">
@@ -60,7 +62,7 @@ function SongsList({ url, setUrl }) {
               <div className="flex-1 min-w-[200px]">
                 <div className="font-semibold text-[15px] text-parish-navy">{r.title}</div>
                 <div className="text-[12.5px] text-parish-muted truncate">
-                  {[(r.categories || []).join(', '), fold(firstLine(r.lyrics)) !== fold(r.title) ? firstLine(r.lyrics) : ''].filter(Boolean).join(' · ') || 'No category'}
+                  {[r.composer, (r.categories || []).join(', '), fold(firstLine(r.lyrics)) !== fold(r.title) ? firstLine(r.lyrics) : ''].filter(Boolean).join(' · ') || 'No category'}
                 </div>
               </div>
               <StateBadge state={r.published ? 'Published' : 'Draft'} />
@@ -104,7 +106,7 @@ function SongEditor({ row, known, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      const saved = await api.saveSong({ ...form, title: form.title.trim(), note: (form.note || '').trim() });
+      const saved = await api.saveSong({ ...form, title: form.title.trim(), composer: (form.composer || '').trim(), note: (form.note || '').trim() });
       toast.success('Song saved');
       onSaved(saved);
     } catch (e) {
@@ -136,7 +138,13 @@ function SongEditor({ row, known, onClose, onSaved }) {
           <RowButton className="!py-2.5" disabled={!newCat.trim()} onClick={addCategory}>Add</RowButton>
         </div>
       </Field>
-      <Field label="Note"><TextInput value={form.note || ''} onChange={(e) => set('note')(e.target.value)} maxLength={300} placeholder="Optional: composer, key, when it's sung (Pagsulod, Halad…)" /></Field>
+      <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
+        <Field label="Composer"><TextInput value={form.composer || ''} onChange={(e) => set('composer')(e.target.value)} maxLength={200} placeholder="Who wrote it, if known" /></Field>
+        <Field label="Language">
+          <ComboInput options={SONG_LANGUAGES} value={form.language ?? 'Bisaya'} onChange={set('language')} maxLength={40} toggleLabel="Show languages" />
+        </Field>
+      </div>
+      <Field label="Note"><TextInput value={form.note || ''} onChange={(e) => set('note')(e.target.value)} maxLength={300} placeholder="Optional: the key, when it's sung (Pagsulod, Halad…)" /></Field>
       <Field label="Lyrics" required>
         <TextArea rows={18} value={form.lyrics} onChange={(e) => set('lyrics')(e.target.value)} placeholder={'Paste the song here, with a blank line between stanzas:\n\nUna nga bersikulo…\n…\n\nKORO:\n…'} />
       </Field>
