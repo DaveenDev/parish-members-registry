@@ -8,13 +8,15 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 
 **Demo site, with sample data, to try the app: https://parish-registry-demo.vercel.app/**
 
+**Demo admin panel: https://parish-registry-demo.vercel.app/admin** (press **Login to Demo Site**)
+
 > **Free for any parish.** Copy it, set it up for your own parish and change it as you need, at no cost. The one condition: keep the **"Built For Free by DaveenDev"** credit in the app. See [Free for your parish](#free-for-your-parish).
 
 ## Free for your parish
 
 This registry was built for Our Lady of Guadalupe Quasi-Parish, Mua-an, and is given freely to any parish, chapel or diocese that wants it.
 
-**Try it first** on the demo site, [parish-registry-demo.vercel.app](https://parish-registry-demo.vercel.app): the parish website, registration and requests, all with sample data. For the staff side, press **Login to Demo Site** on its [staff sign-in page](https://parish-registry-demo.vercel.app/admin/login): it opens the admin panel as the parish office sees it, with nothing to type.
+**Try it first** on the demo site, [parish-registry-demo.vercel.app](https://parish-registry-demo.vercel.app): the parish website, registration and requests, all with sample data. For the staff side, open its [admin panel](https://parish-registry-demo.vercel.app/admin) and press **Login to Demo Site**: it opens the admin panel as the parish office sees it, with nothing to type.
 
 **You may**, at no cost:
 
