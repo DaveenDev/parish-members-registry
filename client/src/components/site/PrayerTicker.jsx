@@ -21,8 +21,8 @@ export default function PrayerTicker() {
   const rows = (q.data || []).slice(0, MOST);
   if (q.loading || q.error || !rows.length) return null;
 
-  // Slow enough to read: about six seconds a request.
-  const duration = `${Math.max(24, rows.length * 6)}s`;
+  // Still slow enough to read: about four and a half seconds a request.
+  const duration = `${Math.max(18, rows.length * 4.5)}s`;
   const items = (copy) => rows.map((r) => (
     <Link
       key={`${copy}-${r.id}`}
@@ -43,7 +43,7 @@ export default function PrayerTicker() {
       style={{ background: 'var(--p-gold-tint)', borderColor: 'color-mix(in srgb, var(--p-gold) 45%, white)', '--ticker-duration': duration }}
     >
       <div className="max-w-[1240px] mx-auto min-h-[48px] pl-3 pr-1.5 lg:px-6 flex items-center gap-2.5 lg:gap-3">
-        <Link to={PRAYER_WALL} className="flex-none font-bold text-[11px] lg:text-[11.5px] tracking-[.14em] uppercase text-[var(--p-eyebrow)] hover:underline">Pag-ampo</Link>
+        <Link to={PRAYER_WALL} className="flex-none whitespace-nowrap font-bold text-[11px] lg:text-[11.5px] tracking-[.14em] uppercase text-[var(--p-eyebrow)] hover:underline">Prayer Requests</Link>
         <div className="prayer-ticker__window flex-1 min-w-0">
           <div className="prayer-ticker__track">
             <div className="prayer-ticker__copy">{items(0)}</div>

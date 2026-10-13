@@ -108,9 +108,10 @@ export const FORMS = {
     submit: (v) => api.submitSacramentRequest({ ...v, urgent: v.urgent === 'yes', sacrament: 'anointing' }),
   },
 
-  // The prayer wall (0100 submit_prayer_request): also on Komunidad and Mga Serbisyo.
+  // The prayer wall (0100 submit_prayer_request): linked from Komunidad, and
+  // filled in right on Mga Serbisyo.
   'pag-ampo': {
-    title: 'Hangyo sa Pag-ampo',
+    title: 'Prayer Request Form',
     short: 'Pag-ampo',
     intro: 'Ipaambit ang inyong hangyo sa pag-ampo. Ampoan kini sa pari ug sa parokya.',
     who: 'Ang pari ug kawani sa opisina ang makakita. Makita lang kini sa website kung mouyon ka, ug human kini susihon sa kawani.',

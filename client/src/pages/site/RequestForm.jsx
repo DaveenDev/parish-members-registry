@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BigButton, INNER, Spin } from '../../components/site/kit.jsx';
@@ -61,12 +61,23 @@ export default function RequestForm() {
   const { form: formId } = useParams();
   const F = FORMS[formId];
   if (!F) return <Navigate to="/serbisyo" replace />;
-  return <FormFlow key={formId} F={F} />;
+  return <FormPage key={formId} F={F} />;
 }
 
-function FormFlow({ F }) {
+function FormPage({ F }) {
   useSiteTitle(F.short);
+  return <FormFlow F={F} />;
+}
+
+/** The same form inside another page (the prayer form on Mga Serbisyo): no Balik on the first step, and "Lain pa" at the end. */
+export function InlineForm({ formId }) {
+  const [round, setRound] = useState(0);
+  return <FormFlow key={round} F={FORMS[formId]} embedded onAgain={() => setRound((r) => r + 1)} />;
+}
+
+function FormFlow({ F, embedded = false, onAgain }) {
   const navigate = useNavigate();
+  const top = useRef(null);
   const gkks = usePublicData('gkkNames', () => api.listPublicGkks().catch(() => [])).data || [];
   const [step, setStep] = useState(0);
   const [params] = useSearchParams();
@@ -80,7 +91,19 @@ function FormFlow({ F }) {
   const isReview = step >= F.steps.length;
   const fields = isReview ? [] : F.steps[step].fields.filter((f) => visible(f, values));
 
-  useEffect(() => { window.scrollTo(0, 0); }, [step, status]);
+  // A page form goes back to the top of the page; one inside another page
+  // brings its own top into view, but not when the page first opens.
+  const shown = useRef(`${step}|${status}`);
+  function toTop() {
+    if (embedded) top.current?.scrollIntoView({ block: 'start' });
+    else window.scrollTo(0, 0);
+  }
+  useEffect(() => {
+    const at = `${step}|${status}`;
+    if (embedded && at === shown.current) return;
+    shown.current = at;
+    toTop();
+  }, [step, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function set(k, v) {
     setValues((s) => ({ ...s, [k]: v }));
@@ -93,7 +116,7 @@ function FormFlow({ F }) {
     if (Object.keys(errs).length) {
       setErrors(errs);
       setBanner('Palihug ayoha ang mga gimarkahan sa ubos.');
-      window.scrollTo(0, 0);
+      toTop();
       return;
     }
     setErrors({});
@@ -127,22 +150,36 @@ function FormFlow({ F }) {
     }
   }
 
-  if (status === 'done') return <Done F={F} refNo={ref} />;
+  // Inside another page the headings sit a level under that page's section heading.
+  const Shell = embedded ? 'div' : 'main';
+  const Title = embedded ? 'h3' : 'h1';
+  const StepTitle = embedded ? 'h4' : 'h2';
+  const balik = (
+    <button type="button" onClick={back} className="min-h-[54px] px-[18px] rounded-[14px] border-[1.5px] border-[#dcd0b7] text-[#4d4636] font-semibold text-[16px]">Balik</button>
+  );
+
+  if (status === 'done') {
+    return (
+      <div ref={top} className={embedded ? 'scroll-mt-20' : undefined}>
+        <Done F={F} refNo={ref} embedded={embedded} onAgain={onAgain} />
+      </div>
+    );
+  }
 
   const pct = `${Math.round(((step + 1) / total) * 100)}%`;
   return (
-    <main className="px-4 pt-4 pb-7 lg:max-w-[680px] lg:mx-auto lg:px-6 lg:pt-[18px] lg:pb-0">
+    <Shell ref={top} className={embedded ? 'scroll-mt-20' : 'px-4 pt-4 pb-7 lg:max-w-[680px] lg:mx-auto lg:px-6 lg:pt-[18px] lg:pb-0'}>
       <div className="font-bold text-[12px] tracking-[.1em] uppercase text-[#4d4636] mb-1.5">Lakang {step + 1} sa {total}</div>
       <div className="h-[5px] bg-[#eaddc2] rounded-full overflow-hidden mb-4">
         <div className="h-full rounded-full transition-[width] duration-300" style={{ width: pct, background: 'linear-gradient(90deg,var(--p-blue),var(--p-gold))' }} />
       </div>
-      <h1 className="font-serif font-semibold text-[30px] lg:text-[40px] leading-[1.1] lg:leading-[1.08] m-0 mb-1 text-parish-navy">{F.title}</h1>
+      <Title className={`font-serif font-semibold leading-[1.1] m-0 mb-1 text-parish-navy ${embedded ? 'text-[26px] lg:text-[32px]' : 'text-[30px] lg:text-[40px] lg:leading-[1.08]'}`}>{F.title}</Title>
       <p className="m-0 text-[15px] leading-normal text-[#4d4636]">{F.intro}</p>
       <div className="flex gap-2 items-start text-[13.5px] leading-[1.45] text-[#4d4636] mt-3 mb-[18px]">
         <Icon name="lock" size={16} className="mt-px text-parish-blue" /><span>{F.who}</span>
       </div>
       {F.sickCall && step === 0 && <SickCallNote />}
-      <h2 className="font-serif font-bold text-[23px] m-0 mb-3 text-parish-navy">{isReview ? 'Susiha una ipadala' : F.steps[step].title}</h2>
+      <StepTitle className="font-serif font-bold text-[23px] m-0 mb-3 text-parish-navy">{isReview ? 'Susiha una ipadala' : F.steps[step].title}</StepTitle>
       {banner && (
         <div role="alert" className="flex gap-[9px] bg-parish-errorBg border border-parish-errorBorder rounded-xl px-[13px] py-[11px] mb-3.5 text-parish-error font-semibold text-[14.5px]">
           <Icon name="alert" size={18} />{banner}
@@ -160,7 +197,7 @@ function FormFlow({ F }) {
             </div>
           )}
           <div className="flex gap-2.5 mt-[22px]">
-            <button type="button" onClick={back} className="min-h-[54px] px-[18px] rounded-[14px] border-[1.5px] border-[#dcd0b7] text-[#4d4636] font-semibold text-[16px]">Balik</button>
+            {!(embedded && step === 0) && balik}
             <button type="button" onClick={next} className="flex-1 min-h-[54px] rounded-[14px] bg-parish-blue text-white font-bold text-[16.5px]">Padayon</button>
           </div>
         </>
@@ -185,14 +222,14 @@ function FormFlow({ F }) {
           </div>
           <div className="flex gap-2 items-center text-[13.5px] text-[#4d4636] mt-3"><Icon name="check" size={16} className="text-parish-ok" />Mouyon sa Data Privacy</div>
           <div className="flex gap-2.5 mt-[18px]">
-            <button type="button" onClick={back} className="min-h-[54px] px-[18px] rounded-[14px] border-[1.5px] border-[#dcd0b7] text-[#4d4636] font-semibold text-[16px]">Balik</button>
+            {balik}
             <button type="button" onClick={submit} disabled={status === 'sending'} className="flex-1 min-h-[54px] rounded-[14px] bg-parish-blue text-white font-bold text-[16.5px] flex items-center justify-center gap-2.5 disabled:opacity-80">
               {status === 'sending' ? <><Spin />Gipadala…</> : 'Ipadala'}
             </button>
           </div>
         </>
       )}
-    </main>
+    </Shell>
   );
 }
 
@@ -285,11 +322,14 @@ function FieldView({ f, value, error, onChange, gkks }) {
   );
 }
 
-function Done({ F, refNo }) {
+function Done({ F, refNo, embedded = false, onAgain }) {
+  const Shell = embedded ? 'div' : 'main';
+  const Title = embedded ? 'h3' : 'h1';
+  const Sub = embedded ? 'h4' : 'h2';
   return (
-    <main className={`${INNER} lg:max-w-[680px] text-center`}>
+    <Shell className={embedded ? 'text-center' : `${INNER} lg:max-w-[680px] text-center`}>
       <div className="w-[76px] h-[76px] rounded-full bg-parish-okBg text-parish-ok flex items-center justify-center mx-auto mb-4"><Icon name="check" size={38} /></div>
-      <h1 className="font-serif font-semibold text-[32px] leading-[1.1] m-0 mb-2 text-parish-navy">Salamat! Nadawat na namo.</h1>
+      <Title className="font-serif font-semibold text-[32px] leading-[1.1] m-0 mb-2 text-parish-navy">Salamat! Nadawat na namo.</Title>
       {refNo && !F.noRef && (
         <div className="bg-parish-card border border-parish-border rounded-2xl shadow-card p-[18px] my-4">
           <div className="font-bold text-[11.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)] mb-1.5">Reference number</div>
@@ -298,7 +338,7 @@ function Done({ F, refNo }) {
         </div>
       )}
       <div className="text-left bg-parish-card border border-parish-border rounded-2xl p-3.5 mt-4">
-        <h2 className="m-0 mb-2.5 font-serif text-[21px] font-bold text-parish-navy">Unsa ang sunod?</h2>
+        <Sub className="m-0 mb-2.5 font-serif text-[21px] font-bold text-parish-navy">Unsa ang sunod?</Sub>
         {F.next.map((t, i) => (
           <div key={t} className="flex gap-2.5 items-start py-[5px] text-[15px] leading-[1.45] text-[#3f3b2f]">
             <span className="w-6 h-6 flex-none rounded-full font-bold text-[12.5px] text-parish-blueDeep flex items-center justify-center" style={{ background: 'var(--p-blue-tint)' }}>{i + 1}</span>{t}
@@ -308,8 +348,10 @@ function Done({ F, refNo }) {
       <div className="flex flex-col gap-2.5 mt-4">
         {F.track && refNo && <BigButton to={`/serbisyo/susiha?ref=${encodeURIComponent(refNo)}`}>Susiha ang status</BigButton>}
         {F.doneLink && <BigButton to={F.doneLink.to}>{F.doneLink.label}</BigButton>}
-        <BigButton variant="secondary" to="/">Balik sa Home</BigButton>
+        {embedded
+          ? <BigButton variant="secondary" onClick={onAgain}>Lain pa nga hangyo</BigButton>
+          : <BigButton variant="secondary" to="/">Balik sa Home</BigButton>}
       </div>
-    </main>
+    </Shell>
   );
 }

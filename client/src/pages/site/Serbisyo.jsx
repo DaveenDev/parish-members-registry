@@ -4,13 +4,13 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { BAND_PAD, Band, Card, ErrorNote, Eyebrow, INNER, MessengerButton, PageTitle, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { isPhoneNumber, mapEmbedUrl, messengerLink, validCoords } from '../../lib/website.js';
 import { phoneHref } from '../../lib/requests.js';
-import { PRAYER_FORM, PRAYER_WALL } from '../../lib/prayers.js';
 import { officeHourRows, officeStatus } from '../../lib/site.js';
 import { PARISH_ADDRESS, PARISH_COORDS, PARISH_MAP_URL, useSiteTitle } from './SiteLayout.jsx';
 import { useOffice } from './data.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { StatusCheckCard } from './CheckStatus.jsx';
+import { InlineForm } from './RequestForm.jsx';
 
 function ServiceLink({ to, icon, title, sub, red = false }) {
   return (
@@ -36,7 +36,8 @@ function ServiceLink({ to, icon, title, sub, red = false }) {
 /**
  * Mga Serbisyo: the title and the status check on the light-blue band, like
  * the other main pages' first section; then the request forms, blood donor
- * call and contact on the plain page.
+ * call and contact on the plain page, and under them the prayer request form
+ * itself.
  */
 export default function Serbisyo() {
   return (
@@ -54,11 +55,13 @@ export default function Serbisyo() {
         <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4">
           <ServiceLink to="/serbisyo/hangyo/sertipiko" icon="doc" title="Pangayo og sertipiko" sub="Bunyag, Kumpil, Kasal" />
           <ServiceLink to="/serbisyo/hangyo/pagdihog" icon="cal" title="Pangayo ug Dihog Iskedyul" sub="Pagbisita sa pari aron dihogan ang masakiton" />
-          <ServiceLink to={PRAYER_FORM} icon="heart" title="Hangyo sa pag-ampo" sub="Ampoan sa pari ug sa parokya" />
-          <ServiceLink to={PRAYER_WALL} icon="people" title="Mga Hangyo sa Pag-ampo" sub="Mag-ampo uban sa ubang parokyano" />
           <ServiceLink to="/serbisyo/dugo" icon="drop" title="Blood donor call" sub="Nanginahanglan o mo-donate" red />
           <ServiceLink to="/kontak" icon="phone" title="Kontak ug oras sa opisina" sub="Tawag, text, mapa" />
         </div>
+        {/* The prayer form itself, right here, under the request buttons. */}
+        <Card id="pag-ampo" className="mt-6 lg:mt-8 p-4 lg:p-8 lg:rounded-[20px] lg:max-w-[760px]">
+          <InlineForm formId="pag-ampo" />
+        </Card>
       </section>
     </main>
   );
