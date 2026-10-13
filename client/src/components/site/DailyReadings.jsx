@@ -13,16 +13,28 @@ const BODY = 'text-[16.5px] lg:text-[17.5px] leading-[1.7] text-[#3f3b2f] max-w-
 // In the psalm, the italic lines between stanzas are the response.
 const PSALM = '[&_i]:font-semibold [&_i]:text-parish-blueDeep';
 
-/** Universalis answers by calling a function of ours (JSONP). One request per day, shared. */
+/**
+ * Universalis answers by calling a function of ours (JSONP). One request per
+ * day, shared. It now ignores the callback name asked for and always calls
+ * window.universalisCallback, so that one hands each answer to the request
+ * for its day, by the date it carries ("number": 20261013).
+ */
 const days = new Map();
+const waiting = new Map(); // 'YYYYMMDD' → the day's answer handler
+if (typeof window !== 'undefined') {
+  window.universalisCallback = (data) => waiting.get(String(data?.number))?.(data);
+}
 function loadDay(iso) {
   if (!days.has(iso)) {
     const p = new Promise((resolve, reject) => {
-      const name = `universalis_${iso.replaceAll('-', '')}_${Math.random().toString(36).slice(2, 8)}`;
+      const day = iso.replaceAll('-', '');
+      const name = `universalis_${day}_${Math.random().toString(36).slice(2, 8)}`;
       const script = document.createElement('script');
-      const done = () => { clearTimeout(timer); delete window[name]; script.remove(); };
+      const done = () => { clearTimeout(timer); delete window[name]; waiting.delete(day); script.remove(); };
       const timer = setTimeout(() => { done(); reject(new Error('timeout')); }, 12000);
-      window[name] = (data) => { done(); resolve(data); };
+      const answer = (data) => { done(); resolve(data); };
+      window[name] = answer;
+      waiting.set(day, answer);
       script.onerror = () => { done(); reject(new Error('load')); };
       script.src = universalisUrl(iso, name);
       document.head.appendChild(script);
