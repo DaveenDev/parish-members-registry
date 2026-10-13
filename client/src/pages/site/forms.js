@@ -117,7 +117,8 @@ export const FORMS = {
     who: 'Ang pari ug kawani sa opisina ang makakita. Makita lang kini sa website kung mouyon ka, ug human kini susihon sa kawani.',
     steps: [
       { title: 'Ang inyong hangyo', fields: [
-        { k: 'intentionType', type: 'choice', req: true, label: 'Unsa nga hangyo?', opts: PRAYER_TYPES.map((t) => [t, PRAYER_TYPE_LABELS[t]]), def: 'Special intention' },
+        // Only these two on the website; staff can still record the other kinds in admin.
+        { k: 'intentionType', type: 'choice', req: true, label: 'Unsa nga hangyo?', opts: PRAYER_TYPES.filter((t) => t === 'For the sick' || t === 'Special intention').map((t) => [t, PRAYER_TYPE_LABELS[t]]), def: 'Special intention' },
         { k: 'forName', type: 'text', label: 'Para kang kinsa? (opsyonal)', ph: 'e.g. Lola Rosa, o ang among pamilya' },
         { k: 'intention', type: 'area', req: true, label: 'Ang inyong hangyo sa pag-ampo', hint: 'Ayaw isulat ang mobile number o address dinhi.' },
       ] },
