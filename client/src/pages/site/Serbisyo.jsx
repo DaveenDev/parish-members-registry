@@ -1,12 +1,14 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { BAND_PAD, Band, Card, ErrorNote, Eyebrow, INNER, MessengerButton, PageTitle, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, BigButton, Card, ErrorNote, Eyebrow, INNER, MessengerButton, PageTitle, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { PrayerCard } from '../../components/site/prayers.jsx';
+import { PRAYER_WALL } from '../../lib/prayers.js';
 import { isPhoneNumber, mapEmbedUrl, messengerLink, validCoords } from '../../lib/website.js';
 import { phoneHref } from '../../lib/requests.js';
 import { officeHourRows, officeStatus } from '../../lib/site.js';
 import { PARISH_ADDRESS, PARISH_COORDS, PARISH_MAP_URL, useSiteTitle } from './SiteLayout.jsx';
-import { useOffice } from './data.js';
+import { listState, useOffice, usePrayerWall } from './data.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { StatusCheckCard } from './CheckStatus.jsx';
@@ -16,7 +18,7 @@ function ServiceLink({ to, icon, title, sub, red = false }) {
   return (
     <Link
       to={to}
-      className={`w-full text-left flex gap-3.5 items-center bg-parish-card border border-parish-border rounded-2xl p-3.5 shadow-cardSm lg:flex-col lg:items-start lg:p-[22px] lg:rounded-[20px] ${red ? 'hover:border-parish-errorBorder' : 'hover:border-[var(--p-blue-border)]'}`}
+      className={`w-full text-left flex gap-3.5 items-center bg-parish-card border border-parish-border rounded-2xl p-3.5 shadow-cardSm lg:p-[18px] lg:gap-4 lg:rounded-[18px] ${red ? 'hover:border-parish-errorBorder' : 'hover:border-[var(--p-blue-border)]'}`}
     >
       <div
         className="w-[46px] h-[46px] lg:w-[52px] lg:h-[52px] flex-none rounded-[14px] lg:rounded-2xl flex items-center justify-center"
@@ -24,19 +26,31 @@ function ServiceLink({ to, icon, title, sub, red = false }) {
       >
         <Icon name={icon} size={23} className="lg:w-[26px] lg:h-[26px]" />
       </div>
-      <div className="flex-1">
-        <div className="font-bold text-[16.5px] lg:font-serif lg:text-[25px] lg:text-parish-navy">{title}</div>
+      <div className="flex-1 min-w-0">
+        <div className="font-bold text-[16.5px] lg:font-serif lg:text-[23px] lg:leading-tight lg:text-parish-navy">{title}</div>
         <div className="text-[14px] lg:text-[15px] text-parish-text2 lg:mt-0.5">{sub}</div>
       </div>
-      <Icon name="chev" size={18} className="text-parish-muted lg:hidden" />
+      <Icon name="chev" size={18} className="text-parish-muted" />
     </Link>
   );
 }
 
+// The pale gold of Home's "Prayer Requests" line, so the two read as one thing.
+const PRAYER_BAND = { background: 'var(--p-gold-tint)', borderColor: 'color-mix(in srgb, var(--p-gold) 45%, white)' };
+
+/** Down to the prayer form, which on a phone starts a couple of screens below; a jump, not a glide, with reduced motion. */
+function toPrayerForm(e) {
+  e.preventDefault();
+  const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  document.getElementById('pag-ampo')?.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'start' });
+}
+
 /**
- * Mga Serbisyo: the title and the status check on the light-blue band, like
- * the other main pages' first section; then the request forms and blood donor
- * call on the plain page, and under them the prayer request form itself.
+ * Mga Serbisyo: on the light-blue band, the title, the way down to the
+ * prayer form, the status check and the request buttons (side by side on
+ * desktop); then the Prayer Request Form on Home's prayer gold, with the
+ * newest prayer requests beside it on desktop; on phones, the office last,
+ * since the bottom bar has no Kontak tab.
  */
 export default function Serbisyo() {
   return (
@@ -45,23 +59,95 @@ export default function Serbisyo() {
         <div className={`${WRAP} ${BAND_PAD}`}>
           <Eyebrow>Mga Serbisyo</Eyebrow>
           <PageTitle className="mb-1.5">Unsaon namo pagtabang?</PageTitle>
-          <p className="m-0 mb-4 lg:mb-[26px] text-[15px] lg:text-[17px] leading-normal text-[#4d4636]">Ang matag hangyo moadto direkta sa kawani sa parokya.</p>
-          <StatusCheckCard />
+          <p className="m-0 mb-3 text-[15px] lg:text-[17px] leading-normal text-[#4d4636]">Ang matag hangyo moadto direkta sa kawani sa parokya.</p>
+          <a
+            href="#pag-ampo"
+            onClick={toPrayerForm}
+            className="inline-flex items-center gap-2 min-h-[44px] mb-4 lg:mb-[26px] pl-3.5 pr-3 rounded-full border font-bold text-[15px] text-parish-navy hover:underline underline-offset-2"
+            style={PRAYER_BAND}
+          >
+            <Icon name="heart" size={17} className="text-[var(--p-gold-deep)]" />Prayer Request Form
+            <Icon name="chev" size={16} className="rotate-90 text-parish-muted" />
+          </a>
+          <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] lg:gap-8 lg:items-start">
+            <StatusCheckCard />
+            <section aria-labelledby="ubang-serbisyo">
+              <h2 id="ubang-serbisyo" className="m-0 mb-3 lg:mb-4 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy">Ubang mga serbisyo</h2>
+              <div className="flex flex-col gap-2.5 lg:gap-3">
+                <ServiceLink to="/serbisyo/hangyo/sertipiko" icon="doc" title="Pangayo og sertipiko" sub="Bunyag, Kumpil, Kasal" />
+                <ServiceLink to="/serbisyo/hangyo/pagdihog" icon="cal" title="Pangayo ug Dihog Iskedyul" sub="Pagbisita sa pari aron dihogan ang masakiton" />
+                <ServiceLink to="/serbisyo/dugo" icon="drop" title="Blood donor call" sub="Nanginahanglan o mo-donate" red />
+              </div>
+            </section>
+          </div>
         </div>
       </Band>
-      <section aria-labelledby="ubang-serbisyo" className={`${WRAP} py-7 lg:py-12`}>
-        <h2 id="ubang-serbisyo" className="m-0 mb-3 lg:mb-4 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy">Ubang mga serbisyo</h2>
-        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-3 lg:gap-4">
-          <ServiceLink to="/serbisyo/hangyo/sertipiko" icon="doc" title="Pangayo og sertipiko" sub="Bunyag, Kumpil, Kasal" />
-          <ServiceLink to="/serbisyo/hangyo/pagdihog" icon="cal" title="Pangayo ug Dihog Iskedyul" sub="Pagbisita sa pari aron dihogan ang masakiton" />
-          <ServiceLink to="/serbisyo/dugo" icon="drop" title="Blood donor call" sub="Nanginahanglan o mo-donate" red />
+
+      {/* Full width on phones, centred on tablets, with the newest requests beside it on desktop. */}
+      <section id="pag-ampo" aria-label="Prayer Requests" className="scroll-mt-14 border-b py-7 lg:py-12" style={PRAYER_BAND}>
+        <div className="px-3.5 md:max-w-[708px] md:mx-auto lg:max-w-[1240px] lg:px-6 lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,360px)] lg:gap-8 lg:items-start">
+          <Card className="p-4 md:p-7 lg:p-8 md:rounded-[20px]">
+            <InlineForm formId="pag-ampo" />
+          </Card>
+          <NewestPrayers />
         </div>
-        {/* The prayer form itself, under the request buttons: full width on phones, centred from tablets up. */}
-        <Card id="pag-ampo" className="mt-6 lg:mt-8 p-4 md:p-7 lg:p-8 md:rounded-[20px] md:max-w-[680px] lg:max-w-[760px] md:mx-auto">
-          <InlineForm formId="pag-ampo" />
-        </Card>
       </section>
+
+      <OfficeStrip />
     </main>
+  );
+}
+
+const PRAYERS_BESIDE = 3;
+
+/** Beside the form on desktop: the newest requests on the prayer wall. On every screen: the way to all of them. */
+function NewestPrayers() {
+  const q = listState(usePrayerWall());
+  const rows = q.rows.slice(0, PRAYERS_BESIDE);
+  return (
+    <div className="mt-5 lg:mt-0">
+      {rows.length > 0 && (
+        <section aria-labelledby="newest-prayers" className="hidden lg:block mb-4">
+          <Eyebrow>Mag-ampo kita alang sa usag usa</Eyebrow>
+          <h2 id="newest-prayers" className="m-0 mb-3 font-serif text-[26px] font-bold text-parish-navy leading-tight">Mga Hangyo sa Pag-ampo</h2>
+          <div className="flex flex-col gap-3">{rows.map((r) => <PrayerCard key={r.id} r={r} />)}</div>
+        </section>
+      )}
+      <BigButton to={PRAYER_WALL} variant="secondary">
+        Tan-awa ang Mga Hangyo sa Pag-ampo{q.rows.length ? ` (${q.rows.length})` : ''}
+      </BigButton>
+    </div>
+  );
+}
+
+/**
+ * Phones only: the office, under everything. The bottom bar has no Kontak tab
+ * (its Serbisyo tab covers Kontak), so this is the way there; desktop has
+ * Kontak in the top menu and the office in the footer.
+ */
+function OfficeStrip() {
+  const o = useOffice().data || {};
+  const status = officeStatus(o.office_hours);
+  const mobile = [o.mobile, o.contact].find(isPhoneNumber) || '';
+  // pb-16 keeps Tawag clear of the round "Balik sa ibabaw" button at the bottom of the page.
+  return (
+    <section aria-label="Opisina sa parokya" className="px-3.5 pt-6 pb-16 lg:hidden">
+      <div className="flex items-center gap-2 bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-2 pl-3.5">
+        <Link to="/kontak" className="flex-1 min-w-0 min-h-[52px] flex items-center gap-3">
+          <span className="w-10 h-10 flex-none rounded-xl flex items-center justify-center bg-[var(--p-blue-tint)] text-parish-blue"><Icon name="clock" size={20} /></span>
+          <span className="flex-1 min-w-0">
+            <span className="block font-bold text-[16px] text-parish-ink">Kontak ug oras sa opisina</span>
+            <span className={`block text-[13.5px] ${status?.open ? 'text-parish-ok font-semibold' : 'text-parish-text2'}`}>{status ? status.text : 'Tawag, text, mapa'}</span>
+          </span>
+          {!mobile && <Icon name="chev" size={18} className="text-parish-muted" />}
+        </Link>
+        {mobile && (
+          <a href={`tel:${phoneHref(mobile)}`} className="flex-none min-h-[46px] px-4 rounded-xl bg-parish-blue text-white font-bold text-[15px] inline-flex items-center gap-1.5 hover:bg-parish-blueDeep">
+            <Icon name="phone" size={17} />Tawag
+          </a>
+        )}
+      </div>
+    </section>
   );
 }
 

@@ -112,30 +112,22 @@ function RefForm({ s, inline = false, id = 'ref-in' }) {
   );
 }
 
-/** The status check as a card, at the top of Mga Serbisyo. */
+/** The status check as a card, at the top of Mga Serbisyo beside the request buttons: the result shows under the form. */
 export function StatusCheckCard() {
   const s = useStatusCheck();
   const portal = usePortalStatus().data;
   return (
     <section aria-labelledby="susiha-title" className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[20px] shadow-card p-4 lg:p-7">
-      <div className="lg:grid lg:grid-cols-2 lg:gap-10 lg:items-start">
-        <div>
-          <div className="flex items-center gap-2.5 mb-1.5">
-            <span className="w-10 h-10 flex-none rounded-xl flex items-center justify-center" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)' }}><Icon name="search" size={21} /></span>
-            <h2 id="susiha-title" className="m-0 font-serif font-bold text-[23px] lg:text-[30px] leading-tight text-parish-navy">Susiha ang inyong rehistro o hangyo</h2>
-          </div>
-          <p className="m-0 mb-3.5 text-[15px] leading-normal text-[#4d4636]">
-            Isulat ang reference number gikan sa inyong confirmation slip (pananglitan MEO-2026-0001), sa hangyo sa sertipiko (CR-…), o sa OCIA ug Pagdihog (SR-…). Ang status lang ang ipakita.
-          </p>
-          <RefForm s={s} inline id="ref-card" />
-        </div>
-        <div aria-live="polite" className={s.result ? 'mt-[18px] lg:mt-0' : ''}>
-          {s.result ? <Result r={s.result} censusOpen={!!portal?.open} /> : (
-            <div className="hidden lg:flex h-full min-h-[150px] items-center justify-center rounded-2xl border border-dashed border-[#d9cdb4] px-6 text-center text-[14.5px] text-parish-text2">
-              Ang resulta mogawas diri.
-            </div>
-          )}
-        </div>
+      <div className="flex items-center gap-2.5 mb-1.5">
+        <span className="w-10 h-10 flex-none rounded-xl flex items-center justify-center" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)' }}><Icon name="search" size={21} /></span>
+        <h2 id="susiha-title" className="m-0 font-serif font-bold text-[23px] lg:text-[30px] leading-tight text-parish-navy">Susiha ang inyong rehistro o hangyo</h2>
+      </div>
+      <p className="m-0 mb-3.5 text-[15px] leading-normal text-[#4d4636]">
+        Isulat ang reference number gikan sa inyong confirmation slip (pananglitan MEO-2026-0001), sa hangyo sa sertipiko (CR-…), o sa OCIA ug Pagdihog (SR-…). Ang status lang ang ipakita.
+      </p>
+      <RefForm s={s} inline id="ref-card" />
+      <div aria-live="polite" className={s.result ? 'mt-[18px]' : ''}>
+        {s.result && <Result r={s.result} censusOpen={!!portal?.open} />}
       </div>
     </section>
   );

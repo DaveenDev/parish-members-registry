@@ -150,10 +150,10 @@ function FormFlow({ F, embedded = false, onAgain }) {
     }
   }
 
-  // Inside another page the headings sit a level under that page's section heading.
+  // Inside another page the form is a section of it: its title an h2, not the page's h1.
   const Shell = embedded ? 'div' : 'main';
-  const Title = embedded ? 'h3' : 'h1';
-  const StepTitle = embedded ? 'h4' : 'h2';
+  const Title = embedded ? 'h2' : 'h1';
+  const StepTitle = embedded ? 'h3' : 'h2';
   const balik = (
     <button type="button" onClick={back} className="min-h-[54px] px-[18px] rounded-[14px] border-[1.5px] border-[#dcd0b7] text-[#4d4636] font-semibold text-[16px]">Balik</button>
   );
@@ -324,8 +324,8 @@ function FieldView({ f, value, error, onChange, gkks }) {
 
 function Done({ F, refNo, embedded = false, onAgain }) {
   const Shell = embedded ? 'div' : 'main';
-  const Title = embedded ? 'h3' : 'h1';
-  const Sub = embedded ? 'h4' : 'h2';
+  const Title = embedded ? 'h2' : 'h1';
+  const Sub = embedded ? 'h3' : 'h2';
   return (
     <Shell className={embedded ? 'text-center' : `${INNER} lg:max-w-[680px] text-center`}>
       <div className="w-[76px] h-[76px] rounded-full bg-parish-okBg text-parish-ok flex items-center justify-center mx-auto mb-4"><Icon name="check" size={38} /></div>
