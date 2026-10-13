@@ -150,8 +150,8 @@ describe('admin nav', async () => {
   });
 
   test('adds up the request queues for one badge', () => {
-    assert.deepEqual(navBadges({ pending_households: 2, requests: { certificates: 1, ready: 2, blood: 0, sacraments: 3 } }),
-      { pending: 2, duplicates: 0, sacraments: 0, census: 0, requests: 6 });
+    assert.deepEqual(navBadges({ pending_households: 2, requests: { certificates: 1, ready: 2, prayers: 4, blood: 0, sacraments: 3 } }),
+      { pending: 2, duplicates: 0, sacraments: 0, census: 0, requests: 10 });
   });
 
   test("the Members badge counts duplicate members only; household pairs show on the Households tab", () => {

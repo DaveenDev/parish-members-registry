@@ -6,7 +6,7 @@ import TrainingBanner from './components/TrainingBanner.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Home from './pages/site/Home.jsx';
 import {
-  Developer, Simbahan, Pagbasa, Kasaysayan, Pahibalo, Komunidad, GkkDetail, ArticlesArchive, Serbisyo, Kontak, Blood,
+  Developer, Simbahan, Pagbasa, Kasaysayan, Pahibalo, Komunidad, GkkDetail, ArticlesArchive, PrayerWall, PrayerDetail, Serbisyo, Kontak, Blood,
   CheckStatus, RequestForm, Downloads, SongPage, SiteNotFound, EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail, ArticleRedirect,
 } from './pages/site/lazyPages.js';
 
@@ -112,6 +112,8 @@ export default function App() {
           <Route path="/komunidad/artikulo/:id" element={<ArticleDetail />} />
           <Route path="/komunidad/balita/:id" element={<ArticleRedirect />} />
           <Route path="/komunidad/gkk/:name" element={<GkkDetail />} />
+          <Route path="/komunidad/pag-ampo" element={<PrayerWall />} />
+          <Route path="/komunidad/pag-ampo/:id" element={<PrayerDetail />} />
           <Route path="/serbisyo" element={<Serbisyo />} />
           <Route path="/serbisyo/susiha" element={<CheckStatus />} />
           <Route path="/serbisyo/dugo" element={<Blood />} />

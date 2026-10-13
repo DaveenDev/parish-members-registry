@@ -3,6 +3,8 @@
 // database stores; labels are what visitors read.
 import { api } from '../../api.js';
 import { BLOOD_TYPES } from '../../constants.js';
+import { PRAYER_MAX_DAYS, PRAYER_TYPES, PRAYER_TYPE_LABELS, PRAYER_WALL, showUntilBounds } from '../../lib/prayers.js';
+import { addDays, todayIso } from '../../lib/website.js';
 
 const consent = {
   k: 'consent', type: 'check', req: true,
@@ -104,6 +106,43 @@ export const FORMS = {
     next: ['Kontakon ka sa opisina aron iskedyul ang pagbisita sa pari.', 'Kung mograbe ang kahimtang, tawagi dayon ang sick call sa parokya.'],
     track: true,
     submit: (v) => api.submitSacramentRequest({ ...v, urgent: v.urgent === 'yes', sacrament: 'anointing' }),
+  },
+
+  // The prayer wall (0100 submit_prayer_request): also on Komunidad and Mga Serbisyo.
+  'pag-ampo': {
+    title: 'Hangyo sa Pag-ampo',
+    short: 'Pag-ampo',
+    intro: 'Ipaambit ang inyong hangyo sa pag-ampo. Ampoan kini sa pari ug sa parokya.',
+    who: 'Ang pari ug kawani sa opisina ang makakita. Makita lang kini sa website kung mouyon ka, ug human kini susihon sa kawani.',
+    steps: [
+      { title: 'Ang inyong hangyo', fields: [
+        { k: 'intentionType', type: 'choice', req: true, label: 'Unsa nga hangyo?', opts: PRAYER_TYPES.map((t) => [t, PRAYER_TYPE_LABELS[t]]), def: 'Special intention' },
+        { k: 'forName', type: 'text', label: 'Para kang kinsa? (opsyonal)', ph: 'e.g. Lola Rosa, o ang among pamilya' },
+        { k: 'intention', type: 'area', req: true, label: 'Ang inyong hangyo sa pag-ampo', hint: 'Ayaw isulat ang mobile number o address dinhi.' },
+      ] },
+      { title: 'Ipakita ba sa website?', fields: [
+        { k: 'allowPublic', type: 'check', label: 'Ipakita kini sa Mga Hangyo sa Pag-ampo sa website aron makauban sa pag-ampo ang ubang parokyano.' },
+        {
+          k: 'showUntil', type: 'date', req: true, label: 'Ipakita hangtod kanus-a', show: (v) => !!v.allowPublic,
+          min: () => showUntilBounds().min, max: () => showUntilBounds().max, def: () => addDays(todayIso(), 30),
+          hint: `Hangtod ${PRAYER_MAX_DAYS} ka adlaw gikan karon. Mawala kini sa website human niini nga petsa.`,
+          rangeError: `Pagpili og petsa gikan karon hangtod ${PRAYER_MAX_DAYS} ka adlaw.`,
+        },
+        { k: 'showName', type: 'check', label: 'Ipakita ang akong ngalan. Kung dili, “Usa ka parokyano” ang makita.', show: (v) => !!v.allowPublic },
+      ] },
+      { title: 'Kinsa ang nangayo?', fields: [
+        { k: 'requesterName', type: 'text', req: true, label: 'Imong ngalan' },
+        { ...mobile('requesterMobile', 'Mobile number (opsyonal)', false), hint: 'Para sa opisina lang, kung kinahanglan ka kontakon. Dili gyud ipakita sa website.' },
+        consent,
+      ] },
+    ],
+    next: [
+      'Ampoan kini sa pari ug sa parokya.',
+      'Kung gipili nimo nga ipakita sa website, susihon una kini sa kawani sa dili pa makita.',
+      'Itago kini nga reference number kung adunay pangutana sa opisina.',
+    ],
+    doneLink: { to: PRAYER_WALL, label: 'Tan-awa ang Mga Hangyo sa Pag-ampo' },
+    submit: (v) => api.submitPrayerRequest(v),
   },
 
   dugo: {

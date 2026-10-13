@@ -9,6 +9,7 @@ website:
 | Blood request | Blood request: O+ | Yes |
 | Certificate request | Certificate request: Baptismal | |
 | OCIA enrolment | OCIA enrolment | |
+| Prayer request (Hangyo sa Pag-ampo) | Prayer request to review for the website / for the priest | |
 | Household registration | New household registration | |
 | Census update from the family portal | Census update to review | |
 
@@ -89,9 +90,10 @@ to get the morning summary:
 
 - **Member requests only** (the default, from
   [`0037_notify_member_requests.sql`](../supabase/migrations/0037_notify_member_requests.sql)):
-  requests for Dihog (Anointing of the Sick), certificates and OCIA, the
-  blood donor call (blood requests and new donors) and census updates from
-  families.
+  requests for Dihog (Anointing of the Sick), certificates and OCIA, prayer
+  requests (from [`0100_prayer_wall.sql`](../supabase/migrations/0100_prayer_wall.sql)),
+  the blood donor call (blood requests and new donors) and census updates
+  from families.
 - **Every new request**: the same, plus new household registrations.
 - **Urgent ones only**: Anointing of the Sick and blood requests.
 - **None**: nothing as it comes in.

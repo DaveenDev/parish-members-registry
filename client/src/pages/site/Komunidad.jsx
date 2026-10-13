@@ -1,15 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, FOOTER_CREAM, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
 import { Body, Gallery, Lightbox } from './Details.jsx';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { PageMeta, useSiteTitle } from './SiteLayout.jsx';
 import { excerpt } from '../../lib/seo.js';
-import { listState, useArticles, useCensusProgress, useGkkDirectory, useGkkPage } from './data.js';
+import { listState, useArticles, useCensusProgress, useGkkDirectory, useGkkPage, usePrayerWall } from './data.js';
 import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
+import { PrayerCard } from '../../components/site/prayers.jsx';
+import { PRAYER_FORM, PRAYER_WALL } from '../../lib/prayers.js';
 
 const SMALL = 'Ubos sa 5';
 
@@ -51,7 +53,8 @@ function CensusAlertBadges({ label, className = '' }) {
 
 /**
  * Komunidad, one page: the newest articles (every article is on the articles
- * page), then, while a census is open, its full progress (with every GKK),
+ * page), the newest prayer requests (the prayer wall has them all), then,
+ * while a census is open, its full progress (with every GKK),
  * then every GKK as a card, by name. The header has a one-line census strip.
  * ?view=gkk (the old "Mga GKK" tab's link) scrolls to the GKKs, ?view=census
  * to the census progress.
@@ -93,6 +96,7 @@ function KomunidadPage({ params }) {
         </div>
       </Band>
       <ArticlesSection />
+      <PrayerSection />
       {open && (
         <Band id="census" aria-labelledby="census-h" className="scroll-mt-20">
           <div className={`${WRAP} ${BAND_PAD}`}>
@@ -110,6 +114,45 @@ function KomunidadPage({ params }) {
         </div>
       </section>
     </main>
+  );
+}
+
+const PRAYERS_SHOWN = 3;
+
+/**
+ * Mga Hangyo sa Pag-ampo, under the articles: the newest few requests on the
+ * prayer wall, the way to the rest, and the form. With none showing (or when
+ * they can't be loaded), just the invitation to send one.
+ */
+function PrayerSection() {
+  const q = listState(usePrayerWall());
+  const rows = q.rows.slice(0, PRAYERS_SHOWN);
+  return (
+    <section id="pag-ampo" aria-labelledby="prayers-title" className="scroll-mt-20 py-7 lg:py-12 border-t" style={FOOTER_CREAM}>
+      <div className={WRAP}>
+        <div className="flex items-end justify-between gap-x-6 gap-y-3 flex-wrap mb-4 lg:mb-6">
+          <div className="min-w-0">
+            <Eyebrow>Mag-ampo kita alang sa usag usa</Eyebrow>
+            <h2 id="prayers-title" className="m-0 font-serif text-[28px] lg:text-[36px] font-bold text-parish-navy leading-tight">Mga Hangyo sa Pag-ampo</h2>
+            <p className="m-0 mt-0.5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636]">Ang mga hangyo nga gusto sa mga parokyano nga ipaambit. Ampoan sila sa pari ug sa parokya.</p>
+          </div>
+          {q.rows.length > PRAYERS_SHOWN && (
+            <Link to={PRAYER_WALL} className="hidden lg:inline-flex items-center gap-1 font-bold text-[15px] text-parish-blue hover:underline">
+              Tanang hangyo ({q.rows.length})<Icon name="chev" size={16} />
+            </Link>
+          )}
+        </div>
+        {q.loading ? (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">{[0, 1, 2].map((i) => <Skeleton key={i} h={200} className={i ? 'hidden sm:block' : ''} />)}</div>
+        ) : rows.length > 0 && (
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 lg:gap-4">{rows.map((r) => <PrayerCard key={r.id} r={r} />)}</div>
+        )}
+        <div className={`flex flex-col gap-2.5 sm:flex-row sm:flex-wrap sm:items-center ${q.loading || rows.length ? 'mt-4 lg:mt-6' : ''}`}>
+          <BigButton to={PRAYER_FORM} className="sm:w-auto sm:px-6"><Icon name="heart" size={18} />Ipadala ang imong hangyo</BigButton>
+          {q.rows.length > 0 && <BigButton to={PRAYER_WALL} variant="secondary" className="sm:w-auto sm:px-6">Tan-awa ang tanan ({q.rows.length})</BigButton>}
+        </div>
+      </div>
+    </section>
   );
 }
 

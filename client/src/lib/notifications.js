@@ -9,6 +9,7 @@ export const NOTIFICATION_KINDS = {
   donor: { icon: '❤', tone: 'red', label: 'Blood donor' },
   certificate: { icon: '📜', tone: 'blue', label: 'Certificate' },
   ocia: { icon: '✝', tone: 'blue', label: 'OCIA' },
+  prayer: { icon: '🙏', tone: 'blue', label: 'Prayer request' },
   registration: { icon: '🏠', tone: 'green', label: 'Registration' },
   census: { icon: '📋', tone: 'green', label: 'Census' },
   gkk_history: { icon: '📖', tone: 'gold', label: 'GKK history' },
@@ -26,17 +27,17 @@ export const kindStyle = (kind) => NOTIFICATION_KINDS[kind] || { icon: '•', to
  * website, plus a GKK history waiting to be republished, a GKK structure to
  * approve and (to its GKK leader) the answer, and a possible duplicate a GKK
  * leader sent to the office and (to that GKK) its fix. Same list as
- * notification_push_targets() in 0094_duplicates_across_gkks.sql; keep the
- * two in sync.
+ * notification_push_targets() in 0100_prayer_wall.sql; keep the two in
+ * sync.
  */
-export const MEMBER_REQUEST_KINDS = ['anointing', 'certificate', 'ocia', 'blood', 'donor', 'census', 'gkk_history', 'gkk_structure', 'gkk_structure_review', 'duplicate_flag', 'duplicate_flag_review'];
+export const MEMBER_REQUEST_KINDS = ['anointing', 'certificate', 'ocia', 'blood', 'donor', 'prayer', 'census', 'gkk_history', 'gkk_structure', 'gkk_structure_review', 'duplicate_flag', 'duplicate_flag_review'];
 
 /** What a new account gets until it chooses (the column default in 0037). */
 export const DEFAULT_PUSH_LEVEL = 'requests';
 
 /** What each account wants sent to its devices (staff_notify_prefs.push_level). */
 export const PUSH_LEVELS = [
-  { key: 'requests', label: 'Member requests only', note: 'The default. Requests for Dihog (Anointing of the Sick), certificates and OCIA, the blood donor call (blood requests and new donors), census updates from families, GKK histories to republish, GKK structures to approve, and possible duplicates GKK leaders send to the office (for GKK leaders: whether their structure was approved and their duplicates fixed).' },
+  { key: 'requests', label: 'Member requests only', note: 'The default. Requests for Dihog (Anointing of the Sick), certificates and OCIA, prayer requests, the blood donor call (blood requests and new donors), census updates from families, GKK histories to republish, GKK structures to approve, and possible duplicates GKK leaders send to the office (for GKK leaders: whether their structure was approved and their duplicates fixed).' },
   { key: 'all', label: 'Every new request', note: 'All of the above, plus new household registrations, as they come in.' },
   { key: 'urgent', label: 'Urgent ones only', note: 'Anointing of the Sick and blood requests.' },
   { key: 'none', label: 'None', note: 'Nothing as it comes in; the bell in the admin panel still shows everything.' },

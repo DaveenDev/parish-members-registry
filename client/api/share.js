@@ -34,6 +34,8 @@ async function loadItem({ kind, id }) {
     const row = Array.isArray(dir) ? dir.find((g) => g.name === id) : null;
     return row && { ...row, photo_url: page?.photo_url || null };
   }
+  // Only what the wall shows (0100): no contact details, and null once it's no longer shown.
+  if (kind === 'prayers') return rpc('public_prayer_request', { p_id: Number(id), p_visitor: null });
   const rows = await rest(`${kind}?select=*&published=eq.true&id=eq.${Number(id)}&limit=1`);
   const row = Array.isArray(rows) ? rows[0] : null;
   // As the site shows it: Facebook's "bold" math letters as plain ones (listPublished).

@@ -589,6 +589,9 @@ export const api = {
       ['certificates', 'certificate_requests', 'id, ref_no, status, subject_first_name, subject_last_name, requester_name',
         `ref_no.ilike.${like},subject_first_name.ilike.${like},subject_last_name.ilike.${like},requester_name.ilike.${like}`,
         (r) => `${r.subject_first_name} ${r.subject_last_name}`],
+      ['prayers', 'prayer_requests', 'id, ref_no, status, for_name, requester_name, intention_type',
+        `ref_no.ilike.${like},for_name.ilike.${like},requester_name.ilike.${like}`,
+        (r) => r.for_name || r.intention_type],
       ['blood', 'blood_requests', 'id, ref_no, status, patient_name, blood_type',
         `ref_no.ilike.${like},patient_name.ilike.${like}`,
         (r) => `${r.patient_name} (${r.blood_type})`],
@@ -1424,6 +1427,18 @@ export const api = {
   sacramentRequestStatus: (refNo) => publicRpc('sacrament_request_status', { p_ref: refNo }),
   /** Open blood calls staff chose to show: blood type, units, hospital, date. */
   publicBloodCalls: () => publicRpc('public_blood_calls'),
+  /** A request for prayer (0100): { ref_no }. Staff review it before it shows anywhere. */
+  submitPrayerRequest: (payload) => publicRpc('submit_prayer_request', { payload }),
+  /**
+   * The prayer wall: what shows today, newest first, [{ id, type, for_name,
+   * name|null, intention, date, show_until, offered_on, prayed, prayed_by_me }].
+   * `visitor` is this browser's id (prayerVisitorId), for prayed_by_me.
+   */
+  publicPrayerRequests: (visitor) => publicRpc('public_prayer_requests', { p_visitor: visitor || null }),
+  /** One request's page, as on the wall, or null when it doesn't show (any more). */
+  publicPrayerRequest: (id, visitor) => publicRpc('public_prayer_request', { p_id: Number(id) || 0, p_visitor: visitor || null }),
+  /** "Nag-ampo ko": counted once per browser. Answers { prayed, prayed_by_me }. */
+  prayForRequest: (id, visitor) => publicRpc('pray_for_request', { p_id: Number(id) || 0, p_visitor: visitor }),
 
   // ---- public website reads (0011 tables, 0013 functions) -------------
   // Published items only, even for a signed-in staff member browsing the site.
@@ -1531,6 +1546,29 @@ export const api = {
     ]);
     if (certs.error) throw requestsError(certs.error);
     return { certificates: certs.data || [], sacraments: sacs.error ? [] : sacs.data || [] };
+  },
+
+  /** Every prayer request, each with `prayed`: how many tapped "Nag-ampo ko" on the website (0100). */
+  async listPrayerRequests() {
+    try {
+      const { rows } = await listRequests('prayer_requests', PRAYER_SELECT);
+      return { rows: rows.map(withPrayedCount) };
+    } catch (e) {
+      // Before 0100 there's no tally to count from.
+      if (/prayer_request_prayers|relationship/i.test(e?.message || '')) throw new Error('Run the 0100_prayer_wall.sql migration in Supabase to use this page');
+      throw e;
+    }
+  },
+  async savePrayerRequest(row) {
+    return withPrayedCount(await saveRequestRow('prayer_requests', row, PRAYER_FIELDS));
+  },
+  /** Mark several requests as prayed for, at the Mass on `offeredOn`. */
+  async markPrayersPrayed(ids, offeredOn) {
+    if (!ids.length) return [];
+    const { data, error } = await supabase.from('prayer_requests')
+      .update({ status: 'Prayed for', offered_on: offeredOn || null }).in('id', ids).select(PRAYER_SELECT);
+    if (error) throw mapError(error);
+    return (data || []).map(withPrayedCount);
   },
 
   async listBloodRequests() {
@@ -2610,7 +2648,7 @@ async function deleteWebsiteRow(table, id) {
   if (error) throw mapError(error);
 }
 
-const REQUEST_TABLES = ['certificate_requests', 'blood_requests', 'blood_donors', 'sacrament_requests'];
+const REQUEST_TABLES = ['certificate_requests', 'prayer_requests', 'blood_requests', 'blood_donors', 'sacrament_requests'];
 
 // The columns staff may set on each request table. Ref numbers, who handled
 // it and the timestamps are filled in by the database.
@@ -2620,6 +2658,15 @@ const CERT_FIELDS = [
   'requester_name', 'requester_mobile', 'requester_email', 'relationship', 'message',
   'member_id', 'fee', 'or_number', 'released_to', 'public_note', 'staff_notes',
 ];
+// reviewed_at: any value says "staff decided" (the database stamps the time
+// and who); null puts it back with the ones waiting for review (0100).
+const PRAYER_FIELDS = [
+  'intention_type', 'intention', 'for_name', 'requester_name', 'requester_mobile', 'allow_public', 'show_publicly',
+  'show_until', 'show_name', 'reviewed_at', 'status', 'source', 'offered_on', 'staff_notes',
+];
+// With the "Nag-ampo ko" count from the website.
+const PRAYER_SELECT = '*, prayed:prayer_request_prayers(count)';
+const withPrayedCount = (r) => ({ ...r, prayed: Number(r?.prayed?.[0]?.count) || 0 });
 const BLOOD_REQUEST_FIELDS = [
   'patient_name', 'blood_type', 'units', 'hospital', 'needed_by', 'contact_name', 'contact_mobile', 'relationship', 'notes',
   'allow_public', 'show_publicly', 'status', 'source', 'staff_notes',
@@ -2675,7 +2722,8 @@ async function listRequests(table, select = '*', order = (q) => q.order('created
 async function saveRequestRow(table, row, fields, dupLabel) {
   const patch = cleanPatch(Object.fromEntries(fields.filter((f) => f in row).map((f) => [f, typeof row[f] === 'string' ? row[f].trim() : row[f]])));
   const q = row.id ? supabase.from(table).update(patch).eq('id', row.id) : supabase.from(table).insert(patch);
-  const { data, error } = await q.select(table === 'certificate_requests' ? CERT_SELECT : '*').single();
+  const select = table === 'certificate_requests' ? CERT_SELECT : table === 'prayer_requests' ? PRAYER_SELECT : '*';
+  const { data, error } = await q.select(select).single();
   if (error) throw mapError(error, { dupLabel });
   return data;
 }
@@ -3068,6 +3116,17 @@ export async function downloadWithAuth(path, filename) {
       { label: 'Contact person', value: 'contact_name' }, { label: 'Relationship', value: 'relationship' }, { label: 'Mobile', value: 'contact_mobile' },
       { label: 'Received', value: (r) => r.created_at?.slice(0, 10) }, { label: 'Status changed', value: (r) => r.status_changed_at?.slice(0, 10) || '' },
       { label: 'Handled by', value: 'handled_by_name' },
+    ]);
+  } else if (path === '/exports/prayers.csv') {
+    const data = await fetchAll(() => supabase.from('prayer_requests').select(PRAYER_SELECT).order('created_at').order('id'));
+    downloadCsv(filename, data.map(withPrayedCount), [
+      { label: 'Reference No.', value: 'ref_no' }, { label: 'Kind', value: 'intention_type' }, { label: 'For', value: 'for_name' },
+      { label: 'Intention', value: 'intention' }, { label: 'Requested by', value: 'requester_name' }, { label: 'Mobile', value: 'requester_mobile' },
+      { label: 'Status', value: 'status' }, { label: 'Source', value: 'source' }, { label: 'Offered on', value: (r) => r.offered_on || '' },
+      { label: 'Asked for the website', value: (r) => (r.allow_public ? 'Yes' : 'No') },
+      { label: 'On the website', value: (r) => (r.show_publicly ? 'Yes' : 'No') }, { label: 'Show until', value: (r) => r.show_until || '' },
+      { label: 'Name shown', value: (r) => (r.show_name ? 'Yes' : 'No') }, { label: 'Prayed (website)', value: 'prayed' },
+      { label: 'Received', value: (r) => r.created_at?.slice(0, 10) }, { label: 'Reviewed by', value: 'reviewed_by_name' },
     ]);
   } else if (path === '/exports/donors.csv') {
     const data = await fetchAll(() => supabase.from('blood_donors').select('*').order('full_name').order('id'));

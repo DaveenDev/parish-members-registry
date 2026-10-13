@@ -193,6 +193,30 @@
   .census-ticker__track { animation: none; }
 }
 
+/* Home's running line of prayer requests (PrayerTicker.jsx). Two copies of
+   the line, each with the gap after it, so moving by half loops seamlessly.
+   It stops on hover, focus or the pause button; with reduced motion it
+   stays still and scrolls sideways, without the copy. */
+.prayer-ticker__window { overflow: hidden; }
+.prayer-ticker__track {
+  display: inline-flex;
+  width: max-content;
+  animation: prayer-ticker-scroll var(--ticker-duration, 40s) linear infinite;
+}
+.prayer-ticker__copy { display: inline-flex; gap: 2.5rem; padding-right: 2.5rem; }
+.prayer-ticker__window:hover .prayer-ticker__track,
+.prayer-ticker__window:focus-within .prayer-ticker__track,
+.prayer-ticker.is-paused .prayer-ticker__track { animation-play-state: paused; }
+@keyframes prayer-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .prayer-ticker__window { overflow-x: auto; }
+  .prayer-ticker__track { animation: none; }
+  .prayer-ticker__copy[aria-hidden="true"], .prayer-ticker__pause { display: none; }
+}
+
 .census-update-cta {
   animation: census-cta-attention 3.6s ease-in-out infinite;
   box-shadow: 0 8px 20px -10px rgba(228, 192, 106, .95);

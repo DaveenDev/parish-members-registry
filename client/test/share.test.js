@@ -19,10 +19,11 @@ describe('shareTarget', () => {
     assert.deepEqual(shareTarget('/downloads/kanta/9'), { kind: 'songs', id: 9 });
     assert.deepEqual(shareTarget('/downloads/kanta/30-amahan-namo'), { kind: 'songs', id: 30 });
     assert.deepEqual(shareTarget('/komunidad/gkk/GKK%20San%20Isidro'), { kind: 'gkk', id: 'GKK San Isidro' });
+    assert.deepEqual(shareTarget('/komunidad/pag-ampo/4'), { kind: 'prayers', id: 4 });
   });
 
   test('anything else is a page', () => {
-    for (const p of ['/', '/pahibalo', '/pahibalo/abc', '/komunidad/artikulo', '/misa/kalihokan/x', '/kontak']) {
+    for (const p of ['/', '/pahibalo', '/pahibalo/abc', '/komunidad/artikulo', '/komunidad/pag-ampo', '/komunidad/pag-ampo/x', '/misa/kalihokan/x', '/kontak']) {
       assert.deepEqual(shareTarget(p), { kind: 'page' }, p);
     }
   });
@@ -49,6 +50,14 @@ describe('previews', () => {
     const song = itemPreview('songs', { title: 'Amahan Namo', composer: 'X', lyrics: 'Amahan namo\nnga anaa sa langit' });
     assert.match(song.title, /^Amahan Namo \(Lyrics\)/);
     assert.match(song.description, /ni X\. Amahan namo nga anaa sa langit/);
+  });
+
+  test('a prayer request by who it is for and its text, never a contact detail', () => {
+    const p = itemPreview('prayers', { id: 4, type: 'For the sick', for_name: 'Lola Rosa', name: null, intention: 'Para sa iyang pagkaayo.' });
+    assert.match(p.title, /^Hangyo sa pag-ampo: Para kang Lola Rosa · /);
+    assert.equal(p.description, 'Para sa iyang pagkaayo.');
+    assert.equal(p.image, null);
+    assert.match(pagePreview('/komunidad/pag-ampo').title, /^Mga Hangyo sa Pag-ampo · /);
   });
 
   test('no row, no preview', () => {

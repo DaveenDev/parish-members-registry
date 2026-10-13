@@ -3,7 +3,7 @@ import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-r
 import { Icon } from '../../components/site/Icons.jsx';
 import { BigButton, INNER, Spin } from '../../components/site/kit.jsx';
 import { api } from '../../api.js';
-import { validEmail, validMobile } from '../../lib/site.js';
+import { fmtLong, validEmail, validMobile } from '../../lib/site.js';
 import { useSiteTitle } from './SiteLayout.jsx';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { FORMS } from './forms.js';
@@ -12,12 +12,14 @@ import { phoneHref } from '../../lib/requests.js';
 
 const visible = (f, v) => !f.show || f.show(v);
 const blank = (v) => v === undefined || v === null || v === '' || v === false;
+// A field's default or date limit, worked out now when it's a function (e.g. today plus 30 days).
+const now = (x) => (typeof x === 'function' ? x() : x);
 
 /** Defaults, then any choice the link picked (e.g. ?certType=matrimony) when it's one of the options. */
 function initialValues(F, params) {
   const values = {};
   F.steps.forEach((st) => st.fields.forEach((f) => {
-    if (f.def !== undefined) values[f.k] = f.def;
+    if (f.def !== undefined) values[f.k] = now(f.def);
     const asked = params.get(f.k);
     if (asked && Array.isArray(f.opts) && f.opts.some(([v]) => v === asked)) values[f.k] = asked;
   }));
@@ -33,6 +35,7 @@ function validate(fields, values) {
     else if (f.mobile && !blank(v) && !validMobile(v)) errs[f.k] = 'Susiha ang numero. Sama sa 0917 123 4567.';
     else if (f.type === 'email' && !blank(v) && !validEmail(v)) errs[f.k] = 'Susiha ang email.';
     else if (f.type === 'number' && !blank(v) && !/^(19|20)\d\d$/.test(String(v))) errs[f.k] = 'Isulat ang tuig, sama sa 1998.';
+    else if (f.type === 'date' && !blank(v) && ((f.min && v < now(f.min)) || (f.max && v > now(f.max)))) errs[f.k] = f.rangeError || 'Susiha ang petsa.';
   }
   return errs;
 }
@@ -203,7 +206,7 @@ function reviewRows(F, values, gkks) {
     const v = values[f.k];
     if (blank(v)) return;
     const label = (optionsFor(f, gkks) || []).find(([val]) => val === v)?.[1];
-    rows.push({ k: f.k, label: f.label, value: v === true ? 'Oo' : label || v, step });
+    rows.push({ k: f.k, label: f.label, value: v === true ? 'Oo' : f.type === 'date' ? fmtLong(v) : label || v, step });
   }));
   return rows;
 }
@@ -269,7 +272,8 @@ function FieldView({ f, value, error, onChange, gkks }) {
   } else {
     const type = f.type === 'number' ? 'text' : f.type;
     const inputMode = f.type === 'tel' ? 'tel' : f.type === 'email' ? 'email' : f.im || 'text';
-    control = <>{label}<input id={id} type={type} inputMode={inputMode} value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={f.ph} aria-invalid={!!error} aria-describedby={describedBy} className={`${INPUT} ${border}`} /></>;
+    const range = f.type === 'date' ? { min: now(f.min), max: now(f.max) } : {};
+    control = <>{label}<input id={id} type={type} inputMode={inputMode} {...range} value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={f.ph} aria-invalid={!!error} aria-describedby={describedBy} className={`${INPUT} ${border}`} /></>;
   }
 
   return (
@@ -303,6 +307,7 @@ function Done({ F, refNo }) {
       </div>
       <div className="flex flex-col gap-2.5 mt-4">
         {F.track && refNo && <BigButton to={`/serbisyo/susiha?ref=${encodeURIComponent(refNo)}`}>Susiha ang status</BigButton>}
+        {F.doneLink && <BigButton to={F.doneLink.to}>{F.doneLink.label}</BigButton>}
         <BigButton variant="secondary" to="/">Balik sa Home</BigButton>
       </div>
     </main>

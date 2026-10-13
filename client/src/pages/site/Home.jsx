@@ -5,6 +5,7 @@ import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../compone
 import { AnnouncementCard, ArticleChip, CardShare, EventCard } from '../../components/site/cards.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
 import VerseOfDay from '../../components/site/VerseOfDay.jsx';
+import PrayerTicker from '../../components/site/PrayerTicker.jsx';
 import { ARTICLES_PAGE, BIS_DAYS, KALENDARYO_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, fmtTime12, massKindLabel, nextMassDays, parseIso } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
@@ -108,6 +109,7 @@ export default function Home() {
       </section>
 
       <CensusNotice />
+      <PrayerTicker />
 
       {/* A full-width navy band under the census notice (the hero when none is open), for the news and today's Masses. */}
       <div className="pb-7 bg-parish-navy lg:py-12">

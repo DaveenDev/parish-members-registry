@@ -62,7 +62,7 @@ describe('push levels', () => {
     assert.deepEqual(PUSH_LEVELS.map((l) => l.key).sort(), ['all', 'none', 'requests', 'urgent']);
   });
   test('member requests leave out registrations and the morning summary', () => {
-    for (const k of ['anointing', 'certificate', 'ocia', 'blood', 'donor', 'census']) assert.ok(MEMBER_REQUEST_KINDS.includes(k), k);
+    for (const k of ['anointing', 'certificate', 'ocia', 'blood', 'donor', 'prayer', 'census']) assert.ok(MEMBER_REQUEST_KINDS.includes(k), k);
     assert.ok(!MEMBER_REQUEST_KINDS.includes('registration'));
     assert.ok(!MEMBER_REQUEST_KINDS.includes('digest'));
     assert.equal(kindStyle('donor').label, 'Blood donor');

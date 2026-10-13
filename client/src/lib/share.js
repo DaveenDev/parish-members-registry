@@ -8,6 +8,7 @@
 import { canonicalUrl, excerpt, pageDescription } from './seo.js';
 import { BIS_DAYS, eventDays, fmtLong, fmtShort, parseIso } from './site.js';
 import { songIdFromParam } from './downloads.js';
+import { prayerTitle } from './prayers.js';
 
 export const PARISH_NAME = 'Our Lady of Guadalupe';
 export const SITE_TITLE = `${PARISH_NAME} Quasi-Parish · Mua-an`;
@@ -22,6 +23,7 @@ const PAGE_TITLES = [
   ['/simbahan', 'Ang Simbahan'],
   ['/pahibalo', 'Pahibalo ug Kalihokan'],
   ['/komunidad/artikulo', 'Mga Artikulo'],
+  ['/komunidad/pag-ampo', 'Mga Hangyo sa Pag-ampo'],
   ['/komunidad', 'Komunidad'],
   ['/serbisyo/dugo', 'Blood Donor Call'],
   ['/serbisyo/susiha', 'Susiha ang Rehistro'],
@@ -33,7 +35,8 @@ const PAGE_TITLES = [
 
 /**
  * What a shared address shows: { kind, id } for one item (an event,
- * announcement, bulletin, article, GKK or song), else { kind: 'page' }.
+ * announcement, bulletin, article, GKK, song or prayer request), else
+ * { kind: 'page' }.
  */
 export function shareTarget(pathname) {
   const p = String(pathname || '/').replace(/\/+$/, '') || '/';
@@ -45,6 +48,7 @@ export function shareTarget(pathname) {
   if (parts.length === 3 && ((a === 'pahibalo' && b === 'artikulo') || (a === 'komunidad' && (b === 'artikulo' || b === 'balita'))) && id(c)) return { kind: 'articles', id: id(c) };
   if (parts.length === 2 && a === 'pahibalo' && id(b)) return { kind: 'announcements', id: id(b) };
   if (parts.length === 3 && a === 'komunidad' && b === 'gkk' && c) return { kind: 'gkk', id: c };
+  if (parts.length === 3 && a === 'komunidad' && b === 'pag-ampo' && id(c)) return { kind: 'prayers', id: id(c) };
   // A song's address is its id and title: /downloads/kanta/12-ginoo-kaloy-i-kami.
   if (parts.length === 3 && a === 'downloads' && b === 'kanta' && songIdFromParam(c)) return { kind: 'songs', id: songIdFromParam(c) };
   return { kind: 'page' };
@@ -67,7 +71,7 @@ function eventWhen(e) {
 
 /**
  * One item's preview, as its page describes it (<PageMeta> in Details.jsx,
- * Komunidad.jsx and Downloads.jsx). `row` is the item (for a GKK, its
+ * Komunidad.jsx, Prayers.jsx and Downloads.jsx). `row` is the item (for a GKK, its
  * directory row with the page's photo_url); null when there's none.
  */
 export function itemPreview(kind, row) {
@@ -89,6 +93,9 @@ export function itemPreview(kind, row) {
         image: null,
         type: 'article',
       };
+    // As public_prayer_request() (0100) gives it: never a contact detail, the name only if they chose.
+    case 'prayers':
+      return { title: fullTitle(`Hangyo sa pag-ampo: ${prayerTitle(row)}`), description: excerpt(row.intention), image: null, type: 'article' };
     case 'gkk':
       return {
         title: fullTitle(row.name),

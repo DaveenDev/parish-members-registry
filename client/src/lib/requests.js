@@ -61,6 +61,8 @@ export const STATUS_TONES = {
   Released: 'gray',
   'Cannot issue': 'red',
   New: 'gold',
+  'Prayed for': 'green',
+  Archived: 'gray',
   Open: 'red',
   'Contacting donors': 'gold',
   Fulfilled: 'green',

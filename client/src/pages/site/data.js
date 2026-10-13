@@ -1,6 +1,7 @@
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { todayIso } from '../../lib/website.js';
+import { prayerVisitorId } from '../../lib/prayers.js';
 
 // One hook per kind of public data, so every page shares the same cache key.
 export const useMassSchedule = () => usePublicData('mass', api.publicMassSchedules);
@@ -27,6 +28,11 @@ export const useDownloads = () => usePublicData('downloads', api.publicDownloads
 export const useCensusProgress = () => usePublicData('census', () => api.publicCensusProgress().catch(() => ({ open: false })));
 /** Whether the census family portal is open (0008), for the "update your record" buttons. */
 export const usePortalStatus = () => usePublicData('portal', () => api.portalStatus().catch(() => ({ open: false })));
+
+/** The prayer wall (0100): what shows today, newest first, each with this browser's "Nag-ampo ko". */
+export const usePrayerWall = () => usePublicData('prayers', () => api.publicPrayerRequests(prayerVisitorId()));
+/** One prayer request's page, or null when it no longer shows. */
+export const usePrayerRequest = (id) => usePublicData(`prayer:${id}`, () => api.publicPrayerRequest(id, prayerVisitorId()));
 
 /** A single list's state, with `empty` when it loaded with no rows. */
 export function listState(q) {

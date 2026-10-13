@@ -1,6 +1,8 @@
 // The website's sitemap.xml (api/sitemap.js): the main pages, then every
 // published event, announcement, bulletin, article, GKK page and song, so
-// search engines find each one without following links to it.
+// search engines find each one without following links to it. The prayer
+// wall is listed, but not each request: they're personal and gone after
+// their last day, so their pages ask not to be indexed (Prayers.jsx).
 
 import { canonicalUrl } from './seo.js';
 import { songPath } from './downloads.js';
@@ -12,6 +14,7 @@ export const SITEMAP_PAGES = [
   ['/pahibalo', 'daily', '0.9'],
   ['/komunidad', 'weekly', '0.8'],
   ['/komunidad/artikulo', 'weekly', '0.7'],
+  ['/komunidad/pag-ampo', 'daily', '0.6'],
   ['/serbisyo', 'monthly', '0.8'],
   ['/downloads', 'weekly', '0.7'],
   ['/kontak', 'monthly', '0.8'],
