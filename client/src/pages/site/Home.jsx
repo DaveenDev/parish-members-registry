@@ -32,6 +32,12 @@ export default function Home() {
   const urgent = ann.rows.find((a) => a.urgent && !dismissed.includes(a.id));
   // The two newest by start date, urgent and pinned ones included.
   const latest = [...ann.rows].sort((a, b) => b.publish_on.localeCompare(a.publish_on) || b.id - a.id).slice(0, 2);
+  // A section with nothing to show is left out and the other takes the whole
+  // width; with neither, the row goes. (Shown while loading and on an error.)
+  const showAnn = ann.loading || !!ann.error || latest.length > 0;
+  const showEvents = events.loading || !!events.error || !events.empty;
+  const both = showAnn && showEvents;
+  const eventsCol = both ? 'lg:col-start-2' : 'lg:col-start-1';
 
   function dismiss() {
     const next = [...dismissed, urgent.id];
@@ -108,8 +114,11 @@ export default function Home() {
       {/* Desktop: announcements and events half and half, in one grid
           (lg:contents) so both sides share a height: up to two announcement
           cards stacked on the left, the next event's card on the right with
-          its cover growing to match. The rest of the events are a tap away. */}
-      <div className="lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:grid lg:grid-cols-2 lg:gap-x-8">
+          its cover growing to match. The rest of the events are a tap away.
+          Either one alone takes the whole width; with neither, the row goes. */}
+      {(showAnn || showEvents) && (
+      <div className={`lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:grid lg:gap-x-8 ${both ? 'lg:grid-cols-2' : 'lg:grid-cols-1'}`}>
+      {showAnn && (
       <section className="px-3.5 pt-7 lg:p-0 lg:contents">
         <div className="lg:col-start-1 lg:row-start-1">
           <SectionHead dark title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
@@ -117,8 +126,6 @@ export default function Home() {
         <div className="lg:col-start-1 lg:row-start-2">
           {ann.loading ? <Skeletons n={2} h={104} /> : ann.error ? (
             <p className="m-0 text-[#ffb4a8] text-[15px]">Wala ma-load ang mga pahibalo.</p>
-          ) : !latest.length ? (
-            <p className="m-0 text-white/75 text-[15px]">Wala pay pahibalo karong semanaha.</p>
           ) : (
             <div className="flex flex-col gap-2.5 lg:gap-4 lg:h-full">
               {latest.map((a) => <AnnouncementCard key={a.id} a={a} fill />)}
@@ -126,25 +133,27 @@ export default function Home() {
           )}
         </div>
       </section>
+      )}
 
+      {showEvents && (
       <section className="px-3.5 pt-7 lg:p-0 lg:contents">
-        <div className="lg:col-start-2 lg:row-start-1">
+        <div className={`${eventsCol} lg:row-start-1`}>
           <SectionHead dark title="Umaabot nga kalihokan" to={KALENDARYO_PAGE} action="Kalendaryo" actionLg="Kalendaryo →" />
         </div>
-        <div className="lg:col-start-2 lg:row-start-2">
+        <div className={`${eventsCol} lg:row-start-2`}>
           {events.loading ? <Skeleton h={150} /> : events.error ? (
             <p className="m-0 text-[#ffb4a8] text-[15px]">Wala ma-load ang kalendaryo.</p>
-          ) : events.empty ? (
-            <p className="m-0 text-white/75 text-[15px]">Walay kalihokan nga naka-iskedyul.</p>
           ) : (
             <EventCard e={events.rows[0]} showDate fill />
           )}
         </div>
       </section>
+      )}
       </div>
+      )}
 
-      {/* The next three days' Masses: the band's last row, under the news. */}
-      <section className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-10">
+      {/* The next three days' Masses: the band's last row, under the news (or its first, with none). */}
+      <section className={`px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 ${showAnn || showEvents ? 'lg:pt-10' : 'lg:pt-0'}`}>
         <UpcomingMasses mass={mass} />
       </section>
       </div>
