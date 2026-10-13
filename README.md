@@ -6,6 +6,8 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 
 **Live Parish Online Census & Website: https://guadalupe-muaan.vercel.app/**
 
+**Demo site, with sample data, to try the app: https://parish-registry-demo.vercel.app/**
+
 > **Free for any parish.** Copy it, set it up for your own parish and change it as you need, at no cost. The one condition: keep the **"Built For Free by DaveenDev"** credit in the app. See [Free for your parish](#free-for-your-parish).
 
 ## Free for your parish
