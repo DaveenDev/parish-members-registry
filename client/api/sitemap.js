@@ -26,7 +26,7 @@ async function rest(path, init = {}) {
 export async function GET(request) {
   const { origin } = new URL(request.url);
   const lists = await Promise.all([
-    ...TABLES.map((t) => rest(`${t}?select=id,created_at,updated_at&published=eq.true&order=id`)),
+    ...TABLES.map((t) => rest(`${t}?select=id,${t === 'songs' ? 'title,' : ''}created_at,updated_at&published=eq.true&order=id`)),
     rest('rpc/public_gkk_directory', { method: 'POST', body: '{}' }),
   ]);
   const items = Object.fromEntries(TABLES.map((t, i) => [t, lists[i]]));

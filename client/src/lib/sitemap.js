@@ -3,6 +3,7 @@
 // search engines find each one without following links to it.
 
 import { canonicalUrl } from './seo.js';
+import { songPath } from './downloads.js';
 
 // The main pages, as public/sitemap.xml listed them.
 export const SITEMAP_PAGES = [
@@ -26,7 +27,7 @@ const ITEM_PATHS = {
   announcements: (r) => `/pahibalo/${r.id}`,
   bulletins: (r) => `/pahibalo/bulletin/${r.id}`,
   articles: (r) => `/komunidad/artikulo/${r.id}`,
-  songs: (r) => `/downloads/kanta/${r.id}`,
+  songs: songPath, // with its title, as the site links it
   gkks: (r) => `/komunidad/gkk/${encodeURIComponent(r.name)}`,
 };
 

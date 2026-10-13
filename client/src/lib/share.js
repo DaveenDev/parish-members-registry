@@ -7,6 +7,7 @@
 
 import { canonicalUrl, excerpt, pageDescription } from './seo.js';
 import { BIS_DAYS, eventDays, fmtLong, fmtShort, parseIso } from './site.js';
+import { songIdFromParam } from './downloads.js';
 
 export const PARISH_NAME = 'Our Lady of Guadalupe';
 export const SITE_TITLE = `${PARISH_NAME} Quasi-Parish · Mua-an`;
@@ -44,7 +45,8 @@ export function shareTarget(pathname) {
   if (parts.length === 3 && ((a === 'pahibalo' && b === 'artikulo') || (a === 'komunidad' && (b === 'artikulo' || b === 'balita'))) && id(c)) return { kind: 'articles', id: id(c) };
   if (parts.length === 2 && a === 'pahibalo' && id(b)) return { kind: 'announcements', id: id(b) };
   if (parts.length === 3 && a === 'komunidad' && b === 'gkk' && c) return { kind: 'gkk', id: c };
-  if (parts.length === 3 && a === 'downloads' && b === 'kanta' && id(c)) return { kind: 'songs', id: id(c) };
+  // A song's address is its id and title: /downloads/kanta/12-ginoo-kaloy-i-kami.
+  if (parts.length === 3 && a === 'downloads' && b === 'kanta' && songIdFromParam(c)) return { kind: 'songs', id: songIdFromParam(c) };
   return { kind: 'page' };
 }
 

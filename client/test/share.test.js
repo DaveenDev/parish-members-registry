@@ -17,6 +17,7 @@ describe('shareTarget', () => {
     assert.deepEqual(shareTarget('/pahibalo/artikulo/5'), { kind: 'articles', id: 5 });
     assert.deepEqual(shareTarget('/komunidad/balita/5'), { kind: 'articles', id: 5 });
     assert.deepEqual(shareTarget('/downloads/kanta/9'), { kind: 'songs', id: 9 });
+    assert.deepEqual(shareTarget('/downloads/kanta/30-amahan-namo'), { kind: 'songs', id: 30 });
     assert.deepEqual(shareTarget('/komunidad/gkk/GKK%20San%20Isidro'), { kind: 'gkk', id: 'GKK San Isidro' });
   });
 
@@ -113,7 +114,7 @@ describe('sitemapXml', () => {
     const xml = sitemapXml('https://example.org/', {
       events: [{ id: 4, updated_at: '2026-10-01T05:00:00Z' }],
       articles: [{ id: 2, created_at: '2026-09-02T00:00:00Z' }],
-      songs: [{ id: 9 }],
+      songs: [{ id: 9, title: 'Amahan Namo' }],
       gkks: [{ name: 'GKK San Isidro & Sta. Ana' }],
       bulletins: [{}],
     });
@@ -122,7 +123,7 @@ describe('sitemapXml', () => {
     assert.match(xml, /<loc>https:\/\/example.org\/<\/loc>/);
     assert.match(xml, /<loc>https:\/\/example.org\/misa\/kalihokan\/4<\/loc><lastmod>2026-10-01<\/lastmod>/);
     assert.match(xml, /<loc>https:\/\/example.org\/komunidad\/artikulo\/2<\/loc><lastmod>2026-09-02<\/lastmod>/);
-    assert.match(xml, /<loc>https:\/\/example.org\/downloads\/kanta\/9<\/loc><priority>/);
+    assert.match(xml, /<loc>https:\/\/example.org\/downloads\/kanta\/9-amahan-namo<\/loc><priority>/);
     assert.match(xml, /komunidad\/gkk\/GKK%20San%20Isidro%20%26%20Sta\.%20Ana/);
   });
 
