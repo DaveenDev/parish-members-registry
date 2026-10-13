@@ -1,25 +1,17 @@
-import React, { Suspense } from 'react';
+import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import MaintenanceGate from './components/MaintenanceGate.jsx';
 import TrainingBanner from './components/TrainingBanner.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
-import Developer from './pages/site/Developer.jsx';
 import Home from './pages/site/Home.jsx';
-import Simbahan from './pages/site/Simbahan.jsx';
-import Pagbasa from './pages/site/Pagbasa.jsx';
-import Kasaysayan from './pages/site/Kasaysayan.jsx';
-import Pahibalo from './pages/site/Pahibalo.jsx';
-import Komunidad, { GkkDetail } from './pages/site/Komunidad.jsx';
-import { ArticlesArchive } from './pages/site/Articles.jsx';
-import Serbisyo, { Kontak, Blood } from './pages/site/Serbisyo.jsx';
-import CheckStatus from './pages/site/CheckStatus.jsx';
-import RequestForm from './pages/site/RequestForm.jsx';
-import Downloads, { SongPage } from './pages/site/Downloads.jsx';
-import SiteNotFound from './pages/site/NotFound.jsx';
-import { EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail, ArticleRedirect } from './pages/site/Details.jsx';
+import {
+  Developer, Simbahan, Pagbasa, Kasaysayan, Pahibalo, Komunidad, GkkDetail, ArticlesArchive, Serbisyo, Kontak, Blood,
+  CheckStatus, RequestForm, Downloads, SongPage, SiteNotFound, EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail, ArticleRedirect,
+} from './pages/site/lazyPages.js';
 
-// The public website is in the main bundle. Registration, the census portal
+// The website's layout and Home are in the main bundle; its other pages load
+// when they're first opened (lazyPages.js). Registration, the census portal
 // and the whole admin load only when they're opened, so visitors on mobile
 // data don't download the staff pages. The admin pages show their spinner
 // inside AdminLayout while they load.
@@ -71,6 +63,18 @@ function ToDuplicatesTab() {
     : <Navigate to="/admin/members?view=duplicates" replace />;
 }
 
+/**
+ * The page's language for screen readers, translation and search engines:
+ * the website, registration and census portal are in Cebuano (index.html's
+ * lang="ceb"), the staff admin in English.
+ */
+function PageLanguage() {
+  const { pathname } = useLocation();
+  const lang = pathname.startsWith('/admin') ? 'en' : 'ceb';
+  useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  return null;
+}
+
 function RequireAuth({ children }) {
   const { user, ready } = useAuth();
   const location = useLocation();
@@ -86,6 +90,7 @@ function RequireAuth({ children }) {
 export default function App() {
   return (
     <AuthProvider>
+      <PageLanguage />
       <TrainingBanner />
       <Routes>
         <Route element={<MaintenanceGate />}>

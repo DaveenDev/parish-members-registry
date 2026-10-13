@@ -1,4 +1,4 @@
-import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { Suspense, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icon, IconSprite } from '../../components/site/Icons.jsx';
 import { FOOTER_CREAM, SiteToastContext } from '../../components/site/kit.jsx';
@@ -10,6 +10,7 @@ import { todayIso } from '../../lib/website.js';
 import { messengerLink, validCoords } from '../../lib/website.js';
 import { applyPageMeta, canonicalUrl, pageDescription, pageNoindex, parishJsonLd, resetPageMeta } from '../../lib/seo.js';
 import { useCensusProgress, useOffice } from './data.js';
+import { preloadSitePages } from './lazyPages.js';
 
 export const PARISH_NAME = 'Our Lady of Guadalupe';
 export const PARISH_SUB = 'Quasi-Parish · Mua-an';
@@ -101,6 +102,11 @@ export default function SiteLayout() {
   }, []);
 
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  // The other pages' code, once this one is up and the phone is idle.
+  useEffect(() => {
+    const idle = window.requestIdleCallback ? (cb) => window.requestIdleCallback(cb, { timeout: 5000 }) : (cb) => setTimeout(cb, 3000);
+    idle(preloadSitePages);
+  }, []);
   useEffect(() => () => clearTimeout(timer.current), []);
 
   // The browser tab (and bookmarks, history, search results) names the page: an
@@ -141,6 +147,8 @@ export default function SiteLayout() {
       <TitleContext.Provider value={setTitle}>
       <MetaContext.Provider value={setPageMeta}>
         <IconSprite />
+        {/* For keyboard and screen-reader visitors: past the header and menu, hidden until tabbed to. */}
+        <a href="#sulod" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-parish-navy focus:text-white focus:font-semibold focus:px-4 focus:py-2.5 focus:rounded-xl">Adto sa sulod</a>
         <div className="min-h-screen bg-parish-bg font-sans text-parish-ink max-w-[560px] mx-auto relative pb-[64px] lg:max-w-none lg:pb-0 lg:flex lg:flex-col">
           <DesktopHeader pathname={pathname} logo={logo} />
           <header className="lg:hidden sticky top-0 z-20 h-[58px] flex items-center gap-2 pl-1.5 pr-2.5 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.95)' }}>
@@ -172,7 +180,8 @@ export default function SiteLayout() {
             </div>
           )}
 
-          <div className="lg:flex-1"><Outlet /></div>
+          {/* A page opened for the first time loads its code (lazyPages.js) under the header. */}
+          <div id="sulod" tabIndex={-1} className="lg:flex-1 outline-none"><Suspense fallback={<div className="min-h-[70vh]" />}><Outlet /></Suspense></div>
 
           <DesktopFooter />
 
