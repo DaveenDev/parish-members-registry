@@ -292,12 +292,13 @@ export const api = {
   /**
    * { Pending, Verified } households under listHouseholds-style filters (not
    * status), for the Households tabs. Count-only, with the member-name search
-   * run once for both.
+   * run once for both. From households_with_count, as the list is: the search
+   * matches head_name, which the households table hasn't got.
    */
   async householdStatusCounts(params = {}) {
     const { params: query } = await withMemberMatches(params);
     const count = async (status) => {
-      const { count: n, error } = await householdQuery(supabase.from('households').select('id', { count: 'exact', head: true }), { ...query, status });
+      const { count: n, error } = await householdQuery(supabase.from('households_with_count').select('id', { count: 'exact', head: true }), { ...query, status, groupBy: undefined });
       if (error) throw mapError(error);
       return n || 0;
     };
