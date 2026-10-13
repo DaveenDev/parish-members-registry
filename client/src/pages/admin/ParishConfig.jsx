@@ -1090,23 +1090,11 @@ function PersonalTab({ withPrivacy }) {
         </Panel>
       </div>
       <div className="flex flex-col gap-[18px] min-w-0">
-        {user?.isDemo ? <DemoPasswordNote /> : <ChangePasswordCard />}
+        {/* Not for the demo site's shared login (0101): everyone trying the demo uses its password. */}
+        {!user?.isDemo && <ChangePasswordCard />}
         {withPrivacy && <PrivacyCard />}
       </div>
     </div>
-  );
-}
-
-/** In place of Change password for the demo site's shared login (0101), which everyone trying the demo uses. */
-function DemoPasswordNote() {
-  return (
-    <Panel className="p-6">
-      <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Password</div>
-      <div className="text-[13.5px] text-parish-muted leading-relaxed">
-        This is the demo login that everyone trying the app shares, so its password stays as it is. In your own parish's
-        registry, each member of staff has their own login and changes their password here.
-      </div>
-    </Panel>
   );
 }
 

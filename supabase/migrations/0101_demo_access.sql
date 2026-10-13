@@ -1,5 +1,5 @@
 -- A "Demo" access level, for the demo site's shared login: other parishes
--- press "Try the demo" on the staff sign-in page and look around the admin
+-- press "Login to Demo Site" on the staff sign-in page and look around the admin
 -- panel as the parish office would. Run after 0100_prayer_wall.sql. Safe to
 -- re-run.
 --

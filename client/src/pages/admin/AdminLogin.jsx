@@ -28,9 +28,12 @@ export default function AdminLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [demoError, setDemoError] = useState('');
+  const [loading, setLoading] = useState(''); // '' | 'demo' | 'form'
   // "Forgot password?": open straight away when coming back from an expired reset link.
   const [showHelp, setShowHelp] = useState(!!location.state?.forgot);
+  // On the demo site the staff form waits behind "Login as real user", unless it's needed for a reset.
+  const [realUser, setRealUser] = useState(!DEMO_LOGIN || !!location.state?.forgot);
   const [logo, setLogo] = useState(null);
   const [parishName, setParishName] = useState('');
 
@@ -41,23 +44,27 @@ export default function AdminLogin() {
 
   if (ready && user) return <Navigate to={dest} replace />;
 
-  async function signIn(withEmail, withPassword) {
-    setLoading(true);
+  async function signIn(withEmail, withPassword, which) {
+    const setErr = which === 'demo' ? setDemoError : setError;
+    setLoading(which);
     setError('');
+    setDemoError('');
     try {
       await login(withEmail, withPassword);
       navigate(dest, { replace: true });
     } catch (err) {
-      setError(err.message || 'Invalid email or password');
+      setErr(which === 'demo'
+        ? 'The demo login isn’t working right now. Try again in a moment.'
+        : err.message || 'Invalid email or password');
     } finally {
-      setLoading(false);
+      setLoading('');
     }
   }
 
   function onSubmit(e) {
     e.preventDefault();
     if (!email.trim() || !password) { setError('Enter your email and password.'); return; }
-    signIn(email, password);
+    signIn(email, password, 'form');
   }
 
   return (
@@ -76,50 +83,70 @@ export default function AdminLogin() {
           <div className="text-[13px] tracking-[.14em] uppercase text-[var(--p-gold-light)]/90 mt-1.5">Members Registry · Admin</div>
         </div>
         <div className="bg-parish-card rounded-[20px] shadow-2xl px-7 py-[30px]" style={{ padding: '30px 28px' }}>
-          {DEMO_LOGIN && (
-            <div className="mb-6 pb-6 border-b border-parish-line2">
-              <div className="font-semibold text-[15px] text-parish-navy mb-1">Trying the app for your parish?</div>
-              <p className="text-[13.5px] text-parish-muted m-0 mb-3 leading-relaxed">Look around the admin panel with sample data. Nothing here touches a real parish registry.</p>
-              <button
-                type="button"
-                onClick={() => signIn(DEMO_LOGIN.email, DEMO_LOGIN.password)}
-                disabled={loading}
-                className="appearance-none border-none cursor-pointer w-full py-3.5 rounded-xl bg-[#6d28d9] hover:bg-[#5b21b6] text-white font-semibold text-[16px] disabled:opacity-60"
-              >
-                {loading ? 'Signing in…' : 'Try the demo'}
-              </button>
-            </div>
-          )}
-          <h1 className="font-serif text-[26px] font-semibold m-0 mb-1 text-parish-navy">Staff sign in</h1>
-          <p className="text-[14px] text-parish-muted m-0 mb-[22px]" style={{ marginBottom: '22px' }}>Authorized parish personnel only.</p>
-          {signedOutIdle && !error && (
+          {signedOutIdle && !error && !demoError && (
             <div className="mb-4 px-3.5 py-3 bg-parish-warnBg border border-parish-warnBorder rounded-xl text-[13px] text-parish-warnStrong leading-relaxed" role="status">
               You were signed out after {IDLE_LIMIT_MINUTES} minutes without activity. Sign in again to continue.
             </div>
           )}
-          <form onSubmit={onSubmit}>
-            <div className="mb-4">
-              <Field label="Email"><TextInput type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
-            </div>
-            <div className="mb-[18px]">
-              <Field label="Password"><TextInput type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
-            </div>
-            <div className="flex items-center justify-end mb-5">
+          {DEMO_LOGIN && (
+            <>
+              <h1 className="font-serif text-[26px] font-semibold m-0 mb-1 text-parish-navy">Demo site</h1>
+              <p className="text-[14px] text-parish-muted m-0 mb-[18px] leading-relaxed">Look around the admin panel with sample data. Nothing here touches a real parish registry.</p>
+              {demoError && <div className="mb-4 text-parish-error text-[13.5px] font-medium" role="alert">{demoError}</div>}
               <button
                 type="button"
-                onClick={() => setShowHelp((s) => !s)}
-                aria-expanded={showHelp}
-                className="appearance-none border-none bg-none cursor-pointer text-[13.5px] font-semibold text-parish-blue p-0"
+                onClick={() => signIn(DEMO_LOGIN.email, DEMO_LOGIN.password, 'demo')}
+                disabled={!!loading}
+                className="appearance-none border-none cursor-pointer w-full py-3.5 rounded-xl bg-[#6d28d9] hover:bg-[#5b21b6] text-white font-semibold text-[16px] disabled:opacity-60"
               >
-                Forgot password?
+                {loading === 'demo' ? 'Signing in…' : 'Login to Demo Site'}
               </button>
-            </div>
-            {error && <div className="mb-4 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
-            <PrimaryButton type="submit" disabled={loading} className="w-full py-3.5 text-[16px]">
-              {loading ? 'Signing in…' : 'Sign in'}
-            </PrimaryButton>
-          </form>
-          {showHelp && <ForgotPassword initialEmail={email} />}
+              <div className="flex items-center gap-3 my-5 text-[13px] font-semibold text-parish-muted" aria-hidden="true">
+                <span className="flex-1 h-px bg-parish-line2" />or<span className="flex-1 h-px bg-parish-line2" />
+              </div>
+              {!realUser && (
+                <button
+                  type="button"
+                  onClick={() => setRealUser(true)}
+                  className="appearance-none cursor-pointer w-full py-3 rounded-xl border-[1.5px] border-parish-borderSoft bg-transparent text-parish-navy font-semibold text-[15px] hover:border-[var(--p-blue-border)]"
+                >
+                  Login as real user
+                </button>
+              )}
+            </>
+          )}
+          {realUser && (
+            <>
+              {DEMO_LOGIN
+                ? <h2 className="font-serif text-[21px] font-semibold m-0 mb-1 text-parish-navy">Login as real user</h2>
+                : <h1 className="font-serif text-[26px] font-semibold m-0 mb-1 text-parish-navy">Staff sign in</h1>}
+              <p className="text-[14px] text-parish-muted m-0 mb-[22px]" style={{ marginBottom: '22px' }}>Authorized parish personnel only.</p>
+              <form onSubmit={onSubmit}>
+                <div className="mb-4">
+                  {/* Straight to the email after "Login as real user". */}
+                  <Field label="Email"><TextInput type="email" autoComplete="username" autoFocus={!!DEMO_LOGIN} value={email} onChange={(e) => setEmail(e.target.value)} /></Field>
+                </div>
+                <div className="mb-[18px]">
+                  <Field label="Password"><TextInput type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
+                </div>
+                <div className="flex items-center justify-end mb-5">
+                  <button
+                    type="button"
+                    onClick={() => setShowHelp((s) => !s)}
+                    aria-expanded={showHelp}
+                    className="appearance-none border-none bg-none cursor-pointer text-[13.5px] font-semibold text-parish-blue p-0"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
+                {error && <div className="mb-4 text-parish-error text-[13.5px] font-medium" role="alert">{error}</div>}
+                <PrimaryButton type="submit" disabled={!!loading} className="w-full py-3.5 text-[16px]">
+                  {loading === 'form' ? 'Signing in…' : 'Sign in'}
+                </PrimaryButton>
+              </form>
+              {showHelp && <ForgotPassword initialEmail={email} />}
+            </>
+          )}
         </div>
       </div>
       <CreditFooter dark />

@@ -116,7 +116,7 @@ function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
 /**
  * Shows a temporary password once, with a copy button. It is never stored.
  * The demo login's (0101) isn't temporary: it goes into the demo site's
- * Vercel settings for the "Try the demo" button.
+ * Vercel settings for the "Login to Demo Site" button.
  */
 function PasswordReveal({ who, email, password, demo = false, onDone }) {
   const toast = useToast();
@@ -132,7 +132,7 @@ function PasswordReveal({ who, email, password, demo = false, onDone }) {
     <div className="flex flex-col gap-4">
       {demo ? (
         <p className="text-[14px] text-parish-text2 m-0">
-          This is the password of <strong>{who}</strong>, the shared demo login. For the <strong>Try the demo</strong> button on the
+          This is the password of <strong>{who}</strong>, the shared demo login. For the <strong>Login to Demo Site</strong> button on the
           sign-in page, put it in the demo site's Vercel project as <code>VITE_DEMO_PASSWORD</code>, with <code>VITE_DEMO_EMAIL</code> = <strong>{email}</strong>,
           then redeploy.
         </p>
@@ -420,7 +420,7 @@ export default function ManageStaff() {
     const ok = await confirm({
       title: `Reset ${s.name || s.email}’s password?`,
       message: s.access === 'demo'
-        ? 'The demo login’s password changes right away, and “Try the demo” stops working until the new one is in the demo site’s Vercel settings.'
+        ? 'The demo login’s password changes right away, and “Login to Demo Site” stops working until the new one is in the demo site’s Vercel settings.'
         : 'Their current password stops working right away. You’ll get a temporary password to give them.',
       confirmLabel: 'Reset password',
       tone: 'danger',

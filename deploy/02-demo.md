@@ -109,10 +109,13 @@ only"** strip must be at the top of every page. No strip means it's
 talking to the live database: fix the two `VITE_SUPABASE_*` values and
 redeploy before anyone signs in.
 
-### The "Try the demo" login (for other parishes)
+### The "Login to Demo Site" button (for other parishes)
 
-A **Try the demo** button on `<demo-site>/admin/login` signs visitors in
-with one shared account (0101_demo_access.sql):
+`<demo-site>/admin/login` opens on a **Login to Demo Site** button that signs
+visitors in with one shared account (0101_demo_access.sql), nothing to type.
+Under it, after "or", **Login as real user** opens the usual email and
+password form: for the developer and staff admins, to manage staff accounts
+and the setup. Set the shared account up like this:
 
 1. Demo admin panel → Settings → Staff → **Add staff**: a name like
    "Demo", an email nobody uses (e.g. `demo@parish-registry-demo.test`),
@@ -310,8 +313,10 @@ on practice data and never on the live registry.
 - [ ] Demo admin signs in; the live site's staff passwords don't work
       there (separate logins).
 - [ ] Photo storage Test connection passes with `<demo-site>/media`.
-- [ ] **Try the demo** on `<demo-site>/admin/login` signs in; its Personal
+- [ ] **Login to Demo Site** on `<demo-site>/admin/login` signs in; its Personal
       Settings has no Change password, and Settings has no Staff tab.
+- [ ] **Login as real user** under it opens the email and password form, and
+      the demo admin signs in there.
 - [ ] Parish Config → Public website address = `<demo-site>`.
 - [ ] A test registration on the demo site does **not** appear in the
       live admin.

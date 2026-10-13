@@ -9,7 +9,7 @@ export const ACCESS_LEVELS = [
   { key: 'website', label: 'Website & requests', note: 'Runs the Parish Website (including the office and contact details) and the Requests queues; views the registry and blood types but not the census.' },
   { key: 'clergy', label: 'Clergy', note: 'For the parish priests. Sees the registry, sacraments, census and reports, verifies sacraments and handles the Requests queues. Changes no household or member. No blood types, exports, census codes, website, activity log or trash.' },
   // 0101: only offered on the demo site; signs in as full access there (AuthContext).
-  { key: 'demo', label: 'Demo', demoOnly: true, note: 'The shared "Try the demo" login for other parishes. Everything Full access does, but never a staff admin (no Staff accounts or Platform Integrations), and its password can\'t be changed from the admin panel. Demo site only.' },
+  { key: 'demo', label: 'Demo', demoOnly: true, note: 'The shared login behind "Login to Demo Site", for other parishes trying the app. Everything Full access does, but never a staff admin (no Staff accounts or Platform Integrations), and only a staff admin\'s Reset password changes its password. Demo site only.' },
 ];
 
 // 'none': signed in without a staff profile (0062); never offered when setting up an account.

@@ -199,7 +199,7 @@ export async function handleStaffRequest({ admin, token, body, projectUrl = '' }
       const access = accessInput(body, { live });
       if (access.error) return fail(400, access.error);
 
-      // The demo login's password is the one "Try the demo" uses, so it isn't temporary.
+      // The demo login's password is the one "Login to Demo Site" uses, so it isn't temporary.
       const { data: created, error } = await admin.auth.admin.createUser({
         email: input.email, password: input.password, email_confirm: true, user_metadata: access.access === 'demo' ? {} : MUST_CHANGE,
       });
@@ -273,7 +273,7 @@ export async function handleStaffRequest({ admin, token, body, projectUrl = '' }
         const { error: allowErr } = await admin.from('demo_password_resets').upsert({ user_id: id, until });
         if (allowErr) return fail(400, allowErr.message || 'Could not reset the demo login’s password');
       }
-      // A demo login's new password is final, so a reset can put back the one "Try the demo" uses.
+      // A demo login's new password is final, so a reset can put back the one "Login to Demo Site" uses.
       const { error } = await admin.auth.admin.updateUserById(id, target.access === 'demo'
         ? { password: body.password, user_metadata: { must_change_password: false } }
         : { password: body.password, user_metadata: MUST_CHANGE });
