@@ -35,9 +35,8 @@ function ServiceLink({ to, icon, title, sub, red = false }) {
 
 /**
  * Mga Serbisyo: the title and the status check on the light-blue band, like
- * the other main pages' first section; then the request forms, blood donor
- * call and contact on the plain page, and under them the prayer request form
- * itself.
+ * the other main pages' first section; then the request forms and blood donor
+ * call on the plain page, and under them the prayer request form itself.
  */
 export default function Serbisyo() {
   return (
@@ -52,14 +51,13 @@ export default function Serbisyo() {
       </Band>
       <section aria-labelledby="ubang-serbisyo" className={`${WRAP} py-7 lg:py-12`}>
         <h2 id="ubang-serbisyo" className="m-0 mb-3 lg:mb-4 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy">Ubang mga serbisyo</h2>
-        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-2 xl:grid-cols-3 lg:gap-4">
+        <div className="flex flex-col gap-2.5 lg:grid lg:grid-cols-3 lg:gap-4">
           <ServiceLink to="/serbisyo/hangyo/sertipiko" icon="doc" title="Pangayo og sertipiko" sub="Bunyag, Kumpil, Kasal" />
           <ServiceLink to="/serbisyo/hangyo/pagdihog" icon="cal" title="Pangayo ug Dihog Iskedyul" sub="Pagbisita sa pari aron dihogan ang masakiton" />
           <ServiceLink to="/serbisyo/dugo" icon="drop" title="Blood donor call" sub="Nanginahanglan o mo-donate" red />
-          <ServiceLink to="/kontak" icon="phone" title="Kontak ug oras sa opisina" sub="Tawag, text, mapa" />
         </div>
-        {/* The prayer form itself, right here, under the request buttons. */}
-        <Card id="pag-ampo" className="mt-6 lg:mt-8 p-4 lg:p-8 lg:rounded-[20px] lg:max-w-[760px]">
+        {/* The prayer form itself, under the request buttons: full width on phones, centred from tablets up. */}
+        <Card id="pag-ampo" className="mt-6 lg:mt-8 p-4 md:p-7 lg:p-8 md:rounded-[20px] md:max-w-[680px] lg:max-w-[760px] md:mx-auto">
           <InlineForm formId="pag-ampo" />
         </Card>
       </section>
