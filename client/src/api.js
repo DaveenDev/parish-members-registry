@@ -1446,6 +1446,8 @@ export const api = {
     .order('start_date').order('start_time', { nullsFirst: true })),
   // Every published article: Pahibalo ug Kalihokan lists them all (Home shows the newest two).
   publicArticles: () => listPublished('articles', (q) => q.order('held_on', { ascending: false }).order('id', { ascending: false }).limit(500)),
+  /** The `n` newest published articles, for Home (the whole list is for the article pages). */
+  publicLatestArticles: (n = 2) => listPublished('articles', (q) => q.order('held_on', { ascending: false }).order('id', { ascending: false }).limit(n)),
   /** The published History page: { main, chapters } (chapters oldest first); empty before 0068 is run. */
   async publicHistory() {
     const rows = await listPublished('history_articles', (q) => q.order('year', { nullsFirst: true }).order('id')).catch(() => []);

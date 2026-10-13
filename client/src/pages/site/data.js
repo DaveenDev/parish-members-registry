@@ -9,6 +9,8 @@ export const useSacramentGuides = () => usePublicData('sacraments', api.publicSa
 export const useBulletins = () => usePublicData('bulletins', api.publicBulletins);
 export const useEvents = () => usePublicData('events', () => api.publicEvents(todayIso()));
 export const useArticles = () => usePublicData('articles', api.publicArticles);
+/** Home's two newest articles: two rows, not every article with its full text. */
+export const useLatestArticles = () => usePublicData('articles-latest', () => api.publicLatestArticles(2));
 /** The History page: { main, chapters } (0068), published only. */
 export const useHistory = () => usePublicData('history', api.publicHistory);
 export const useGkkDirectory = () => usePublicData('gkks', api.publicGkkDirectory);

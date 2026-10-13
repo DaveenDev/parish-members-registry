@@ -10,7 +10,7 @@ import { massType, todayIso } from '../../lib/website.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { PARISH_NAME, PARISH_SUB, SiteFooter } from './SiteLayout.jsx';
-import { listState, useAnnouncements, useArticles, useCensusProgress, useEvents, useMassSchedule, useOffice, usePortalStatus } from './data.js';
+import { listState, useAnnouncements, useLatestArticles, useCensusProgress, useEvents, useMassSchedule, useOffice, usePortalStatus } from './data.js';
 
 const DISMISSED_KEY = 'pmr_dismissed_urgent';
 
@@ -402,7 +402,7 @@ function ParishStats({ mass }) {
  * and "Unsa ang imong kinahanglan?".
  */
 function LatestArticles() {
-  const q = listState(useArticles());
+  const q = listState(useLatestArticles());
   const rows = q.rows.slice(0, 2);
   if (q.loading || q.error || !rows.length) return null;
   return (
