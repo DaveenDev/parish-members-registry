@@ -1,0 +1,49 @@
+# Vercel puts every push to main live straight away, without running the
+# tests. This runs them, the linter and a full build on each push and pull
+# request, so a broken change shows up as a red cross on the commit (and an
+# email to the repository owner) instead of only on the live site. It doesn't
+# stop the deploy: look here after pushing, or before merging a pull request.
+#
+# It needs no setup and no secrets: the build uses the public Supabase
+# settings in client/.env.production, as Vercel does.
+name: Checks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+
+      - name: Install
+        run: npm ci && npm ci --prefix client
+
+      - name: Tests
+        run: npm test
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
