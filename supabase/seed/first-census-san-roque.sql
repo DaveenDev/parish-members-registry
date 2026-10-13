@@ -1,5 +1,5 @@
--- Training scenario: a GKK's first census in the registry, with last year's
--- paper list. For GKK Sr. San Roque -Meohao on the training site, after
+-- Demo site scenario: a GKK's first census in the registry, with last year's
+-- paper list. For GKK Sr. San Roque -Meohao on the demo site, after
 -- load-test.sql.
 --
 -- Nobody in the GKK had a record before this census. Last year's paper
@@ -28,7 +28,7 @@
 -- are deleted. Households not made by load-test.sql are never touched: if
 -- the GKK has any, this stops.
 --
--- Run: paste into the training project's SQL Editor, or from the repo root
+-- Run: paste into the demo project's SQL Editor, or from the repo root
 --   npx supabase db query --linked --project-ref qyoyuukpdjrwfhovtrwd -f supabase/seed/first-census-san-roque.sql
 -- (never --linked alone: the folder is linked to the live project).
 -- Needs an open census. Refuses to run while the GKK has names on last

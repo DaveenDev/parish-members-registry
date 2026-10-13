@@ -30,10 +30,11 @@ photos; picking a photo shows "Photo uploads aren't set up yet".
    `https://<your-site>.vercel.app/media` as the Public URL.
 
    Both sites build from the same `vercel.json`, so it picks the bucket by the
-   address the site is opened at. The first `/media` rule only applies to
-   addresses starting with `olgqp-training` (the training site and its preview
-   links) and points at the testing bucket; the second, for every other
-   address, points at the live bucket. Rules are tried in order. To change a
+   address the site is opened at. The `/media` rules with `"has"` only apply
+   to addresses starting with `parish-registry-demo` or `olgqp-training` (the
+   demo site under its new and old names, and its preview links) and point at
+   the testing bucket; the last one, for every other address, points at the
+   live bucket. Rules are tried in order. To change a
    bucket, edit its r2.dev address there and push.
 
    (Vercel's environment variables can't be used for this: `vercel.json` can't
@@ -110,8 +111,8 @@ Or in the Supabase dashboard: **Edge Functions → Secrets**. Never put these in
 npx supabase functions deploy media-upload --project-ref <your-project-ref>
 ```
 
-To redeploy to our live project, run `npm run deploy:production:media-upload` (training site:
-`npm run deploy:training:media-upload`). It bundles on Supabase's servers, so Docker isn't needed.
+To redeploy to our live project, run `npm run deploy:production:media-upload` (demo site:
+`npm run deploy:demo:media-upload`). It bundles on Supabase's servers, so Docker isn't needed.
 
 Or **Edge Functions → Deploy a new function**, name it `media-upload`, and paste in
 [`index.ts`](../supabase/functions/media-upload/index.ts) and

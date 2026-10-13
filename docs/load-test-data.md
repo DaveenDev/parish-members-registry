@@ -6,11 +6,11 @@ households and the records that go with them. A second script,
 [`supabase/seed/load-test-clean.sql`](../supabase/seed/load-test-clean.sql),
 removes exactly that test data and nothing real.
 
-> **The `npm run` commands below run on the training project**
+> **The `npm run` commands below run on the demo project**
 > (`qyoyuukpdjrwfhovtrwd`), named in `package.json`, whichever project this
 > folder is linked to. They never touch the live registry. To use the
-> training project's SQL Editor instead, see
-> [deploy/02-staging.md → Practice data](../deploy/02-staging.md#practice-data).
+> demo project's SQL Editor instead, see
+> [deploy/02-demo.md → Practice data](../deploy/02-demo.md#practice-data).
 
 Every test record is marked so it can be told apart and removed in one step.
 
@@ -72,9 +72,9 @@ npx supabase login
 ```
 
 `login` opens the browser to sign in to Supabase, with an account that can
-open the training project. It's remembered, so this is needed once per
+open the demo project. It's remembered, so this is needed once per
 computer. The folder must also be linked to a project (`npx supabase link`,
-as it already is to the live one); the commands then name the training
+as it already is to the live one); the commands then name the demo
 project themselves.
 
 ## Seed
@@ -182,7 +182,7 @@ and nothing is saved.
 | `Cannot find project ref. Have you run supabase link?` | Run the `npx supabase link …` step above. |
 | `Load-test seed is already in the database …` | Run `npm run db:clean-load` first. |
 | `Add at least one GKK before seeding.` | Add GKKs in Parish Config → Parish GKK first. |
-| Asked to log in, or an access error | Run `npx supabase login` with an account that can open the training project. |
+| Asked to log in, or an access error | Run `npx supabase login` with an account that can open the demo project. |
 
 ## Load-speed baseline
 

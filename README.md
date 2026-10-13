@@ -10,6 +10,8 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 
 This registry was built for Our Lady of Guadalupe Quasi-Parish, Mua-an, and is given freely to any parish, chapel or diocese that wants it.
 
+**Try it first** on the demo site, [parish-registry-demo.vercel.app](https://parish-registry-demo.vercel.app): the parish website, registration and requests, all with sample data. For a look at the staff side, write for a demo staff login (address below).
+
 **You may**, at no cost:
 
 - copy this repository and set up your own copy of the app for your parish;
@@ -25,7 +27,7 @@ This registry was built for Our Lady of Guadalupe Quasi-Parish, Mua-an, and is g
 If someone in your parish is comfortable with GitHub and following a technical guide:
 
 1. Copy this repository into a **new GitHub repository for your parish** (one repository per parish).
-2. Follow [`deploy/03-new-parish.md`](deploy/03-new-parish.md): what to change in the code for your parish (name, address, logo, website address), then the live site ([`deploy/01-production.md`](deploy/01-production.md)) and, if you want one for training staff, the training site ([`deploy/02-staging.md`](deploy/02-staging.md)).
+2. Follow [`deploy/03-new-parish.md`](deploy/03-new-parish.md): what to change in the code for your parish (name, address, logo, website address), then the live site ([`deploy/01-production.md`](deploy/01-production.md)) and, if you want one for training staff or showing the app, the demo site ([`deploy/02-demo.md`](deploy/02-demo.md)).
 3. Create the accounts (Supabase, Vercel, Cloudflare, GitHub) under the **parish's own Gmail**, so the parish owns its parishioners' data.
 
 ### Paid setup assistance
@@ -34,7 +36,7 @@ Not technical, or no one in the parish to do it? I can set it up for you, for a 
 
 - creating the accounts under your parish's own Gmail (the parish keeps ownership of everything and of its data);
 - putting in your parish's name, logo, address, GKKs, ministries and organizations;
-- setting up the live site and, if you want it, a training site for practice;
+- setting up the live site and, if you want it, a demo site for practice;
 - photo storage, the parish email for password resets, and the automatic backups;
 - your first staff accounts, and a walkthrough for the parish office and GKK leaders.
 
@@ -140,7 +142,7 @@ supabase/functions/   Edge Functions: manage-staff (staff accounts), media-uploa
 scripts/               Local demo/reset seeding against a Supabase project
 supabase/seed/         500-household load-test data and its cleanup — see
                        docs/load-test-data.md — and a first-census scenario
-                       for one GKK (deploy/02-staging.md)
+                       for one GKK (deploy/02-demo.md)
 client/                React + Tailwind frontend (Vite), with its own package.json
 docs/                  Testing guide and browser beta-testing playbooks
 project/               Original Claude Design source files this app was built from
@@ -300,8 +302,8 @@ Run from the project root:
 | `npm run db:demo` | Load sample households and members (see above) |
 | `npm run db:reset` | Delete all households and members |
 | `npm run db:wipe-test -- --yes` | Empty every registry table on the **test** project before a browser playbook run (needs `PLAYBOOK_TEST_PROJECT=yes`; see `.claude/playbooks/staff-journey-playbook.md`) |
-| `npm run db:seed-load` | Add 500 marked test households and the records around them to the **training** project (`qyoyuukpdjrwfhovtrwd`, whichever project the folder is linked to), for load testing (see [`docs/load-test-data.md`](docs/load-test-data.md)) |
-| `npm run db:clean-load` | Remove that load-test data from the training project, and nothing else |
+| `npm run db:seed-load` | Add 500 marked test households and the records around them to the **demo** project (`qyoyuukpdjrwfhovtrwd`, whichever project the folder is linked to), for load testing (see [`docs/load-test-data.md`](docs/load-test-data.md)) |
+| `npm run db:clean-load` | Remove that load-test data from the demo project, and nothing else |
 | `npm test` | Run the client test suite |
 | `npm run test:watch` | Client tests, watch mode |
 
@@ -311,7 +313,7 @@ to your parish.
 
 ## Deploying
 
-Setting up the live site and the training site from scratch (Supabase, Vercel, Cloudflare R2, email, backups), and setting the site up for another parish: see [`deploy/`](deploy/README.md). In short: import the repo into Vercel with **Root Directory set to `client`**, add `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` as Vercel env vars, and deploy — `client/vercel.json` handles the SPA routing rewrite and the `/media` photo proxy (one bucket for the training site's address, another for the live site).
+Setting up the live site and the demo site from scratch (Supabase, Vercel, Cloudflare R2, email, backups), and setting the site up for another parish: see [`deploy/`](deploy/README.md). In short: import the repo into Vercel with **Root Directory set to `client`**, add `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` as Vercel env vars, and deploy — `client/vercel.json` handles the SPA routing rewrite and the `/media` photo proxy (one bucket for the demo site's address, another for the live site).
 
 ## Testing
 

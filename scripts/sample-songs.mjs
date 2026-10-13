@@ -1,10 +1,10 @@
 // The songs for the Downloads page's samples (0096, 0097), shared by
-// scripts/sample-downloads.mjs (all of them, on the training site) and
+// scripts/sample-downloads.mjs (all of them, on the demo site) and
 // scripts/seed-live-songs.mjs (the real ones, on the live site).
 //
 // Public-domain hymns, Latin texts and prayer texts used at Mass are real
 // songs anyone may publish. The ones credited to DEMO_COMPOSER were written
-// for the training demo only and never go on the live site.
+// for the demo site only and never go on the live site.
 
 export const DEMO_COMPOSER = 'Sample nga kanta';
 

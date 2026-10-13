@@ -145,7 +145,7 @@ Also update the repository so it knows the live project:
 [`client/.env.production`](../client/.env.production) holds the live
 `VITE_SUPABASE_URL` and anon key (the keep-alive workflow reads them), and
 `LIVE_PROJECT_ID` in [`client/src/lib/database.js`](../client/src/lib/database.js)
-is the live ref (any other project gets the training banner). For our parish
+is the live ref (any other project gets the demo banner). For our parish
 both are already right.
 
 ## Step 8. Photo storage (Cloudflare R2)

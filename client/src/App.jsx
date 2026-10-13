@@ -2,7 +2,7 @@ import React, { Suspense, useEffect } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './AuthContext.jsx';
 import MaintenanceGate from './components/MaintenanceGate.jsx';
-import TrainingBanner from './components/TrainingBanner.jsx';
+import DemoBanner from './components/DemoBanner.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Home from './pages/site/Home.jsx';
 import {
@@ -91,7 +91,7 @@ export default function App() {
   return (
     <AuthProvider>
       <PageLanguage />
-      <TrainingBanner />
+      <DemoBanner />
       <Routes>
         <Route element={<MaintenanceGate />}>
         <Route element={<SiteLayout />}>

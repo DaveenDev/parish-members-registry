@@ -3,7 +3,7 @@
 The code is written for Our Lady of Guadalupe Quasi-Parish (OLGQP), Mua-an.
 A few addresses and names are built into it. For another parish: copy the
 repository, change those, then set up the services with
-[01-production.md](01-production.md) and [02-staging.md](02-staging.md).
+[01-production.md](01-production.md) and [02-demo.md](02-demo.md).
 
 The app is free for any parish, on one condition (see [`LICENSE`](../LICENSE)):
 keep the **"Built For Free by DaveenDev"** credit and the `/developer` page it
@@ -21,7 +21,7 @@ as they are. Rather have it set up for you? See
   `client/.env.production`, workflows, backup secrets and migration history.
 - New Supabase, Vercel and Cloudflare accounts, ideally under the **parish's
   own Gmail**, with you added as a member. The free Supabase plan's 2 projects
-  are taken by the live and training sites of one parish, and the parish
+  are taken by the live and demo sites of one parish, and the parish
   should own its parishioners' data.
 
 ## Step 2. Change what's built into the code
@@ -31,10 +31,10 @@ Do this in the new repository before the first deploy. Steps marked
 
 | What | File | Change to |
 |---|---|---|
-| Live database (*after 01 step 2*) | [`client/src/lib/database.js`](../client/src/lib/database.js) `LIVE_PROJECT_ID` | the new live project ref. Every other project shows the training banner |
+| Live database (*after 01 step 2*) | [`client/src/lib/database.js`](../client/src/lib/database.js) `LIVE_PROJECT_ID` | the new live project ref. Every other project shows the demo banner |
 | Live database (*after 01 step 7*) | [`client/.env.production`](../client/.env.production) | the new live `VITE_SUPABASE_URL` and anon key (keep-alive reads them) |
-| Photo buckets (*after 01 step 8 / 02 step 8*) | [`client/vercel.json`](../client/vercel.json), the two `/media` rules | first rule: the training site's name in `"pre"` and its testing bucket's r2.dev address (or delete the rule if there's no training site); second rule: the live bucket's r2.dev address |
-| Training site kept out of search | [`client/vercel.json`](../client/vercel.json), the `X-Robots-Tag` rule with `"has"` | the training site's name in `"pre"`, as above (or delete the rule) |
+| Photo buckets (*after 01 step 8 / 02 step 8*) | [`client/vercel.json`](../client/vercel.json), the `/media` rules | the rules with `"has"`: keep one, with the demo site's name in `"pre"` and its testing bucket's r2.dev address (or delete them if there's no demo site); the last rule: the live bucket's r2.dev address |
+| Demo site kept out of search | [`client/vercel.json`](../client/vercel.json), the `X-Robots-Tag` rules with `"has"` | keep one, with the demo site's name in `"pre"`, as above (or delete them) |
 | Search engines (*after 01 step 7*) | [`client/public/robots.txt`](../client/public/robots.txt) `Sitemap:` line (sitemap.xml itself is made from the site's address) | the new live `<site>` |
 | Search descriptions, parish address and pin | [`client/src/lib/seo.js`](../client/src/lib/seo.js) (`PLACE`, the descriptions), [`client/src/pages/site/SiteLayout.jsx`](../client/src/pages/site/SiteLayout.jsx) (`PARISH_NAME`, `PARISH_ADDRESS`, `PARISH_MAP_URL`, `PARISH_COORDS`) | the parish's name and town. The address, pin and contacts saved in Parish Website → Office replace the built-in ones |
 | Default website address | [`client/src/lib/census.js`](../client/src/lib/census.js) `DEFAULT_SITE_URL` | the new live `<site>` |
@@ -68,7 +68,7 @@ npm test
 1. [01-production.md](01-production.md), all steps. In step 9 enter the
    parish's details in Parish Config: name, logo, GKKs, ministries,
    organizations, Mass schedule, office contact.
-2. [02-staging.md](02-staging.md), if the parish wants a training site.
+2. [02-demo.md](02-demo.md), if the parish wants a demo site.
 3. Fill in the "what exists" table in [README.md](README.md) for this parish,
    in **its** repository.
 

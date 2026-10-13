@@ -2,18 +2,18 @@
 
 How to set up the parish site from nothing, on free plans, as two copies:
 
-| | Live site (production) | Training site (staging) |
+| | Live site (production) | Demo site (staging) |
 |---|---|---|
-| Who uses it | The parish: families, staff, GKK leaders | You and trainees: practice, testing new versions |
-| Data | The real registry | Practice data only |
-| Banner | None | Purple "Training site" strip on every page |
-| Guide | [01-production.md](01-production.md) | [02-staging.md](02-staging.md) |
+| Who uses it | The parish: families, staff, GKK leaders | Other parishes trying the app, you and trainees: practice, testing new versions |
+| Data | The real registry | Sample data only |
+| Banner | None | Purple "Demo site" strip on every page |
+| Guide | [01-production.md](01-production.md) | [02-demo.md](02-demo.md) |
 
 Setting the site up for **another parish**: start with
 [03-new-parish.md](03-new-parish.md). It lists what to change in the code
 first, then sends you through 01 and 02.
 
-Set up the live site first. The training site is a second copy of the same
+Set up the live site first. The demo site is a second copy of the same
 setup with a few settings changed, and 02 only lists those changes.
 
 ## The pieces
@@ -37,7 +37,7 @@ GitHub Actions ──► keeps the live Supabase project awake (every 3 days)
 | **Cloudflare R2** | Website photos (public bucket) and database backups (private bucket) | 10 GB storage |
 | **Gmail** (the parish's) | Sends "Forgot password?" emails through Supabase | About 500 emails a day |
 
-One Supabase account fits exactly one live and one training project (the
+One Supabase account fits exactly one live and one demo project (the
 2-project limit). A second parish needs its own accounts.
 
 ## Settings reference
@@ -57,15 +57,16 @@ the page every visitor downloads, so they aren't secret. Changing either takes
 effect only after a **redeploy**.
 
 Without `VITE_SUPABASE_*`, a build uses [`client/.env.production`](../client/.env.production),
-which holds the **live** project. That's why the training site must set them.
+which holds the **live** project. That's why the demo site must set them.
 
 ### Which photo bucket `/media` uses: `client/vercel.json`
 
 Not an environment variable: [`client/vercel.json`](../client/vercel.json)
-picks the bucket by the site's address. The `/media` rule with
-`"has": [{ "type": "host", "value": { "pre": "olgqp-training" } }]` sends
-addresses starting with `olgqp-training` to the testing bucket; the next
-`/media` rule sends every other address to the live bucket. Changing a bucket
+picks the bucket by the site's address. The `/media` rules with
+`"has": [{ "type": "host", "value": { "pre": "parish-registry-demo" } }]`
+(and the same for `olgqp-training`, the demo site's old name) send addresses
+starting with those names to the testing bucket; the last `/media` rule sends
+every other address to the live bucket. Changing a bucket
 means editing its `https://pub-….r2.dev` address there and pushing.
 
 ### Supabase (per project, in the dashboard)
@@ -95,20 +96,20 @@ For the live site's weekly backup only ([docs/backups.md](../docs/backups.md)):
 
 | File | Holds | Used by |
 |---|---|---|
-| `client/.env.local` | `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` of the **training** project | `npm run dev` |
-| `.env` (repo root) | `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` of the **training** project | `npm run db:demo`, `db:reset`, `db:wipe-test` |
+| `client/.env.local` | `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` of the **demo** project | `npm run dev` |
+| `.env` (repo root) | `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` of the **demo** project | `npm run db:demo`, `db:reset`, `db:wipe-test` |
 
-Point both at the training project, so local work never touches real data.
+Point both at the demo project, so local work never touches real data.
 
 ## Our parish (OLGQP): what exists
 
 Addresses and project IDs only. Passwords and keys belong in a password
 manager, not here. Fill in the blanks the next time you're in each dashboard.
 
-| | Live | Training |
+| | Live | Demo |
 |---|---|---|
-| Website | https://guadalupe-muaan.vercel.app | https://olgqp-training.vercel.app |
-| Vercel project / account | guadalupe-muaan, parish Hobby account | olgqp-training, account: ____ |
+| Website | https://guadalupe-muaan.vercel.app | https://parish-registry-demo.vercel.app (was https://olgqp-training.vercel.app) |
+| Vercel project / account | guadalupe-muaan, parish Hobby account | parish-registry-demo (was olgqp-training), account: ____ |
 | Supabase project ref | `rmlkowkbonbrtaqocsvo` | `qyoyuukpdjrwfhovtrwd` |
 | Supabase account | ____ | ____ |
 | R2 photo bucket | `pub-25d83e20c5f14fc0b2f81d3476651579.r2.dev` (account ____) | testing bucket on a separate Cloudflare account: `pub-93600e56fb724c9c8fdf449acb86fcf7.r2.dev` |
@@ -119,7 +120,7 @@ manager, not here. Fill in the blanks the next time you're in each dashboard.
 
 | Symptom | Look at |
 |---|---|
-| Training site shows **no** purple banner | It's connected to the live database. Fix its `VITE_SUPABASE_*` in Vercel and redeploy now |
+| Demo site shows **no** purple banner | It's connected to the live database. Fix its `VITE_SUPABASE_*` in Vercel and redeploy now |
 | Photos broken / "Public URL didn't find the test file" | The `/media` rule for that site's address in `client/vercel.json` ([docs/media-storage.md](../docs/media-storage.md)) |
 | Vercel build: "`vercel.ts` schema validation failed" | There must be no `client/vercel.ts`; `client/vercel.json` is the config |
 | Photo upload fails in the browser | The bucket's CORS policy must list the site's address |

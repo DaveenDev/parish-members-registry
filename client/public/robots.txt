@@ -1,5 +1,5 @@
 # The parish website is open to search engines; the staff admin, the census
-# family portal and the status lookup are not. (The training site sends
+# family portal and the status lookup are not. (The demo site sends
 # "X-Robots-Tag: noindex" on every page instead: see vercel.json.)
 User-agent: *
 Disallow: /admin

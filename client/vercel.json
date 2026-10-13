@@ -2,6 +2,11 @@
   "rewrites": [
     {
       "source": "/media/:path*",
+      "has": [{ "type": "host", "value": { "pre": "parish-registry-demo" } }],
+      "destination": "https://pub-93600e56fb724c9c8fdf449acb86fcf7.r2.dev/:path*"
+    },
+    {
+      "source": "/media/:path*",
       "has": [{ "type": "host", "value": { "pre": "olgqp-training" } }],
       "destination": "https://pub-93600e56fb724c9c8fdf449acb86fcf7.r2.dev/:path*"
     },
@@ -31,6 +36,11 @@
     },
     {
       "source": "/(admin|census)(.*)",
+      "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
+    },
+    {
+      "source": "/(.*)",
+      "has": [{ "type": "host", "value": { "pre": "parish-registry-demo" } }],
       "headers": [{ "key": "X-Robots-Tag", "value": "noindex, nofollow" }]
     },
     {

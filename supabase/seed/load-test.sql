@@ -1,11 +1,11 @@
 -- Load-test seed: the parish's GKKs, then 500 households with members and
 -- everything that hangs off them, plus requests and website content. For the
--- training site (practice data) and for timing list pages, reports and the
+-- demo site (practice data) and for timing list pages, reports and the
 -- public site with realistic volumes.
 --
--- Training site: paste this file into the training project's SQL Editor
--- (deploy/02-staging.md), or run `npm run db:seed-load`, which names the
--- training project (never the live one, whatever the folder is linked to).
+-- Demo site: paste this file into the demo project's SQL Editor
+-- (deploy/02-demo.md), or run `npm run db:seed-load`, which names the
+-- demo project (never the live one, whatever the folder is linked to).
 -- Remove:  load-test-clean.sql, the same way.
 --
 -- GKKs: the parish's 16 GKKs (as on the live registry, October 2026) are
@@ -20,7 +20,7 @@
 --
 -- Households get ordinary reference numbers (e.g. MEO-2025-0001): since
 -- 0047 the database numbers every new household itself. They use up those
--- numbers, which is one more reason to seed the training site, not the live
+-- numbers, which is one more reason to seed the demo site, not the live
 -- one.
 --
 -- Every seeded row is marked so the cleanup removes exactly these and nothing

@@ -19,15 +19,15 @@ whichever project the CLI is linked to. The long form is
 `npx supabase functions deploy <name> --project-ref rmlkowkbonbrtaqocsvo --use-api`
 (add `--no-verify-jwt` for `notify-staff`).
 
-The training site (project `qyoyuukpdjrwfhovtrwd`) has its own shortcuts,
+The demo site (project `qyoyuukpdjrwfhovtrwd`) has its own shortcuts,
 which name the project, so they work whichever project the CLI is linked to.
 Give these too, for trying a change there first:
 
-| Function | Training site |
+| Function | Demo site |
 | --- | --- |
-| `manage-staff` | `npm run deploy:training:manage-staff` |
-| `media-upload` | `npm run deploy:training:media-upload` |
-| `notify-staff` | `npm run deploy:training:notify-staff` |
-| all of them | `npm run deploy:training` |
+| `manage-staff` | `npm run deploy:demo:manage-staff` |
+| `media-upload` | `npm run deploy:demo:media-upload` |
+| `notify-staff` | `npm run deploy:demo:notify-staff` |
+| all of them | `npm run deploy:demo` |
 
 Give the migrations to run in the same summary, in order.
