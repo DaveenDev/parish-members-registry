@@ -35,8 +35,8 @@ export default [
     },
   },
   {
-    // Tests and build config run under Node.
-    files: ['test/**/*.js', '*.config.js'],
+    // Tests, build config and the Vercel Functions (api/) run under Node.
+    files: ['test/**/*.js', '*.config.js', 'api/**/*.js'],
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: { ...globals.node, ...globals.browser } },
   },
 ];

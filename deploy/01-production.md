@@ -231,10 +231,13 @@ is only for a project whose migrations were pasted into the SQL editor.
 
 The website already tells search engines what each page is (title,
 description, the parish's address and map pin on Home), keeps them out of
-the admin and the census portal, and lists its main pages in
-`<site>/sitemap.xml` ([`client/src/lib/seo.js`](../client/src/lib/seo.js),
+the admin and the census portal, and lists its pages, each published
+article, event and song among them, in `<site>/sitemap.xml`
+([`client/src/lib/seo.js`](../client/src/lib/seo.js),
 [`client/public/robots.txt`](../client/public/robots.txt),
-[`client/public/sitemap.xml`](../client/public/sitemap.xml)). Google finds a
+[`client/api/sitemap.js`](../client/api/sitemap.js)). Links shared on
+Facebook, Messenger or Viber show the page's own title, text and photo
+([`client/api/share.js`](../client/api/share.js)). Google finds a
 new site on its own in time; Search Console (free) makes it much sooner and
 shows how the site does in search.
 
@@ -265,8 +268,7 @@ and the link.
 1. Add the domain in Vercel (step 7, Settings → Domains) and make it the
    primary one; Vercel then sends the `vercel.app` address to it.
 2. Change the address in [`client/public/robots.txt`](../client/public/robots.txt)
-   (the `Sitemap:` line) and in every `<loc>` of
-   [`client/public/sitemap.xml`](../client/public/sitemap.xml), the share
+   (the `Sitemap:` line), the share
    image in [`client/index.html`](../client/index.html) (`og:image`), and
    `DEFAULT_SITE_URL` in [`client/src/lib/census.js`](../client/src/lib/census.js).
    Commit and push.
