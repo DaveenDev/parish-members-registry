@@ -61,7 +61,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
     loadVerifications();
     // Before the 0007 migration there is no census table; just show none.
     api.memberCensusHistory(memberId).then(setCensusHistory).catch(() => setCensusHistory([]));
-  }, [memberId]);
+  }, [memberId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!memberId) return;

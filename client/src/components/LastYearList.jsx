@@ -67,12 +67,12 @@ export default function LastYearList({ ownGkk, initialGkk = '', parish, canEdit,
       api.listLastYear('All').then(setAllRows).catch((e) => setError(e.message));
     }
   }
-  useEffect(() => { load(); }, [gkk]);
+  useEffect(() => { load(); }, [gkk]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     api.registryHeads().then(setHeads).catch(() => setHeads([]));
     api.registryFamilyHeads().then(setFamilyHeads).catch(() => setFamilyHeads([]));
   }, []);
-  useEffect(() => { setStatus('All'); list.setQuery(''); }, [gkk]);
+  useEffect(() => { setStatus('All'); list.setQuery(''); }, [gkk]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!ownGkk) api.listGkks().then((r) => setGkkNames(r.rows.map((x) => x.name))).catch(() => {}); }, [ownGkk]);
 
   function changed() {

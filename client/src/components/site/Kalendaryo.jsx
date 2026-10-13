@@ -49,7 +49,9 @@ export default function Kalendaryo() {
   const today = todayIso();
   const months = calendarMonths(events.rows, today);
   const [month, setMonth] = useState('');
-  useEffect(() => { if (months.length && !months.includes(month)) setMonth(months[0]); }, [months.join(), month]);
+  // By the months' text: the list is worked out again on every render.
+  const monthsKey = months.join();
+  useEffect(() => { if (months.length && !months.includes(month)) setMonth(months[0]); }, [monthsKey, month]); // eslint-disable-line react-hooks/exhaustive-deps
   const days = monthAgenda(events.rows, masses, month, today);
   const types = EVENT_TYPES.filter((t) => events.rows.some((e) => e.type === t));
   const state = { ...events, loading: events.loading || mass.loading };

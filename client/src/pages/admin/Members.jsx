@@ -117,7 +117,7 @@ export default function Members() {
 
   // The Possible Duplicates tab has no list to load.
   const duplicatesTab = url.view === 'duplicates';
-  useEffect(() => { if (!duplicatesTab) reload(); }, [duplicatesTab, filterKey, debouncedSearch, sortKey, sortDir, page, pageSize]);
+  useEffect(() => { if (!duplicatesTab) reload(); }, [duplicatesTab, filterKey, debouncedSearch, sortKey, sortDir, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { setSelected(new Set()); }, [filterKey, debouncedSearch, sortKey, sortDir, page, pageSize]);
   useEffect(() => {
     api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {});

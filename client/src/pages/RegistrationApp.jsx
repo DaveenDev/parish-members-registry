@@ -29,16 +29,6 @@ const STEPS = ['Pamilya ug Ulo', 'Mga Miyembro', 'Mga Sakramento', 'Pag-apil', '
 // server gives it its number, so in the form it's just "not family 1".
 const JOIN_FAMILY_NO = 2;
 
-function CrossLogo({ size = 82, className = '' }) {
-  return (
-    <svg viewBox="0 0 80 80" width={size} height={size} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" strokeLinecap="round" className={className}>
-      <circle cx="40" cy="38" r="30" stroke="#e4d3a8" />
-      <path d="M40 14l3.2 9.6h10.1l-8.2 5.9 3.1 9.6-8.2-5.9-8.2 5.9 3.1-9.6-8.2-5.9h10.1z" />
-      <path d="M40 46v18M31 55h18" />
-    </svg>
-  );
-}
-
 /** Why a house's reference number and code weren't accepted, in Bisaya. */
 function joinErrorInBisaya(code) {
   if (code === 'locked') return portalErrorInBisaya('locked');
@@ -588,69 +578,6 @@ export default function RegistrationApp() {
       )}
     </div>
     </FlagEmptyRequired.Provider>
-  );
-}
-
-function Landing({ onStart }) {
-  const [stats, setStats] = useState(null);
-  const [logo, setLogo] = useState(null);
-  const [census, setCensus] = useState(null);
-  useEffect(() => {
-    api.publicStats().then(setStats).catch(() => {});
-    // Before 0008 is run this fails; the census button just stays hidden.
-    api.portalStatus().then(setCensus).catch(() => {});
-    // Before 0004 is run (or with no logo uploaded) this fails or is null — keep the cross.
-    api.publicParishLogo().then(setLogo).catch(() => {});
-  }, []);
-  return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
-      <div className="max-w-[560px] animate-fadeUp">
-        <div data-section-id="parish-logo" className="text-parish-gold flex justify-center mb-1.5">
-          {logo ? (
-            <img src={logo} alt="Parish logo" className="w-[82px] h-[82px] object-contain" />
-          ) : (
-            <CrossLogo />
-          )}
-        </div>
-        <div className="font-semibold text-[13px] tracking-[.22em] uppercase text-[var(--p-gold-deep)] mb-3.5">Rehistro sa mga Miyembro sa Parokya</div>
-        <h1 className="font-serif font-semibold text-[clamp(38px,8vw,58px)] leading-[1.04] m-0 mb-1.5 text-parish-navy">Our Lady of Guadalupe</h1>
-        <div className="font-serif text-[clamp(19px,4vw,24px)] text-parish-blue tracking-[.04em] mb-[22px]">Quasi&#8209;Parish · Mua&#8209;an</div>
-        <p className="text-[clamp(16px,3.6vw,18px)] leading-relaxed text-parish-text2 max-w-[440px] mx-auto mb-8">
-          Maayong pag-abot! Irehistro ang inyong pamilya sa parokya aron kita magpabiling magkasinabot, magkauban sa pagsaulog sa mga sakramento, ug mag-alagaray sa usag usa diha sa pagtuo.
-        </p>
-        {stats && (
-          <div className="grid grid-cols-2 gap-3 max-w-[400px] mx-auto mb-8">
-            <LandingStat value={stats.gkks} label="Mga GKK sa Parokya" />
-            <LandingStat value={stats.households} label="Narehistro nga Pamilya" />
-          </div>
-        )}
-        <PrimaryButton onClick={onStart} className="px-10 py-[18px] text-[17px]">Irehistro ang Inyong Pamilya</PrimaryButton>
-        {census?.open && (
-          <div className="mt-4">
-            <Link to="/census" className="inline-block px-6 py-3 rounded-xl border-[1.5px] border-[#cdd7e8] bg-white font-semibold text-[15px] text-parish-blue">
-              Narehistro na? I-update ang inyong rekord ({census.label}) →
-            </Link>
-          </div>
-        )}
-        <div className="mt-7 inline-flex items-center gap-2 text-[13.5px] text-parish-muted">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
-          <span>Pribado ang inyong impormasyon — makita lamang sa awtorisadong kawani sa parokya.</span>
-        </div>
-        <div className="mt-[30px] pt-[22px] border-t border-[#e7dcc4]">
-          <Link to="/admin/login" className="inline-block py-2.5 font-semibold text-[14px] text-parish-blue">Kawani sa parokya? Mag-sign in sa admin panel →</Link>
-        </div>
-        <CreditFooter inline />
-      </div>
-    </div>
-  );
-}
-
-function LandingStat({ value, label }) {
-  return (
-    <div className="bg-white/70 border border-[#e7dcc4] rounded-2xl px-4 py-3.5 animate-fadeUp">
-      <div className="font-serif font-semibold text-[34px] leading-none text-parish-blue">{Number(value || 0).toLocaleString()}</div>
-      <div className="font-semibold text-[12px] tracking-[.08em] uppercase text-parish-muted mt-1.5">{label}</div>
-    </div>
   );
 }
 

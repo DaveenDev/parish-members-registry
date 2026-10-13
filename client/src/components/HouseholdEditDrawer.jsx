@@ -105,7 +105,7 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
       })
       .catch((e) => setMembersError(e.message || 'Could not load members'));
   }
-  useEffect(() => { loadMembers(); }, [household.id]);
+  useEffect(() => { loadMembers(); }, [household.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /** Close, asking first if household details were edited but not saved. */
   async function requestClose() {

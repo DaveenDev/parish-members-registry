@@ -127,7 +127,7 @@ export default function ActivenessReport({ parish, initialGkk = '', initialCycle
     }
   }
   // The parish-wide analysis (or the linked GKK's and census's) is ready when the tab opens.
-  useEffect(() => { generate(initialGkk || 'All', initialCycle || ''); }, []);
+  useEffect(() => { generate(initialGkk || 'All', initialCycle || ''); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The census the shown result covers, or '' for everyone's latest answers.
   const censusLabel = !result?.cycleId ? '' : cycles.find((c) => String(c.id) === String(result.cycleId))?.label || 'Census';

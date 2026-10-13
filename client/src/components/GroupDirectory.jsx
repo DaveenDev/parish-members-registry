@@ -59,7 +59,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
     if (parishRolesTab) {
       api.listMembers({ parishRole: 'Any', gkk, pageSize: 1 }).then((res) => setParishCount(res.total || 0)).catch(() => {});
     }
-  }, [gkk, refreshKey]);
+  }, [gkk, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, []);
   useEffect(() => { setPage(1); }, [gkk, activeTab, debouncedSearch]);
@@ -90,7 +90,7 @@ export default function GroupDirectory({ title, subtitle, listFn, column, noun, 
     if (isParish) setGkkCounts(null);
     else api.memberCountsByGkk(filter).then((c) => { if (seq === loadSeq.current) setGkkCounts(c); }).catch(() => { if (seq === loadSeq.current) setGkkCounts(null); });
   }
-  useEffect(() => { reload(); }, [activeTab, gkk, debouncedSearch, page, pageSize, refreshKey]);
+  useEffect(() => { reload(); }, [activeTab, gkk, debouncedSearch, page, pageSize, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const refresh = () => setRefreshKey((k) => k + 1);
   const allTabs = [
@@ -308,7 +308,7 @@ function AddToGroupModal({ group, column, onClose, onAdded }) {
       .catch((e) => { if (!cancelled) toast.error(e.message || 'Search failed'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [debouncedSearch]);
+  }, [debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function add(m) {
     setBusyId(m.id);

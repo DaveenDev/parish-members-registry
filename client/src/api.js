@@ -2532,7 +2532,7 @@ export const api = {
     return { members, answers };
   },
 
-  async exportGenerated({ title, columns, rows }) {
+  async exportGenerated({ columns, rows }) {
     if (!columns || !rows) throw new Error('Nothing to export');
     // A row may bring several CSV lines (`csvLines`), e.g. a household and its members.
     const csv = toCsv(

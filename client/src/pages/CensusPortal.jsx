@@ -140,14 +140,14 @@ export default function CensusPortal() {
   // the phone's history or passed on with a shared link or screenshot.
   useEffect(() => {
     if (location.hash) navigate({ search: location.search, hash: '' }, { replace: true });
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Scanned the QR code: open the record without making the family type anything.
   useEffect(() => {
     if (!status?.open || !linkCode || !refNo.trim() || autoOpened.current) return;
     autoOpened.current = true;
     open();
-  }, [status]);
+  }, [status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const top = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 

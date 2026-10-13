@@ -44,7 +44,7 @@ export function ManageListCard({
       .catch((e) => setLoadError(e.message || 'Could not load this list'))
       .finally(() => setLoading(false));
   }
-  useEffect(() => { reload(); }, []);
+  useEffect(() => { reload(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function add(e) {
     e.preventDefault();

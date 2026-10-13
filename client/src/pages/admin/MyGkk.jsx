@@ -77,7 +77,7 @@ export default function MyGkk({ gkkId = null, onBack = null }) {
     api.getSettings().then((r) => setParish(r.settings)).catch(() => {});
     // Leaving with unsaved photos: take them back off R2.
     return () => { pagePhotos.rollback(); historyPhotos.rollback(); };
-  }, [key]);
+  }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function save(what) {
     setError('');

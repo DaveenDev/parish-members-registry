@@ -254,7 +254,7 @@ export default function Reports() {
     api.listCensusCycles()
       .then((list) => { setCycles(list); if (list[0]) setScope((s) => ({ ...s, cycleId: s.cycleId || String(list[0].id) })); })
       .catch(() => {});
-  }, [genSource]);
+  }, [genSource]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function generate() {
     setGenerating(true);

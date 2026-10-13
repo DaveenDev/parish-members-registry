@@ -67,8 +67,8 @@ export default function BloodTypes() {
   function reloadCounts() {
     api.bloodTypeCounts(scope).then(setCounts).catch(() => setCounts(null));
   }
-  useEffect(() => { reload(); }, [gkk, age, blood, debouncedSearch, sortKey, sortDir, page, pageSize]);
-  useEffect(() => { reloadCounts(); }, [gkk, age, debouncedSearch]);
+  useEffect(() => { reload(); }, [gkk, age, blood, debouncedSearch, sortKey, sortDir, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { reloadCounts(); }, [gkk, age, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function sort(key) {
     if (sortKey === key) setUrl({ dir: sortDir === 'asc' ? 'desc' : 'asc' });

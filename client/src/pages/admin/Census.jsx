@@ -97,7 +97,7 @@ export default function Census() {
   useEffect(() => {
     loadCycles();
     api.getSettings().then((r) => setParish(r.settings)).catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cycle = cycles?.find((c) => c.id === cycleId) || null;
   const openCycle = cycles?.find((c) => c.status === 'Open') || null;
@@ -450,8 +450,9 @@ function HouseholdsTab({ cycle, cycles, parish, ownGkk, refreshKey, onChanged })
     api.censusVsLastYear(cycle, cycles, ownGkk).then(setVsLastYear).catch(() => setVsLastYear(null));
   }
 
-  useEffect(() => { reload(); }, [cycle.id, gkk, progress, debouncedSearch, page, pageSize, refreshKey]);
-  useEffect(() => { reloadTiles(); }, [cycle.id, refreshKey, listEnabled(parish)]);
+  useEffect(() => { reload(); }, [cycle.id, gkk, progress, debouncedSearch, page, pageSize, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const listOn = listEnabled(parish);
+  useEffect(() => { reloadTiles(); }, [cycle.id, refreshKey, listOn]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { if (!ownGkk) api.listGkks().then((r) => setGkkOptions(r.rows.map((x) => x.name))).catch(() => {}); }, [ownGkk]);
 
   async function print(args) {
@@ -729,7 +730,7 @@ function UpdatesTab({ cycle, parish, refreshKey, onChanged, initialQuery = '' })
     setError('');
     api.listCensusSubmissions(cycle.id, 'All').then(setRows).catch((e) => setError(e.message));
   }
-  useEffect(() => { setRows(null); load(); }, [cycle.id, refreshKey]);
+  useEffect(() => { setRows(null); load(); }, [cycle.id, refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { waiting.setPage(1); log.setPage(1); }, [cycle.id]); // eslint-disable-line react-hooks/exhaustive-deps
   // New updates from families, unless one is open for review.
   const live = useLiveRefresh(load, { kinds: ['census'], busy: !!openRow });
@@ -1026,7 +1027,7 @@ function Results({ cycle, cycles, parish, ownGkk, refreshKey, staffView = false,
     // Optional: with no baseline (no list, count or earlier census) the table just doesn't show.
     api.censusVsLastYear(cycle, cycles, ownGkk).then(setVsLastYear).catch(() => setVsLastYear(null));
   }
-  useEffect(() => { load(); }, [cycle.id, refreshKey, parish?.last_year_list_enabled]);
+  useEffect(() => { load(); }, [cycle.id, refreshKey, parish?.last_year_list_enabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // A census closed before 0082 kept no results: keep them now, as they stand today.
   async function recordResults() {

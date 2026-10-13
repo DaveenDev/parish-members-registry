@@ -95,8 +95,9 @@ export default function OrgChartView({ nodes, showHolders = true, height = 520, 
   }, [full]);
 
   useEffect(() => {
-    if (!box.current || !rows.length) return undefined;
-    const narrow = box.current.clientWidth < 640;
+    const el = box.current; // the same box when the chart is cleared
+    if (!el || !rows.length) return undefined;
+    const narrow = el.clientWidth < 640;
     const c = new OrgChart()
       .container(box.current)
       .data(rows.map((r) => ({ ...r })))
@@ -137,7 +138,7 @@ export default function OrgChartView({ nodes, showHolders = true, height = 520, 
       clearTimeout(timer);
       window.removeEventListener('resize', onResize);
       chart.current = null;
-      if (box.current) box.current.innerHTML = '';
+      el.innerHTML = '';
     };
   }, [rows, showHolders, height]);
 

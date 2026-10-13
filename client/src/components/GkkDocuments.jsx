@@ -33,7 +33,7 @@ export default function GkkDocuments({ gkk, canEdit = true }) {
     setError('');
     api.listGkkDocuments(gkk.id).then(setDocs).catch((e) => setError(e.message || 'Could not load the documents'));
   }
-  useEffect(() => { setDocs(null); load(); }, [gkk.id]);
+  useEffect(() => { setDocs(null); load(); }, [gkk.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function pick(file) {
     if (!file) return;

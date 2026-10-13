@@ -896,7 +896,7 @@ function ProfileTab() {
 
   useEffect(() => {
     api.getSettings().then((r) => { setSettings(r.settings); setSaved(r.settings); }).catch((e) => toast.error(e.message));
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
   if (!settings) return <LoadingState label="Loading…" />;
   const hasSiteUrl = 'site_url' in settings;
   const dirty = (settings.name || '') !== (saved.name || '') || (hasSiteUrl && (settings.site_url || '') !== (saved.site_url || ''));

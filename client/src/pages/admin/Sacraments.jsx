@@ -78,8 +78,8 @@ export default function Sacraments() {
     refreshAll();
   }
 
-  useEffect(() => { reload(); }, [filterKey, debouncedSearch, page, pageSize]);
-  useEffect(() => { reloadCounts(); }, [filters.gkk]);
+  useEffect(() => { reload(); }, [filterKey, debouncedSearch, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { reloadCounts(); }, [filters.gkk]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // The page's households' reference numbers (the members view has none), read again only when the households change.
   const [refs, setRefs] = useState(new Map());

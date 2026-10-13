@@ -103,7 +103,7 @@ export default function CensusHouseholdDrawer({ cycle, householdId, pendingUpdat
       })
       .catch((e) => setLoadError(e.message || 'Could not load this household'));
   }
-  useEffect(() => { load(); }, [cycle.id, householdId]);
+  useEffect(() => { load(); }, [cycle.id, householdId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // What saving would change (young children started as Active count); what staff changed themselves.
   const changed = data ? data.members.filter((m) => rows[m.id] && !sameAnswer(rows[m.id], m.census)) : [];
