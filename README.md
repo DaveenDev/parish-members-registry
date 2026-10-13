@@ -316,6 +316,8 @@ Run from the project root:
 | `npm run db:wipe-test -- --yes` | Empty every registry table on the **test** project before a browser playbook run (needs `PLAYBOOK_TEST_PROJECT=yes`; see `.claude/playbooks/staff-journey-playbook.md`) |
 | `npm run db:seed-load` | Add 500 marked test households and the records around them to the **demo** project (`qyoyuukpdjrwfhovtrwd`, whichever project the folder is linked to), for load testing (see [`docs/load-test-data.md`](docs/load-test-data.md)) |
 | `npm run db:clean-load` | Remove that load-test data from the demo project, and nothing else |
+| `npm run db:seed-website` | Fill the **demo** site's website with made-up content: 6 Blog Articles with their main photos, 6 Pahibalo, 7 events, 4 History chapters (and an opening text if it's still Lorem ipsum) and photos for the first 3 GKKs. The pictures are drawn by [`scripts/sample-website.mjs`](scripts/sample-website.mjs) and kept in the demo project's `downloads` bucket; running it again replaces them |
+| `npm run db:clean-website` | Take that sample website content out of the demo site again, and nothing else |
 | `npm test` | Run the client test suite |
 | `npm run test:watch` | Client tests, watch mode |
 
