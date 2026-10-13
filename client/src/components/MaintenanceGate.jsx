@@ -3,24 +3,40 @@ import { Link, Outlet } from 'react-router-dom';
 import { api } from '../api.js';
 import { useAuth } from '../AuthContext.jsx';
 
+// Whether this browser last found the site open (not in maintenance).
+const OPEN_KEY = 'olg.site-open';
+const OPEN = { on: false, message: null, parish: '' };
+const wasOpen = () => { try { return localStorage.getItem(OPEN_KEY) === '1'; } catch { return false; } };
+const remember = (open) => { try { localStorage.setItem(OPEN_KEY, open ? '1' : '0'); } catch { /* checks each time */ } };
+
 /**
  * Wraps the public pages (website, /register, /census). With maintenance mode
  * on (Parish Config), visitors see a notice instead of the page. Signed-in
  * staff still see the site, under a warning bar at the very top, so they can
- * check their changes. Nothing shows until both the setting and the sign-in
- * are known, so the site never flashes open or closed.
+ * check their changes.
+ *
+ * A browser that found the site open last time opens it straight away, while
+ * the setting is checked: waiting for it left the page blank for a second or
+ * two on every visit. Maintenance is rare, so it's the rare visit that sees
+ * the page and then the notice. A first visit, or one after the notice, still
+ * waits for both the setting and the sign-in.
  */
 export default function MaintenanceGate() {
   const { user, ready } = useAuth();
-  const [state, setState] = useState(null);
+  const [state, setState] = useState(() => (wasOpen() ? OPEN : null));
 
   useEffect(() => {
     let live = true;
-    api.publicMaintenance().then((s) => { if (live) setState(s); });
+    api.publicMaintenance().then((s) => {
+      remember(!s.on);
+      if (live) setState(s);
+    });
     return () => { live = false; };
   }, []);
 
-  if (!state || !ready) return null;
+  if (!state) return null;
+  if (!state.on) return <Outlet />;
+  if (!ready) return null;
   if (!state.on) return <Outlet />;
   if (user) {
     return (
