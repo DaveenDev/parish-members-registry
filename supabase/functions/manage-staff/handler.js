@@ -266,6 +266,13 @@ export async function handleStaffRequest({ admin, token, body, projectUrl = '' }
       if (String(body.password || '').length < MIN_PASSWORD_LENGTH) {
         return fail(400, `The password must be at least ${MIN_PASSWORD_LENGTH} characters`);
       }
+      // The database refuses a demo login's password change (0101) unless a
+      // reset is allowed just before, for a minute; the change uses it up.
+      if (target.access === 'demo') {
+        const until = new Date(Date.now() + 60_000).toISOString();
+        const { error: allowErr } = await admin.from('demo_password_resets').upsert({ user_id: id, until });
+        if (allowErr) return fail(400, allowErr.message || 'Could not reset the demo login’s password');
+      }
       // A demo login's new password is final, so a reset can put back the one "Try the demo" uses.
       const { error } = await admin.auth.admin.updateUserById(id, target.access === 'demo'
         ? { password: body.password, user_metadata: { must_change_password: false } }

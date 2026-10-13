@@ -131,12 +131,13 @@ with one shared account (0101_demo_access.sql):
    are set, and never on the live site.
 
 The demo account works as Full access, but it is never a staff admin (no
-Settings → Staff, no Platform Integrations with the storage keys), sends
-no phone notifications, and has no Change password card. Anyone can read
-the password from the page, so keep it to this account. If the button
-stops working (the password was changed through Supabase directly), a
-staff admin resets it under Settings → Staff, puts the new one in
-`VITE_DEMO_PASSWORD` and redeploys.
+Settings → Staff, no Platform Integrations with the storage keys) and
+sends no phone notifications. Anyone can read the password from the page,
+so keep it to this account. The account can't change its own password or
+email, not even through Supabase's API: the database refuses it. Only a
+staff admin's **Reset password** under Settings → Staff changes the
+password (the Supabase dashboard's is refused too); then put the new one
+in `VITE_DEMO_PASSWORD` and redeploy.
 
 ## Step 8. Photo storage
 

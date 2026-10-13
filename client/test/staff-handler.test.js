@@ -46,6 +46,8 @@ function fakeAdmin({ users, profiles, legacySchema = false, gkks = [{ id: 3, nam
     logs,
     from: (table) => {
       if (table === 'activity_log') return { insert: async (row) => { logs.push(row); return { error: null }; } };
+      // A demo login's password reset allowance (0101), recorded in order with the other calls.
+      if (table === 'demo_password_resets') return { upsert: async (row) => { calls.push(['demo_password_resets.upsert', row]); return { error: null }; } };
       if (table === 'gkks') {
         return { select: () => ({ eq: (col, val) => ({ maybeSingle: async () => ({ data: gkks.find((g) => g[col] === val) || null, error: null }) }) }) };
       }
@@ -293,8 +295,15 @@ describe('manage-staff: access levels', () => {
     assert.deepEqual(admin.calls[0], ['createUser', { email: 'demo@parish.test', password: 'try-the-demo-1', email_confirm: true, user_metadata: {} }]);
     assert.equal(profiles.at(-1).access, 'demo');
 
+    // The reset is allowed for a minute just before the change, which the database refuses otherwise.
+    const before = Date.now();
     await handleStaffRequest({ admin, token: 'token-u1', projectUrl: demoSite, body: { action: 'reset_password', id: res.body.id, password: 'try-the-demo-2' } });
-    assert.deepEqual(admin.calls.at(-1), ['updateUserById', res.body.id, { password: 'try-the-demo-2', user_metadata: { must_change_password: false } }]);
+    const [allow, change] = admin.calls.slice(-2);
+    assert.equal(allow[0], 'demo_password_resets.upsert');
+    assert.equal(allow[1].user_id, res.body.id);
+    const window = Date.parse(allow[1].until) - before;
+    assert.ok(window > 50_000 && window <= 61_000, `allowed for ${window} ms`);
+    assert.deepEqual(change, ['updateUserById', res.body.id, { password: 'try-the-demo-2', user_metadata: { must_change_password: false } }]);
 
     await handleStaffRequest({ admin, token: 'token-u1', projectUrl: demoSite, body: { action: 'update', id: 'u2', name: 'Pedro', access: 'demo' } });
     assert.deepEqual(admin.calls.at(-1), ['updateUserById', 'u2', { user_metadata: { must_change_password: false } }]);
