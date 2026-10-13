@@ -10,7 +10,7 @@
 // Node.
 //
 // Only signed-in staff who may edit the website (access 'full' or 'website',
-// see 0014_roles_activity_trash.sql) can call it, and GKK leaders for their
+// see 0014_roles_activity_trash.sql, or 'demo', 0101) can call it, and GKK leaders for their
 // own GKK's history photos (0045); a disabled account is refused even while
 // its last access token is still valid.
 
@@ -286,8 +286,9 @@ export async function handleMediaRequest({ admin, token, body, r2, saved = null,
     return ok(await testConnection({ form: body, saved, makeR2, fetchPublic, uuid }));
   }
 
-  // No profile or no access level means no access, like staff_access() (0065).
-  const access = me?.access || 'none';
+  // No profile or no access level means no access, like staff_access() (0065);
+  // the demo site's shared login works as full access, as there (0101).
+  const access = me?.access === 'demo' ? 'full' : me?.access || 'none';
   // A GKK leader may only add and remove their own GKK's photos (0045, 0046).
   const leaderGkk = access === 'gkk_leader' ? me?.gkk?.name || null : null;
   if (!EDIT_WEBSITE.includes(access) && !leaderGkk) return fail(403, "Your account can't change the website");

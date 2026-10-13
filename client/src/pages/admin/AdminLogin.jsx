@@ -7,6 +7,16 @@ import { sendPasswordReset } from '../../emailApi.js';
 import { adminReturnPath } from '../../lib/util.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
+import { isDemoDatabase } from '../../lib/database.js';
+
+/**
+ * The demo site's shared login (a Demo access account, 0101), from the demo
+ * Vercel project's VITE_DEMO_EMAIL and VITE_DEMO_PASSWORD. Never on the live
+ * registry, even if they're set there by mistake.
+ */
+const DEMO_LOGIN = isDemoDatabase(import.meta.env.VITE_SUPABASE_URL) && import.meta.env.VITE_DEMO_EMAIL && import.meta.env.VITE_DEMO_PASSWORD
+  ? { email: import.meta.env.VITE_DEMO_EMAIL, password: import.meta.env.VITE_DEMO_PASSWORD }
+  : null;
 
 export default function AdminLogin() {
   const { user, ready, login } = useAuth();
@@ -31,19 +41,23 @@ export default function AdminLogin() {
 
   if (ready && user) return <Navigate to={dest} replace />;
 
-  async function onSubmit(e) {
-    e.preventDefault();
-    if (!email.trim() || !password) { setError('Enter your email and password.'); return; }
+  async function signIn(withEmail, withPassword) {
     setLoading(true);
     setError('');
     try {
-      await login(email, password);
+      await login(withEmail, withPassword);
       navigate(dest, { replace: true });
     } catch (err) {
       setError(err.message || 'Invalid email or password');
     } finally {
       setLoading(false);
     }
+  }
+
+  function onSubmit(e) {
+    e.preventDefault();
+    if (!email.trim() || !password) { setError('Enter your email and password.'); return; }
+    signIn(email, password);
   }
 
   return (
@@ -62,6 +76,20 @@ export default function AdminLogin() {
           <div className="text-[13px] tracking-[.14em] uppercase text-[var(--p-gold-light)]/90 mt-1.5">Members Registry · Admin</div>
         </div>
         <div className="bg-parish-card rounded-[20px] shadow-2xl px-7 py-[30px]" style={{ padding: '30px 28px' }}>
+          {DEMO_LOGIN && (
+            <div className="mb-6 pb-6 border-b border-parish-line2">
+              <div className="font-semibold text-[15px] text-parish-navy mb-1">Trying the app for your parish?</div>
+              <p className="text-[13.5px] text-parish-muted m-0 mb-3 leading-relaxed">Look around the admin panel with sample data. Nothing here touches a real parish registry.</p>
+              <button
+                type="button"
+                onClick={() => signIn(DEMO_LOGIN.email, DEMO_LOGIN.password)}
+                disabled={loading}
+                className="appearance-none border-none cursor-pointer w-full py-3.5 rounded-xl bg-[#6d28d9] hover:bg-[#5b21b6] text-white font-semibold text-[16px] disabled:opacity-60"
+              >
+                {loading ? 'Signing in…' : 'Try the demo'}
+              </button>
+            </div>
+          )}
           <h1 className="font-serif text-[26px] font-semibold m-0 mb-1 text-parish-navy">Staff sign in</h1>
           <p className="text-[14px] text-parish-muted m-0 mb-[22px]" style={{ marginBottom: '22px' }}>Authorized parish personnel only.</p>
           {signedOutIdle && !error && (

@@ -9,6 +9,7 @@ import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { fmtDateTime, daysAgo } from '../../constants.js';
 import { generateTempPassword } from '../../lib/util.js';
 import { ACCESS_LEVELS, accessLabel } from '../../lib/access.js';
+import { isDemoDatabase } from '../../lib/database.js';
 import { searchAndPage } from '../../lib/paging.js';
 import { downloadCsv } from '../../lib/csv.js';
 import {
@@ -18,6 +19,9 @@ import {
 
 const DEFAULT_ROLE = 'Parish Staff';
 const CLERGY_ROLE = 'Priest';
+const DEMO_ROLE = 'Demo';
+// Demo access (0101) is offered on the demo site only; manage-staff refuses it on the live registry.
+const LEVELS = ACCESS_LEVELS.filter((a) => !a.demoOnly || isDemoDatabase(import.meta.env.VITE_SUPABASE_URL));
 const EMPTY_FORM = { name: '', email: '', role: DEFAULT_ROLE, isAdmin: false, access: 'full', accessGkkId: '' };
 /** A new GKK leader's form, for `gkk` ({ id, name }) when it's known. */
 const leaderForm = (gkk) => ({ ...EMPTY_FORM, role: LEADER_ROLE, access: 'gkk_leader', accessGkkId: gkk ? String(gkk.id) : '' });
@@ -35,9 +39,9 @@ function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
     return { ...f, [key]: value };
   });
   const setAccess = (access) => setForm((f) => {
-    // A GKK leader is a census coordinator and clergy a priest, unless a role was typed.
+    // A GKK leader is a census coordinator, clergy a priest and the demo login "Demo", unless a role was typed.
     const untyped = !f.role || f.role === DEFAULT_ROLE;
-    const role = untyped && access === 'gkk_leader' ? LEADER_ROLE : untyped && access === 'clergy' ? CLERGY_ROLE : f.role;
+    const role = !untyped ? f.role : access === 'gkk_leader' ? LEADER_ROLE : access === 'clergy' ? CLERGY_ROLE : access === 'demo' ? DEMO_ROLE : f.role;
     return { ...f, access, role };
   });
   return (
@@ -52,7 +56,7 @@ function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
         <legend className="font-semibold text-[13px] text-parish-ink mb-1.5">Access</legend>
         {/* Toggle buttons, one on at a time; what the chosen one allows is spelled out below. */}
         <div role="radiogroup" aria-label="Access" className="grid grid-cols-2 gap-2">
-          {ACCESS_LEVELS.map((a) => {
+          {LEVELS.map((a) => {
             const on = form.access === a.key;
             const locked = form.isAdmin && a.key !== 'full';
             return (
@@ -109,8 +113,12 @@ function StaffForm({ initial, isNew, busy, error, gkks, onSubmit, onCancel }) {
   );
 }
 
-/** Shows a temporary password once, with a copy button. It is never stored. */
-function PasswordReveal({ who, email, password, onDone }) {
+/**
+ * Shows a temporary password once, with a copy button. It is never stored.
+ * The demo login's (0101) isn't temporary: it goes into the demo site's
+ * Vercel settings for the "Try the demo" button.
+ */
+function PasswordReveal({ who, email, password, demo = false, onDone }) {
   const toast = useToast();
   async function copy() {
     try {
@@ -122,12 +130,20 @@ function PasswordReveal({ who, email, password, onDone }) {
   }
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-[14px] text-parish-text2 m-0">
-        Give this temporary password to <strong>{who}</strong> in person or by phone. They sign in with <strong>{email}</strong>,
-        and are asked to choose their own password straight away.
-      </p>
+      {demo ? (
+        <p className="text-[14px] text-parish-text2 m-0">
+          This is the password of <strong>{who}</strong>, the shared demo login. For the <strong>Try the demo</strong> button on the
+          sign-in page, put it in the demo site's Vercel project as <code>VITE_DEMO_PASSWORD</code>, with <code>VITE_DEMO_EMAIL</code> = <strong>{email}</strong>,
+          then redeploy.
+        </p>
+      ) : (
+        <p className="text-[14px] text-parish-text2 m-0">
+          Give this temporary password to <strong>{who}</strong> in person or by phone. They sign in with <strong>{email}</strong>,
+          and are asked to choose their own password straight away.
+        </p>
+      )}
       <div className="flex items-center gap-2.5">
-        <code className="flex-1 font-mono text-[20px] tracking-[.08em] text-parish-navy bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl px-3.5 py-2.5 select-all break-all" aria-label="Temporary password">{password}</code>
+        <code className="flex-1 font-mono text-[20px] tracking-[.08em] text-parish-navy bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl px-3.5 py-2.5 select-all break-all" aria-label={demo ? 'Demo login password' : 'Temporary password'}>{password}</code>
         <GhostButton type="button" onClick={copy} className="px-4 py-2.5 text-[13.5px]">Copy</GhostButton>
       </div>
       <p className="text-[12.5px] text-parish-warn m-0 font-semibold">This password won’t be shown again.</p>
@@ -377,7 +393,7 @@ export default function ManageStaff() {
     try {
       await api.staff.create({ ...form, password });
       staff.reload();
-      setDialog({ kind: 'password', who: form.name.trim(), email: form.email.trim().toLowerCase(), password });
+      setDialog({ kind: 'password', who: form.name.trim(), email: form.email.trim().toLowerCase(), password, demo: form.access === 'demo' });
     } catch (e) {
       setFormError(e.message || 'Could not create the account');
     } finally {
@@ -403,7 +419,9 @@ export default function ManageStaff() {
   async function resetPassword(s) {
     const ok = await confirm({
       title: `Reset ${s.name || s.email}’s password?`,
-      message: 'Their current password stops working right away. You’ll get a temporary password to give them.',
+      message: s.access === 'demo'
+        ? 'The demo login’s password changes right away, and “Try the demo” stops working until the new one is in the demo site’s Vercel settings.'
+        : 'Their current password stops working right away. You’ll get a temporary password to give them.',
       confirmLabel: 'Reset password',
       tone: 'danger',
     });
@@ -412,7 +430,7 @@ export default function ManageStaff() {
     setRowBusy(s.id);
     try {
       await api.staff.resetPassword(s.id, password);
-      setDialog({ kind: 'password', who: s.name || s.email, email: s.email, password });
+      setDialog({ kind: 'password', who: s.name || s.email, email: s.email, password, demo: s.access === 'demo' });
     } catch (e) {
       toast.error(e.message || 'Could not reset the password');
     } finally {
@@ -618,8 +636,8 @@ export default function ManageStaff() {
         </Modal>
       )}
       {dialog?.kind === 'password' && (
-        <Modal title="Temporary password" onClose={close}>
-          <PasswordReveal who={dialog.who} email={dialog.email} password={dialog.password} onDone={close} />
+        <Modal title={dialog.demo ? 'Demo login password' : 'Temporary password'} onClose={close}>
+          <PasswordReveal who={dialog.who} email={dialog.email} password={dialog.password} demo={dialog.demo} onDone={close} />
         </Modal>
       )}
     </>

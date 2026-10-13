@@ -4,7 +4,8 @@
 // local dev point at a test project instead, through VITE_SUPABASE_URL. Any
 // project other than the live one gets the "Demo site" banner, so nobody
 // mistakes practice data for the real registry. If the registry ever moves
-// to a new Supabase project, change LIVE_PROJECT_ID here too.
+// to a new Supabase project, change LIVE_PROJECT_ID here too, and in
+// supabase/functions/manage-staff/handler.js (Demo access, 0101).
 
 export const LIVE_PROJECT_ID = 'rmlkowkbonbrtaqocsvo';
 

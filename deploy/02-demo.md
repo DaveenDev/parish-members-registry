@@ -109,6 +109,35 @@ only"** strip must be at the top of every page. No strip means it's
 talking to the live database: fix the two `VITE_SUPABASE_*` values and
 redeploy before anyone signs in.
 
+### The "Try the demo" login (for other parishes)
+
+A **Try the demo** button on `<demo-site>/admin/login` signs visitors in
+with one shared account (0101_demo_access.sql):
+
+1. Demo admin panel → Settings → Staff → **Add staff**: a name like
+   "Demo", an email nobody uses (e.g. `demo@parish-registry-demo.test`),
+   access **Demo**. The password shown at the end is the shared one: copy
+   it. (Demo access is offered only on the demo site; the live site
+   refuses it.)
+2. Vercel → the demo project → Settings → Environment Variables, for
+   Production and Preview:
+
+   | Name | Value |
+   |---|---|
+   | `VITE_DEMO_EMAIL` | the demo account's email |
+   | `VITE_DEMO_PASSWORD` | the password from step 1 |
+
+3. Redeploy (Deployments → ⋯ → Redeploy). The button shows only when both
+   are set, and never on the live site.
+
+The demo account works as Full access, but it is never a staff admin (no
+Settings → Staff, no Platform Integrations with the storage keys), sends
+no phone notifications, and has no Change password card. Anyone can read
+the password from the page, so keep it to this account. If the button
+stops working (the password was changed through Supabase directly), a
+staff admin resets it under Settings → Staff, puts the new one in
+`VITE_DEMO_PASSWORD` and redeploys.
+
 ## Step 8. Photo storage
 
 As 01 step 8, in the testing bucket:
@@ -280,6 +309,8 @@ on practice data and never on the live registry.
 - [ ] Demo admin signs in; the live site's staff passwords don't work
       there (separate logins).
 - [ ] Photo storage Test connection passes with `<demo-site>/media`.
+- [ ] **Try the demo** on `<demo-site>/admin/login` signs in; its Personal
+      Settings has no Change password, and Settings has no Staff tab.
 - [ ] Parish Config → Public website address = `<demo-site>`.
 - [ ] A test registration on the demo site does **not** appear in the
       live admin.

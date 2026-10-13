@@ -1,7 +1,8 @@
 import test, { describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { handleStaffRequest, validateStaffInput, isDisabled, accessInput, staffChanges } from '../../supabase/functions/manage-staff/handler.js';
+import { handleStaffRequest, validateStaffInput, isDisabled, accessInput, isLiveProject, staffChanges, LIVE_PROJECT_ID } from '../../supabase/functions/manage-staff/handler.js';
+import { LIVE_PROJECT_ID as SITE_LIVE_PROJECT_ID } from '../src/lib/database.js';
 
 /**
  * In-memory stand-in for a service-role Supabase client: just the calls the
@@ -268,6 +269,38 @@ describe('manage-staff: access levels', () => {
     assert.deepEqual(list.body.staff.map((s) => s.access), ['full', 'none']);
   });
 
+  test('demo access (0101): never an admin, and refused on the live project', () => {
+    assert.deepEqual(accessInput({ access: 'demo' }), { access: 'demo', access_gkk_id: null });
+    assert.match(accessInput({ access: 'demo', is_admin: true }).error, /full access/);
+    assert.match(accessInput({ access: 'demo' }, { live: true }).error, /demo site only/);
+    assert.deepEqual(accessInput({ access: 'full' }, { live: true }), { access: 'full', access_gkk_id: null });
+    assert.equal(isLiveProject('https://rmlkowkbonbrtaqocsvo.supabase.co'), true);
+    assert.equal(isLiveProject('https://qyoyuukpdjrwfhovtrwd.supabase.co'), false);
+    assert.equal(isLiveProject(''), false);
+  });
+
+  test('the live project refuses to make a demo account', async () => {
+    const res = await handleStaffRequest({ admin, token: 'token-u1', projectUrl: 'https://rmlkowkbonbrtaqocsvo.supabase.co', body: { action: 'create', name: 'Demo', email: 'demo@parish.test', password: 'x'.repeat(12), access: 'demo' } });
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /demo site only/);
+    assert.equal(admin.calls.length, 0);
+  });
+
+  test('a demo account keeps the password it was given: on create, reset and when switched to demo', async () => {
+    const demoSite = 'https://qyoyuukpdjrwfhovtrwd.supabase.co';
+    const res = await handleStaffRequest({ admin, token: 'token-u1', projectUrl: demoSite, body: { action: 'create', name: 'Demo', email: 'demo@parish.test', password: 'try-the-demo-1', access: 'demo' } });
+    assert.equal(res.status, 200);
+    assert.deepEqual(admin.calls[0], ['createUser', { email: 'demo@parish.test', password: 'try-the-demo-1', email_confirm: true, user_metadata: {} }]);
+    assert.equal(profiles.at(-1).access, 'demo');
+
+    await handleStaffRequest({ admin, token: 'token-u1', projectUrl: demoSite, body: { action: 'reset_password', id: res.body.id, password: 'try-the-demo-2' } });
+    assert.deepEqual(admin.calls.at(-1), ['updateUserById', res.body.id, { password: 'try-the-demo-2', user_metadata: { must_change_password: false } }]);
+
+    await handleStaffRequest({ admin, token: 'token-u1', projectUrl: demoSite, body: { action: 'update', id: 'u2', name: 'Pedro', access: 'demo' } });
+    assert.deepEqual(admin.calls.at(-1), ['updateUserById', 'u2', { user_metadata: { must_change_password: false } }]);
+    assert.equal(profiles[1].access, 'demo');
+  });
+
   test('a GKK leader is saved with the GKK id, not its name (0063)', () => {
     assert.deepEqual(accessInput({ access: 'gkk_leader', access_gkk_id: 4 }), { access: 'gkk_leader', access_gkk_id: 4 });
     assert.match(accessInput({ access: 'gkk_leader', access_gkk: 'GKK X' }).error, /GKK/);
@@ -306,5 +339,11 @@ describe('manage-staff: the activity log', () => {
       staffChanges({ name: 'A', role: 'Encoder', is_admin: false, access: 'full', access_gkk: null }, { name: 'A', role: 'Secretary', is_admin: false, access: 'full', access_gkk: null }),
       { role: ['Encoder', 'Secretary'] },
     );
+  });
+});
+
+describe('the live project', () => {
+  test('manage-staff and the site agree which project is the live registry', () => {
+    assert.equal(LIVE_PROJECT_ID, SITE_LIVE_PROJECT_ID);
   });
 });

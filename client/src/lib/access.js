@@ -8,6 +8,8 @@ export const ACCESS_LEVELS = [
   { key: 'gkk_leader', label: 'GKK leader', note: 'Sees and updates the households and members of one GKK (not their blood types), and those with no GKK yet, which they can move into theirs. Records their census and reviews their online updates, and gets or renews their census codes. Dashboard and reports cover that GKK only; possible duplicates also show another GKK\'s records that match theirs, which they send to the parish office to fix.' },
   { key: 'website', label: 'Website & requests', note: 'Runs the Parish Website (including the office and contact details) and the Requests queues; views the registry and blood types but not the census.' },
   { key: 'clergy', label: 'Clergy', note: 'For the parish priests. Sees the registry, sacraments, census and reports, verifies sacraments and handles the Requests queues. Changes no household or member. No blood types, exports, census codes, website, activity log or trash.' },
+  // 0101: only offered on the demo site; signs in as full access there (AuthContext).
+  { key: 'demo', label: 'Demo', demoOnly: true, note: 'The shared "Try the demo" login for other parishes. Everything Full access does, but never a staff admin (no Staff accounts or Platform Integrations), and its password can\'t be changed from the admin panel. Demo site only.' },
 ];
 
 // 'none': signed in without a staff profile (0062); never offered when setting up an account.

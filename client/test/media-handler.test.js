@@ -51,6 +51,13 @@ describe('who may upload', () => {
   test('website and full accounts are allowed', async () => {
     for (const t of ['token-web', 'token-full']) assert.equal((await call(t, sign())).status, 200, t);
   });
+  test('the demo site\'s shared login uploads like full access (0101), but never tests the storage settings', async () => {
+    const demo = fakeAdmin({ users: [{ id: 'demo' }], profiles: [{ id: 'demo', access: 'demo', is_admin: false }] });
+    const as = (body) => handleMediaRequest({ admin: demo, token: 'token-demo', body, r2: fakeR2(), uuid: () => 'abc', now: NOW });
+    assert.equal((await as(sign())).status, 200);
+    assert.equal((await as(sign({ folder: 'gkks' }))).status, 200);
+    assert.equal((await as({ action: 'test' })).status, 403);
+  });
   test('an account without an access level, or without a profile, is refused (0065)', async () => {
     assert.equal((await call('token-legacy', sign())).status, 403);
     const noProfile = fakeAdmin({ users: [{ id: 'new' }], profiles: [] });

@@ -33,10 +33,11 @@ Deno.serve(async (req: Request) => {
   }
 
   const token = (req.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '');
-  const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
+  const projectUrl = Deno.env.get('SUPABASE_URL')!;
+  const admin = createClient(projectUrl, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
 
-  const result = await handleStaffRequest({ admin, token, body });
+  const result = await handleStaffRequest({ admin, token, body, projectUrl });
   return json(result.status, result.body);
 });

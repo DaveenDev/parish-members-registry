@@ -1,5 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { supabase } from './lib/supabaseClient.js';
+import { isDemoDatabase } from './lib/database.js';
 
 const AuthContext = createContext(null);
 
@@ -19,6 +20,10 @@ async function loadProfile(session, { recheck = false } = {}) {
   if (error && /access/.test(error.message || '')) ({ data, error } = await byId('name, role, is_admin'));
   if (error && /is_admin/.test(error.message || '')) ({ data } = await byId('name, role'));
   if (recheck && !data) return null;
+  // The demo site's shared login (0101) works as full access there; on the
+  // live registry it's no access at all (manage-staff never makes one there).
+  const demo = data?.access === 'demo';
+  const demoSite = isDemoDatabase(import.meta.env.VITE_SUPABASE_URL);
   return {
     id: session.user.id,
     email: session.user.email,
@@ -27,12 +32,14 @@ async function loadProfile(session, { recheck = false } = {}) {
     isAdmin: !!data?.is_admin,
     // No staff profile, or one without an access level, means no access, as in
     // the database (0062, 0065). Before 0014 there is no access column at all.
-    access: !data ? 'none' : 'access' in data ? data.access || 'none' : 'full',
+    access: demo ? (demoSite ? 'full' : 'none') : !data ? 'none' : 'access' in data ? data.access || 'none' : 'full',
+    // Everyone trying the demo shares this login, so its password stays as it is.
+    isDemo: demo && demoSite,
     accessGkkId: data?.access_gkk_id || null,
     accessGkk: data?.gkk?.name || data?.access_gkk || null,
     // Set by a staff admin on a new account or a password reset (manage-staff);
     // RequireAuth keeps the person on the change-password screen until it's cleared.
-    mustChangePassword: !!session.user.user_metadata?.must_change_password,
+    mustChangePassword: !demo && !!session.user.user_metadata?.must_change_password,
     // The setup checklist's marks and "Don't show again" (lib/setup.js).
     setupChecklist: session.user.user_metadata?.setup_checklist || null,
   };

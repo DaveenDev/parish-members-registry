@@ -25,18 +25,33 @@ const fail = (status, error) => ({ status, body: { error } });
 
 const clean = (v) => (typeof v === 'string' ? v.trim() : '');
 
-// Access levels (profiles.access, added in 0014_roles_activity_trash.sql; clergy in 0087).
-export const ACCESS_LEVELS = ['full', 'read_only', 'gkk_leader', 'website', 'clergy'];
+// Access levels (profiles.access, added in 0014_roles_activity_trash.sql; clergy in 0087, demo in 0101).
+export const ACCESS_LEVELS = ['full', 'read_only', 'gkk_leader', 'website', 'clergy', 'demo'];
 const MIGRATION_HINT = 'Run the 0014_roles_activity_trash.sql migration in Supabase to use access levels';
+
+// The live registry's project, as LIVE_PROJECT_ID in client/src/lib/database.js
+// (change both if the registry moves). Every other project is a demo site.
+export const LIVE_PROJECT_ID = 'rmlkowkbonbrtaqocsvo';
+
+/** True when `url` (the function's SUPABASE_URL) is the live registry's project. */
+export function isLiveProject(url) {
+  try {
+    return new URL(url).hostname.toLowerCase() === `${LIVE_PROJECT_ID}.supabase.co`;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * { access, access_gkk_id } from a request, or { error }. A GKK leader's GKK
  * is its gkks id (0063), so renaming the GKK keeps it. Staff admins always
- * have full access.
+ * have full access. The demo site's shared login (demo) is never given out on
+ * the live registry, where it would be full access for anyone with the password.
  */
-export function accessInput(body) {
+export function accessInput(body, { live = false } = {}) {
   const access = clean(body?.access) || 'full';
   if (!ACCESS_LEVELS.includes(access)) return { error: 'Choose an access level' };
+  if (access === 'demo' && live) return { error: 'Demo access is for the demo site only' };
   if (body?.is_admin && access !== 'full') return { error: 'Staff admins need full access' };
   const gkkId = access === 'gkk_leader' ? Number(body?.access_gkk_id) : null;
   if (access === 'gkk_leader' && !(Number.isInteger(gkkId) && gkkId > 0)) return { error: 'Choose the GKK this leader looks after' };
@@ -152,10 +167,12 @@ async function gkkName(admin, id) {
 
 /**
  * Handle one request. `admin` is a service-role Supabase client, `token` the
- * caller's access token, `body` the parsed JSON body ({ action, … }).
+ * caller's access token, `body` the parsed JSON body ({ action, … }),
+ * `projectUrl` the function's SUPABASE_URL (to tell the live registry apart).
  * Resolves to { status, body } for index.ts to send back.
  */
-export async function handleStaffRequest({ admin, token, body }) {
+export async function handleStaffRequest({ admin, token, body, projectUrl = '' }) {
+  const live = isLiveProject(projectUrl);
   if (!token) return fail(401, 'Please sign in again');
   const { data: auth, error: authError } = await admin.auth.getUser(token);
   const caller = auth?.user;
@@ -179,11 +196,12 @@ export async function handleStaffRequest({ admin, token, body }) {
       const input = { name: clean(body.name), email: clean(body.email).toLowerCase(), password: body.password };
       const invalid = validateStaffInput(input, { requireEmail: true, requirePassword: true });
       if (invalid) return fail(400, invalid);
-      const access = accessInput(body);
+      const access = accessInput(body, { live });
       if (access.error) return fail(400, access.error);
 
+      // The demo login's password is the one "Try the demo" uses, so it isn't temporary.
       const { data: created, error } = await admin.auth.admin.createUser({
-        email: input.email, password: input.password, email_confirm: true, user_metadata: MUST_CHANGE,
+        email: input.email, password: input.password, email_confirm: true, user_metadata: access.access === 'demo' ? {} : MUST_CHANGE,
       });
       if (error) {
         const taken = /already (been )?registered|already exists/i.test(error.message || '');
@@ -220,7 +238,7 @@ export async function handleStaffRequest({ admin, token, body }) {
       const input = { name: clean(body.name) };
       const invalid = validateStaffInput(input);
       if (invalid) return fail(400, invalid);
-      const access = accessInput(body);
+      const access = accessInput(body, { live });
       if (access.error) return fail(400, access.error);
       const makeAdmin = !!body.is_admin;
       if (!makeAdmin && target.is_admin) {
@@ -232,6 +250,10 @@ export async function handleStaffRequest({ admin, token, body }) {
         access: access.access, access_gkk_id: access.access_gkk_id,
       });
       if (error) return fail(400, error.message || 'Could not save the changes');
+      // An account turned into the demo login keeps its password: nobody is sent to change it.
+      if (access.access === 'demo' && target.access !== 'demo') {
+        await admin.auth.admin.updateUserById(id, { user_metadata: { must_change_password: false } });
+      }
       const changes = staffChanges(target, {
         name: input.name, role: clean(body.role) || 'Parish Staff', is_admin: makeAdmin,
         access: access.access, access_gkk: access.access === 'gkk_leader' ? await gkkName(admin, access.access_gkk_id) : null,
@@ -244,7 +266,10 @@ export async function handleStaffRequest({ admin, token, body }) {
       if (String(body.password || '').length < MIN_PASSWORD_LENGTH) {
         return fail(400, `The password must be at least ${MIN_PASSWORD_LENGTH} characters`);
       }
-      const { error } = await admin.auth.admin.updateUserById(id, { password: body.password, user_metadata: MUST_CHANGE });
+      // A demo login's new password is final, so a reset can put back the one "Try the demo" uses.
+      const { error } = await admin.auth.admin.updateUserById(id, target.access === 'demo'
+        ? { password: body.password, user_metadata: { must_change_password: false } }
+        : { password: body.password, user_metadata: MUST_CHANGE });
       if (error) return fail(400, error.message || 'Could not reset the password');
       // That it was reset, never the password itself.
       await logStaff(admin, actor, 'update', target, { password_reset: true });

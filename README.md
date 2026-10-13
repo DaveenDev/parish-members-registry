@@ -229,6 +229,7 @@ isn't allowed to make, with a message saying why.
 | GKK leader | The households and members of one GKK | Those households and members, but can't delete them |
 | Website & requests | The registry (to match certificate requests), the Parish Website and Requests | The Parish Website and Requests |
 | Clergy (0087) | The registry, sacraments, census, reports and Requests; no blood types, exports, website, activity log or Trash | Sacrament verifications and Requests, nothing else |
+| Demo (0101), demo site only | As Full access | As Full access, but never a staff admin (no Staff accounts or Platform Integrations) and no password change: the shared "Try the demo" login, see [deploy/02-demo.md](deploy/02-demo.md) |
 
 Staff admins always have full access. The registration and census portals
 aren't affected: they don't sign in as staff.

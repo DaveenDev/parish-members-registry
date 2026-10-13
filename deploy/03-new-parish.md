@@ -31,7 +31,7 @@ Do this in the new repository before the first deploy. Steps marked
 
 | What | File | Change to |
 |---|---|---|
-| Live database (*after 01 step 2*) | [`client/src/lib/database.js`](../client/src/lib/database.js) `LIVE_PROJECT_ID` | the new live project ref. Every other project shows the demo banner |
+| Live database (*after 01 step 2*) | [`client/src/lib/database.js`](../client/src/lib/database.js) and [`supabase/functions/manage-staff/handler.js`](../supabase/functions/manage-staff/handler.js) `LIVE_PROJECT_ID` | the new live project ref, in both. Every other project shows the demo banner, and only there may an account get Demo access |
 | Live database (*after 01 step 7*) | [`client/.env.production`](../client/.env.production) | the new live `VITE_SUPABASE_URL` and anon key (keep-alive reads them) |
 | Photo buckets (*after 01 step 8 / 02 step 8*) | [`client/vercel.json`](../client/vercel.json), the `/media` rules | the rules with `"has"`: keep one, with the demo site's name in `"pre"` and its testing bucket's r2.dev address (or delete them if there's no demo site); the last rule: the live bucket's r2.dev address |
 | Demo site kept out of search | [`client/vercel.json`](../client/vercel.json), the `X-Robots-Tag` rules with `"has"` | keep one, with the demo site's name in `"pre"`, as above (or delete them) |
