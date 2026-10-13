@@ -1280,11 +1280,18 @@ export const api = {
   },
   /** Shrink `file`, upload it to R2 under `folder` ('articles', 'events', 'history'…) and return its public URL. */
   async uploadImage(file, folder = 'articles') {
-    const blob = await resizePhotoBlob(file);
-    const { uploadUrl, publicUrl } = await callMediaFunction({ action: 'sign', folder, contentType: 'image/jpeg', size: blob.size });
+    return api.uploadImageBlob(await resizePhotoBlob(file), folder);
+  },
+  /**
+   * Upload an image already the right size (a JPEG, PNG or WebP Blob) to R2
+   * under `folder`, as it is, and return its public URL.
+   */
+  async uploadImageBlob(blob, folder) {
+    const contentType = blob.type || 'image/jpeg';
+    const { uploadUrl, publicUrl } = await callMediaFunction({ action: 'sign', folder, contentType, size: blob.size });
     let res;
     try {
-      res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': 'image/jpeg' }, body: blob });
+      res = await fetch(uploadUrl, { method: 'PUT', headers: { 'Content-Type': contentType }, body: blob });
     } catch {
       throw new Error('Could not reach the photo storage. Check the R2 bucket’s CORS settings (docs/media-storage.md).');
     }

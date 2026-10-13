@@ -98,10 +98,11 @@ function LogoSection({ settings, onSaved }) {
 
     setBusy('upload');
     try {
-      // Stored inline as a data URL (printed sheets and the sign-in page use it
-      // as is), shrunk first: every public page loads it.
-      const res = await api.updateSettings({ logo: await resizeLogo(file) });
+      // Shrunk first, then on R2 where browsers keep it (logoValue).
+      const old = settings.logo;
+      const res = await api.updateSettings({ logo: await logoValue(file) });
       onSaved(res.settings);
+      dropOldImage(old);
       toast.success('Logo updated');
     } catch (err) {
       toast.error(err.message || 'Could not upload the logo');
@@ -113,8 +114,10 @@ function LogoSection({ settings, onSaved }) {
   async function removeLogo() {
     setBusy('remove');
     try {
+      const old = settings.logo;
       const res = await api.updateSettings({ logo: '' });
       onSaved(res.settings);
+      dropOldImage(old);
       toast.success('Logo removed');
     } catch (err) {
       toast.error(err.message || 'Could not remove the logo');
@@ -141,6 +144,7 @@ function LogoSection({ settings, onSaved }) {
           <ImageButtons has={!!settings.logo} busy={busy} noun="logo" onFile={onFile} onRemove={removeLogo} />
         </div>
       </div>
+      <MoveToStorage field="logo" noun="logo" settings={settings} onSaved={onSaved} busy={busy} setBusy={setBusy} />
     </ImageBlock>
   );
 }
@@ -160,9 +164,59 @@ async function heroImageValue(file) {
   }
 }
 
-/** An R2 photo the parish photo no longer uses: delete it, quietly (inline ones just go with the setting). */
-function dropOldHero(url) {
+/**
+ * The logo, shrunk (resizeLogo), on R2 as the parish photo is; else, before
+ * photo storage is set up, inline as before.
+ */
+async function logoValue(file) {
+  const dataUrl = await resizeLogo(file);
+  try {
+    return await api.uploadImageBlob(await dataUrlBlob(dataUrl), 'parish');
+  } catch {
+    return dataUrl;
+  }
+}
+
+const dataUrlBlob = async (dataUrl) => (await fetch(dataUrl)).blob();
+
+/** An R2 image the logo or parish photo no longer uses: delete it, quietly (inline ones just go with the setting). */
+function dropOldImage(url) {
   if (/^https?:/.test(url || '')) api.deleteImage(url).catch(() => {});
+}
+
+/**
+ * Under a logo or parish photo saved inline (a data URL, from before photo
+ * storage): every visit downloads it again with the page's data. One click
+ * moves it to R2, where visitors' browsers keep it.
+ */
+function MoveToStorage({ field, noun, settings, onSaved, busy, setBusy }) {
+  const toast = useToast();
+  const value = settings[field] || '';
+  if (!value.startsWith('data:')) return null;
+
+  async function move() {
+    setBusy('upload');
+    try {
+      const url = await api.uploadImageBlob(await dataUrlBlob(value), 'parish');
+      const res = await api.updateSettings({ [field]: url });
+      onSaved(res.settings);
+      toast.success(`The ${noun} is in photo storage now`);
+    } catch (err) {
+      toast.error(err.message || `Could not move the ${noun}`);
+    } finally {
+      setBusy('');
+    }
+  }
+
+  return (
+    <div className="mt-3.5 max-w-[520px] rounded-xl border border-parish-line2 bg-parish-card px-4 py-3 text-[13px] text-parish-text2">
+      This {noun} is saved in the database, so visitors download it again on every visit
+      ({Math.round((value.length * 3) / 4 / 1024)} KB). In photo storage, their browser keeps it.
+      <div className="mt-2">
+        <GhostButton type="button" onClick={move} disabled={!!busy} className="px-3.5 py-1.5 text-[13px]">Move to photo storage</GhostButton>
+      </div>
+    </div>
+  );
 }
 
 /** The parish's main photo, shown in the public home page's hero. */
@@ -181,7 +235,7 @@ function HeroImageSection({ settings, onSaved }) {
       const old = settings.hero_image;
       const res = await api.updateSettings({ hero_image: await heroImageValue(file) });
       onSaved(res.settings);
-      dropOldHero(old);
+      dropOldImage(old);
       toast.success('Parish photo updated');
     } catch (err) {
       toast.error(err.message || 'Could not upload the photo');
@@ -196,7 +250,7 @@ function HeroImageSection({ settings, onSaved }) {
       const old = settings.hero_image;
       const res = await api.updateSettings({ hero_image: '' });
       onSaved(res.settings);
-      dropOldHero(old);
+      dropOldImage(old);
       toast.success('Parish photo removed');
     } catch (err) {
       toast.error(err.message || 'Could not remove the photo');
@@ -219,6 +273,7 @@ function HeroImageSection({ settings, onSaved }) {
         )}
       </div>
       <ImageButtons has={!!settings.hero_image} busy={busy} noun="photo" onFile={onFile} onRemove={remove} />
+      <MoveToStorage field="hero_image" noun="photo" settings={settings} onSaved={onSaved} busy={busy} setBusy={setBusy} />
     </ImageBlock>
   );
 }
