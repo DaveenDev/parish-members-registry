@@ -11,11 +11,12 @@ import { AddButton, RowButton, SidePanel } from './panels.jsx';
 import GkkDocuments from './GkkDocuments.jsx';
 import GkkStructure from './GkkStructure.jsx';
 import { barangayCodeSuggestion, gkkParts } from '../lib/site.js';
+import { PhotoIcon } from './website/shared.jsx';
 import { ChapelFields, HistoryFields, PagePhotoFields, chapelPatch, chapelProblem, gkkForm, historyPatch, photosPatch, sameHistory, samePhotos, useGkkPhotos } from './GkkFields.jsx';
 
-// Desktop columns: name (with its reference code), chapel, year, households, census progress, actions.
+// Desktop columns: main photo, name (with its reference code), chapel, year, households, census progress, actions.
 // The puroks are in the GKK's panel and the search; a column for them squeezed the names.
-const COLS = 'lg:grid-cols-[minmax(0,1.6fr)_minmax(0,1.4fr)_56px_84px_170px_110px] lg:gap-4'; // a fixed actions column keeps the headings over their values
+const COLS = 'lg:grid-cols-[48px_minmax(0,1.6fr)_minmax(0,1.4fr)_56px_84px_170px_110px] lg:gap-4'; // a fixed actions column keeps the headings over their values
 // A parish has a few dozen GKKs at most: they all show on one page.
 const ALL_GKKS = 1000;
 const missingAddress = (g) => !String(g.chapel_address || '').trim();
@@ -248,7 +249,7 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
       )}
       {list.rows.length > 0 && (
         <div className={`hidden lg:grid ${COLS} px-3.5 pb-2 font-semibold text-[11.5px] tracking-wide uppercase text-parish-muted`}>
-          <span>GKK</span><span>Chapel address</span><span>Est.</span><span>Households</span>
+          <span /><span>GKK</span><span>Chapel address</span><span>Est.</span><span>Households</span>
           <span title={progress ? censusColumnNote(progress, progress.cycle) : undefined}>Census progress</span><span />
         </div>
       )}
@@ -272,6 +273,10 @@ export function GkkManager({ onOpenList, historyOf = '', onHistoryOpened, struct
               onClick={(e) => { if (!e.target.closest('button, a')) open(g); }}
               className={`flex items-center gap-2.5 lg:grid ${COLS} border border-parish-line2 rounded-xl px-3.5 py-2.5 bg-parish-field cursor-pointer hover:border-parish-borderSoft hover:bg-parish-hover transition-colors`}
             >
+              {/* The main photo of its website page (0046); clicking it opens the GKK like the rest of the row. */}
+              <span className="flex-none self-start lg:self-center w-12 h-12 rounded-lg overflow-hidden bg-parish-sunk text-parish-faint flex items-center justify-center" title={g.photo_url ? undefined : 'No main photo yet'}>
+                {g.photo_url ? <img src={g.photo_url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" /> : <PhotoIcon size={22} />}
+              </span>
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-[14.5px] text-parish-navy">
                   {/* Its GKK Config page, as its leader sees it; Edit (and the rest of the row) opens the edit panel. */}
