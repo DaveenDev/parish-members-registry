@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { BAND_PAD, Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, FOOTER_CREAM, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, FOOTER_CREAM, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
 import { Body, Gallery, Lightbox } from './Details.jsx';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
@@ -52,10 +52,10 @@ function CensusAlertBadges({ label, className = '' }) {
 }
 
 /**
- * Komunidad, one page: every GKK as a card, by name, first (it's what people
- * come here for), then, while a census is open, its full progress (with every
- * GKK), the newest prayer requests (the prayer wall has them all), and last
- * the newest articles (every article is on the articles page; Home has the
+ * Komunidad, one page: while a census is open, its full progress (with every
+ * GKK) on the blue band under the header, then the newest prayer requests
+ * (the prayer wall has them all), every GKK as a card, by name, and last the
+ * newest articles (every article is on the articles page; Home has the
  * newest too). The header has a one-line census strip.
  * ?view=gkk (the old "Mga GKK" tab's link) scrolls to the GKKs, ?view=census
  * to the census progress.
@@ -75,45 +75,49 @@ function KomunidadPage({ params }) {
   const open = !!q.data?.open;
   const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   // The old "Mga GKK" tab's link goes to the GKKs (?view=gkk); Home's census
-  // notice to the progress (?view=census), under the GKKs, or to the GKKs
-  // with no census open. Jump once the census strip and the GKKs above it
-  // are in, after the site's own scroll to the top.
+  // notice to the progress (?view=census), under the header, or to the GKKs
+  // with no census open. Jump once everything above the target is in, after
+  // the site's own scroll to the top.
   const view = params.get('view');
   const target = view === 'gkk' ? 'mga-gkk' : view === 'census' ? (open ? 'census' : 'mga-gkk') : null;
   const gkksLoading = useGkkDirectory().loading;
+  const prayersLoading = usePrayerWall().loading;
+  const waiting = q.loading || (target === 'mga-gkk' && (prayersLoading || gkksLoading));
   useEffect(() => {
-    if (!target || q.loading || gkksLoading) return undefined;
+    if (!target || waiting) return undefined;
     const t = setTimeout(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }), 350);
     return () => clearTimeout(t);
-  }, [target, q.loading, gkksLoading]);
+  }, [target, waiting]);
 
   return (
     <main className="animate-fadeUp">
-      {/* The title and census strip on the blue band, then the GKKs on the cream.
-          flow-root keeps the bottom margins inside the band (no gap above the GKKs). */}
+      {/* The title, census strip and census progress on one blue band, then the
+          prayer requests on the cream. flow-root keeps the bottom margins
+          inside the band (no gap under it). */}
       <Band as="div">
         <div className={`${WRAP} pt-4 lg:pt-9 flow-root`}>
           <PageHeader eyebrow="Komunidad" title="Ang atong komunidad" />
           {open && q.data.pct != null && <CensusStrip c={q.data} onMore={() => scrollTo('census')} />}
         </div>
+        {open && (
+          <section id="census" aria-labelledby="census-h" className="scroll-mt-20">
+            <div className={`${WRAP} pt-3 pb-7 lg:pt-5 lg:pb-12`}>
+              <Eyebrow>Census sa parokya</Eyebrow>
+              <h2 id="census-h" className="sr-only">Progreso sa census</h2>
+              <CensusProgress />
+            </div>
+          </section>
+        )}
       </Band>
-      <section id="mga-gkk" aria-labelledby="gkk-title" className="scroll-mt-20 py-7 lg:py-12">
+      <PrayerSection />
+      {/* On the darker cream, between the prayer requests and the articles on the page's own. */}
+      <section id="mga-gkk" aria-labelledby="gkk-title" className="scroll-mt-20 py-7 lg:py-12 border-y" style={FOOTER_CREAM}>
         <div className={WRAP}>
           <Eyebrow>Gagmay nga Kristohanong Katilingban</Eyebrow>
           <h2 id="gkk-title" className="m-0 mb-4 lg:mb-6 font-serif text-[28px] lg:text-[36px] font-bold text-parish-navy leading-tight">Mga GKK</h2>
           <GkkDirectory />
         </div>
       </section>
-      {open && (
-        <Band id="census" aria-labelledby="census-h" className="scroll-mt-20">
-          <div className={`${WRAP} ${BAND_PAD}`}>
-            <Eyebrow>Census sa parokya</Eyebrow>
-            <h2 id="census-h" className="sr-only">Progreso sa census</h2>
-            <CensusProgress />
-          </div>
-        </Band>
-      )}
-      <PrayerSection />
       {/* Last, on the cream, so the footer follows with no gap (SiteLayout). */}
       <ArticlesSection />
     </main>
@@ -123,7 +127,7 @@ function KomunidadPage({ params }) {
 const PRAYERS_SHOWN = 3;
 
 /**
- * Mga Hangyo sa Pag-ampo, above the articles: the newest few requests on the
+ * Mga Hangyo sa Pag-ampo, above the GKKs: the newest few requests on the
  * prayer wall, the way to the rest, and the form. With none showing (or when
  * they can't be loaded), just the invitation to send one.
  */
@@ -131,7 +135,7 @@ function PrayerSection() {
   const q = listState(usePrayerWall());
   const rows = q.rows.slice(0, PRAYERS_SHOWN);
   return (
-    <section id="pag-ampo" aria-labelledby="prayers-title" className="scroll-mt-20 py-7 lg:py-12 border-t" style={FOOTER_CREAM}>
+    <section id="pag-ampo" aria-labelledby="prayers-title" className="scroll-mt-20 py-7 lg:py-12">
       <div className={WRAP}>
         <div className="flex items-end justify-between gap-x-6 gap-y-3 flex-wrap mb-4 lg:mb-6">
           <div className="min-w-0">
