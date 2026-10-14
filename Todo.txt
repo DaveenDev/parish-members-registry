@@ -1,2 +1,0 @@
-1. make all pages in admin to be responsive and occupy 100% width on larger screen
-2. use the new svg logo on the admin login page
