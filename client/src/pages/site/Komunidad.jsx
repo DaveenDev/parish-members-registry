@@ -8,7 +8,7 @@ import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkk
 import { todayIso } from '../../lib/website.js';
 import { PageMeta, useSiteTitle } from './SiteLayout.jsx';
 import { excerpt } from '../../lib/seo.js';
-import { listState, useArticles, useCensusProgress, useGkkDirectory, useGkkPage, usePrayerWall } from './data.js';
+import { listState, useCensusProgress, useGkkDirectory, useGkkPage, usePrayerWall } from './data.js';
 import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
 import { PrayerCard } from '../../components/site/prayers.jsx';
 import { PRAYER_FORM, PRAYER_WALL } from '../../lib/prayers.js';
@@ -52,10 +52,11 @@ function CensusAlertBadges({ label, className = '' }) {
 }
 
 /**
- * Komunidad, one page: the newest articles (every article is on the articles
- * page), the newest prayer requests (the prayer wall has them all), then,
- * while a census is open, its full progress (with every GKK),
- * then every GKK as a card, by name. The header has a one-line census strip.
+ * Komunidad, one page: every GKK as a card, by name, first (it's what people
+ * come here for), then, while a census is open, its full progress (with every
+ * GKK), the newest prayer requests (the prayer wall has them all), and last
+ * the newest articles (every article is on the articles page; Home has the
+ * newest too). The header has a one-line census strip.
  * ?view=gkk (the old "Mga GKK" tab's link) scrolls to the GKKs, ?view=census
  * to the census progress.
  * The org charts moved to Ang Simbahan; old ?view=organisasyon links go there.
@@ -72,31 +73,37 @@ export default function Komunidad() {
 function KomunidadPage({ params }) {
   const q = useCensusProgress();
   const open = !!q.data?.open;
-  // The old "Mga GKK" tab's link goes to the GKKs (GkkDirectory scrolls there once they're in).
-  const toGkks = params.get('view') === 'gkk';
   const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  // Home's census notice links to the progress (?view=census), under the articles:
-  // jump once both are in, after the site's own scroll to the top.
-  const toCensus = params.get('view') === 'census';
-  const articlesLoading = useArticles().loading;
+  // The old "Mga GKK" tab's link goes to the GKKs (?view=gkk); Home's census
+  // notice to the progress (?view=census), under the GKKs, or to the GKKs
+  // with no census open. Jump once the census strip and the GKKs above it
+  // are in, after the site's own scroll to the top.
+  const view = params.get('view');
+  const target = view === 'gkk' ? 'mga-gkk' : view === 'census' ? (open ? 'census' : 'mga-gkk') : null;
+  const gkksLoading = useGkkDirectory().loading;
   useEffect(() => {
-    if (!toCensus || q.loading || articlesLoading) return undefined;
-    const t = setTimeout(() => document.getElementById(open ? 'census' : 'mga-gkk')?.scrollIntoView({ block: 'start' }), 350);
+    if (!target || q.loading || gkksLoading) return undefined;
+    const t = setTimeout(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }), 350);
     return () => clearTimeout(t);
-  }, [toCensus, q.loading, articlesLoading, open]);
+  }, [target, q.loading, gkksLoading]);
 
   return (
     <main className="animate-fadeUp">
-      {/* The title and census strip on the blue band, then the articles on the cream.
-          flow-root keeps the bottom margins inside the band (no gap above the articles). */}
+      {/* The title and census strip on the blue band, then the GKKs on the cream.
+          flow-root keeps the bottom margins inside the band (no gap above the GKKs). */}
       <Band as="div">
         <div className={`${WRAP} pt-4 lg:pt-9 flow-root`}>
           <PageHeader eyebrow="Komunidad" title="Ang atong komunidad" />
           {open && q.data.pct != null && <CensusStrip c={q.data} onMore={() => scrollTo('census')} />}
         </div>
       </Band>
-      <ArticlesSection />
-      <PrayerSection />
+      <section id="mga-gkk" aria-labelledby="gkk-title" className="scroll-mt-20 py-7 lg:py-12">
+        <div className={WRAP}>
+          <Eyebrow>Gagmay nga Kristohanong Katilingban</Eyebrow>
+          <h2 id="gkk-title" className="m-0 mb-4 lg:mb-6 font-serif text-[28px] lg:text-[36px] font-bold text-parish-navy leading-tight">Mga GKK</h2>
+          <GkkDirectory />
+        </div>
+      </section>
       {open && (
         <Band id="census" aria-labelledby="census-h" className="scroll-mt-20">
           <div className={`${WRAP} ${BAND_PAD}`}>
@@ -106,13 +113,9 @@ function KomunidadPage({ params }) {
           </div>
         </Band>
       )}
-      <section id="mga-gkk" aria-labelledby="gkk-title" className="scroll-mt-20 py-7 lg:py-12">
-        <div className={WRAP}>
-          <Eyebrow>Gagmay nga Kristohanong Katilingban</Eyebrow>
-          <h2 id="gkk-title" className="m-0 mb-4 lg:mb-6 font-serif text-[28px] lg:text-[36px] font-bold text-parish-navy leading-tight">Mga GKK</h2>
-          <GkkDirectory scrollHere={toGkks} />
-        </div>
-      </section>
+      <PrayerSection />
+      {/* Last, on the cream, so the footer follows with no gap (SiteLayout). */}
+      <ArticlesSection />
     </main>
   );
 }
@@ -120,7 +123,7 @@ function KomunidadPage({ params }) {
 const PRAYERS_SHOWN = 3;
 
 /**
- * Mga Hangyo sa Pag-ampo, under the articles: the newest few requests on the
+ * Mga Hangyo sa Pag-ampo, above the articles: the newest few requests on the
  * prayer wall, the way to the rest, and the form. With none showing (or when
  * they can't be loaded), just the invitation to send one.
  */
@@ -174,14 +177,8 @@ function CensusStrip({ c, onMore }) {
   );
 }
 
-function GkkDirectory({ scrollHere = false }) {
+function GkkDirectory() {
   const dir = listState(useGkkDirectory());
-  // Once the GKKs (and the articles above, by then) are in, after the site's own scroll to the top.
-  useEffect(() => {
-    if (!scrollHere || dir.loading) return undefined;
-    const t = setTimeout(() => document.getElementById('mga-gkk')?.scrollIntoView({ block: 'start' }), 350);
-    return () => clearTimeout(t);
-  }, [scrollHere, dir.loading]);
   const [q, setQ] = useState('');
   const items = filterGkks(dir.rows, q).sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   const count = items.length;
