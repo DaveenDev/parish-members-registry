@@ -8,7 +8,7 @@ import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkk
 import { todayIso } from '../../lib/website.js';
 import { PageMeta, useSiteTitle } from './SiteLayout.jsx';
 import { excerpt } from '../../lib/seo.js';
-import { listState, useCensusProgress, useGkkDirectory, useGkkPage, usePrayerWall } from './data.js';
+import { listState, useArticles, useCensusProgress, useGkkDirectory, useGkkPage, usePrayerWall } from './data.js';
 import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
 import { PrayerCard } from '../../components/site/prayers.jsx';
 import { PRAYER_FORM, PRAYER_WALL } from '../../lib/prayers.js';
@@ -96,7 +96,9 @@ function KomunidadPage({ params }) {
           inside the band (no gap under it). */}
       <Band as="div">
         <div className={`${WRAP} pt-4 lg:pt-9 flow-root`}>
-          <PageHeader eyebrow="Komunidad" title="Ang atong komunidad" />
+          <PageHeader eyebrow="Komunidad" title="Ang atong komunidad">
+            <PageJumps census={open} onJump={scrollTo} />
+          </PageHeader>
           {open && q.data.pct != null && <CensusStrip c={q.data} onMore={() => scrollTo('census')} />}
         </div>
         {open && (
@@ -121,6 +123,30 @@ function KomunidadPage({ params }) {
       {/* Last, on the cream, so the footer follows with no gap (SiteLayout). */}
       <ArticlesSection />
     </main>
+  );
+}
+
+// Sideways-scrolling row on a phone: no scrollbar under it.
+const NO_SCROLLBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
+
+/**
+ * "On this page", as on Ang Simbahan: the census progress (while one is
+ * open), the prayer requests, the GKKs and the articles (those last two
+ * once there's something to show).
+ */
+function PageJumps({ census, onJump }) {
+  const gkks = listState(useGkkDirectory());
+  const articles = listState(useArticles());
+  const btn = 'flex-none min-h-[40px] px-2.5 sm:px-3.5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)]';
+  // On a phone the icons go and the buttons tighten, so all four fit across.
+  const icon = (name) => <Icon name={name} size={16} className="hidden sm:block" />;
+  return (
+    <nav aria-label="Niini nga panid" className={`flex gap-1.5 sm:gap-2 overflow-x-auto ${NO_SCROLLBAR} -mx-3.5 px-3.5 mb-4 lg:mx-0 lg:px-0 lg:mb-0 lg:flex-wrap`}>
+      {census && <button type="button" className={btn} onClick={() => onJump('census')}>{icon('idcard')}Census ↓</button>}
+      <button type="button" className={btn} onClick={() => onJump('pag-ampo')}>{icon('heart')}<span className="lg:hidden">Pag-ampo ↓</span><span className="hidden lg:inline">Mga Hangyo sa Pag-ampo ↓</span></button>
+      {gkks.rows.length > 0 && <button type="button" className={btn} onClick={() => onJump('mga-gkk')}>{icon('church')}<span className="lg:hidden">GKK ↓</span><span className="hidden lg:inline">Mga GKK ↓</span></button>}
+      {articles.rows.length > 0 && <button type="button" className={btn} onClick={() => onJump('artikulo')}>{icon('doc')}<span className="lg:hidden">Artikulo ↓</span><span className="hidden lg:inline">Mga Artikulo ↓</span></button>}
+    </nav>
   );
 }
 
