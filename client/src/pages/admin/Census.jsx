@@ -183,7 +183,7 @@ export default function Census() {
 
   return (
     <>
-      <PageHeader title="Parish Census" subtitle="Re-confirm every member and their standing in the parish">
+      <PageHeader title={<span className="inline-flex items-center gap-2.5">Parish Census <GuideLink /></span>} subtitle="Re-confirm every member and their standing in the parish">
         {cycles.length > 0 && (
           <FilterSelect aria-label="Census" value={cycleId ?? ''} onChange={(e) => { setCycleId(Number(e.target.value)); setEditing(false); setReopening(false); }}>
             {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
@@ -297,6 +297,23 @@ export default function Census() {
         )}
       </PageBody>
     </>
+  );
+}
+
+/** The ⓘ beside the page title: opens the step-by-step Census Guide. */
+function GuideLink() {
+  return (
+    <Link
+      to="/admin/census/guide"
+      aria-label="Census guide: how to run a census"
+      title="How to run a census — step-by-step guide"
+      className="inline-flex items-center justify-center w-8 h-8 rounded-full text-parish-blue bg-[var(--p-blue-tint)] border border-[var(--p-blue-border)] no-underline hover:brightness-95 focus-visible:outline-2 focus-visible:outline-parish-blue"
+    >
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+        <path d="M12 11v6" />
+        <circle cx="12" cy="7.2" r="0.6" fill="currentColor" />
+      </svg>
+    </Link>
   );
 }
 

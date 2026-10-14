@@ -30,6 +30,7 @@ const Reports = React.lazy(() => import('./pages/admin/Reports.jsx'));
 const Exports = React.lazy(() => import('./pages/admin/Exports.jsx'));
 const ParishConfig = React.lazy(() => import('./pages/admin/ParishConfig.jsx'));
 const Census = React.lazy(() => import('./pages/admin/Census.jsx'));
+const CensusGuide = React.lazy(() => import('./pages/admin/CensusGuide.jsx'));
 const Website = React.lazy(() => import('./pages/admin/Website.jsx'));
 const Requests = React.lazy(() => import('./pages/admin/Requests.jsx'));
 const ManageOrgs = React.lazy(() => import('./pages/admin/ManageOrgs.jsx'));
@@ -152,6 +153,7 @@ export default function App() {
           <Route path="organizations" element={<Organizations />} />
           <Route path="org-structure" element={<OrgStructure />} />
           <Route path="census" element={<Census />} />
+          <Route path="census/guide" element={<CensusGuide />} />
           {/* My GKK is a tab of GKK Config now; old links still land there. */}
           <Route path="my-gkk" element={<Navigate to="/admin/settings?tab=mygkk" replace />} />
           <Route path="requests" element={<Requests />} />
