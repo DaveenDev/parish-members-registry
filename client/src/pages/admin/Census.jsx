@@ -8,6 +8,7 @@ import { Field, TextInput, PrimaryButton, GhostButton, Badge } from '../../compo
 import CensusHouseholdDrawer from '../../components/CensusHouseholdDrawer.jsx';
 import CensusPrintSheet from '../../components/CensusPrintSheet.jsx';
 import CensusSubmissionDrawer from '../../components/CensusSubmissionDrawer.jsx';
+import CensusFlowGuide from '../../components/CensusFlowGuide.jsx';
 import HouseholdRef from '../../components/HouseholdRef.jsx';
 import LastYearList, { NotYetPrintSheet } from '../../components/LastYearList.jsx';
 import LastYearListSwitch from '../../components/LastYearListSwitch.jsx';
@@ -80,6 +81,8 @@ export default function Census() {
     </>
   );
   const [refreshKey, setRefreshKey] = useState(0);
+  // The ⓘ beside the title: how a census runs, page by page.
+  const [guideOpen, setGuideOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
   function loadCycles(selectId) {
@@ -183,7 +186,7 @@ export default function Census() {
 
   return (
     <>
-      <PageHeader title={<span className="inline-flex items-center gap-2.5">Parish Census <GuideLink /></span>} subtitle="Re-confirm every member and their standing in the parish">
+      <PageHeader title={<span className="inline-flex items-center gap-2.5">Parish Census <GuideButton onClick={() => setGuideOpen(true)} /></span>} subtitle="Re-confirm every member and their standing in the parish">
         {cycles.length > 0 && (
           <FilterSelect aria-label="Census" value={cycleId ?? ''} onChange={(e) => { setCycleId(Number(e.target.value)); setEditing(false); setReopening(false); }}>
             {cycles.map((c) => <option key={c.id} value={c.id}>{c.label}{c.status === 'Open' ? ' (open)' : ''}</option>)}
@@ -296,24 +299,26 @@ export default function Census() {
           </>
         )}
       </PageBody>
+      {guideOpen && <CensusFlowGuide onClose={() => setGuideOpen(false)} />}
     </>
   );
 }
 
-/** The ⓘ beside the page title: opens the step-by-step Census Guide. */
-function GuideLink() {
+/** The ⓘ beside the page title: opens the census guide. */
+function GuideButton({ onClick }) {
   return (
-    <Link
-      to="/admin/census/guide"
-      aria-label="Census guide: how to run a census"
-      title="How to run a census — step-by-step guide"
-      className="inline-flex items-center justify-center w-8 h-8 rounded-full text-parish-blue bg-[var(--p-blue-tint)] border border-[var(--p-blue-border)] no-underline hover:brightness-95 focus-visible:outline-2 focus-visible:outline-parish-blue"
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label="How the census works"
+      title="How the census works"
+      className="appearance-none cursor-pointer p-0 inline-flex items-center justify-center w-8 h-8 rounded-full text-parish-blue bg-[var(--p-blue-tint)] border border-[var(--p-blue-border)] hover:brightness-95 focus-visible:outline-2 focus-visible:outline-parish-blue"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
         <path d="M12 11v6" />
         <circle cx="12" cy="7.2" r="0.6" fill="currentColor" />
       </svg>
-    </Link>
+    </button>
   );
 }
 
