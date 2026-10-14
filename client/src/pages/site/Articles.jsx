@@ -16,7 +16,7 @@ const ARCHIVE_STEP = 12;
 const MORE_BUTTON = 'w-full lg:w-auto min-h-[46px] px-5 rounded-[12px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[15px] hover:bg-[var(--p-blue-tint)] inline-flex items-center justify-center gap-1.5';
 
 /**
- * Mga Artikulo on Komunidad, on the page's own cream under its blue header:
+ * Mga Artikulo at the end of Komunidad, on the page's own cream:
  * the newest article wide, then the next three across, and a link to every
  * article on the articles page.
  */
