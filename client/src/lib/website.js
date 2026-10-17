@@ -324,3 +324,21 @@ export function validCoords(lat, lng) {
 export function mapEmbedUrl(lat, lng, zoom = 16) {
   return `https://maps.google.com/maps?q=${Number(lat)},${Number(lng)}&z=${zoom}&output=embed`;
 }
+
+/**
+ * Where the church is on the map, from the office details saved in Parish
+ * Website → Office: by its pin when one is saved, else by its address.
+ * { embedUrl, directionsUrl, wazeUrl, mapUrl } (the saved Google Maps link
+ * wins for mapUrl); each null when neither is saved.
+ */
+export function churchMapLinks({ latitude, longitude, address, map_url: saved } = {}) {
+  const pin = validCoords(latitude, longitude) ? `${Number(latitude)},${Number(longitude)}` : '';
+  const spot = pin || String(address || '').trim();
+  const q = encodeURIComponent(spot);
+  return {
+    embedUrl: pin ? mapEmbedUrl(latitude, longitude) : spot ? `https://maps.google.com/maps?q=${q}&z=16&output=embed` : null,
+    directionsUrl: spot ? `https://www.google.com/maps/dir/?api=1&destination=${pin || q}` : null,
+    wazeUrl: pin ? `https://waze.com/ul?ll=${pin}&navigate=yes` : spot ? `https://waze.com/ul?q=${q}&navigate=yes` : null,
+    mapUrl: saved || (spot ? `https://www.google.com/maps/search/?api=1&query=${pin || q}` : null),
+  };
+}

@@ -139,6 +139,8 @@ export function injectMeta(html, { title, description, image, type = 'website' }
     .replace(/<meta property="og:description" content="[^"]*"\s*\/?>/, `<meta property="og:description" content="${d}" />`)
     .replace(/<meta property="og:image:alt" content="[^"]*"\s*\/?>/, `<meta property="og:image:alt" content="${t}" />`);
   if (parish) out = out.replace(/<meta property="og:site_name" content="[^"]*"\s*\/?>/, `<meta property="og:site_name" content="${escapeHtml(parish)}" />`);
+  // index.html's own image by the site's address: robots need a whole one.
+  if (!image) out = out.replace(/<meta property="og:image" content="(\/[^"]*)"\s*\/?>/, (_, path) => `<meta property="og:image" content="${escapeHtml(`${String(origin).replace(/\/+$/, '')}${path}`)}" />`);
   if (image) {
     out = out
       .replace(/<meta property="og:image" content="[^"]*"\s*\/?>/, `<meta property="og:image" content="${escapeHtml(image)}" />`)

@@ -4,10 +4,10 @@ import { Icon } from '../../components/site/Icons.jsx';
 import { BAND_PAD, Band, BigButton, Card, ErrorNote, Eyebrow, INNER, MessengerButton, PageTitle, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import { PrayerCard } from '../../components/site/prayers.jsx';
 import { PRAYER_WALL } from '../../lib/prayers.js';
-import { isPhoneNumber, mapEmbedUrl, messengerLink, validCoords } from '../../lib/website.js';
+import { churchMapLinks, isPhoneNumber, messengerLink } from '../../lib/website.js';
 import { phoneHref } from '../../lib/requests.js';
 import { officeHourRows, officeStatus } from '../../lib/site.js';
-import { PARISH_ADDRESS, PARISH_COORDS, PARISH_MAP_URL, useSiteTitle } from './SiteLayout.jsx';
+import { useSiteTitle } from './SiteLayout.jsx';
 import { listState, useOffice, usePrayerWall } from './data.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
@@ -194,13 +194,10 @@ export function Kontak() {
   const contactNote = o.contact && !isPhoneNumber(o.contact) ? o.contact : '';
   const sickCall = isPhoneNumber(o.sick_call_contact) ? o.sick_call_contact : '';
   const messenger = messengerLink(o.secretary_messenger);
-  // A link saved in admin wins; otherwise the church's Google Maps page.
-  const mapUrl = o.map_url || PARISH_MAP_URL;
-  // The pin saved in admin wins; otherwise the church's own coordinates.
-  const pin = validCoords(o.latitude, o.longitude) ? o : PARISH_COORDS;
-  // The route to the church in Google Maps; Waze for drivers who prefer it.
-  const directionsUrl = `https://www.google.com/maps/dir/?api=1&destination=${pin.latitude},${pin.longitude}`;
-  const wazeUrl = `https://waze.com/ul?ll=${pin.latitude},${pin.longitude}&navigate=yes`;
+  // The map, the route in Google Maps and Waze, by the pin or address saved in
+  // admin (the saved Google Maps link wins); none of them when neither is saved.
+  const { embedUrl, directionsUrl, wazeUrl, mapUrl } = churchMapLinks(o);
+  const address = String(o.address || '').trim();
 
   if (q.loading) return <main className={`${INNER} lg:max-w-[1240px]`}><Skeletons n={3} h={120} /></main>;
 
@@ -236,9 +233,11 @@ export function Kontak() {
                 </a>
               )}
               {messenger && <MessengerButton href={messenger} className="!min-h-[54px] flex-1 px-5" />}
-              <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className={`${ACTION} flex-1 border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep hover:border-parish-blue`}>
-                <Icon name="pin" size={19} />Mga direksyon
-              </a>
+              {directionsUrl && (
+                <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className={`${ACTION} flex-1 border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep hover:border-parish-blue`}>
+                  <Icon name="pin" size={19} />Mga direksyon
+                </a>
+              )}
             </div>
           </div>
 
@@ -303,29 +302,37 @@ export function Kontak() {
           </Card>
         </div>
 
-        <section aria-labelledby="asa-mi" className="mt-4 lg:mt-5 border border-parish-border rounded-2xl lg:rounded-[20px] overflow-hidden bg-parish-card shadow-cardSm lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
-          <iframe
-            title="Mapa sa simbahan"
-            src={mapEmbedUrl(pin.latitude, pin.longitude)}
-            className="block w-full h-[260px] lg:h-full lg:min-h-[400px] border-0"
-            loading="lazy"
-            referrerPolicy="no-referrer-when-downgrade"
-          />
-          <div className="p-4 lg:p-6 flex flex-col">
-            <SectionHeading icon="pin" id="asa-mi">Asa mi makit-an</SectionHeading>
-            <div className="font-bold text-[16px] lg:text-[17px] text-parish-ink leading-snug">{o.address || PARISH_ADDRESS}</div>
-            {o.directions && <div className="text-[14.5px] lg:text-[15px] leading-[1.5] text-[#4d4636] mt-1.5 whitespace-pre-line">{o.directions}</div>}
-            <div className="flex flex-col gap-2 mt-4 lg:mt-auto lg:pt-5">
-              <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className={`${ACTION} !min-h-[50px] !text-[15.5px] bg-parish-blue text-white hover:bg-parish-blueDeep`}>
-                <Icon name="pin" size={18} />Mga direksyon
-              </a>
-              <div className="grid grid-cols-2 gap-2">
-                <a href={mapUrl} target="_blank" rel="noopener noreferrer" className={`${ACTION} !min-h-[46px] !text-[14.5px] border-[1.5px] border-[var(--p-blue-border)] text-parish-blueDeep hover:border-parish-blue`}>Google Maps</a>
-                <a href={wazeUrl} target="_blank" rel="noopener noreferrer" className={`${ACTION} !min-h-[46px] !text-[14.5px] border-[1.5px] border-[var(--p-blue-border)] text-parish-blueDeep hover:border-parish-blue`}>Waze</a>
+        {(embedUrl || mapUrl || o.directions) && (
+          <section aria-labelledby="asa-mi" className={`mt-4 lg:mt-5 border border-parish-border rounded-2xl lg:rounded-[20px] overflow-hidden bg-parish-card shadow-cardSm ${embedUrl ? 'lg:grid lg:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]' : ''}`}>
+            {embedUrl && (
+              <iframe
+                title="Mapa sa simbahan"
+                src={embedUrl}
+                className="block w-full h-[260px] lg:h-full lg:min-h-[400px] border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
+            )}
+            <div className="p-4 lg:p-6 flex flex-col">
+              <SectionHeading icon="pin" id="asa-mi">Asa mi makit-an</SectionHeading>
+              {address && <div className="font-bold text-[16px] lg:text-[17px] text-parish-ink leading-snug">{address}</div>}
+              {o.directions && <div className="text-[14.5px] lg:text-[15px] leading-[1.5] text-[#4d4636] mt-1.5 whitespace-pre-line">{o.directions}</div>}
+              <div className="flex flex-col gap-2 mt-4 lg:mt-auto lg:pt-5">
+                {directionsUrl && (
+                  <a href={directionsUrl} target="_blank" rel="noopener noreferrer" className={`${ACTION} !min-h-[50px] !text-[15.5px] bg-parish-blue text-white hover:bg-parish-blueDeep`}>
+                    <Icon name="pin" size={18} />Mga direksyon
+                  </a>
+                )}
+                {(mapUrl || wazeUrl) && (
+                  <div className="grid grid-cols-2 gap-2">
+                    {mapUrl && <a href={mapUrl} target="_blank" rel="noopener noreferrer" className={`${ACTION} !min-h-[46px] !text-[14.5px] border-[1.5px] border-[var(--p-blue-border)] text-parish-blueDeep hover:border-parish-blue`}>Google Maps</a>}
+                    {wazeUrl && <a href={wazeUrl} target="_blank" rel="noopener noreferrer" className={`${ACTION} !min-h-[46px] !text-[14.5px] border-[1.5px] border-[var(--p-blue-border)] text-parish-blueDeep hover:border-parish-blue`}>Waze</a>}
+                  </div>
+                )}
               </div>
             </div>
-          </div>
-        </section>
+          </section>
+        )}
       </div>
     </main>
   );

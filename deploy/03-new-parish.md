@@ -37,10 +37,8 @@ Do this in the new repository before the first deploy. Steps marked
 | Photo buckets (*after 01 step 8 / 02 step 8*) | [`client/vercel.json`](../client/vercel.json), the `/media` rules | the rules with `"has"`: keep one, with the demo site's name in `"pre"` and its testing bucket's r2.dev address (or delete them if there's no demo site); the last rule: the live bucket's r2.dev address |
 | Demo site kept out of search | [`client/vercel.json`](../client/vercel.json), the `X-Robots-Tag` rules with `"has"` | keep one, with the demo site's name in `"pre"`, as above (or delete them) |
 | Search engines (*after 01 step 7*) | [`client/public/robots.txt`](../client/public/robots.txt) `Sitemap:` line (sitemap.xml itself is made from the site's address) | the new live `<site>` |
-| Parish address and pin | [`client/src/pages/site/SiteLayout.jsx`](../client/src/pages/site/SiteLayout.jsx) (`PARISH_ADDRESS`, `PARISH_MAP_URL`, `PARISH_COORDS`) | the parish's. The address, pin and contacts saved in Parish Website → Office replace the built-in ones, so this only matters until they're saved |
 | New households' town | [`client/src/constants.js`](../client/src/constants.js) `DEFAULT_ADDRESS` | the city or town, province and ZIP most families live in |
 | Default website address | [`client/src/lib/census.js`](../client/src/lib/census.js) `DEFAULT_SITE_URL` | the new live `<site>` |
-| Page title, description, share image | [`client/index.html`](../client/index.html) | the parish's name and `<site>/icons/icon-512.png` |
 | Logo and icons | [`client/public/`](../client/public/): `olgqp-logo.svg`, `favicon.svg`, `icons/`, `admin.webmanifest` | the parish's logo (the uploaded logo in Parish Config replaces it on most pages) |
 | Supabase CLI settings | [`supabase/config.toml`](../supabase/config.toml): the comments at the top, `site_url`, `additional_redirect_urls` | the new project ref and `<site>` |
 | Starting GKKs, ministries, organizations | [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) (the seed inserts) | the parish's lists. Or leave them, and change them in Parish Config after setup |
@@ -65,7 +63,9 @@ pages, the admin sign-in and every printed sheet show the name saved in
 Census & Website"). A name ending in "Parish" or "Quasi-Parish" shows that
 word on the small line under the name, and a place after a comma joins it
 there: "St. Joseph Parish, Makilala" shows as "St. Joseph" over
-"Parish · Makilala".
+"Parish · Makilala". The address, map link and pin on the website come
+from **Parish Website → Office**; until they're saved the site shows no
+address or map.
 
 Run the tests and fix the ones that expect the old addresses:
 

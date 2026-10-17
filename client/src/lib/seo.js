@@ -67,7 +67,7 @@ export function canonicalUrl(origin, pathname) {
 /**
  * The parish as structured data (schema.org Church) for Google's local
  * results: name, address, map pin and contact, from the office details in
- * Parish Website → Office (with the built-in address and pin until set).
+ * Parish Website → Office; what isn't saved is left out.
  */
 export function parishJsonLd({ name, url, logo, address, coords, mapUrl, phone, email, facebook }) {
   const data = {
@@ -75,7 +75,7 @@ export function parishJsonLd({ name, url, logo, address, coords, mapUrl, phone, 
     '@type': 'Church',
     name,
     url,
-    address: { '@type': 'PostalAddress', streetAddress: address, addressCountry: 'PH' },
+    address: address ? { '@type': 'PostalAddress', streetAddress: address, addressCountry: 'PH' } : undefined,
     geo: coords ? { '@type': 'GeoCoordinates', latitude: Number(coords.latitude), longitude: Number(coords.longitude) } : undefined,
     hasMap: mapUrl || undefined,
     logo: logo && /^https?:/.test(logo) ? logo : undefined,
@@ -137,7 +137,11 @@ let defaultImage;
  * structured data; null removes it.
  */
 export function applyPageMeta({ title, description, url, image, noindex = false, jsonLd = null }) {
-  if (defaultImage === undefined) defaultImage = document.head.querySelector('meta[property="og:image"]')?.getAttribute('content') || '';
+  if (defaultImage === undefined) {
+    // index.html gives it by path; the tag wants it whole.
+    const own = document.head.querySelector('meta[property="og:image"]')?.getAttribute('content') || '';
+    defaultImage = own && new URL(own, window.location.origin).href;
+  }
   document.title = title;
   setMeta('name', 'description', description);
   setMeta('property', 'og:title', title);

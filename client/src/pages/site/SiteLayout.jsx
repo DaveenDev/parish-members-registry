@@ -12,13 +12,9 @@ import { applyPageMeta, canonicalUrl, pageDescription, pageNoindex, parishJsonLd
 import { useCensusProgress, useOffice, useParishTitle } from './data.js';
 import { preloadSitePages } from './lazyPages.js';
 
-// The parish's name is the one saved in Parish Config (useParishTitle, in data.js).
+// The parish's name is the one saved in Parish Config (useParishTitle, in data.js),
+// its address, map link and pin the ones saved in Parish Website → Office.
 export { useParishTitle };
-export const PARISH_ADDRESS = 'Purok 3, Mua-an, Kidapawan City, North Cotabato';
-// The church's place in Google Maps, used until a link is saved in Parish Website → Office.
-export const PARISH_MAP_URL = 'https://www.google.com/maps/place/Our+Lady+of+Guadalupe+Quasi+Parish/@7.0464909,125.1574249,17z/data=!3m1!4b1!4m6!3m5!1s0x32f8fdfd4fe1c4cb:0x85b99a0f7d3a3e02!8m2!3d7.0464909!4d125.1619933!16s%2Fg%2F11s57y2msl';
-// The church's pin (from the link above), used until latitude/longitude are saved there.
-export const PARISH_COORDS = { latitude: 7.0464909, longitude: 125.1619933 };
 
 const TABS = [
   { to: '/', label: 'Home', icon: 'home', match: (p) => p === '/' },
@@ -127,8 +123,8 @@ export default function SiteLayout() {
       noindex: !!pageMeta?.noindex || pageNoindex(pathname),
       jsonLd: pageMeta?.jsonLd || (pathname === '/' ? parishJsonLd({
         name: parish.full, url: `${origin}/`, logo: logo && new URL(logo, origin).href,
-        address: o.address || PARISH_ADDRESS, coords: validCoords(o.latitude, o.longitude) ? o : PARISH_COORDS,
-        mapUrl: o.map_url || PARISH_MAP_URL, phone: o.mobile || o.contact, email: o.email, facebook: o.facebook_url,
+        address: o.address, coords: validCoords(o.latitude, o.longitude) ? o : null,
+        mapUrl: o.map_url, phone: o.mobile || o.contact, email: o.email, facebook: o.facebook_url,
       }) : null),
     });
   }, [isRoot, pathname, title, pageMeta, office, logo, parish.name, parish.title, parish.full, parish.saved]);
@@ -333,7 +329,7 @@ function DesktopFooter() {
           <span className="flex-none"><ParishMark size={34} logo={logo} /></span>
           <div>
             <div className="font-serif text-[21px] font-bold text-parish-navy">{parish.full}</div>
-            {!onKontak && <div className="text-[14.5px] leading-normal text-[#4d4636] mt-0.5">{o.address || PARISH_ADDRESS}</div>}
+            {!onKontak && o.address && <div className="text-[14.5px] leading-normal text-[#4d4636] mt-0.5">{o.address}</div>}
           </div>
         </div>
         {!onKontak && <div className="text-[14.5px] leading-[1.7] text-[#4d4636]">
@@ -373,7 +369,7 @@ function DesktopFooter() {
 export function SiteFooter({ address }) {
   return (
     <footer className="lg:hidden mt-8 px-[18px] pt-[22px] pb-2 border-t border-[#e7dcc4] text-center">
-      <div className="text-[14px] text-[#4d4636] leading-normal">{address || PARISH_ADDRESS}</div>
+      {address && <div className="text-[14px] text-[#4d4636] leading-normal">{address}</div>}
       <Link to="/admin/login" className="inline-flex items-center min-h-[44px] mt-1.5 font-bold text-[14.5px] text-parish-blue">Kawani sa parokya? Mag-sign in</Link>
     </footer>
   );
