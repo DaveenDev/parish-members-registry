@@ -2,7 +2,7 @@ import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
 import { massSections, nextMassDays, massKindLabel, massDateLabel, massesOnDay, massShortLabel, calendarMonths, agendaDays } from '../src/lib/site.js';
-import { dayList, groupDaily, nextOccasionDates, findOccasion, massType, isCurrentMass } from '../src/lib/website.js';
+import { dayList, groupDaily, nextOccasionDates, findOccasion, massType, isCurrentMass, parishOccasions } from '../src/lib/website.js';
 
 let nextId = 1;
 const row = (over = {}) => ({ id: nextId++, day_of_week: 0, start_time: '07:00:00', kind: 'Regular Mass', location: 'Main church', language: 'Bisaya', notes: null, published: true, mass_date: null, mass_end_date: null, occasion: null, obligation: false, ...over });
@@ -66,6 +66,16 @@ describe('nextOccasionDates', () => {
   });
   test('movable feasts have no fixed date', () => {
     assert.equal(nextOccasionDates(findOccasion('Ash Wednesday'), '2026-10-02'), null);
+  });
+  test('the patronal fiesta takes the parish name and its patron day', () => {
+    const ours = parishOccasions('Our Lady of Guadalupe Quasi-Parish, Mua-an', '12-12');
+    const fiesta = findOccasion('Patronal Fiesta – Our Lady of Guadalupe', ours);
+    assert.deepEqual(nextOccasionDates(fiesta, '2026-10-02'), { start: '2026-12-12', end: '' });
+    // Another parish whose patron's day the calendar doesn't have: the name, no date.
+    const other = findOccasion('Patronal Fiesta – San Isidro Labrador', parishOccasions('San Isidro Labrador Parish'));
+    assert.equal(nextOccasionDates(other, '2026-10-02'), null);
+    // No name saved yet: plain "Patronal Fiesta".
+    assert.ok(findOccasion('Patronal Fiesta', parishOccasions('')));
   });
 });
 

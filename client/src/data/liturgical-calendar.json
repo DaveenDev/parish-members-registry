@@ -1,5 +1,5 @@
 {
-  "_about": "The Church year on the public calendar (Ang Simbahan → Kalendaryo). lib/liturgy.js works out each year's dates from this file. Edit names freely. 'rank' is special | solemnity | sunday | feast | memorial | devotion; 'color' is the liturgical color (violet, white, red, green, rose). 'lord': a Feast of the Lord, which takes the place of a Sunday in Ordinary Time. 'obligation': a Philippine holy day of obligation. 'parish': this parish's own fiesta. 'ph': a Philippine celebration. Moveable days count 'offset' days from an 'anchor': easter, advent1 (First Sunday of Advent), epiphany, baptism, santoNino, holyFamily.",
+  "_about": "The Church year on the public calendar (Ang Simbahan → Kalendaryo). lib/liturgy.js works out each year's dates from this file. Edit names freely. 'rank' is special | solemnity | sunday | feast | memorial | devotion; 'color' is the liturgical color (violet, white, red, green, rose). 'lord': a Feast of the Lord, which takes the place of a Sunday in Ordinary Time. 'obligation': a Philippine holy day of obligation. 'patron': the parish's fiesta when the name saved in Parish Config contains it (that day becomes a solemnity, '· Fiesta sa Parokya'); give your patron's day one. 'ph': a Philippine celebration. Moveable days count 'offset' days from an 'anchor': easter, advent1 (First Sunday of Advent), epiphany, baptism, santoNino, holyFamily.",
 
   "seasons": {
     "advent": { "name": "Adbiyento", "en": "Advent", "color": "violet" },
@@ -78,7 +78,7 @@
     { "date": "11-09", "name": "Pagpahinungod sa Basilica sa Laterano", "en": "Dedication of the Lateran Basilica", "rank": "feast", "lord": true, "color": "white" },
     { "date": "11-30", "name": "San Andres", "en": "Saint Andrew", "rank": "feast", "color": "red" },
     { "date": "12-08", "name": "Inmaculada Concepcion", "en": "Immaculate Conception", "rank": "solemnity", "color": "white", "obligation": true },
-    { "date": "12-12", "name": "Mahal nga Birhen sa Guadalupe · Fiesta sa Parokya", "en": "Our Lady of Guadalupe · Parish Fiesta", "rank": "solemnity", "color": "white", "parish": true },
+    { "date": "12-12", "name": "Mahal nga Birhen sa Guadalupe", "en": "Our Lady of Guadalupe", "rank": "memorial", "color": "white", "patron": "Guadalupe" },
     { "date": "12-16", "end": "12-24", "name": "Simbang Gabi", "en": "Simbang Gabi (Misa de Gallo)", "rank": "devotion", "color": "white", "ph": true },
     { "date": "12-25", "name": "Pasko sa Pagkatawo sa Ginoo", "en": "Christmas", "rank": "solemnity", "color": "white", "obligation": true },
     { "date": "12-26", "name": "San Esteban", "en": "Saint Stephen", "rank": "feast", "color": "red" },

@@ -634,10 +634,10 @@ export function normalizeSiteUrl(raw) {
   try {
     url = new URL(/^[a-z][a-z0-9+.-]*:\/\//i.test(s) ? s : `https://${s}`);
   } catch {
-    throw new Error('Enter a web address like https://olgqp.org');
+    throw new Error('Enter a web address like https://yourparish.org');
   }
   if (!/^https?:$/.test(url.protocol) || (!url.hostname.includes('.') && url.hostname !== 'localhost')) {
-    throw new Error('Enter a web address like https://olgqp.org');
+    throw new Error('Enter a web address like https://yourparish.org');
   }
   return (url.origin + url.pathname).replace(/\/+$/, '');
 }

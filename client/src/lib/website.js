@@ -1,6 +1,8 @@
 // Option lists and helpers for the Parish Website admin page. The values
 // match the check constraints in supabase/migrations/0011_website_content.sql.
 
+import { parishTitle } from './parishName.js';
+
 export const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 // The Mass schedule types (0016_mass_types.sql). Regular Mass is always on
@@ -16,7 +18,8 @@ export const WEEKDAYS = [1, 2, 3, 4, 5, 6];
  * Special Mass presets, in groups. A preset with a month and day fills in its
  * next date (and `endDay` the last day of a run); movable feasts like Ash
  * Wednesday leave the date to staff. `obligation` marks the Philippine holy
- * days of obligation (CBCP): Jan 1, Dec 8 and Dec 25.
+ * days of obligation (CBCP): Jan 1, Dec 8 and Dec 25. The `patronal` one
+ * takes the parish's patron and day from parishOccasions().
  */
 export const SPECIAL_OCCASIONS = [
   ['Holy Days of Obligation', [
@@ -25,7 +28,7 @@ export const SPECIAL_OCCASIONS = [
     { name: 'Christmas Day', month: 12, day: 25, obligation: true },
   ]],
   ['Patronal and local fiestas', [
-    { name: 'Patronal Fiesta – Our Lady of Guadalupe', month: 12, day: 12 },
+    { name: 'Patronal Fiesta', patronal: true },
     { name: 'GKK / Barangay Fiesta' },
   ]],
   ['Feasts of Mary', [
@@ -67,10 +70,24 @@ export const SPECIAL_OCCASIONS = [
   ]],
 ];
 
-/** The preset with this name, or null. */
-export function findOccasion(name) {
+/**
+ * SPECIAL_OCCASIONS for the parish named in Parish Config: the patronal
+ * fiesta as "Patronal Fiesta – Our Lady of Guadalupe" (the name's big line,
+ * parishTitle), on `fiestaDay` ("12-12", the Church calendar's patronDay)
+ * when there is one.
+ */
+export function parishOccasions(parishName, fiestaDay = '') {
+  const patron = String(parishName || '').trim() ? parishTitle(parishName).name : '';
+  const [month, day] = fiestaDay ? fiestaDay.split('-').map(Number) : [];
+  return SPECIAL_OCCASIONS.map(([group, items]) => [group, items.map((o) => (o.patronal
+    ? { name: patron ? `${o.name} – ${patron}` : o.name, ...(month ? { month, day } : {}) }
+    : o))]);
+}
+
+/** The preset with this name (from `occasions`, parishOccasions()), or null. */
+export function findOccasion(name, occasions = SPECIAL_OCCASIONS) {
   const n = String(name || '').trim().toLowerCase();
-  for (const [, items] of SPECIAL_OCCASIONS) {
+  for (const [, items] of occasions) {
     const hit = items.find((o) => o.name.toLowerCase() === n);
     if (hit) return hit;
   }

@@ -2,21 +2,32 @@ import React, { useState } from 'react';
 import { Icon } from './Icons.jsx';
 import LITURGY from '../../data/liturgical-calendar.json';
 import {
-  LITURGY_COLORS, RANK_LABELS, addDays, celebrationsBetween, celebrationsOn, liturgicalDay, liturgyHex, seasonSpan,
+  LITURGY_COLORS, RANK_LABELS, addDays, celebrationsBetween, celebrationsOn, liturgicalDay, liturgyHex, seasonSpan, withParishFiesta,
 } from '../../lib/liturgy.js';
 import { BIS_DAYS, BIS_DAYS_SHORT, BIS_MONTHS, BIS_MONTHS_SHORT, fmtShort, parseIso } from '../../lib/site.js';
+import { useParishTitle } from '../../pages/site/data.js';
 
 // The Church year on the public calendar (Pahibalo ug Kalihokan → Kalendaryo): the
 // season now, the feasts in the month grid and the phone agenda, and the
 // great days of the year ahead. Data: data/liturgical-calendar.json.
 
+// One calendar per parish name, so its years are worked out once.
+const byName = new Map();
+
+/** The Church year with the fiesta of the parish named in Parish Config. */
+export function useLiturgy() {
+  const name = useParishTitle().saved;
+  if (!byName.has(name)) byName.set(name, withParishFiesta(LITURGY, name));
+  return byName.get(name);
+}
+
 /** The celebrations a day shows in the phone agenda: not the ordinary memorials. */
-export function agendaCelebrations(iso) {
-  return celebrationsOn(iso, LITURGY).filter((c) => c.rank !== 'memorial' || c.ph || c.parish);
+export function agendaCelebrations(iso, data) {
+  return celebrationsOn(iso, data).filter((c) => c.rank !== 'memorial' || c.ph || c.parish);
 }
 
 /** A day's liturgical color, as shown on the site. */
-export const dayColor = (iso) => liturgyHex(liturgicalDay(iso, LITURGY).color);
+export const dayColor = (iso, data) => liturgyHex(liturgicalDay(iso, data).color);
 
 const dot = (color, size = 10) => (
   <span aria-hidden className="inline-block flex-none rounded-full" style={{ width: size, height: size, background: liturgyHex(color) }} />
@@ -55,8 +66,8 @@ export function LiturgyLine({ c }) {
 }
 
 /** The celebrations in one desktop calendar cell, under the date. */
-export function CellCelebrations({ iso }) {
-  const list = celebrationsOn(iso, LITURGY);
+export function CellCelebrations({ iso, data }) {
+  const list = celebrationsOn(iso, data);
   if (!list.length) return null;
   return (
     <div className="flex flex-col gap-[2px] px-2.5 mb-1.5">
@@ -84,8 +95,9 @@ export function CellCelebrations({ iso }) {
  * today's celebration if there is one, and the next season.
  */
 export function LiturgyNow({ today }) {
-  const day = liturgicalDay(today, LITURGY);
-  const span = seasonSpan(today, LITURGY);
+  const liturgy = useLiturgy();
+  const day = liturgicalDay(today, liturgy);
+  const span = seasonSpan(today, liturgy);
   const todays = day.celebrations.filter((c) => c.rank !== 'devotion' || c.day === 1)[0] || day.celebrations[0];
   const next = parseIso(span.next.starts);
   return (
@@ -127,7 +139,7 @@ const isGreat = (c) => ['special', 'solemnity', 'devotion'].includes(c.rank) || 
  */
 export function ChurchYear({ today }) {
   const [all, setAll] = useState(false);
-  const list = celebrationsBetween(today, addDays(today, 365), LITURGY).filter(isGreat);
+  const list = celebrationsBetween(today, addDays(today, 365), useLiturgy()).filter(isGreat);
   const shown = all ? list : list.slice(0, 8);
   const months = [];
   for (const c of shown) {

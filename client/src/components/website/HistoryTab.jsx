@@ -225,7 +225,7 @@ function HistoryEditor({ row, onClose, onSaved }) {
       onClose={close} onSave={save} saving={saving} error={error}
     >
       <Field label="Title" required>
-        <TextInput value={form.title} onChange={(e) => set('title')(e.target.value)} maxLength={160} placeholder={isMain ? 'e.g. Ang Kasaysayan sa Parokya' : 'e.g. Ang unang kapilya sa Mua-an'} />
+        <TextInput value={form.title} onChange={(e) => set('title')(e.target.value)} maxLength={160} placeholder={isMain ? 'e.g. Ang Kasaysayan sa Parokya' : 'e.g. Ang unang kapilya sa Poblacion'} />
       </Field>
       {!isMain && (
         <div className="grid gap-4 sm:grid-cols-[140px_1fr]">

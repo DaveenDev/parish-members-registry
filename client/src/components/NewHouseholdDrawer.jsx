@@ -575,7 +575,7 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, nameTaken
                 value={household.barangay}
                 onChange={chooseBarangay}
                 barangays={barangays}
-                labels={{ choose: 'Select the barangay…', outside: 'Another barangay (outside the parish)', outsideName: 'Type the barangay', typePlaceholder: 'e.g. Mua-an' }}
+                labels={{ choose: 'Select the barangay…', outside: 'Another barangay (outside the parish)', outsideName: 'Type the barangay', typePlaceholder: 'e.g. Poblacion' }}
               />
             </Field>
             <Field label="City / Municipality" required error={err.city}><TextInput {...f('city')} /></Field>

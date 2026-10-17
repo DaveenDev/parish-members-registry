@@ -15,7 +15,7 @@ import { useToast } from '../../ToastContext.jsx';
 import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '../../components/ChangePasswordForm.jsx';
 import { resizeLogo, resizePhoto } from '../../lib/images.js';
 import { fmtDateTime } from '../../constants.js';
-import { DEFAULT_SITE_URL, normalizeSiteUrl } from '../../lib/census.js';
+import { DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl } from '../../lib/census.js';
 import { projectIdFromUrl } from '../../lib/database.js';
 import { markPasswordResetWorking, saveEmailSettings, sendPasswordReset } from '../../emailApi.js';
 import ChurchEmblem from '../../components/ChurchEmblem.jsx';
@@ -651,7 +651,7 @@ function PhotoStorageCard() {
           {/\.r2\.dev(\/|$)/i.test(form.publicBaseUrl.trim()) && (
             <div className="mt-3 px-3.5 py-2.5 rounded-xl bg-parish-warnTint text-parish-warnStrong text-[13px] font-medium">
               Some internet providers block r2.dev addresses, so visitors on them see broken photos. Use the website's own
-              address with /media on the end (e.g. https://guadalupe-muaan.vercel.app/media, see docs/media-storage.md) or a
+              address with /media on the end (e.g. {window.location.origin}/media, see docs/media-storage.md) or a
               custom domain; existing article photos switch over when you save.
             </div>
           )}
@@ -707,6 +707,8 @@ function EmailCard() {
   const working = !!settings?.password_reset_verified_at;
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const site = window.location.origin;
+  // The public website's address (Parish Config), which Supabase's reset links go to.
+  const live = publicSiteUrl(settings);
 
   async function save() {
     if (form.outgoingEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.outgoingEmail.trim())) { toast.error('Enter a valid email address.'); return; }
@@ -838,8 +840,8 @@ function EmailCard() {
                   username = the Gmail address, password = the App Password, sender email and name = the ones above.
                 </li>
                 <li>
-                  In Supabase: <strong>Authentication → URL Configuration</strong>: Site URL <code>{'https://guadalupe-muaan.vercel.app'}</code>; under Redirect URLs add
-                  {' '}<code>{'https://guadalupe-muaan.vercel.app/**'}</code>{site !== 'https://guadalupe-muaan.vercel.app' && <> and <code>{`${site}/**`}</code></>}.
+                  In Supabase: <strong>Authentication → URL Configuration</strong>: Site URL <code>{live}</code>; under Redirect URLs add
+                  {' '}<code>{`${live}/**`}</code>{site !== live && <> and <code>{`${site}/**`}</code></>}.
                 </li>
                 <li>Send yourself a test above. More detail in <code>docs/email-setup.md</code>.</li>
               </ol>

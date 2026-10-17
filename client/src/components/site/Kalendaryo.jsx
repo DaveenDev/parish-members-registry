@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Icon } from './Icons.jsx';
 import { DataState, EmptyNote, Pills, Skeleton, Skeletons } from './kit.jsx';
 import { EventCard, MassRow, eventTone } from './cards.jsx';
-import { CellCelebrations, ChurchYear, ColorLegend, LiturgyLine, LiturgyNow, agendaCelebrations, dayColor } from './Liturgy.jsx';
+import { CellCelebrations, ChurchYear, ColorLegend, LiturgyLine, LiturgyNow, agendaCelebrations, dayColor, useLiturgy } from './Liturgy.jsx';
 import {
   BIS_DAYS_SHORT, BIS_MONTHS_SHORT, EVENT_ICONS, EVENT_TYPE_LABELS, agendaDays, calendarMonths, eventsOnDay, fmtTime12,
   massKindLabel, massShortLabel, massesOnDay, monthCells, monthLabel, parseIso,
@@ -24,11 +24,11 @@ function MassScheduleLink() {
  * The phone agenda for `month`: each day from today with events, special
  * Masses or a celebration of the Church year (Liturgy.jsx).
  */
-function monthAgenda(events, masses, month, today) {
+function monthAgenda(events, masses, month, today, data) {
   const byDate = new Map((month ? agendaDays(events, masses, month, today) : []).map((g) => [g.date, { ...g, liturgy: [] }]));
   for (const c of month ? monthCells(month) : []) {
     if (!c.inMonth || c.iso < today) continue;
-    const liturgy = agendaCelebrations(c.iso);
+    const liturgy = agendaCelebrations(c.iso, data);
     if (!liturgy.length) continue;
     byDate.set(c.iso, { date: c.iso, events: [], masses: [], ...byDate.get(c.iso), liturgy });
   }
@@ -52,7 +52,8 @@ export default function Kalendaryo() {
   // By the months' text: the list is worked out again on every render.
   const monthsKey = months.join();
   useEffect(() => { if (months.length && !months.includes(month)) setMonth(months[0]); }, [monthsKey, month]); // eslint-disable-line react-hooks/exhaustive-deps
-  const days = monthAgenda(events.rows, masses, month, today);
+  const liturgy = useLiturgy();
+  const days = monthAgenda(events.rows, masses, month, today, liturgy);
   const types = EVENT_TYPES.filter((t) => events.rows.some((e) => e.type === t));
   const state = { ...events, loading: events.loading || mass.loading };
 
@@ -87,7 +88,7 @@ export default function Kalendaryo() {
           })}
         </div>
       </div>
-      {month && <MonthCalendar month={month} events={events.rows} masses={masses} today={today} />}
+      {month && <MonthCalendar month={month} events={events.rows} masses={masses} today={today} liturgy={liturgy} />}
       <div className="flex flex-col gap-[18px] lg:hidden">
         <p className="m-0 text-[13.5px] leading-normal text-parish-text2">
           Mga kalihokan, espesyal nga Misa ug mga kapistahan sa Simbahan ang naa dinhi. Ang regular nga Misa matag semana naa sa <MassScheduleLink />.
@@ -146,7 +147,7 @@ function CalendarMass({ m }) {
  * top and its celebrations under the date (Liturgy.jsx). Multi-day events run
  * as one bar across the days they cover.
  */
-function MonthCalendar({ month, events, masses, today }) {
+function MonthCalendar({ month, events, masses, today, liturgy }) {
   const cells = monthCells(month);
   return (
     <div className="hidden lg:block">
@@ -162,14 +163,14 @@ function MonthCalendar({ month, events, masses, today }) {
               className="min-h-[108px] py-2"
               style={{
                 background: isToday ? 'var(--p-blue-tint)' : c.inMonth ? '#fffdf8' : '#f7f2e8',
-                boxShadow: `inset 0 3px 0 ${c.inMonth ? dayColor(c.iso) : 'transparent'}`,
+                boxShadow: `inset 0 3px 0 ${c.inMonth ? dayColor(c.iso, liturgy) : 'transparent'}`,
               }}
             >
               <div className={`px-2.5 mb-1 font-bold text-[15px] ${c.inMonth ? 'text-parish-ink' : 'text-[#b3aa94]'}`}>
                 {c.day}
                 {isToday && <span className="ml-1.5 font-bold text-[10px] tracking-[.08em] uppercase text-parish-blueDeep">Karon</span>}
               </div>
-              {c.inMonth && <CellCelebrations iso={c.iso} />}
+              {c.inMonth && <CellCelebrations iso={c.iso} data={liturgy} />}
               <div className="flex flex-col gap-[3px]">
                 {eventsOnDay(events, c.iso, c.dow).map(({ e, starts, ends }) => {
                   const tone = eventTone(e);

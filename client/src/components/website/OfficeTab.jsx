@@ -171,11 +171,11 @@ export default function OfficeTab() {
 
           <Card title="Location & map" subtitle="Helps visitors and new families find the church.">
             <Field label="Address">
-              <TextInput value={form.address} onChange={set('address')} placeholder="Purok 3, Mua-an, Kidapawan City, North Cotabato" />
+              <TextInput value={form.address} onChange={set('address')} placeholder="Purok 3, Poblacion, City, Province" />
               <Hint>Also printed on household and census sheets.</Hint>
             </Field>
             <Field label="Directions / landmarks">
-              <TextArea rows={3} value={form.directions} onChange={set('directions')} disabled={!migrated} placeholder="e.g. Along the national highway, beside Mua-an Elementary School. Ride a habal-habal from the Kidapawan terminal." />
+              <TextArea rows={3} value={form.directions} onChange={set('directions')} disabled={!migrated} placeholder="e.g. Along the national highway, beside the elementary school. Ride a habal-habal from the city terminal." />
             </Field>
             <Field label="Google Maps link">
               <TextInput type="url" value={form.map_url} onChange={set('map_url')} disabled={!migrated} placeholder="Open the church in Google Maps → Share → Copy link" />

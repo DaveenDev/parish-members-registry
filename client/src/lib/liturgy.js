@@ -126,6 +126,32 @@ function buildYear(year, data) {
   return days;
 }
 
+/** Whether a fixed day is the patron's of the parish named `parishName`. */
+const isPatronOf = (parishName) => {
+  const name = String(parishName || '').trim().toLowerCase();
+  return (f) => !!(name && f.patron && name.includes(f.patron.toLowerCase()));
+};
+
+/** The parish patron's day ("12-12") by the name in Parish Config, or '' when the calendar has none. */
+export function patronDay(data, parishName) {
+  return (data.fixed || []).find(isPatronOf(parishName))?.date || '';
+}
+
+/**
+ * The calendar with this parish's fiesta in it: a fixed day whose `patron`
+ * is in the parish name (Parish Config) becomes a solemnity tagged `parish`,
+ * "· Fiesta sa Parokya" on its name. `data` itself when nothing matches, so
+ * the years worked out for it are kept.
+ */
+export function withParishFiesta(data, parishName) {
+  const ours = isPatronOf(parishName);
+  if (!(data.fixed || []).some(ours)) return data;
+  const fixed = data.fixed.map((f) => (ours(f)
+    ? { ...f, rank: 'solemnity', parish: true, name: `${f.name} · Fiesta sa Parokya`, en: `${f.en} · Parish Fiesta` }
+    : f));
+  return { ...data, fixed };
+}
+
 /** The celebrations on `iso`, greatest first (none on most days). */
 export function celebrationsOn(iso, data) {
   return buildYear(Number(iso.slice(0, 4)), data).get(iso) || [];

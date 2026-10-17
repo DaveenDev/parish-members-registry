@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { useUrlState } from '../../hooks.js';
 import { api } from '../../api.js';
 import { Field, TextInput, Select, ComboInput, Badge, Checkbox } from '../ui.jsx';
@@ -7,9 +8,11 @@ import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
 import { fmtDate } from '../../constants.js';
 import {
-  DAYS, MASS_KINDS, MASS_LANGUAGES, DEFAULT_LOCATION, WEEKDAYS, SPECIAL_OCCASIONS, fmtTime, toTimeInput,
+  DAYS, MASS_KINDS, MASS_LANGUAGES, DEFAULT_LOCATION, WEEKDAYS, parishOccasions, fmtTime, toTimeInput,
   massType, groupDaily, dayList, isCurrentMass, findOccasion, nextOccasionDates, dayOfDate,
 } from '../../lib/website.js';
+import { patronDay } from '../../lib/liturgy.js';
+import LITURGY from '../../data/liturgical-calendar.json';
 import { useContentList, SidePanel, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton } from './shared.jsx';
 
 /** When an entry is held, in English: "Mon–Sat", "Tue, Dec 8, 2026", "Dec 16, 2026 – Dec 24, 2026", "Saturday". */
@@ -190,10 +193,12 @@ function formFrom(row) {
   };
 }
 
-const OCCASION_NAMES = SPECIAL_OCCASIONS.flatMap(([, items]) => items.map((o) => o.name));
-
 function MassEditor({ row, locations, gkks, onClose, onSaved }) {
   const toast = useToast();
+  // The presets, with the patronal fiesta named for the parish in Parish Config.
+  const parishName = useOutletContext()?.parish?.name;
+  const occasions = useMemo(() => parishOccasions(parishName, patronDay(LITURGY, parishName)), [parishName]);
+  const occasionNames = useMemo(() => occasions.flatMap(([, items]) => items.map((o) => o.name)), [occasions]);
   const [form, setForm] = useState(() => formFrom(row));
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -217,7 +222,7 @@ function MassEditor({ row, locations, gkks, onClose, onSaved }) {
   }
 
   function setOccasion(name) {
-    const preset = findOccasion(name);
+    const preset = findOccasion(name, occasions);
     const dates = nextOccasionDates(preset);
     setForm((f) => ({
       ...f,
@@ -303,7 +308,7 @@ function MassEditor({ row, locations, gkks, onClose, onSaved }) {
       {form.kind === 'Special Mass' && (
         <>
           <Field label="Occasion" required>
-            <ComboInput options={OCCASION_NAMES} value={form.occasion} onChange={setOccasion} placeholder="Pick a feast or type one" toggleLabel="Show occasions" />
+            <ComboInput options={occasionNames} value={form.occasion} onChange={setOccasion} placeholder="Pick a feast or type one" toggleLabel="Show occasions" />
           </Field>
           <label className="flex items-center gap-2.5 cursor-pointer text-[14px] font-semibold text-parish-navy">
             <Checkbox checked={form.obligation} onChange={(e) => set('obligation')(e.target.checked)} />

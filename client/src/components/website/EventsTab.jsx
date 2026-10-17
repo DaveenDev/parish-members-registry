@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { useUrlState } from '../../hooks.js';
 import { api } from '../../api.js';
 import { Field, TextInput, Select, Badge, OptionSelect } from '../ui.jsx';
@@ -6,6 +7,7 @@ import { FilterSelect, EmptyState, LoadingState, ErrorState } from '../admin.jsx
 import { fmtDate } from '../../constants.js';
 import { useToast } from '../../ToastContext.jsx';
 import { EVENT_TYPES, EVENT_TONES, fmtTime, toTimeInput, todayIso, addDays } from '../../lib/website.js';
+import { parishTitle } from '../../lib/parishName.js';
 import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon, FilePick, PhotoSizeHint, UploadOverlay } from './shared.jsx';
 
 const describe = (r) => r.title;
@@ -124,6 +126,9 @@ export default function EventsTab() {
 
 function EventEditor({ row, gkks, onClose, onSaved }) {
   const toast = useToast();
+  // The title's example names the patron in Parish Config.
+  const parishName = useOutletContext()?.parish?.name;
+  const patron = parishName ? parishTitle(parishName).name : 'patron sa parokya';
   const { copiedFrom, ...initial } = row;
   const [form, setForm] = useState({
     ...initial,
@@ -207,7 +212,7 @@ function EventEditor({ row, gkks, onClose, onSaved }) {
   const title = row.id ? 'Edit event' : copiedFrom ? 'Next in the series' : 'Add an event';
   return (
     <SidePanel title={title} subtitle={copiedFrom ? `Copied from “${copiedFrom}”, one week later` : undefined} onClose={close} onSave={save} saving={saving} error={error}>
-      <Field label="Title" required><TextInput value={form.title} onChange={(e) => set('title')(e.target.value)} maxLength={150} placeholder="e.g. Novena sa Our Lady of Guadalupe" /></Field>
+      <Field label="Title" required><TextInput value={form.title} onChange={(e) => set('title')(e.target.value)} maxLength={150} placeholder={`e.g. Novena sa ${patron}`} /></Field>
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Type">
           <Select value={form.type} onChange={(e) => set('type')(e.target.value)}>

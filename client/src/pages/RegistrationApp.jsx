@@ -948,7 +948,7 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, gkkLoad, 
               value={household.barangay}
               onChange={chooseBarangay}
               barangays={barangays}
-              labels={{ choose: 'Pilia ang inyong barangay…', outside: 'Lain nga barangay (gawas sa parokya)', outsideName: 'Isulat ang inyong barangay', typePlaceholder: 'pananglitan: Mua-an' }}
+              labels={{ choose: 'Pilia ang inyong barangay…', outside: 'Lain nga barangay (gawas sa parokya)', outsideName: 'Isulat ang inyong barangay', typePlaceholder: 'pananglitan: Poblacion' }}
             />
           </Field>
           <Field label="Siyudad / Lungsod" required error={err.city}><TextInput {...f('city')} /></Field>

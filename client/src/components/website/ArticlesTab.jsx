@@ -121,7 +121,7 @@ function ArticleEditor({ row, onClose, onSaved }) {
 
   return (
     <SidePanel title={row.id ? 'Edit article' : 'New article'} onClose={close} onSave={save} saving={saving} error={error}>
-      <Field label="Title" required><TextInput value={form.title} onChange={(e) => set('title')(e.target.value)} maxLength={160} placeholder="e.g. Ang pagtukod sa kapilya sa Mua-an, 1985" /></Field>
+      <Field label="Title" required><TextInput value={form.title} onChange={(e) => set('title')(e.target.value)} maxLength={160} placeholder="e.g. Ang pagtukod sa kapilya sa Poblacion, 1985" /></Field>
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Tag">
           <Select value={form.tag} onChange={(e) => set('tag')(e.target.value)}>

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { anchors, celebrationsBetween, celebrationsOn, easterSunday, liturgicalDay, seasonId, seasonSpan } from '../src/lib/liturgy.js';
+import { anchors, celebrationsBetween, celebrationsOn, easterSunday, liturgicalDay, seasonId, seasonSpan, withParishFiesta } from '../src/lib/liturgy.js';
 
 const data = JSON.parse(readFileSync(new URL('../src/data/liturgical-calendar.json', import.meta.url), 'utf8'));
 const names = (iso) => celebrationsOn(iso, data).map((c) => c.en);
@@ -85,9 +85,22 @@ test('feasts give way to Sundays, except Feasts of the Lord in Ordinary Time', (
   assert.deepEqual(names('2026-12-27'), ['The Holy Family']);
 });
 
-test('the parish fiesta, Simbang Gabi and the day color', () => {
-  const fiesta = celebrationsOn('2026-12-12', data)[0];
+test('the parish fiesta follows the name in Parish Config', () => {
+  const ours = withParishFiesta(data, 'Our Lady of Guadalupe Quasi-Parish, Mua-an');
+  const fiesta = celebrationsOn('2026-12-12', ours)[0];
   assert.equal(fiesta.parish, true);
+  assert.equal(fiesta.rank, 'solemnity');
+  assert.equal(fiesta.en, 'Our Lady of Guadalupe · Parish Fiesta');
+  assert.equal(liturgicalDay('2026-12-12', ours).color, 'white');
+  // Another parish: Guadalupe is an ordinary memorial, and nothing is its fiesta.
+  for (const other of [withParishFiesta(data, 'San Isidro Labrador Parish'), withParishFiesta(data, '')]) {
+    assert.equal(other, data);
+    assert.equal(celebrationsOn('2026-12-12', other)[0].rank, 'memorial');
+    assert.equal(celebrationsBetween('2026-01-01', '2026-12-31', other).some((c) => c.parish), false);
+  }
+});
+
+test('Simbang Gabi and the day color', () => {
   const gabi = celebrationsOn('2026-12-20', data).find((c) => c.rank === 'devotion');
   assert.equal(gabi.day, 5);
   assert.equal(gabi.of, 9);

@@ -43,7 +43,7 @@ Do this in the new repository before the first deploy. Steps marked
 | Supabase CLI settings | [`supabase/config.toml`](../supabase/config.toml): the comments at the top, `site_url`, `additional_redirect_urls` | the new project ref and `<site>` |
 | Starting GKKs, ministries, organizations | [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) (the seed inserts) | the parish's lists. Or leave them, and change them in Parish Config after setup |
 | Sample families | [`scripts/demo-data.mjs`](../scripts/demo-data.mjs) | optional: local names and barangays |
-| Example addresses in hints | [`client/src/pages/admin/ParishConfig.jsx`](../client/src/pages/admin/ParishConfig.jsx) | the new `<site>` |
+| Parish fiesta (optional) | [`client/src/data/liturgical-calendar.json`](../client/src/data/liturgical-calendar.json) | give the patron's day a `"patron"`: a word from the parish name, like `"Guadalupe"` on 12-12 (add the day if it isn't there). See below |
 | GitHub migrations script | root [`package.json`](../package.json) `db:mark-applied` | not needed for a new project (`db push` records history); leave or delete |
 
 Then find anything left over:
@@ -53,8 +53,14 @@ git grep -n -i -E "guadalupe|olgqp|muaan|rmlkowkbonbrtaqocsvo|pub-25d83e|pub-936
 ```
 
 What's left in `docs/`, `project/` and `client/test/` can stay, and so can
-the Guadalupe feast in `client/src/data/liturgical-calendar.json` and
-`client/src/lib/website.js` and the examples in form hints.
+the Guadalupe feast in `client/src/data/liturgical-calendar.json`.
+
+The **parish fiesta** follows the name too. On the website's Church
+calendar, the day whose `"patron"` word is in the name becomes the
+"Fiesta sa Parokya" (a solemnity, starred); in Parish Website → Mass
+Schedule the "Patronal Fiesta – St. Joseph" preset takes the name's big
+line, and that day's date when the calendar has one. With no matching
+day, the calendar shows no fiesta and the preset leaves the date to staff.
 
 The parish's **name is not in the code**: the website's header, footer and
 tab, the search descriptions and link previews, the registration and census
