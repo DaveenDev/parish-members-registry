@@ -12,10 +12,9 @@ import { applyPageMeta, canonicalUrl, pageDescription, pageNoindex, parishJsonLd
 import { useCensusProgress, useOffice } from './data.js';
 import { preloadSitePages } from './lazyPages.js';
 
+// The built-in name, shown until Parish Config's name loads (and when none is saved).
 export const PARISH_NAME = 'Our Lady of Guadalupe';
 export const PARISH_SUB = 'Quasi-Parish · Mua-an';
-// The tab title outside the site's inner pages; index.html starts with the same.
-const DOC_TITLE = `${PARISH_NAME} ${PARISH_SUB}`;
 export const PARISH_ADDRESS = 'Purok 3, Mua-an, Kidapawan City, North Cotabato';
 // The church's place in Google Maps, used until a link is saved in Parish Website → Office.
 export const PARISH_MAP_URL = 'https://www.google.com/maps/place/Our+Lady+of+Guadalupe+Quasi+Parish/@7.0464909,125.1574249,17z/data=!3m1!4b1!4m6!3m5!1s0x32f8fdfd4fe1c4cb:0x85b99a0f7d3a3e02!8m2!3d7.0464909!4d125.1619933!16s%2Fg%2F11s57y2msl';
@@ -73,6 +72,34 @@ export function useParishLogo() {
   return usePublicData('logo', () => api.publicParishLogo().catch(() => null)).data || null;
 }
 
+/**
+ * The parish name as the site shows it, from the name saved in Parish Config:
+ * `name` is the big line and `sub` the small one under it (a trailing
+ * "Quasi-Parish" or "Parish" moves there; the built-in parish keeps its
+ * "· Mua-an"), `full` the name as saved and `title` the browser tab's.
+ */
+export function parishTitle(saved) {
+  const full = String(saved || '').trim() || `${PARISH_NAME} ${PARISH_SUB.split(' · ')[0]}`;
+  const m = full.match(/^(.+?)\s+((?:Quasi-)?Parish)$/i);
+  const name = m ? m[1] : full;
+  const sub = name === PARISH_NAME ? PARISH_SUB : m ? m[2] : '';
+  return { name, sub, full, title: sub ? `${name} ${sub}` : name };
+}
+
+// The last name seen, so a return visit shows it straight away instead of the built-in one.
+const NAME_KEY = 'pmr_parish_name';
+
+/** parishTitle() for the name in Parish Config. Shared by the header, footer, tab title and Home. */
+export function useParishTitle() {
+  const office = useOffice();
+  const saved = office.data?.name?.trim();
+  useEffect(() => {
+    if (saved) try { localStorage.setItem(NAME_KEY, saved); } catch {}
+  }, [saved]);
+  if (saved || !office.loading) return parishTitle(saved);
+  try { return parishTitle(localStorage.getItem(NAME_KEY)); } catch { return parishTitle(''); }
+}
+
 export function ParishMark({ size = 28, logo }) {
   if (logo) return <img src={logo} alt="" className="object-contain" style={{ width: size, height: size }} />;
   return <Icon name="cross" size={size} className="text-parish-gold" />;
@@ -93,6 +120,7 @@ export default function SiteLayout() {
   const [toast, setToast] = useState(null);
   const timer = useRef(null);
   const logo = useParishLogo();
+  const parish = useParishTitle();
   const isRoot = ROOTS.includes(pathname);
 
   const say = useCallback((msg) => {
@@ -121,20 +149,22 @@ export default function SiteLayout() {
     const origin = window.location.origin;
     const o = office || {};
     applyPageMeta({
-      title: name ? `${name} · ${PARISH_NAME}` : DOC_TITLE,
+      title: name ? `${name} · ${parish.name}` : parish.title,
       description: pageMeta?.description || pageDescription(pathname),
       url: canonicalUrl(origin, pathname),
       image: pageMeta?.image ? new URL(pageMeta.image, origin).href : null,
       noindex: !!pageMeta?.noindex || pageNoindex(pathname),
       jsonLd: pageMeta?.jsonLd || (pathname === '/' ? parishJsonLd({
-        name: `${PARISH_NAME} Quasi-Parish`, url: `${origin}/`, logo: logo && new URL(logo, origin).href,
+        name: parish.full, url: `${origin}/`, logo: logo && new URL(logo, origin).href,
         address: o.address || PARISH_ADDRESS, coords: validCoords(o.latitude, o.longitude) ? o : PARISH_COORDS,
         mapUrl: o.map_url || PARISH_MAP_URL, phone: o.mobile || o.contact, email: o.email, facebook: o.facebook_url,
       }) : null),
     });
-  }, [isRoot, pathname, title, pageMeta, office, logo]);
-  // Leaving the website (the registration form, the census portal, the admin): back to index.html's tags.
-  useEffect(() => () => resetPageMeta(DOC_TITLE), []);
+  }, [isRoot, pathname, title, pageMeta, office, logo, parish.name, parish.title, parish.full]);
+  // Leaving the website (the registration form, the census portal, the admin): back to index.html's tags, with the parish's name.
+  const docTitle = useRef(parish.title);
+  docTitle.current = parish.title;
+  useEffect(() => () => resetPageMeta(docTitle.current), []);
 
   function back() {
     // Opened from a shared link: there's no page of ours to go back to.
@@ -150,14 +180,14 @@ export default function SiteLayout() {
         {/* For keyboard and screen-reader visitors: past the header and menu, hidden until tabbed to. */}
         <a href="#sulod" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-parish-navy focus:text-white focus:font-semibold focus:px-4 focus:py-2.5 focus:rounded-xl">Adto sa sulod</a>
         <div className="min-h-screen bg-parish-bg font-sans text-parish-ink max-w-[560px] mx-auto relative pb-[64px] lg:max-w-none lg:pb-0 lg:flex lg:flex-col">
-          <DesktopHeader pathname={pathname} logo={logo} />
+          <DesktopHeader pathname={pathname} logo={logo} parish={parish} />
           <header className="lg:hidden sticky top-0 z-20 h-[58px] flex items-center gap-2 pl-1.5 pr-2.5 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.95)' }}>
             {isRoot ? (
               <Link to="/" className="flex items-center gap-2 flex-1 min-w-0 pl-2">
                 <ParishMark logo={logo} />
                 <div className="leading-[1.05] min-w-0">
-                  <div className="font-serif text-[18px] font-bold text-parish-navy truncate">{PARISH_NAME}</div>
-                  <div className="font-semibold text-[11px] text-parish-text2 tracking-[.04em]">{PARISH_SUB}</div>
+                  <div className="font-serif text-[18px] font-bold text-parish-navy truncate">{parish.name}</div>
+                  {parish.sub && <div className="font-semibold text-[11px] text-parish-text2 tracking-[.04em]">{parish.sub}</div>}
                 </div>
               </Link>
             ) : (
@@ -280,15 +310,15 @@ function CensusTicker() {
   );
 }
 
-function DesktopHeader({ pathname, logo }) {
+function DesktopHeader({ pathname, logo, parish }) {
   return (
     <header className="hidden lg:block sticky top-0 z-20 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.96)' }}>
       <div className="max-w-[1240px] mx-auto px-6 h-[76px] flex items-center gap-4 xl:gap-7">
         <Link to="/" className="flex items-center gap-2.5 flex-none">
           <ParishMark size={36} logo={logo} />
           <span className="leading-[1.05]">
-            <span className="block font-serif text-[22px] font-bold text-parish-navy">{PARISH_NAME}</span>
-            <span className="block font-semibold text-[12.5px] text-parish-text2 tracking-[.04em]">{PARISH_SUB}</span>
+            <span className="block font-serif text-[22px] font-bold text-parish-navy">{parish.name}</span>
+            {parish.sub && <span className="block font-semibold text-[12.5px] text-parish-text2 tracking-[.04em]">{parish.sub}</span>}
           </span>
         </Link>
         <nav aria-label="Main" className="flex items-stretch gap-0.5 ml-auto h-full">
@@ -324,13 +354,14 @@ function DesktopFooter() {
   const phone = o.mobile || o.contact;
   const messenger = messengerLink(o.secretary_messenger);
   const logo = useParishLogo();
+  const parish = useParishTitle();
   return (
     <footer className={`hidden lg:block border-t ${onKomunidad ? '' : 'mt-14'}`} style={FOOTER_CREAM}>
       <div className={`max-w-[1240px] mx-auto px-6 py-8 grid gap-8 items-start ${onKontak ? 'grid-cols-[1.4fr_1fr]' : 'grid-cols-[1.4fr_1fr_1fr]'}`}>
         <div className="flex gap-3">
           <span className="flex-none"><ParishMark size={34} logo={logo} /></span>
           <div>
-            <div className="font-serif text-[21px] font-bold text-parish-navy">{PARISH_NAME} {PARISH_SUB.split(' · ')[0]}</div>
+            <div className="font-serif text-[21px] font-bold text-parish-navy">{parish.full}</div>
             {!onKontak && <div className="text-[14.5px] leading-normal text-[#4d4636] mt-0.5">{o.address || PARISH_ADDRESS}</div>}
           </div>
         </div>

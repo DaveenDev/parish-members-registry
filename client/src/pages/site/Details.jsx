@@ -7,7 +7,7 @@ import { triggerDownload } from '../../lib/csv.js';
 import {
   ARTICLES_PAGE, BIS_DAYS, EVENT_ICONS, EVENT_TYPE_LABELS, articlePath, eventDays, eventIcs, eventSpan, eventTime, fmtLong, fmtShort, paragraphs, parseIso,
 } from '../../lib/site.js';
-import { PageMeta, PARISH_NAME, useSiteTitle } from './SiteLayout.jsx';
+import { PageMeta, useParishTitle, useSiteTitle } from './SiteLayout.jsx';
 import { excerpt } from '../../lib/seo.js';
 import { useItem } from './data.js';
 
@@ -62,6 +62,7 @@ export function Photo({ src, h = 200, hLg = h, alt = '', whole = false }) {
 export function EventDetail() {
   const { id } = useParams();
   useSiteTitle('Kalihokan');
+  const parish = useParishTitle();
   const share = useShare();
   const say = useSiteToast();
   return (
@@ -76,7 +77,7 @@ export function EventDetail() {
         const start = parseIso(e.start_date);
         const when = eventDays(e) > 1 ? `${fmtShort(e.start_date)} – ${fmtShort(e.end_date)}` : `${BIS_DAYS[start.getDay()]}, ${fmtLong(e.start_date)}`;
         function addToCalendar() {
-          const ics = eventIcs(e, { parishName: PARISH_NAME });
+          const ics = eventIcs(e, { parishName: parish.name });
           triggerDownload(new Blob([ics], { type: 'text/calendar;charset=utf-8' }), `kalihokan-${e.id}.ics`);
           say('Na-download ang .ics file. Ablihi aron idugang sa kalendaryo.');
         }

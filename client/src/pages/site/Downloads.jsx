@@ -11,7 +11,7 @@ import {
 import { fmtFileSize } from '../../lib/gkkDocuments.js';
 import { triggerDownload } from '../../lib/csv.js';
 import { excerpt } from '../../lib/seo.js';
-import { PARISH_NAME, PARISH_SUB, PageMeta, useSiteTitle } from './SiteLayout.jsx';
+import { PageMeta, useParishTitle, useSiteTitle } from './SiteLayout.jsx';
 import { useDownloads } from './data.js';
 
 const FORMS_ID = 'forms';
@@ -271,6 +271,7 @@ export function SongPage() {
   const share = useShare();
   const say = useSiteToast();
   useSiteTitle('Kanta');
+  const parish = useParishTitle();
   useEffect(() => { try { localStorage.setItem(SIZE_KEY, String(size)); } catch { /* not kept */ } }, [size]);
 
   if (state.loading) return <main className={`${INNER} lg:max-w-[820px]`}><Skeletons n={3} h={140} /></main>;
@@ -305,7 +306,7 @@ export function SongPage() {
       <PageMeta
         title={`${song.title} (Lyrics)`}
         description={excerpt(`Lyrics: ${song.title}${song.composer ? `, ni ${song.composer}` : ''}. ${stanzas(song.lyrics).join(' ')}`)}
-        jsonLd={songJsonLd({ song, url, parishName: `${PARISH_NAME} ${PARISH_SUB.split(' · ')[0]}` })}
+        jsonLd={songJsonLd({ song, url, parishName: parish.full })}
       />
       {(song.categories || []).length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-2.5">{song.categories.map((c) => <Chip key={c} tone="gold">{c}</Chip>)}</div>
@@ -337,7 +338,7 @@ export function SongPage() {
         Libre kini para sa tanan, alang sa pag-ampo ug pag-awit. Kung ikaw ang nagsulat sa kanta ug adunay ikatul-id, o dili nimo gusto nga naa kini dinhi,{' '}
         <Link to="/kontak" className="font-semibold text-parish-blue underline underline-offset-2">kontaka ang opisina sa parokya</Link>.
       </p>
-      <SongPrintSheet song={song} byline={byline} url={url} />
+      <SongPrintSheet song={song} byline={byline} url={url} parish={parish.title} />
     </main>
   );
 }
@@ -347,7 +348,7 @@ export function SongPage() {
  * lyrics in black on white, and where it came from. Hidden on screen and
  * revealed by the #print-sheet print rules in index.css.
  */
-function SongPrintSheet({ song, byline, url }) {
+function SongPrintSheet({ song, byline, url, parish }) {
   return createPortal(
     <div id="print-sheet" aria-hidden style={{ color: '#000', background: '#fff' }}>
       <h1 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 30, fontWeight: 600, margin: '0 0 4px' }}>{song.title}</h1>
@@ -356,7 +357,7 @@ function SongPrintSheet({ song, byline, url }) {
       <div style={{ fontSize: 15, lineHeight: 1.55, marginTop: 16, columnGap: 32 }}>
         {stanzas(song.lyrics).map((st, n) => <p key={n} style={{ margin: '0 0 14px', whiteSpace: 'pre-line', breakInside: 'avoid' }}>{st}</p>)}
       </div>
-      <p style={{ fontSize: 10.5, color: '#444', marginTop: 20, borderTop: '1px solid #bbb', paddingTop: 6 }}>{PARISH_NAME} {PARISH_SUB} · {url}</p>
+      <p style={{ fontSize: 10.5, color: '#444', marginTop: 20, borderTop: '1px solid #bbb', paddingTop: 6 }}>{parish} · {url}</p>
     </div>,
     document.body,
   );
