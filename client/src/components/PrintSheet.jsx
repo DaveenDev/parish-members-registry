@@ -10,6 +10,7 @@ import { familiesOf } from '../lib/household.js';
 import { familyTitle } from './FamilyGroups.jsx';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
+import { parishTitle } from '../lib/parishName.js';
 
 /** Trigger the browser print dialog for the currently rendered sheet. */
 export function printHouseholdSheet() {
@@ -33,11 +34,11 @@ export function sacramentLines(m) {
 
 /**
  * Off-screen confirmation slip for the public registration wizard, revealed by
- * the same #print-sheet print rules. The public portal has no session, so this
- * cannot call the settings API for the parish name/address — it uses the same
- * literal text the on-screen confirmation shows.
+ * the same #print-sheet print rules. `parish` is parishTitle() for the name
+ * saved in Parish Config (the public portal has no session, so it comes from
+ * the public office details, as on the website).
  */
-export function ConfirmationPrintSheet({ refNo, accessCode, householdName }) {
+export function ConfirmationPrintSheet({ refNo, accessCode, householdName, parish = parishTitle('') }) {
   if (!refNo) return null;
 
   return createPortal(
@@ -45,12 +46,14 @@ export function ConfirmationPrintSheet({ refNo, accessCode, householdName }) {
       <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 15, letterSpacing: '.16em', textTransform: 'uppercase', color: '#a98a3f', marginBottom: 8 }}>
         Rehistro sa mga Miyembro sa Parokya
       </div>
-      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 30, fontWeight: 600, color: '#1a2b4a', marginBottom: 2 }}>
-        Our Lady of Guadalupe
+      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 30, fontWeight: 600, color: '#1a2b4a', marginBottom: parish.sub ? 2 : 28 }}>
+        {parish.name}
       </div>
-      <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 16, color: '#34589c', marginBottom: 28 }}>
-        Quasi-Parish · Mua-an
-      </div>
+      {parish.sub && (
+        <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 16, color: '#34589c', marginBottom: 28 }}>
+          {parish.sub}
+        </div>
+      )}
 
       <div style={{ fontSize: 13, color: '#6b6552', marginBottom: 24 }}>
         {householdName ? `Narehistro na ang ${householdName}` : 'Narehistro na kini nga pamilya'} sa parokya. Susihon ug
@@ -168,9 +171,9 @@ function HouseholdRecord({ data, parish }) {
         {parish?.logo && <img src={parish.logo} alt="" style={{ width: 64, height: 64, objectFit: 'contain' }} />}
         <div>
           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 26, fontWeight: 600, color: '#1a2b4a' }}>
-            {parish?.name || 'Our Lady of Guadalupe'}
+            {parishTitle(parish?.name).full}
           </div>
-          <div style={{ fontSize: 12, color: '#6b6552' }}>{parish?.address || 'Quasi-Parish · Mua-an'}</div>
+          {parish?.address && <div style={{ fontSize: 12, color: '#6b6552' }}>{parish.address}</div>}
           <div style={{ fontSize: 11, letterSpacing: '.14em', textTransform: 'uppercase', color: '#8a836f', marginTop: 4 }}>
             Household Record
           </div>
@@ -321,7 +324,7 @@ export function ReportPrintSheet({ report, parish }) {
         {parish?.logo && <img src={parish.logo} alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />}
         <div>
           <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 600, color: '#1a2b4a' }}>
-            {parish?.name || 'Our Lady of Guadalupe'}
+            {parishTitle(parish?.name).full}
           </div>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1a2b4a', marginTop: 2 }}>{report.title}</div>
           <div style={{ fontSize: 11, color: '#6b6552' }}>{report.meta} · Printed {new Date().toLocaleDateString()}</div>

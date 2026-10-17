@@ -4,39 +4,42 @@
 // and reads what's set here per page: the title, description, canonical
 // address, robots rule, the Open Graph tags and, on Home, the parish's
 // structured data. The pure parts are tested; applyPageMeta() writes the tags.
+//
+// `parish` below is the parish's name as saved in Parish Config ("sa
+// parokya" when none is given).
 
-const PLACE = 'Mua-an, Kidapawan City';
+const sa = (parish) => String(parish || '').trim() || 'parokya';
 
-// The default description, as in index.html.
-export const SITE_DESCRIPTION = `Our Lady of Guadalupe Quasi-Parish, ${PLACE}: oras sa Misa, pahibalo ug kalihokan, mga GKK, ug rehistro sa mga pamilya sa parokya.`;
+/** The default description: the site's own pages, with the parish's name. */
+export const siteDescription = (parish) => `${String(parish || '').trim() || 'Ang parokya'}: oras sa Misa, pahibalo ug kalihokan, mga GKK, ug rehistro sa mga pamilya sa parokya.`;
 
 // Each page's description, by its address (the longest matching start wins).
 const DESCRIPTIONS = [
-  ['/simbahan/pagbasa', 'Mga pagbasa sa Misa karong adlawa ug sa umaabot nga Domingo, gikan sa Our Lady of Guadalupe Quasi-Parish, Mua-an.'],
-  ['/simbahan/kasaysayan', `Ang kasaysayan sa Our Lady of Guadalupe Quasi-Parish sa ${PLACE}.`],
-  ['/simbahan', `Oras sa Misa, mga sakramento ug unsaon pagpangandam alang niini sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
-  ['/misa', `Oras sa Misa ug mga kalihokan sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
-  ['/pahibalo', `Mga pahibalo, bulletin ug kalihokan sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
-  ['/komunidad/artikulo', `Mga artikulo ug balita gikan sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
-  ['/komunidad/pag-ampo', `Mga hangyo sa pag-ampo gikan sa mga parokyano sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}: mag-ampo kita alang sa usag usa.`],
-  ['/komunidad/gkk', `Usa sa mga GKK (Gagmayng Kristohanong Katilingban) sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
-  ['/komunidad', `Ang mga GKK, mga artikulo, mga hangyo sa pag-ampo ug kinabuhi sa komunidad sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
-  ['/serbisyo/dugo', `Blood Donor Call sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}: mga nanginahanglan og dugo ug unsaon pagtabang.`],
-  ['/serbisyo/hangyo', 'Paghangyo og sertipiko, sakramento o pag-ampo sa Our Lady of Guadalupe Quasi-Parish, Mua-an, online.'],
-  ['/serbisyo', `Mga serbisyo sa parokya: sertipiko, sakramento, rehistro sa pamilya ug Blood Donor Call sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
-  ['/downloads/kanta', `Song lyrics, libre: liriko sa kanta gikan sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
-  ['/downloads', `Mga porma sa GKK, census ug uban pa gikan sa opisina sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}: i-download ug i-print. Ug free Bisaya Catholic song lyrics sa Kasaulogan sa GKK, Bible Service ug Misa.`],
-  ['/kontak',`Kontak, oras sa opisina ug direksyon padulong sa Our Lady of Guadalupe Quasi-Parish, ${PLACE}.`],
+  ['/simbahan/pagbasa', (p) => `Mga pagbasa sa Misa karong adlawa ug sa umaabot nga Domingo, gikan sa ${sa(p)}.`],
+  ['/simbahan/kasaysayan', (p) => `Ang kasaysayan sa ${sa(p)}.`],
+  ['/simbahan', (p) => `Oras sa Misa, mga sakramento ug unsaon pagpangandam alang niini sa ${sa(p)}.`],
+  ['/misa', (p) => `Oras sa Misa ug mga kalihokan sa ${sa(p)}.`],
+  ['/pahibalo', (p) => `Mga pahibalo, bulletin ug kalihokan sa ${sa(p)}.`],
+  ['/komunidad/artikulo', (p) => `Mga artikulo ug balita gikan sa ${sa(p)}.`],
+  ['/komunidad/pag-ampo', (p) => `Mga hangyo sa pag-ampo gikan sa mga parokyano sa ${sa(p)}: mag-ampo kita alang sa usag usa.`],
+  ['/komunidad/gkk', (p) => `Usa sa mga GKK (Gagmayng Kristohanong Katilingban) sa ${sa(p)}.`],
+  ['/komunidad', (p) => `Ang mga GKK, mga artikulo, mga hangyo sa pag-ampo ug kinabuhi sa komunidad sa ${sa(p)}.`],
+  ['/serbisyo/dugo', (p) => `Blood Donor Call sa ${sa(p)}: mga nanginahanglan og dugo ug unsaon pagtabang.`],
+  ['/serbisyo/hangyo', (p) => `Paghangyo og sertipiko, sakramento o pag-ampo sa ${sa(p)}, online.`],
+  ['/serbisyo', (p) => `Mga serbisyo sa parokya: sertipiko, sakramento, rehistro sa pamilya ug Blood Donor Call sa ${sa(p)}.`],
+  ['/downloads/kanta', (p) => `Song lyrics, libre: liriko sa kanta gikan sa ${sa(p)}.`],
+  ['/downloads', (p) => `Mga porma sa GKK, census ug uban pa gikan sa opisina sa ${sa(p)}: i-download ug i-print. Ug free Bisaya Catholic song lyrics sa Kasaulogan sa GKK, Bible Service ug Misa.`],
+  ['/kontak', (p) => `Kontak, oras sa opisina ug direksyon padulong sa ${sa(p)}.`],
 ];
 
 // Pages search engines shouldn't list: a status lookup with nothing to read.
 const NOINDEX = ['/serbisyo/susiha'];
 
 /** The description for a page with no text of its own (`pathname` without the query). */
-export function pageDescription(pathname) {
+export function pageDescription(pathname, parish) {
   const p = String(pathname || '/');
   const hit = DESCRIPTIONS.find(([start]) => p === start || p.startsWith(`${start}/`));
-  return hit ? hit[1] : SITE_DESCRIPTION;
+  return hit ? hit[1](parish) : siteDescription(parish);
 }
 
 /** Whether search engines should leave a page out of their results. */
@@ -72,7 +75,7 @@ export function parishJsonLd({ name, url, logo, address, coords, mapUrl, phone, 
     '@type': 'Church',
     name,
     url,
-    address: { '@type': 'PostalAddress', streetAddress: address, addressLocality: 'Kidapawan City', addressRegion: 'Cotabato', addressCountry: 'PH' },
+    address: { '@type': 'PostalAddress', streetAddress: address, addressCountry: 'PH' },
     geo: coords ? { '@type': 'GeoCoordinates', latitude: Number(coords.latitude), longitude: Number(coords.longitude) } : undefined,
     hasMap: mapUrl || undefined,
     logo: logo && /^https?:/.test(logo) ? logo : undefined,
@@ -112,12 +115,12 @@ function setMeta(attr, key, content) {
 
 /**
  * Leaving the website for a page outside it (registration, the census
- * portal, the admin): index.html's title and description, and nothing that
- * named a website page (canonical, robots, address, structured data).
+ * portal, the admin): the parish's title and the site's description, and
+ * nothing that named a website page (canonical, robots, address, structured data).
  */
-export function resetPageMeta(title) {
+export function resetPageMeta(title, parish) {
   document.title = title;
-  setMeta('name', 'description', SITE_DESCRIPTION);
+  setMeta('name', 'description', siteDescription(parish));
   setMeta('property', 'og:url', '');
   setMeta('name', 'robots', '');
   document.head.querySelector('link[rel="canonical"]')?.remove();

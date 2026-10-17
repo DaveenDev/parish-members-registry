@@ -49,10 +49,12 @@ export async function GET(request) {
   const html = await fetch(`${origin}/index.html`, { signal: AbortSignal.timeout(4000) }).then((r) => (r.ok ? r.text() : null)).catch(() => null);
   if (!html) return new Response('Try again shortly', { status: 503, headers: { 'Retry-After': '60' } });
 
-  let preview = pagePreview(pathname);
+  // The parish's name as saved in Parish Config, for the titles and descriptions.
+  const parish = String((await rpc('public_office_details').catch(() => null))?.name || '').trim();
+  let preview = pagePreview(pathname, parish);
   try {
     const target = shareTarget(pathname);
-    if (target.kind !== 'page') preview = itemPreview(target.kind, await loadItem(target)) || preview;
+    if (target.kind !== 'page') preview = itemPreview(target.kind, await loadItem(target), parish) || preview;
     // No photo of its own: the parish photo, when it's one a robot can fetch (on R2, not inline).
     if (!preview.image) preview = { ...preview, image: await rpc('public_parish_hero_image').catch(() => null) };
   } catch {
@@ -60,7 +62,7 @@ export async function GET(request) {
   }
   const image = absoluteImage(preview.image, origin);
 
-  return new Response(injectMeta(html, { ...preview, image }, { origin, pathname }), {
+  return new Response(injectMeta(html, { ...preview, image }, { origin, pathname, parish }), {
     headers: {
       'Content-Type': 'text/html; charset=utf-8',
       // Robots ask again and again; an edit shows in previews within ten minutes.

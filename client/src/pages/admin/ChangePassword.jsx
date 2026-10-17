@@ -8,6 +8,7 @@ import { isRecoverySession } from '../../lib/passwordReset.js';
 import { adminReturnPath } from '../../lib/util.js';
 import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '../../components/ChangePasswordForm.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
+import { parishTitle } from '../../lib/parishName.js';
 import { useToast } from '../../ToastContext.jsx';
 
 /**
@@ -111,7 +112,7 @@ export default function ChangePassword() {
     >
       <div className="w-full max-w-[420px] animate-fadeUp">
         <div className="text-center mb-[26px]">
-          <div className="font-serif text-[25px] font-semibold text-white leading-tight">{parishName || 'Our Lady of Guadalupe'}</div>
+          <div className="font-serif text-[25px] font-semibold text-white leading-tight">{parishTitle(parishName).full}</div>
           <div className="text-[13px] tracking-[.14em] uppercase text-[var(--p-gold-light)]/90 mt-1.5">Members Registry · Admin</div>
         </div>
         <div className="bg-parish-card rounded-[20px] shadow-2xl" style={{ padding: '30px 28px' }}>

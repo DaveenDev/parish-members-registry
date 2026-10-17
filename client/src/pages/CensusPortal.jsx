@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-do
 import { api } from '../api.js';
 import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GhostButton, Spinner, FlagEmptyRequired, ComboInput, OptionSelect } from '../components/ui.jsx';
 import CreditFooter from '../components/CreditFooter.jsx';
+import { useParishTitle } from './site/data.js';
 import MemberCensusCards from '../components/MemberCensusCards.jsx';
 import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationChecks } from '../components/MemberFields.jsx';
 import { HEADS, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, PARTNERED_STATUSES, GKK_ROLES, fmtDate } from '../constants.js';
@@ -125,6 +126,9 @@ export default function CensusPortal() {
   // No details changed: the answers went straight into the census (0083).
   const [approved, setApproved] = useState(false);
   const [logo, setLogo] = useState(null);
+  // The parish's name as saved in Parish Config, shown as the website shows it.
+  const parish = useParishTitle();
+  useEffect(() => { if (parish.saved) document.title = `Census · ${parish.title}`; }, [parish.saved, parish.title]);
   // What a new member's "Pag-apil" step offers (0090), as at registration.
   const [orgOptions, setOrgOptions] = useState([]);
   const [parishRoleOptions, setParishRoleOptions] = useState([]);
@@ -270,7 +274,8 @@ export default function CensusPortal() {
         {logo ? <img src={logo} alt="Parish logo" className="w-[64px] h-[64px] object-contain" /> : <span className="text-[40px]" aria-hidden>✝</span>}
       </div>
       <div className="font-semibold text-[12.5px] tracking-[.2em] uppercase text-[var(--p-gold-deep)]">{status?.label || 'Census sa Parokya'}</div>
-      <h1 className="font-serif font-semibold text-[clamp(30px,6vw,42px)] leading-tight m-0 text-parish-navy">Our Lady of Guadalupe</h1>
+      <h1 className="font-serif font-semibold text-[clamp(30px,6vw,42px)] leading-tight m-0 text-parish-navy">{parish.name}</h1>
+      {parish.sub && <div className="font-serif text-[18px] text-parish-blue tracking-[.04em] mt-0.5">{parish.sub}</div>}
     </div>
   );
 

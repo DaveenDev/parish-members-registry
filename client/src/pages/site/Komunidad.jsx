@@ -6,7 +6,7 @@ import ArticlesSection from './Articles.jsx';
 import { Body, Gallery, Lightbox } from './Details.jsx';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
-import { PageMeta, useSiteTitle } from './SiteLayout.jsx';
+import { PageMeta, useParishTitle, useSiteTitle } from './SiteLayout.jsx';
 import { excerpt } from '../../lib/seo.js';
 import { listState, useArticles, useCensusProgress, useGkkDirectory, useGkkPage, usePrayerWall } from './data.js';
 import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
@@ -310,6 +310,7 @@ export function GkkDetail() {
   const { patron, area: nameArea } = gkkParts(name);
   const area = found?.barangay || nameArea;
   useSiteTitle(patron);
+  const parish = useParishTitle();
 
   const pad = `${INNER} lg:max-w-[760px]`;
   if (dir.loading) return <main className={pad}><Skeletons n={3} h={90} /></main>;
@@ -321,7 +322,7 @@ export function GkkDetail() {
     <main className={`${INNER} lg:max-w-[880px]`}>
       <PageMeta
         title={name}
-        description={excerpt([`${name}, usa sa mga GKK sa Our Lady of Guadalupe Quasi-Parish, Mua-an, Kidapawan City`, g.puroks, g.chapel_address && `Kapilya: ${g.chapel_address}`, g.meeting_schedule && `Bible-sharing: ${g.meeting_schedule}`].filter(Boolean).join(' · '))}
+        description={excerpt([`${name}, usa sa mga GKK sa ${parish.saved || 'parokya'}`, g.puroks, g.chapel_address && `Kapilya: ${g.chapel_address}`, g.meeting_schedule && `Bible-sharing: ${g.meeting_schedule}`].filter(Boolean).join(' · '))}
       />
       <div>
       <GkkPhotos page={page} patron={patron} />

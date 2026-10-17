@@ -4,6 +4,7 @@ import { fmtDate, PARTICIPATION_ITEMS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, YOUNG_CHILD_MAX_AGE, formatAccessCode, publicSiteUrl, censusLink, isYoungChild } from '../lib/census.js';
 import QrCode from './QrCode.jsx';
+import { parishTitle } from '../lib/parishName.js';
 
 // Short column headings for the participation grid on paper.
 const ITEM_SHORT = {
@@ -70,7 +71,7 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
             {parish?.logo && <img src={parish.logo} alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />}
             <div>
               <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 600, color: '#000' }}>
-                {parish?.name || 'Our Lady of Guadalupe'}
+                {parishTitle(parish?.name).full}
               </div>
               <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: '#555' }}>
                 Porma sa Census · {cycle?.label || 'Parish Census'}

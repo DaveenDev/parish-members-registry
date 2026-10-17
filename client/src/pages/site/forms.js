@@ -30,7 +30,7 @@ export const FORMS = {
         { k: 'subjectLastName', type: 'text', req: true, label: 'Apelyido' },
         { k: 'sacramentYear', type: 'number', req: true, label: 'Tuig sa sakramento (gibana-bana)', ph: 'e.g. 1998', im: 'numeric' },
         { k: 'sacramentDate', type: 'date', label: 'Eksaktong petsa (kung nahibal-an)' },
-        { k: 'sacramentPlace', type: 'text', label: 'Simbahan o lugar', def: 'Our Lady of Guadalupe Quasi-Parish' },
+        { k: 'sacramentPlace', type: 'text', label: 'Simbahan o lugar', parishDefault: true },
         { k: 'fatherName', type: 'text', req: true, label: 'Ngalan sa amahan', show: (v) => v.certType === 'baptism' },
         { k: 'motherName', type: 'text', req: true, label: 'Ngalan sa inahan (apelyido sa pagkadalaga)', show: (v) => v.certType === 'baptism' },
         { k: 'spouseName', type: 'text', req: true, label: 'Ngalan sa kapikas', show: (v) => v.certType === 'matrimony' },

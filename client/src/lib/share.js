@@ -9,9 +9,9 @@ import { canonicalUrl, excerpt, pageDescription } from './seo.js';
 import { BIS_DAYS, eventDays, fmtLong, fmtShort, parseIso } from './site.js';
 import { songIdFromParam } from './downloads.js';
 import { prayerTitle } from './prayers.js';
+import { parishTitle } from './parishName.js';
 
-export const PARISH_NAME = 'Our Lady of Guadalupe';
-export const SITE_TITLE = `${PARISH_NAME} Quasi-Parish · Mua-an`;
+// `parish` below is the name saved in Parish Config (public_office_details), '' for none.
 
 // The preview robots, as vercel.json's rewrite matches them (keep the two the same).
 export const PREVIEW_BOTS = ['facebookexternalhit', 'Facebot', 'meta-externalagent', 'Twitterbot', 'WhatsApp', 'TelegramBot', 'Slackbot', 'LinkedInBot', 'Discordbot', 'Viber', 'SkypeUriPreview', 'Pinterest', 'redditbot', 'Embedly'];
@@ -54,13 +54,17 @@ export function shareTarget(pathname) {
   return { kind: 'page' };
 }
 
-const fullTitle = (name) => (name ? `${name} · ${PARISH_NAME}` : SITE_TITLE);
+// As the browser tab names it (SiteLayout): "Kontak · St. Joseph", or the parish alone.
+function fullTitle(name, parish) {
+  const t = parishTitle(parish);
+  return name ? `${name} · ${t.name}` : t.title;
+}
 
 /** A main or inner page's preview (no item): its section's name and description. */
-export function pagePreview(pathname) {
+export function pagePreview(pathname, parish) {
   const p = String(pathname || '/');
   const hit = PAGE_TITLES.find(([start]) => p === start || p.startsWith(`${start}/`));
-  return { title: fullTitle(hit?.[1]), description: pageDescription(p), image: null, type: 'website' };
+  return { title: fullTitle(hit?.[1], parish), description: pageDescription(p, parish), image: null, type: 'website' };
 }
 
 /** When an event is, as its page says it: "Sabado, 18 Oktubre 2026" or "18 Okt – 20 Okt". */
@@ -74,9 +78,9 @@ function eventWhen(e) {
  * Komunidad.jsx, Prayers.jsx and Downloads.jsx). `row` is the item (for a GKK, its
  * directory row with the page's photo_url); null when there's none.
  */
-export function itemPreview(kind, row) {
+export function itemPreview(kind, row, parish) {
   if (!row) return null;
-  const article = (description, image) => ({ title: fullTitle(row.title), description, image: image || null, type: 'article' });
+  const article = (description, image) => ({ title: fullTitle(row.title, parish), description, image: image || null, type: 'article' });
   switch (kind) {
     case 'events':
       return article(excerpt([eventWhen(row), row.location, row.description].filter(Boolean).join(' · ')), row.photo_url);
@@ -88,18 +92,18 @@ export function itemPreview(kind, row) {
       return article(excerpt(row.summary || row.body), row.photo_url);
     case 'songs':
       return {
-        title: fullTitle(`${row.title} (Lyrics)`),
+        title: fullTitle(`${row.title} (Lyrics)`, parish),
         description: excerpt(`Lyrics: ${row.title}${row.composer ? `, ni ${row.composer}` : ''}. ${String(row.lyrics || '').replace(/\s+/g, ' ')}`),
         image: null,
         type: 'article',
       };
     // As public_prayer_request() (0100) gives it: never a contact detail, the name only if they chose.
     case 'prayers':
-      return { title: fullTitle(`Hangyo sa pag-ampo: ${prayerTitle(row)}`), description: excerpt(row.intention), image: null, type: 'article' };
+      return { title: fullTitle(`Hangyo sa pag-ampo: ${prayerTitle(row)}`, parish), description: excerpt(row.intention), image: null, type: 'article' };
     case 'gkk':
       return {
-        title: fullTitle(row.name),
-        description: excerpt([`${row.name}, usa sa mga GKK sa Our Lady of Guadalupe Quasi-Parish, Mua-an, Kidapawan City`, row.puroks, row.chapel_address && `Kapilya: ${row.chapel_address}`, row.meeting_schedule && `Bible-sharing: ${row.meeting_schedule}`].filter(Boolean).join(' · ')),
+        title: fullTitle(row.name, parish),
+        description: excerpt([`${row.name}, usa sa mga GKK sa ${parish || 'parokya'}`, row.puroks, row.chapel_address && `Kapilya: ${row.chapel_address}`, row.meeting_schedule && `Bible-sharing: ${row.meeting_schedule}`].filter(Boolean).join(' · ')),
         image: row.photo_url || null,
         type: 'website',
       };
@@ -119,10 +123,11 @@ export function absoluteImage(image, origin) {
 
 /**
  * index.html with the preview's tags in place of its own: the title,
- * description, Open Graph tags and canonical address. A photo of the page's
- * own drops index.html's 512×512 icon size and asks for the large card.
+ * description, Open Graph tags and canonical address, and the site's name
+ * when `parish` (Parish Config's) is given. A photo of the page's own drops
+ * index.html's 512×512 icon size and asks for the large card.
  */
-export function injectMeta(html, { title, description, image, type = 'website' }, { origin, pathname }) {
+export function injectMeta(html, { title, description, image, type = 'website' }, { origin, pathname, parish = '' }) {
   const url = canonicalUrl(origin, pathname);
   const t = escapeHtml(title);
   const d = escapeHtml(description);
@@ -133,6 +138,7 @@ export function injectMeta(html, { title, description, image, type = 'website' }
     .replace(/<meta property="og:title" content="[^"]*"\s*\/?>/, `<meta property="og:title" content="${t}" />`)
     .replace(/<meta property="og:description" content="[^"]*"\s*\/?>/, `<meta property="og:description" content="${d}" />`)
     .replace(/<meta property="og:image:alt" content="[^"]*"\s*\/?>/, `<meta property="og:image:alt" content="${t}" />`);
+  if (parish) out = out.replace(/<meta property="og:site_name" content="[^"]*"\s*\/?>/, `<meta property="og:site_name" content="${escapeHtml(parish)}" />`);
   if (image) {
     out = out
       .replace(/<meta property="og:image" content="[^"]*"\s*\/?>/, `<meta property="og:image" content="${escapeHtml(image)}" />`)

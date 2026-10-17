@@ -1,7 +1,9 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { SITE_DESCRIPTION, pageDescription, pageNoindex, excerpt, canonicalUrl, parishJsonLd } from '../src/lib/seo.js';
+import { siteDescription, pageDescription, pageNoindex, excerpt, canonicalUrl, parishJsonLd } from '../src/lib/seo.js';
+
+const SITE_DESCRIPTION = siteDescription();
 
 describe('pageDescription', () => {
   test('each section has its own, inner pages their nearest section’s', () => {
@@ -18,6 +20,13 @@ describe('pageDescription', () => {
     assert.equal(pageDescription('/developer'), SITE_DESCRIPTION);
     // A prefix of a section's name isn't that section.
     assert.equal(pageDescription('/kontakx'), SITE_DESCRIPTION);
+  });
+
+  test('the parish by the name saved in Parish Config, else "the parish"', () => {
+    assert.match(pageDescription('/misa', 'St. Joseph Parish'), /sa St\. Joseph Parish\.$/);
+    assert.match(pageDescription('/', 'St. Joseph Parish'), /^St\. Joseph Parish: oras sa Misa/);
+    assert.match(pageDescription('/misa'), /sa parokya\.$/);
+    assert.doesNotMatch(pageDescription('/') + pageDescription('/kontak'), /guadalupe|mua-an/i);
   });
 });
 

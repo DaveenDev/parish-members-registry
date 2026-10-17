@@ -8,6 +8,7 @@ import { useClientList } from '../hooks.js';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { useToast } from '../ToastContext.jsx';
 import { parseCsv } from '../lib/csv.js';
+import { parishTitle } from '../lib/parishName.js';
 import {
   LAST_YEAR_STATUSES, LAST_YEAR_STATUS_TONES, parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames, matchListToRegistry, listStatus, otherGkkMatches,
 } from '../lib/census.js';
@@ -514,7 +515,7 @@ export function NotYetPrintSheet({ rows, gkk, parish, placeLabel = 'Purok', head
       <header style={{ display: 'flex', alignItems: 'center', gap: 14, borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 10 }}>
         {parish?.logo && <img src={parish.logo} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />}
         <div>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 21, fontWeight: 600 }}>{parish?.name || 'Our Lady of Guadalupe'}</div>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 21, fontWeight: 600 }}>{parishTitle(parish?.name).full}</div>
           <div style={{ fontSize: 11, letterSpacing: '.12em', textTransform: 'uppercase', color: '#555' }}>{heading}</div>
         </div>
         <div style={{ marginLeft: 'auto', textAlign: 'right', fontSize: 10.5 }}>

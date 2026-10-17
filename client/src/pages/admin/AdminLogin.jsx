@@ -8,6 +8,7 @@ import { adminReturnPath } from '../../lib/util.js';
 import { Field, TextInput, PrimaryButton } from '../../components/ui.jsx';
 import CreditFooter from '../../components/CreditFooter.jsx';
 import { isDemoDatabase } from '../../lib/database.js';
+import { parishTitle } from '../../lib/parishName.js';
 
 /**
  * The demo site's shared login (a Demo access account, 0101), from the demo
@@ -79,7 +80,7 @@ export default function AdminLogin() {
             alt={`${parishName || 'Parish'} logo`}
             className="w-[72px] h-[72px] object-contain mx-auto mb-2 bg-parish-surface rounded-2xl p-1.5"
           />
-          <div className="font-serif text-[25px] font-semibold text-white leading-tight">{parishName || 'Our Lady of Guadalupe'}</div>
+          <div className="font-serif text-[25px] font-semibold text-white leading-tight">{parishTitle(parishName).full}</div>
           <div className="text-[13px] tracking-[.14em] uppercase text-[var(--p-gold-light)]/90 mt-1.5">Members Registry · Admin</div>
         </div>
         <div className="bg-parish-card rounded-[20px] shadow-2xl px-7 py-[30px]" style={{ padding: '30px 28px' }}>

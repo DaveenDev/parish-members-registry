@@ -2,7 +2,7 @@ import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import { PREVIEW_BOTS, SITE_TITLE, absoluteImage, escapeHtml, injectMeta, itemPreview, pagePreview, shareTarget } from '../src/lib/share.js';
+import { PREVIEW_BOTS, absoluteImage, escapeHtml, injectMeta, itemPreview, pagePreview, shareTarget } from '../src/lib/share.js';
 import { SITEMAP_PAGES, sitemapXml } from '../src/lib/sitemap.js';
 
 const INDEX = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -31,7 +31,11 @@ describe('shareTarget', () => {
 
 describe('previews', () => {
   test('a main page by its section name, Home by the parish', () => {
-    assert.equal(pagePreview('/').title, SITE_TITLE);
+    assert.equal(pagePreview('/', 'St. Joseph Parish, Makilala').title, 'St. Joseph Parish · Makilala');
+    assert.equal(pagePreview('/kontak', 'St. Joseph Parish').title, 'Kontak · St. Joseph');
+    assert.match(pagePreview('/kontak', 'St. Joseph Parish').description, /sa St\. Joseph Parish\./);
+    // No name saved in Parish Config: never another parish's.
+    assert.doesNotMatch(pagePreview('/').title + pagePreview('/kontak').description, /guadalupe/i);
     assert.match(pagePreview('/kontak').title, /^Kontak · /);
     assert.match(pagePreview('/simbahan/pagbasa').title, /^Mga Pagbasa · /);
     assert.match(pagePreview('/simbahan').description, /Oras sa Misa/);
@@ -80,6 +84,10 @@ describe('injectMeta', () => {
     assert.match(html, /<link rel="canonical" href="https:\/\/example.org\/komunidad\/artikulo\/5" \/>/);
     assert.match(html, /summary_large_image/);
     assert.doesNotMatch(html, /og:image:width/);
+  });
+
+  test('the site name from Parish Config, when there is one', () => {
+    assert.match(injectMeta(INDEX, { title: 'T', description: 'D' }, { ...at, parish: 'St. Joseph Parish' }), /<meta property="og:site_name" content="St. Joseph Parish" \/>/);
   });
 
   test('without a photo, index.html’s image and size stay', () => {

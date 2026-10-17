@@ -7,7 +7,7 @@ import { fmtLong, validEmail, validMobile } from '../../lib/site.js';
 import { useSiteTitle } from './SiteLayout.jsx';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { FORMS } from './forms.js';
-import { useOffice } from './data.js';
+import { useOffice, useParishTitle } from './data.js';
 import { phoneHref } from '../../lib/requests.js';
 
 const visible = (f, v) => !f.show || f.show(v);
@@ -86,6 +86,17 @@ function FormFlow({ F, embedded = false, onAgain }) {
   const [banner, setBanner] = useState('');
   const [status, setStatus] = useState('edit'); // edit | sending | failed | done
   const [ref, setRef] = useState('');
+
+  // A field marked `parishDefault` starts with the parish's name from Parish Config, once it's loaded.
+  const parishName = useParishTitle().saved;
+  useEffect(() => {
+    if (!parishName) return;
+    setValues((v) => {
+      const fill = {};
+      F.steps.forEach((st) => st.fields.forEach((f) => { if (f.parishDefault && v[f.k] === undefined) fill[f.k] = parishName; }));
+      return Object.keys(fill).length ? { ...v, ...fill } : v;
+    });
+  }, [F, parishName]);
 
   const total = F.steps.length + 1;
   const isReview = step >= F.steps.length;

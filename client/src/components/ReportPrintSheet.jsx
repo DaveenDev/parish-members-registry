@@ -1,5 +1,6 @@
 import React from 'react';
 import { createPortal } from 'react-dom';
+import { parishTitle } from '../lib/parishName.js';
 
 /**
  * A table report on paper: the parish heading, the report's title and
@@ -17,7 +18,7 @@ export default function ReportPrintSheet({ report, parish, scope = '', note = ''
       <header style={{ display: 'flex', alignItems: 'center', gap: 14, borderBottom: '2px solid #000', paddingBottom: 8, marginBottom: 12 }}>
         {parish?.logo && <img src={parish.logo} alt="" style={{ width: 48, height: 48, objectFit: 'contain' }} />}
         <div>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 21, fontWeight: 600 }}>{parish?.name || 'Our Lady of Guadalupe'}</div>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 21, fontWeight: 600 }}>{parishTitle(parish?.name).full}</div>
           <div style={{ fontSize: 13, fontWeight: 700, marginTop: 2 }}>{report.title}</div>
         </div>
         <div style={{ marginLeft: 'auto', textAlign: 'right', fontSize: 10.5 }}>

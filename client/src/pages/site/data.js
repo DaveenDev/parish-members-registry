@@ -1,7 +1,9 @@
+import { useEffect } from 'react';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { todayIso } from '../../lib/website.js';
 import { prayerVisitorId } from '../../lib/prayers.js';
+import { parishTitle } from '../../lib/parishName.js';
 
 // One hook per kind of public data, so every page shares the same cache key.
 export const useMassSchedule = () => usePublicData('mass', api.publicMassSchedules);
@@ -22,6 +24,24 @@ export const useOrgCharts = () => usePublicData('org-charts', () => api.publicOr
 /** One published org chart, `gkk` filling in the GKK Structure, or null. */
 export const useOrgChart = (slug, gkk = null) => usePublicData(`org-chart:${slug}:${gkk || ''}`, () => (slug ? api.publicOrgChart(slug, gkk) : null));
 export const useOffice = () => usePublicData('office', api.publicOfficeDetails);
+
+// The last name seen, so a return visit shows it straight away instead of the fallback.
+const NAME_KEY = 'pmr_parish_name';
+
+/**
+ * parishTitle() for the name saved in Parish Config: { name, sub, full, title }.
+ * Shared by the website's header, footer, tab title and Home, the
+ * registration form and the census portal.
+ */
+export function useParishTitle() {
+  const office = useOffice();
+  const saved = office.data?.name?.trim();
+  useEffect(() => {
+    if (saved) try { localStorage.setItem(NAME_KEY, saved); } catch {}
+  }, [saved]);
+  if (saved || !office.loading) return parishTitle(saved);
+  try { return parishTitle(localStorage.getItem(NAME_KEY)); } catch { return parishTitle(''); }
+}
 /** The Downloads page: { songs, files } (0096), published only. */
 export const useDownloads = () => usePublicData('downloads', api.publicDownloads);
 /** The open census, or { open: false } (also before 0013 is run). */

@@ -9,12 +9,11 @@ import { daysUntil, fmtLong, officeHourRows } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { messengerLink, validCoords } from '../../lib/website.js';
 import { applyPageMeta, canonicalUrl, pageDescription, pageNoindex, parishJsonLd, resetPageMeta } from '../../lib/seo.js';
-import { useCensusProgress, useOffice } from './data.js';
+import { useCensusProgress, useOffice, useParishTitle } from './data.js';
 import { preloadSitePages } from './lazyPages.js';
 
-// The built-in name, shown until Parish Config's name loads (and when none is saved).
-export const PARISH_NAME = 'Our Lady of Guadalupe';
-export const PARISH_SUB = 'Quasi-Parish · Mua-an';
+// The parish's name is the one saved in Parish Config (useParishTitle, in data.js).
+export { useParishTitle };
 export const PARISH_ADDRESS = 'Purok 3, Mua-an, Kidapawan City, North Cotabato';
 // The church's place in Google Maps, used until a link is saved in Parish Website → Office.
 export const PARISH_MAP_URL = 'https://www.google.com/maps/place/Our+Lady+of+Guadalupe+Quasi+Parish/@7.0464909,125.1574249,17z/data=!3m1!4b1!4m6!3m5!1s0x32f8fdfd4fe1c4cb:0x85b99a0f7d3a3e02!8m2!3d7.0464909!4d125.1619933!16s%2Fg%2F11s57y2msl';
@@ -72,34 +71,6 @@ export function useParishLogo() {
   return usePublicData('logo', () => api.publicParishLogo().catch(() => null)).data || null;
 }
 
-/**
- * The parish name as the site shows it, from the name saved in Parish Config:
- * `name` is the big line and `sub` the small one under it (a trailing
- * "Quasi-Parish" or "Parish" moves there; the built-in parish keeps its
- * "· Mua-an"), `full` the name as saved and `title` the browser tab's.
- */
-export function parishTitle(saved) {
-  const full = String(saved || '').trim() || `${PARISH_NAME} ${PARISH_SUB.split(' · ')[0]}`;
-  const m = full.match(/^(.+?)\s+((?:Quasi-)?Parish)$/i);
-  const name = m ? m[1] : full;
-  const sub = name === PARISH_NAME ? PARISH_SUB : m ? m[2] : '';
-  return { name, sub, full, title: sub ? `${name} ${sub}` : name };
-}
-
-// The last name seen, so a return visit shows it straight away instead of the built-in one.
-const NAME_KEY = 'pmr_parish_name';
-
-/** parishTitle() for the name in Parish Config. Shared by the header, footer, tab title and Home. */
-export function useParishTitle() {
-  const office = useOffice();
-  const saved = office.data?.name?.trim();
-  useEffect(() => {
-    if (saved) try { localStorage.setItem(NAME_KEY, saved); } catch {}
-  }, [saved]);
-  if (saved || !office.loading) return parishTitle(saved);
-  try { return parishTitle(localStorage.getItem(NAME_KEY)); } catch { return parishTitle(''); }
-}
-
 export function ParishMark({ size = 28, logo }) {
   if (logo) return <img src={logo} alt="" className="object-contain" style={{ width: size, height: size }} />;
   return <Icon name="cross" size={size} className="text-parish-gold" />;
@@ -150,7 +121,7 @@ export default function SiteLayout() {
     const o = office || {};
     applyPageMeta({
       title: name ? `${name} · ${parish.name}` : parish.title,
-      description: pageMeta?.description || pageDescription(pathname),
+      description: pageMeta?.description || pageDescription(pathname, parish.saved),
       url: canonicalUrl(origin, pathname),
       image: pageMeta?.image ? new URL(pageMeta.image, origin).href : null,
       noindex: !!pageMeta?.noindex || pageNoindex(pathname),
@@ -160,11 +131,11 @@ export default function SiteLayout() {
         mapUrl: o.map_url || PARISH_MAP_URL, phone: o.mobile || o.contact, email: o.email, facebook: o.facebook_url,
       }) : null),
     });
-  }, [isRoot, pathname, title, pageMeta, office, logo, parish.name, parish.title, parish.full]);
+  }, [isRoot, pathname, title, pageMeta, office, logo, parish.name, parish.title, parish.full, parish.saved]);
   // Leaving the website (the registration form, the census portal, the admin): back to index.html's tags, with the parish's name.
-  const docTitle = useRef(parish.title);
-  docTitle.current = parish.title;
-  useEffect(() => () => resetPageMeta(docTitle.current), []);
+  const leaving = useRef(parish);
+  leaving.current = parish;
+  useEffect(() => () => resetPageMeta(leaving.current.title, leaving.current.saved), []);
 
   function back() {
     // Opened from a shared link: there's no page of ours to go back to.

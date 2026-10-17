@@ -779,7 +779,7 @@ function EmailCard() {
               <>
                 <div className="grid gap-4 sm:grid-cols-2">
                   <Field label="Parish email (Gmail)"><TextInput type="email" value={form.outgoingEmail} onChange={set('outgoingEmail')} placeholder="parish.office@gmail.com" autoComplete="off" spellCheck={false} /></Field>
-                  <Field label="Sender name"><TextInput value={form.outgoingName} onChange={set('outgoingName')} placeholder={settings.name || 'Our Lady of Guadalupe Quasi-Parish'} autoComplete="off" /></Field>
+                  <Field label="Sender name"><TextInput value={form.outgoingName} onChange={set('outgoingName')} placeholder={settings.name || 'The parish name'} autoComplete="off" /></Field>
                 </div>
                 <div className="flex items-center gap-4 mt-4 flex-wrap">
                   <PrimaryButton onClick={save} disabled={busy} className="px-[22px] py-2.5 text-[14px]">{busy ? 'Saving…' : 'Save email'}</PrimaryButton>

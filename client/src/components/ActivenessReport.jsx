@@ -8,6 +8,7 @@ import { analyzeActiveness } from '../lib/activeness.js';
 import { PRACTICE_TONES, practiceSourceText } from '../lib/practice.js';
 import { YOUNG_CHILD_MAX_AGE } from '../lib/census.js';
 import { toCsv } from '../lib/csv.js';
+import { parishTitle } from '../lib/parishName.js';
 
 const COLORS = { Aktibo: 'rgb(var(--c-ok-text))', Panagsa: 'var(--p-gold)', 'Dili aktibo': 'rgb(var(--c-error))', Wala: 'rgb(var(--c-error))' };
 const fullName = (m) => [m.first_name, m.last_name, m.suffix].filter(Boolean).join(' ');
@@ -555,7 +556,7 @@ function ActivenessPrintSheet({ result, scopeLabel, membersText, parish }) {
       <header style={{ display: 'flex', alignItems: 'center', gap: 16, borderBottom: '2px solid #1a2b4a', paddingBottom: 12, marginBottom: 12 }}>
         {parish?.logo && <img src={parish.logo} alt="" style={{ width: 52, height: 52, objectFit: 'contain' }} />}
         <div>
-          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 600, color: '#1a2b4a' }}>{parish?.name || 'Our Lady of Guadalupe'}</div>
+          <div style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 600, color: '#1a2b4a' }}>{parishTitle(parish?.name).full}</div>
           <div style={{ fontSize: 14, fontWeight: 600, color: '#1a2b4a', marginTop: 2 }}>Membership Activeness Analysis — {scopeLabel}</div>
           <div style={{ fontSize: 11, color: '#6b6552' }}>{membersText(a.summary.members)} · {a.summary.rated} rated · generated {result.at.toLocaleString()}</div>
         </div>

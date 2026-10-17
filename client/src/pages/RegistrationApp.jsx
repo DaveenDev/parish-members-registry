@@ -23,6 +23,7 @@ import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationCheck
 import { barangayPatch, gkkBarangays, isListedBarangay } from '../lib/site.js';
 import { BarangayInput, GkkSelect, useGkkBarangayMap } from '../components/BarangayGkkFields.jsx';
 import ChurchEmblem from '../components/ChurchEmblem.jsx';
+import { useParishTitle } from './site/data.js';
 
 const STEPS = ['Pamilya ug Ulo', 'Mga Miyembro', 'Mga Sakramento', 'Pag-apil', 'Pagsusi'];
 // A family joining a registered house (0054) is sent as one family; the
@@ -599,8 +600,11 @@ function Confirmation({ refNo, accessCode, householdName, joined = false, onRest
   const isTouch = useIsTouch();
   const [copied, setCopied] = useState(false);
   const code = accessCode ? formatAccessCode(accessCode) : '';
+  // The parish's name as saved in Parish Config.
+  const parish = useParishTitle();
+  const parishName = parish.saved || 'parokya';
   async function copy() {
-    const text = [`Our Lady of Guadalupe Quasi-Parish, Mua-an`, `Reference Number: ${refNo}`, code && `Code: ${code}`].filter(Boolean).join('\n');
+    const text = [parish.saved, `Reference Number: ${refNo}`, code && `Code: ${code}`].filter(Boolean).join('\n');
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
@@ -611,7 +615,7 @@ function Confirmation({ refNo, accessCode, householdName, joined = false, onRest
   }
   return (
     <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
-      <ConfirmationPrintSheet refNo={refNo} accessCode={code} householdName={householdName} />
+      <ConfirmationPrintSheet refNo={refNo} accessCode={code} householdName={householdName} parish={parish} />
       <div className="max-w-[520px] animate-fadeUp">
         <div className="w-[82px] h-[82px] rounded-full bg-[#eaf4ee] flex items-center justify-center mx-auto mb-[22px] text-[#3a8a5e]">
           <svg width="42" height="42" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
@@ -619,8 +623,8 @@ function Confirmation({ refNo, accessCode, householdName, joined = false, onRest
         <h1 className="font-serif font-semibold text-[clamp(32px,7vw,46px)] leading-tight m-0 mb-2.5 text-parish-navy">Maayong pag-abot sa pamilya!</h1>
         <p className="text-[16.5px] leading-relaxed text-parish-text2 mb-[26px]">
           {joined
-            ? <>Nadugang na ang inyong pamilya sa balay sa <strong>{householdName}</strong> sa <strong>Our Lady of Guadalupe Quasi-Parish, Mua-an</strong>. Susihon ug pamatud-an sa among kawani sa parokya ang inyong mga detalye sa dili madugay.</>
-            : <>Narehistro na ang inyong pamilya sa <strong>Our Lady of Guadalupe Quasi-Parish, Mua-an</strong>. Susihon ug pamatud-an sa among kawani sa parokya ang inyong mga detalye sa dili madugay.</>}
+            ? <>Nadugang na ang inyong pamilya sa balay sa <strong>{householdName}</strong> sa <strong>{parishName}</strong>. Susihon ug pamatud-an sa among kawani sa parokya ang inyong mga detalye sa dili madugay.</>
+            : <>Narehistro na ang inyong pamilya sa <strong>{parishName}</strong>. Susihon ug pamatud-an sa among kawani sa parokya ang inyong mga detalye sa dili madugay.</>}
         </p>
         <Card className="p-[clamp(18px,5vw,26px)] mb-[26px]">
           <div className="font-semibold text-[12px] tracking-[.16em] uppercase text-[var(--p-gold-deep)] mb-2">{joined ? 'Reference Number sa Balay' : 'Inyong Reference Number'}</div>

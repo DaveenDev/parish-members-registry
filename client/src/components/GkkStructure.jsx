@@ -7,6 +7,7 @@ import { ErrorState, LoadingState, Modal } from './admin.jsx';
 import { Badge, Field, GhostButton, PrimaryButton, TextInput } from './ui.jsx';
 import { RowButton } from './panels.jsx';
 import MemberPicker from './orgchart/MemberPicker.jsx';
+import { parishTitle } from '../lib/parishName.js';
 import {
   birthdateText, chartNodes, displayName, formalName, maxText, otherPositions, positionRows, savePayload, snapshot, statusText, structureChanges, structureProblem,
 } from '../lib/gkkStructure.js';
@@ -377,7 +378,7 @@ function StructurePrint({ gkk, rows, officers, parish, approved }) {
     <div id="print-sheet" aria-hidden>
       <header style={{ textAlign: 'center', marginBottom: 12 }}>
         {parish?.logo && <img src={parish.logo} alt="" style={{ width: 54, height: 54, objectFit: 'contain' }} />}
-        <div style={{ fontSize: 15, fontWeight: 700 }}>{parish?.name || 'Our Lady of Guadalupe Quasi-Parish'}</div>
+        <div style={{ fontSize: 15, fontWeight: 700 }}>{parishTitle(parish?.name).full}</div>
         {parish?.address && <div style={{ fontSize: 11.5 }}>{parish.address}</div>}
         <div style={{ fontSize: 13, fontWeight: 700, marginTop: 10 }}>FORMATION MINISTRY</div>
         <div style={{ fontSize: 13, fontWeight: 700 }}>GKK STRUCTURE {new Date().getFullYear()}</div>
