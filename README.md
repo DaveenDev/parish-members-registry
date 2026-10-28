@@ -75,11 +75,18 @@ docs/                  Setup notes: backups, email, photo storage, notifications
    ```
    Staff admins then add everyone else from **Settings → Staff**.
 4. **Authentication → Providers → Email → turn off "Allow new users to sign up."**
-5. Deploy the Edge Functions:
-   ```bash
-   npm run deploy:functions
-   ```
-   or one at a time: `npm run deploy:manage-staff`, `npm run deploy:media-upload`, `npm run deploy:notify-staff`. `notify-staff` is deployed with JWT verification off: the database calls it and it checks staff logins itself.
+5. Deploy the Edge Functions to the parish's project (`ixfzajjtzuwelkjnssjt`). The scripts name the project, so they deploy there whichever project the CLI is linked to:
+
+   | Function | What it does | Command |
+   |---|---|---|
+   | `manage-staff` | Staff accounts (Settings → Staff) | `npm run deploy:manage-staff` |
+   | `media-upload` | Photos on Cloudflare R2 | `npm run deploy:media-upload` |
+   | `notify-staff` | Phone notifications for staff | `npm run deploy:notify-staff` |
+   | all three | | `npm run deploy:functions` |
+
+   The long form is `npx supabase functions deploy <name> --project-ref ixfzajjtzuwelkjnssjt --use-api`, with `--no-verify-jwt` added for `notify-staff`: the database calls it and it checks staff logins itself.
+
+   **Redeploy a function whenever its code under `supabase/functions/` changes**, and after a migration that says to.
 
 ### 2. The code
 
@@ -159,8 +166,8 @@ Run from the project root:
 | `npm test` | Run the client test suite |
 | `npm run test:watch` | Client tests, watch mode |
 | `npm run db:migrations` | Show which migrations the linked project has run |
-| `npm run deploy:functions` | Deploy all three Edge Functions to the linked project |
-| `npm run deploy:manage-staff`, `deploy:media-upload`, `deploy:notify-staff` | Deploy one Edge Function |
+| `npm run deploy:functions` | Deploy all three Edge Functions to the parish's project |
+| `npm run deploy:manage-staff`, `deploy:media-upload`, `deploy:notify-staff` | Deploy one Edge Function to the parish's project |
 
 ## License and credit
 

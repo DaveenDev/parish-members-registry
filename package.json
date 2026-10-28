@@ -12,10 +12,10 @@
     "install:all": "npm install && npm install --prefix client",
     "test": "node --test \"client/test/**/*.test.js\"",
     "test:watch": "node --test --watch \"client/test/**/*.test.js\"",
-    "deploy:functions": "npx supabase functions deploy --use-api",
-    "deploy:manage-staff": "npx supabase functions deploy manage-staff --use-api",
-    "deploy:media-upload": "npx supabase functions deploy media-upload --use-api",
-    "deploy:notify-staff": "npx supabase functions deploy notify-staff --no-verify-jwt --use-api"
+    "deploy:functions": "npx supabase functions deploy --project-ref ixfzajjtzuwelkjnssjt --use-api",
+    "deploy:manage-staff": "npx supabase functions deploy manage-staff --project-ref ixfzajjtzuwelkjnssjt --use-api",
+    "deploy:media-upload": "npx supabase functions deploy media-upload --project-ref ixfzajjtzuwelkjnssjt --use-api",
+    "deploy:notify-staff": "npx supabase functions deploy notify-staff --no-verify-jwt --project-ref ixfzajjtzuwelkjnssjt --use-api"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
