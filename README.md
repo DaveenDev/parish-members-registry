@@ -32,7 +32,7 @@ This registry was built for Our Lady of Guadalupe Quasi-Parish, Mua-an, and is g
 
 If someone in your parish is comfortable with GitHub and following a technical guide:
 
-1. Copy this repository into a **new GitHub repository for your parish** (one repository per parish).
+1. Copy this repository into a **new GitHub repository for your parish** (one repository per parish), with a fresh history of one commit rather than this repository's hundreds ([`deploy/03-new-parish.md`](deploy/03-new-parish.md), step 1).
 2. Follow [`deploy/03-new-parish.md`](deploy/03-new-parish.md): what to change in the code for your parish (name, address, logo, website address), then the live site ([`deploy/01-production.md`](deploy/01-production.md)) and, if you want one for training staff or showing the app, the demo site ([`deploy/02-demo.md`](deploy/02-demo.md)).
 3. Create the accounts (Supabase, Vercel, Cloudflare, GitHub) under the **parish's own Gmail**, so the parish owns its parishioners' data.
 

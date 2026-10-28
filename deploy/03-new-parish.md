@@ -15,11 +15,35 @@ and [`client/src/pages/site/Developer.jsx`](../client/src/pages/site/Developer.j
 as they are. Rather have it set up for you? See
 [Paid setup assistance](../README.md#paid-setup-assistance).
 
-## Step 1. A copy of the repository, and the parish's own accounts
+## Step 1. A fresh repository, and the parish's own accounts
 
-- Make a **new GitHub repository** for the parish and push a copy of this
-  code to it. Don't share one repository between parishes: each has its own
-  `client/.env.production`, workflows, backup secrets and migration history.
+- Make a **new, empty GitHub repository** for the parish (leave README,
+  licence and .gitignore unticked). Don't share one repository between
+  parishes: each has its own `client/.env.production`, workflows, backup
+  secrets and migration history.
+- **Start it with a fresh history.** A plain `git push` sends every commit of
+  this repository, hundreds of them, with the first parish's name and project
+  refs in them. Instead, from a clean checkout of `main`, make a branch with
+  no history (it keeps all the files, staged):
+
+  ```bash
+  git checkout --orphan parish-fresh
+  ```
+
+  Do steps 2 and 3 on that branch, then make one commit and push it to the
+  parish's repository as its `main`:
+
+  ```bash
+  git add -A
+  git commit -m "Initial commit"
+  git remote add parish https://github.com/<owner>/<repository>.git
+  git push parish parish-fresh:main
+  ```
+
+  If the whole history went up by mistake, undo it by deleting the repository
+  in GitHub (Settings → Danger Zone), recreating it empty and pushing again.
+  A force-push is not enough: the old commits stay reachable by their SHA for
+  a while.
 - New Supabase, Vercel and Cloudflare accounts, ideally under the **parish's
   own Gmail**, with you added as a member. The free Supabase plan's 2 projects
   are taken by the live and demo sites of one parish, and the parish
@@ -44,7 +68,9 @@ Do this in the new repository before the first deploy. Steps marked
 | Starting GKKs, ministries, organizations | [`supabase/migrations/0001_init.sql`](../supabase/migrations/0001_init.sql) (the seed inserts) | the parish's lists. Or leave them, and change them in Parish Config after setup |
 | Sample families | [`scripts/demo-data.mjs`](../scripts/demo-data.mjs) | optional: local names and barangays |
 | Parish fiesta (optional) | [`client/src/data/liturgical-calendar.json`](../client/src/data/liturgical-calendar.json) | give the patron's day a `"patron"`: a word from the parish name, like `"Guadalupe"` on 12-12 (add the day if it isn't there). See below |
-| GitHub migrations script | root [`package.json`](../package.json) `db:mark-applied` | not needed for a new project (`db push` records history); leave or delete |
+| Edge Function deploy scripts | root [`package.json`](../package.json) `deploy:production*` and `deploy:demo*` | in the copy, one set only (`deploy:functions`, `deploy:manage-staff`, `deploy:media-upload`, `deploy:notify-staff`), each with `--project-ref <the new live project>` so they can't deploy to another parish's project. See step 4 |
+| Scripts of this parish's demo and tests | root [`package.json`](../package.json) `db:*` scripts | delete them: `db:mark-applied` isn't needed for a new project (`db push` records history), and `db:seed-load`, `db:clean-load` and `db:fix-load-status` name this parish's demo project |
+| Tests that name the live project | [`client/test/staff-handler.test.js`](../client/test/staff-handler.test.js) | the live project ref in the two "refused on the live project" tests, to match `LIVE_PROJECT_ID` |
 
 Then find anything left over:
 
@@ -79,19 +105,102 @@ Run the tests and fix the ones that expect the old addresses:
 npm test
 ```
 
-## Step 3. Set up the services
+## Step 3. Clear out what the new parish doesn't need
+
+Still on the fresh branch, before the one commit. The files stay in this
+repository's `main`; the copy just doesn't need them.
+
+Take out of git, and keep out of the parish's repository:
+
+- Claude's own files: `.claude/`, `CLAUDE.md`, `.agents/`, `skills-lock.json`
+  (`git rm -r --cached` keeps a copy on disk; add them to `.git/info/exclude`
+  so they never come back).
+- This parish's working papers: `Todo.txt`, `project/` (the Claude Design
+  source files), `deploy/` (the guides stay here, in the original
+  repository, and you follow them from here), and in `docs/` the
+  presentations, the domain proposal, the first parish's deployment guide,
+  `beta-testing/`, `testing.md`, `load-test-data.md`, `github-migrations.md`
+  and `design-prompt-public-site.md`.
+- Demo and sample data: `scripts/`, `supabase/seed/`, the root
+  `.env.example` (only the seed script reads it).
+- Database moves of the first parish: `supabase/export/`, and
+  `supabase/.temp/` (it links the folder to that parish's Supabase project,
+  so `db push` or a deploy would hit the wrong database).
+
+Keep four files in `docs/`, because the app's messages point to them:
+`backups.md`, `email-setup.md`, `media-storage.md` and `notifications.md`
+(change the parish name and site address in the examples).
+
+Then **rewrite the README** for the new parish: what the app does, how to set
+it up, the deploy commands of step 4, and the licence and credit. Leave out
+the first parish's website and demo links, its migration-by-migration list
+(use `npx supabase db push`) and the paid-setup offer.
+
+Run `npm test` and the leftover search of step 2 once more. Nothing should
+name another parish's project.
+
+## Step 4. Set up the services
 
 1. [01-production.md](01-production.md), all steps. In step 9 enter the
    parish's details in Parish Config: name, logo, GKKs, ministries,
-   organizations, Mass schedule, office contact.
+   organizations, Mass schedule, office contact. Run the migrations with
+   `npx supabase link --project-ref <the new live project>` and
+   `npx supabase db push`.
 2. [02-demo.md](02-demo.md), if the parish wants a demo site.
-3. Fill in the "what exists" table in [README.md](README.md) for this parish,
-   in **its** repository.
+3. **Deploy the three Edge Functions** to the new live project. The scripts
+   of step 2 name the project, so they deploy there whichever project the CLI
+   is linked to (run `npx supabase login` once first):
 
-## Step 4. Hand over
+   | Function | Command |
+   | --- | --- |
+   | `manage-staff` (staff accounts) | `npm run deploy:manage-staff` |
+   | `media-upload` (photos on R2) | `npm run deploy:media-upload` |
+   | `notify-staff` (phone notifications) | `npm run deploy:notify-staff` |
+   | all of them | `npm run deploy:functions` |
+
+   The long form is
+   `npx supabase functions deploy <name> --project-ref <ref> --use-api`;
+   `notify-staff` also needs `--no-verify-jwt`, because the database calls it
+   without a login. Redeploy a function whenever its code changes.
+4. Fill in the "what exists" table in [README.md](README.md) for this parish,
+   in **its** repository (or its own README, if you wrote one).
+
+## Step 5. Keeping the copy up to date
+
+The copy and this repository have unrelated histories, so Git won't merge
+them. Carry new commits across with `git cherry-pick`, which applies only a
+commit's own changes. Mark the last commit already copied with a tag, and work
+in a separate folder so this repository's folder stays on `main`:
+
+```bash
+git tag parish-synced main
+git worktree add ../registry-parish parish-fresh
+```
+
+For each round of changes, after committing on `main`:
+
+```bash
+cd ../registry-parish
+git cherry-pick parish-synced..main
+git tag -f parish-synced main
+git push parish parish-fresh:main
+```
+
+- A commit that only edits files the copy removed (the README, `docs/`,
+  `deploy/`) stops with a modify/delete conflict. Drop the file with
+  `git rm <path>` and `git cherry-pick --continue`, or skip the commit with
+  `git cherry-pick --skip`.
+- Files the copy changed for its parish (`database.js`, `vercel.json`,
+  `.env.production`, `package.json`) can conflict. Keep the parish's values
+  and take the rest.
+- Pushing doesn't run anything on Supabase. A new migration still needs
+  `npx supabase db push`, and a change under `supabase/functions/` needs the
+  matching deploy command of step 4, both against the parish's project.
+
+## Step 6. Hand over
 
 - The parish's staff admin gets their own staff admin account (Settings →
   Staff); they make every other account.
 - The backup passphrase goes to the parish, written down, kept offline.
-- Show them [docs/beta-testing/](../docs/beta-testing/README.md) for checking a
-  new version, and the README for the census.
+- Show them [docs/beta-testing/](../docs/beta-testing/README.md) in this
+  repository for checking a new version, and the README for the census.
