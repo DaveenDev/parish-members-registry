@@ -1,0 +1,376 @@
+import React, { Suspense, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { Icon, IconSprite } from '../../components/site/Icons.jsx';
+import { FOOTER_CREAM, SiteToastContext } from '../../components/site/kit.jsx';
+import { usePublicData } from '../../components/site/usePublicData.js';
+import { api } from '../../api.js';
+import CreditFooter from '../../components/CreditFooter.jsx';
+import { daysUntil, fmtLong, officeHourRows } from '../../lib/site.js';
+import { todayIso } from '../../lib/website.js';
+import { messengerLink, validCoords } from '../../lib/website.js';
+import { applyPageMeta, canonicalUrl, pageDescription, pageNoindex, parishJsonLd, resetPageMeta } from '../../lib/seo.js';
+import { useCensusProgress, useOffice, useParishTitle } from './data.js';
+import { preloadSitePages } from './lazyPages.js';
+
+// The parish's name is the one saved in Parish Config (useParishTitle, in data.js),
+// its address, map link and pin the ones saved in Parish Website → Office.
+export { useParishTitle };
+
+const TABS = [
+  { to: '/', label: 'Home', icon: 'home', match: (p) => p === '/' },
+  { to: '/pahibalo', label: 'Pahibalo', icon: 'mega', match: (p) => p.startsWith('/pahibalo') },
+  { to: '/simbahan', label: 'Simbahan', icon: 'church', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa') },
+  { to: '/komunidad', label: 'Komunidad', icon: 'people', match: (p) => p.startsWith('/komunidad') },
+  { to: '/serbisyo', label: 'Serbisyo', icon: 'grid', match: (p) => p.startsWith('/serbisyo') || p.startsWith('/kontak') },
+  { to: '/downloads', label: 'Downloads', icon: 'down', match: (p) => p.startsWith('/downloads') },
+];
+
+const ROOTS = TABS.map((t) => t.to);
+
+// Desktop top navigation: the same sections with their full names, plus Kontak.
+// `short` is shown on small laptops (under 1280px), where the full names don't fit.
+const DESK_NAV = [
+  { to: '/', label: 'Home', match: (p) => p === '/' },
+  { to: '/pahibalo', label: 'Pahibalo ug Kalihokan', short: 'Pahibalo', match: (p) => p.startsWith('/pahibalo') },
+  { to: '/simbahan', label: 'Ang Simbahan', short: 'Simbahan', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa') },
+  { to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad') },
+  { to: '/serbisyo', label: 'Mga Serbisyo', short: 'Serbisyo', match: (p) => p.startsWith('/serbisyo') },
+  { to: '/downloads', label: 'Downloads', match: (p) => p.startsWith('/downloads') },
+  { to: '/kontak', label: 'Kontak', match: (p) => p.startsWith('/kontak') },
+];
+
+// Inner pages name themselves in the header with useSiteTitle('…').
+const TitleContext = createContext(() => {});
+export function useSiteTitle(title) {
+  const set = useContext(TitleContext);
+  useEffect(() => { set(title || ''); }, [set, title]);
+}
+
+// A page about one item (an article, event, GKK…) describes itself for search
+// engines and link previews with <PageMeta title description image />: its own
+// title in the browser tab (the header keeps its short one), its text, its photo,
+// and `jsonLd`, structured data saying what it is (a song's lyrics, say).
+const MetaContext = createContext(() => {});
+export function PageMeta({ title, description, image, noindex = false, jsonLd = null }) {
+  const set = useContext(MetaContext);
+  // By its text, so a new object with the same data doesn't set it again.
+  const ld = jsonLd ? JSON.stringify(jsonLd) : '';
+  useEffect(() => {
+    set({ title, description, image, noindex, jsonLd: ld ? JSON.parse(ld) : null });
+    return () => set(null);
+  }, [set, title, description, image, noindex, ld]);
+  return null;
+}
+
+/** The parish logo uploaded in Parish Config, or null. Shared by the header and Home. */
+export function useParishLogo() {
+  return usePublicData('logo', () => api.publicParishLogo().catch(() => null)).data || null;
+}
+
+export function ParishMark({ size = 28, logo }) {
+  if (logo) return <img src={logo} alt="" className="object-contain" style={{ width: size, height: size }} />;
+  return <Icon name="cross" size={size} className="text-parish-gold" />;
+}
+
+/**
+ * The public website shell, phone-first: a sticky header (parish name on the
+ * six main pages, a back button and page title inside them) and a bottom tab
+ * bar. The colors are the parish theme the parish secretary chose (Parish
+ * Config); visitors don't pick their own. From `lg` up the header carries the full
+ * navigation instead of the tab bar, inner pages get a "Balik" link under it,
+ * and every page ends with the parish footer.
+ */
+export default function SiteLayout() {
+  const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const [title, setTitle] = useState('');
+  const [toast, setToast] = useState(null);
+  const timer = useRef(null);
+  const logo = useParishLogo();
+  const parish = useParishTitle();
+  const isRoot = ROOTS.includes(pathname);
+
+  const say = useCallback((msg) => {
+    clearTimeout(timer.current);
+    setToast(msg);
+    timer.current = setTimeout(() => setToast(null), 2600);
+  }, []);
+
+  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
+  // The other pages' code, once this one is up and the phone is idle.
+  useEffect(() => {
+    const idle = window.requestIdleCallback ? (cb) => window.requestIdleCallback(cb, { timeout: 5000 }) : (cb) => setTimeout(cb, 3000);
+    idle(preloadSitePages);
+  }, []);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  // The browser tab (and bookmarks, history, search results) names the page: an
+  // item by its own title, a main page by its section, an inner page by its
+  // header title, Home by the parish alone. With it go the page's description,
+  // canonical address and preview tags (lib/seo.js), and on Home the parish's
+  // structured data for Google's local results.
+  const [pageMeta, setPageMeta] = useState(null);
+  const office = useOffice().data;
+  useEffect(() => {
+    const name = pageMeta?.title || (isRoot ? DESK_NAV.find((t) => t.to !== '/' && t.to === pathname)?.label : title);
+    const origin = window.location.origin;
+    const o = office || {};
+    applyPageMeta({
+      title: name ? `${name} · ${parish.name}` : parish.title,
+      description: pageMeta?.description || pageDescription(pathname, parish.saved),
+      url: canonicalUrl(origin, pathname),
+      image: pageMeta?.image ? new URL(pageMeta.image, origin).href : null,
+      noindex: !!pageMeta?.noindex || pageNoindex(pathname),
+      jsonLd: pageMeta?.jsonLd || (pathname === '/' ? parishJsonLd({
+        name: parish.full, url: `${origin}/`, logo: logo && new URL(logo, origin).href,
+        address: o.address, coords: validCoords(o.latitude, o.longitude) ? o : null,
+        mapUrl: o.map_url, phone: o.mobile || o.contact, email: o.email, facebook: o.facebook_url,
+      }) : null),
+    });
+  }, [isRoot, pathname, title, pageMeta, office, logo, parish.name, parish.title, parish.full, parish.saved]);
+  // Leaving the website (the registration form, the census portal, the admin): back to index.html's tags, with the parish's name.
+  const leaving = useRef(parish);
+  leaving.current = parish;
+  useEffect(() => () => resetPageMeta(leaving.current.title, leaving.current.saved), []);
+
+  function back() {
+    // Opened from a shared link: there's no page of ours to go back to.
+    if (window.history.state?.idx > 0) navigate(-1);
+    else navigate(TABS.find((t) => t.to !== '/' && t.match(pathname))?.to || '/');
+  }
+
+  return (
+    <SiteToastContext.Provider value={say}>
+      <TitleContext.Provider value={setTitle}>
+      <MetaContext.Provider value={setPageMeta}>
+        <IconSprite />
+        {/* For keyboard and screen-reader visitors: past the header and menu, hidden until tabbed to. */}
+        <a href="#sulod" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-parish-navy focus:text-white focus:font-semibold focus:px-4 focus:py-2.5 focus:rounded-xl">Adto sa sulod</a>
+        <div className="min-h-screen bg-parish-bg font-sans text-parish-ink max-w-[560px] mx-auto relative pb-[64px] lg:max-w-none lg:pb-0 lg:flex lg:flex-col">
+          <DesktopHeader pathname={pathname} logo={logo} parish={parish} />
+          <header className="lg:hidden sticky top-0 z-20 h-[58px] flex items-center gap-2 pl-1.5 pr-2.5 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.95)' }}>
+            {isRoot ? (
+              <Link to="/" className="flex items-center gap-2 flex-1 min-w-0 pl-2">
+                <ParishMark logo={logo} />
+                <div className="leading-[1.05] min-w-0">
+                  <div className="font-serif text-[18px] font-bold text-parish-navy truncate">{parish.name}</div>
+                  {parish.sub && <div className="font-semibold text-[11px] text-parish-text2 tracking-[.04em]">{parish.sub}</div>}
+                </div>
+              </Link>
+            ) : (
+              <>
+                <button type="button" aria-label="Balik" onClick={back} className="w-11 h-11 flex items-center justify-center text-parish-navy rounded-xl">
+                  <Icon name="back" size={22} />
+                </button>
+                <div className="flex-1 min-w-0 font-serif text-[21px] font-semibold text-parish-navy truncate">{title}</div>
+              </>
+            )}
+          </header>
+
+          {pathname !== '/' && !pathname.startsWith('/komunidad') && <CensusTicker />}
+
+          {!isRoot && (
+            <div className="hidden lg:block w-full max-w-[1240px] mx-auto px-6 pt-[18px]">
+              <button type="button" onClick={back} className="min-h-[40px] inline-flex items-center gap-1.5 font-bold text-[15px] text-parish-blue hover:text-parish-blueDeep">
+                <Icon name="back" size={18} />Balik
+              </button>
+            </div>
+          )}
+
+          {/* A page opened for the first time loads its code (lazyPages.js) under the header. */}
+          <div id="sulod" tabIndex={-1} className="lg:flex-1 outline-none"><Suspense fallback={<div className="min-h-[70vh]" />}><Outlet /></Suspense></div>
+
+          <DesktopFooter />
+
+          {toast && (
+            <div role="status" className="fixed left-4 right-4 bottom-[78px] lg:bottom-7 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 lg:w-max lg:max-w-[90vw] z-40 max-w-[528px] mx-auto bg-parish-navy text-white rounded-xl px-3.5 py-3 font-semibold text-[14px] leading-snug shadow-card animate-fadeUp">
+              {toast}
+            </div>
+          )}
+        </div>
+
+        <ToTop />
+
+        <nav aria-label="Main" className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-parish-card border-t border-parish-border">
+          <div className="max-w-[560px] mx-auto h-16 grid grid-cols-6">
+            {TABS.map((t) => {
+              const on = t.match(pathname);
+              return (
+                <NavLink
+                  key={t.to}
+                  to={t.to}
+                  aria-current={on ? 'page' : undefined}
+                  className={`relative min-w-0 flex flex-col items-center justify-center gap-[3px] text-[10.5px] min-[360px]:text-[11px] min-[380px]:text-[11.5px] tracking-[-.01em] ${on ? 'text-parish-blue font-bold' : 'text-parish-text2 font-semibold'}`}
+                >
+                  <span className="absolute top-0 left-[26%] right-[26%] h-[3px] rounded-b-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
+                  <Icon name={t.icon} size={23} />
+                  <span>{t.label}</span>
+                </NavLink>
+              );
+            })}
+          </div>
+        </nav>
+      </MetaContext.Provider>
+      </TitleContext.Provider>
+    </SiteToastContext.Provider>
+  );
+}
+
+/**
+ * "Balik sa ibabaw": a round button at the bottom right, above the phone tab
+ * bar, once the page is scrolled past its first screen. It jumps straight to
+ * the top (no slow scroll through a long page).
+ */
+function ToTop() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    const check = () => setShow(window.scrollY > 600);
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    return () => window.removeEventListener('scroll', check);
+  }, []);
+  if (!show) return null;
+  return (
+    <button
+      type="button"
+      aria-label="Balik sa ibabaw"
+      title="Balik sa ibabaw"
+      onClick={() => window.scrollTo({ top: 0, behavior: 'instant' })}
+      className="fixed right-4 bottom-[80px] lg:right-6 lg:bottom-6 z-30 w-12 h-12 rounded-full flex items-center justify-center text-white bg-parish-navy shadow-card border border-white/20 hover:brightness-110 animate-fadeUp"
+    >
+      <Icon name="down" size={22} className="rotate-180" />
+    </button>
+  );
+}
+
+/** A shared, English census reminder below the nav on the inner public pages. */
+function CensusTicker() {
+  const census = useCensusProgress().data;
+  if (!census?.open) return null;
+
+  const days = daysUntil(census.ends_on, todayIso());
+  const remaining = days === null ? '' : days === 0 ? 'The census ends today.' : `${days} day${days === 1 ? '' : 's'} left until it ends.`;
+  const message = `Alert! ${census.label || 'The 2026 Census'} is ongoing. ${remaining} Participate now!`;
+
+  return (
+    <section aria-label="Census announcement" className="census-ticker border-b border-white/15 text-white" style={{ background: 'var(--p-navy)' }}>
+      <div className="max-w-[1240px] mx-auto min-h-[48px] px-3 lg:px-6 flex items-center gap-3">
+        <div className="census-ticker__window flex-1 min-w-0" aria-live="polite">
+          <div className="census-ticker__track">
+            <span className="inline-flex items-center gap-2 whitespace-nowrap font-bold text-[14px] lg:text-[15px]">
+              <Icon name="alert" size={18} className="text-[#fb923c] flex-none" />
+              {message}
+              {census.ends_on && <span className="font-semibold text-white/70">Ends {fmtLong(census.ends_on)}.</span>}
+            </span>
+            <span aria-hidden="true" className="inline-flex items-center gap-2 whitespace-nowrap font-bold text-[14px] lg:text-[15px]">
+              <Icon name="alert" size={18} className="text-[#fb923c] flex-none" />
+              {message}
+              {census.ends_on && <span className="font-semibold text-white/70">Ends {fmtLong(census.ends_on)}.</span>}
+            </span>
+          </div>
+        </div>
+        <Link to="/census" className="flex-none inline-flex items-center justify-center min-h-[36px] px-3.5 rounded-lg font-bold text-[13.5px] text-parish-navy whitespace-nowrap hover:brightness-105" style={{ background: 'var(--p-gold-light)' }}>
+          Update your record
+        </Link>
+      </div>
+    </section>
+  );
+}
+
+function DesktopHeader({ pathname, logo, parish }) {
+  return (
+    <header className="hidden lg:block sticky top-0 z-20 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.96)' }}>
+      <div className="max-w-[1240px] mx-auto px-6 h-[76px] flex items-center gap-4 xl:gap-7">
+        <Link to="/" className="flex items-center gap-2.5 flex-none">
+          <ParishMark size={36} logo={logo} />
+          <span className="leading-[1.05]">
+            <span className="block font-serif text-[22px] font-bold text-parish-navy">{parish.name}</span>
+            {parish.sub && <span className="block font-semibold text-[12.5px] text-parish-text2 tracking-[.04em]">{parish.sub}</span>}
+          </span>
+        </Link>
+        <nav aria-label="Main" className="flex items-stretch gap-0.5 ml-auto h-full">
+          {DESK_NAV.map((t) => {
+            const on = t.match(pathname);
+            return (
+              <NavLink
+                key={t.to}
+                to={t.to}
+                aria-current={on ? 'page' : undefined}
+                className={`relative flex items-center px-[10px] xl:px-[13px] text-[15.5px] whitespace-nowrap hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`}
+              >
+                {t.short ? <><span className="xl:hidden">{t.short}</span><span className="hidden xl:inline">{t.label}</span></> : t.label}
+                <span className="absolute left-[10px] right-[10px] xl:left-[13px] xl:right-[13px] -bottom-px h-[3px] rounded-t-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
+              </NavLink>
+            );
+          })}
+        </nav>
+      </div>
+    </header>
+  );
+}
+
+/** Desktop footer on every page: parish, office, privacy note and staff sign-in. */
+function DesktopFooter() {
+  const o = useOffice().data || {};
+  // The Kontak page already shows the hours, phone and Message Me, so the footer leaves them out there.
+  const { pathname } = useLocation();
+  const onKontak = pathname.startsWith('/kontak');
+  // Komunidad's articles and the Downloads page's song lyrics sit on the cream, so the footer follows them with no gap.
+  const onKomunidad = pathname.startsWith('/komunidad') || pathname === '/downloads';
+  const open = officeHourRows(o.office_hours).filter((r) => r.hours).slice(0, 2);
+  const phone = o.mobile || o.contact;
+  const messenger = messengerLink(o.secretary_messenger);
+  const logo = useParishLogo();
+  const parish = useParishTitle();
+  return (
+    <footer className={`hidden lg:block border-t ${onKomunidad ? '' : 'mt-14'}`} style={FOOTER_CREAM}>
+      <div className={`max-w-[1240px] mx-auto px-6 py-8 grid gap-8 items-start ${onKontak ? 'grid-cols-[1.4fr_1fr]' : 'grid-cols-[1.4fr_1fr_1fr]'}`}>
+        <div className="flex gap-3">
+          <span className="flex-none"><ParishMark size={34} logo={logo} /></span>
+          <div>
+            <div className="font-serif text-[21px] font-bold text-parish-navy">{parish.full}</div>
+            {!onKontak && o.address && <div className="text-[14.5px] leading-normal text-[#4d4636] mt-0.5">{o.address}</div>}
+          </div>
+        </div>
+        {!onKontak && <div className="text-[14.5px] leading-[1.7] text-[#4d4636]">
+          <div className="font-bold text-[11.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)] mb-1">Opisina</div>
+          {/* Each time range on its own line, lined up after the days. */}
+          {open.length > 0 && (
+            <div className="grid grid-cols-[auto_1fr] gap-x-1.5">
+              {open.map((r) => (
+                <React.Fragment key={r.label}>
+                  <div className="whitespace-nowrap">{r.label} ·</div>
+                  <div>{r.hours.map((h, i) => <div key={h} className="whitespace-nowrap">{h}{i < r.hours.length - 1 ? ',' : ''}</div>)}</div>
+                </React.Fragment>
+              ))}
+            </div>
+          )}
+          {phone && <div>{phone}</div>}
+          {messenger && (
+            <a href={messenger} target="_blank" rel="noopener noreferrer" className="mt-1 inline-flex items-center gap-1.5 font-bold text-[14.5px] text-[#0866FF] hover:underline">
+              <Icon name="messenger" size={17} />Message Me
+            </a>
+          )}
+          {!open.length && !phone && !messenger && <Link to="/kontak" className="font-semibold text-parish-blue">Tan-awa ang kontak</Link>}
+        </div>}
+        <div className="flex flex-col gap-1.5 items-start">
+          <div className="flex gap-1.5 text-[13.5px] leading-[1.45] text-[#4d4636]">
+            <Icon name="lock" size={15} className="flex-none mt-0.5" />Pribado ang datos sa mga pamilya, sumala sa Data Privacy Act of 2012.
+          </div>
+          <Link to="/admin/login" className="min-h-[40px] inline-flex items-center font-bold text-[15px] text-parish-blue hover:text-parish-blueDeep">Kawani sa parokya? Mag-sign in</Link>
+          <CreditFooter inline />
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/** Phone footer for the main pages: address and the staff sign-in link. */
+export function SiteFooter({ address }) {
+  return (
+    <footer className="lg:hidden mt-8 px-[18px] pt-[22px] pb-2 border-t border-[#e7dcc4] text-center">
+      {address && <div className="text-[14px] text-[#4d4636] leading-normal">{address}</div>}
+      <Link to="/admin/login" className="inline-flex items-center min-h-[44px] mt-1.5 font-bold text-[14.5px] text-parish-blue">Kawani sa parokya? Mag-sign in</Link>
+    </footer>
+  );
+}

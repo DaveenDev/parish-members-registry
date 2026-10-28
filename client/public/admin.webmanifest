@@ -1,0 +1,15 @@
+{
+  "name": "Parish Registry",
+  "short_name": "Parish Admin",
+  "description": "The parish office's admin panel",
+  "start_url": "/admin",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1a2b4a",
+  "theme_color": "#1a2b4a",
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

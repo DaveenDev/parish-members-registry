@@ -1,0 +1,25 @@
+{
+  "name": "parish-members-registry",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Parish Members Online Registry — public registration wizard + admin panel",
+  "scripts": {
+    "dev": "npm run dev --prefix client",
+    "build": "npm run build --prefix client",
+    "lint": "npm run lint --prefix client",
+    "db:migrations": "npx supabase migration list --linked",
+    "install:all": "npm install && npm install --prefix client",
+    "test": "node --test \"client/test/**/*.test.js\"",
+    "test:watch": "node --test --watch \"client/test/**/*.test.js\"",
+    "deploy:functions": "npx supabase functions deploy --use-api",
+    "deploy:manage-staff": "npx supabase functions deploy manage-staff --use-api",
+    "deploy:media-upload": "npx supabase functions deploy media-upload --use-api",
+    "deploy:notify-staff": "npx supabase functions deploy notify-staff --no-verify-jwt --use-api"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.117.2",
+    "@vercel/analytics": "^2.0.1",
+    "dotenv": "^16.4.5"
+  }
+}

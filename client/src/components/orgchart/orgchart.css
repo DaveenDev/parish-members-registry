@@ -1,0 +1,29 @@
+/* The Organization Structure editor's canvas in the admin's colours (light
+   and dark follow the parish tokens). Loaded with the editor only. */
+.org-flow {
+  --xy-background-color: rgb(var(--c-field));
+  --xy-background-pattern-color: rgb(var(--c-faint));
+  --xy-edge-stroke: rgb(var(--c-muted));
+  --xy-edge-stroke-selected: var(--p-blue);
+  --xy-edge-stroke-width: 1.75;
+  --xy-connectionline-stroke: var(--p-blue);
+  --xy-handle-background-color: rgb(var(--c-surface));
+  --xy-handle-border-color: var(--p-blue);
+  --xy-controls-button-background-color: rgb(var(--c-surface));
+  --xy-controls-button-background-color-hover: rgb(var(--c-hover));
+  --xy-controls-button-color: rgb(var(--c-ink));
+  --xy-controls-button-color-hover: rgb(var(--c-ink));
+  --xy-controls-button-border-color: rgb(var(--c-border));
+  --xy-minimap-background-color: rgb(var(--c-card));
+  --xy-minimap-mask-background-color: rgb(var(--c-scrim) / 0.12);
+  --xy-minimap-node-background-color: rgb(var(--c-border-soft));
+  --xy-attribution-background-color: transparent;
+}
+.org-flow .react-flow__handle {
+  width: 10px;
+  height: 10px;
+  border-width: 2px;
+}
+.org-flow .react-flow__node.selectable:focus-visible {
+  outline: none;
+}

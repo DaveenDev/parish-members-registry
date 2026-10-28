@@ -1,0 +1,295 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== Theme variants =====
+   Each theme sets the brand accent colors; warm parchment neutrals and
+   semantic status colors (verified/pending/error) stay constant so the
+   app reads consistently no matter which theme is active. */
+:root,
+[data-theme='classic'] {
+  --p-blue: #34589c;
+  --p-blue-deep: #26436f;
+  --p-blue-light: #4a71b8;
+  --p-navy: #1a2b4a;
+  --p-gold: #c39b4e;
+  --p-gold-light: #e4c06a;
+  --p-gold-deep: #a98a3f;
+  --p-sidebar-a: #20406b;
+  --p-sidebar-b: #152c4c;
+}
+[data-theme='emerald'] {
+  --p-blue: #1f6d4c;
+  --p-blue-deep: #155038;
+  --p-blue-light: #3f9c74;
+  --p-navy: #123726;
+  --p-gold: #c2a45a;
+  --p-gold-light: #e6c97e;
+  --p-gold-deep: #96793a;
+  --p-sidebar-a: #12432f;
+  --p-sidebar-b: #0c2e20;
+}
+[data-theme='ocean'] {
+  --p-blue: #14707a;
+  --p-blue-deep: #0d525a;
+  --p-blue-light: #3f97a1;
+  --p-navy: #0c3a40;
+  --p-gold: #c79a5a;
+  --p-gold-light: #e6c185;
+  --p-gold-deep: #9c7638;
+  --p-sidebar-a: #0d525a;
+  --p-sidebar-b: #083a40;
+}
+[data-theme='terracotta'] {
+  --p-blue: #b0563a;
+  --p-blue-deep: #8a3f28;
+  --p-blue-light: #cd7a5d;
+  --p-navy: #5c2c1c;
+  --p-gold: #8a9a5b;
+  --p-gold-light: #aebd7e;
+  --p-gold-deep: #657240;
+  --p-sidebar-a: #8a3f28;
+  --p-sidebar-b: #5c2c1c;
+}
+:root {
+  --p-fill: var(--p-blue);
+  --p-blue-tint: color-mix(in srgb, var(--p-blue) 9%, white);
+  --p-blue-tint-strong: color-mix(in srgb, var(--p-blue) 16%, white);
+  --p-blue-border: color-mix(in srgb, var(--p-blue) 40%, white);
+  --p-gold-tint: color-mix(in srgb, var(--p-gold) 14%, white);
+  /* Gold eyebrow text darkened enough for AA contrast on parchment. */
+  --p-eyebrow: color-mix(in srgb, var(--p-gold-deep) 78%, black);
+}
+
+/* ===== Chart series colours =====
+   Categorical slots for part-to-whole charts (the Dashboard's GKK donut), in
+   this fixed order, validated for colour-blind separation on the card surface
+   in each mode (dataviz palette, checked with validate_palette.js). Three
+   light slots are pale against the card, so a chart using them also labels
+   every slice in text. --viz-other is the folded "Other" slice. */
+:root {
+  --viz-1: #2a78d6; --viz-2: #eb6834; --viz-3: #1baf7a;
+  --viz-4: #eda100; --viz-5: #e87ba4; --viz-6: #008300;
+  --viz-7: #4a3aa7; --viz-8: #e34948;
+  --viz-other: #b9b4a6;
+}
+:root[data-mode='dark'] {
+  --viz-1: #3987e5; --viz-2: #d95926; --viz-3: #199e70;
+  --viz-4: #c98500; --viz-5: #d55181; --viz-6: #008300;
+  --viz-7: #9085e9; --viz-8: #e66767;
+  --viz-other: #5d6676;
+}
+
+/* ===== Neutral and status tokens =====
+   "r g b" channels, used through the parish-* Tailwind colors. The light
+   values are the parchment palette; the admin panel's dark mode
+   (data-mode="dark" on <html>, set by AdminLayout) swaps them. */
+:root {
+  --c-bg: 247 242 232;
+  --c-card: 255 253 248;
+  --c-surface: 255 255 255;
+  --c-field: 253 251 246;
+  --c-sunk: 244 239 227;
+  --c-hover: 247 242 230;
+  --c-track: 241 232 213;
+  --c-line: 241 232 213;
+  --c-line2: 240 232 214;
+  --c-edge: 238 227 206;
+  --c-border: 236 226 205;
+  --c-border-soft: 224 214 193;
+  --c-border-strong: 231 220 196;
+  --c-ink: 23 38 63;
+  --c-text3: 63 59 47;
+  --c-text2: 107 101 82;
+  --c-muted: 138 131 111;
+  --c-faint: 196 187 164;
+  --c-icon: 154 146 127;
+  --c-scrim: 26 43 74;
+  --c-warn: 161 118 43;
+  --c-warn-strong: 122 90 30;
+  --c-warn-bg: 253 246 232;
+  --c-warn-tint: 246 227 189;
+  --c-warn-border: 236 211 166;
+  --c-info: 43 70 111;
+  --c-info-border: 212 224 242;
+  --c-focus-line: 205 215 232;
+  --c-blue-soft: 244 247 252;
+  --c-chip: 122 106 62;
+  --c-error: 161 61 41;
+  --c-error-bg: 251 238 234;
+  --c-error-border: 240 206 195;
+  --c-ok: 47 107 72;
+  --c-ok-text: 47 122 82;
+  --c-ok-bg: 234 244 238;
+  --c-ok-tint: 243 250 246;
+  --c-ok-border: 191 224 204;
+}
+:root[data-mode='dark'] {
+  --c-bg: 17 21 27;
+  --c-card: 24 29 37;
+  --c-surface: 30 36 46;
+  --c-field: 20 25 32;
+  --c-sunk: 35 42 53;
+  --c-hover: 33 40 51;
+  --c-track: 42 49 61;
+  --c-line: 38 45 56;
+  --c-line2: 42 49 60;
+  --c-edge: 47 55 68;
+  --c-border: 44 52 65;
+  --c-border-soft: 58 67 82;
+  --c-border-strong: 66 76 92;
+  --c-ink: 230 234 241;
+  --c-text3: 208 214 223;
+  --c-text2: 173 181 194;
+  --c-muted: 143 152 167;
+  --c-faint: 93 102 118;
+  --c-icon: 127 136 152;
+  --c-scrim: 0 0 0;
+  --c-warn: 227 185 104;
+  --c-warn-strong: 235 198 127;
+  --c-warn-bg: 42 35 22;
+  --c-warn-tint: 58 47 26;
+  --c-warn-border: 90 71 36;
+  --c-info: 188 205 236;
+  --c-info-border: 51 67 92;
+  --c-focus-line: 74 93 124;
+  --c-blue-soft: 29 37 51;
+  --c-chip: 214 197 149;
+  --c-error: 242 145 123;
+  --c-error-bg: 54 32 27;
+  --c-error-border: 92 48 39;
+  --c-ok: 134 210 168;
+  --c-ok-text: 134 210 168;
+  --c-ok-bg: 23 48 34;
+  --c-ok-tint: 21 38 28;
+  --c-ok-border: 43 90 61;
+  color-scheme: dark;
+  /* Headings and accents brighten so they read on dark cards. */
+  --p-navy: #eef1f7;
+  --p-blue: color-mix(in srgb, var(--p-blue-light) 70%, white);
+  --p-fill: color-mix(in srgb, var(--p-blue-light) 85%, black);
+  --p-blue-tint: color-mix(in srgb, var(--p-blue-light) 22%, rgb(var(--c-card)));
+  --p-blue-tint-strong: color-mix(in srgb, var(--p-blue-light) 32%, rgb(var(--c-card)));
+  --p-blue-border: color-mix(in srgb, var(--p-blue-light) 55%, rgb(var(--c-card)));
+  --p-gold-tint: color-mix(in srgb, var(--p-gold) 22%, rgb(var(--c-card)));
+  --p-gold-deep: var(--p-gold-light);
+  --p-eyebrow: var(--p-gold-light);
+}
+
+* { box-sizing: border-box; }
+
+.census-ticker__window { overflow: hidden; }
+.census-ticker__track {
+  display: inline-flex;
+  width: max-content;
+  gap: 4rem;
+  animation: census-ticker-scroll 24s linear infinite;
+}
+@keyframes census-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .census-ticker__track { animation: none; }
+}
+
+/* Home's running line of prayer requests (PrayerTicker.jsx). Two copies of
+   the line, each with the gap after it, so moving by half loops seamlessly.
+   It stops on hover, focus or the pause button; with reduced motion it
+   stays still and scrolls sideways, without the copy. */
+.prayer-ticker__window { overflow: hidden; }
+.prayer-ticker__track {
+  display: inline-flex;
+  width: max-content;
+  animation: prayer-ticker-scroll var(--ticker-duration, 40s) linear infinite;
+}
+.prayer-ticker__copy { display: inline-flex; gap: 2.5rem; padding-right: 2.5rem; }
+.prayer-ticker__window:hover .prayer-ticker__track,
+.prayer-ticker__window:focus-within .prayer-ticker__track,
+.prayer-ticker.is-paused .prayer-ticker__track { animation-play-state: paused; }
+@keyframes prayer-ticker-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .prayer-ticker__window { overflow-x: auto; }
+  .prayer-ticker__track { animation: none; }
+  .prayer-ticker__copy[aria-hidden="true"], .prayer-ticker__pause { display: none; }
+}
+
+.census-update-cta {
+  animation: census-cta-attention 3.6s ease-in-out infinite;
+  box-shadow: 0 8px 20px -10px rgba(228, 192, 106, .95);
+}
+.census-update-cta:hover { animation-play-state: paused; }
+@keyframes census-cta-attention {
+  0%, 68%, 100% { transform: translateY(0) scale(1); box-shadow: 0 8px 20px -10px rgba(228, 192, 106, .95); }
+  74% { transform: translateY(-2px) scale(1.025); box-shadow: 0 12px 24px -8px rgba(228, 192, 106, .98); }
+  80% { transform: translateY(0) scale(1); box-shadow: 0 8px 20px -10px rgba(228, 192, 106, .95); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .census-update-cta { animation: none; }
+}
+
+body {
+  margin: 0;
+  background: rgb(var(--c-bg));
+  color: rgb(var(--c-ink));
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+select {
+  -webkit-appearance: none;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='none' stroke='%237a7360' stroke-width='1.6' d='M1 1.5 6 6l5-4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
+}
+
+/* Admin dialogs: at most 90% of the screen, and on phones never taller than
+   the space left by the browser's toolbars (svh), so the buttons at the end
+   stay reachable. Browsers without svh keep the 90vh line. */
+.max-h-dialog { max-height: 90vh; max-height: min(90vh, calc(100svh - 2rem)); }
+
+::-webkit-scrollbar { height: 10px; width: 10px; }
+::-webkit-scrollbar-thumb { background: #d9cdb4; border-radius: 8px; border: 2px solid #f7f2e8; }
+
+/* The household record sheet is rendered off-screen and only revealed for
+   printing. Screen readers skip it via aria-hidden on the element itself. */
+#print-sheet {
+  position: absolute;
+  left: -10000px;
+  top: 0;
+  width: 210mm;
+  font-family: 'Source Sans 3', system-ui, sans-serif;
+  color: #17263f;
+  background: #fff;
+}
+
+@media print {
+  @page { margin: 14mm; }
+
+  /* Hide the app chrome without unmounting it, so print state is preserved. */
+  body > #root { display: none !important; }
+  /* White paper whatever the theme: dark mode's color-scheme would tint the
+     page and the form controls (the survey checkboxes) dark. */
+  html, body, #print-sheet { background: #fff !important; color-scheme: light !important; }
+
+  #print-sheet {
+    position: static !important;
+    left: auto !important;
+    width: auto !important;
+    padding: 0;
+  }
+
+  #print-sheet figure,
+  #print-sheet table { break-inside: avoid; }
+
+  /* Census forms: one household per page. */
+  #print-sheet .census-page { break-after: page; }
+  #print-sheet .census-page:last-child { break-after: auto; }
+
+  * { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
