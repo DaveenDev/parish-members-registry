@@ -115,8 +115,10 @@ function KomunidadPage({ params }) {
       {/* On the darker cream, between the prayer requests and the articles on the page's own. */}
       <section id="mga-gkk" aria-labelledby="gkk-title" className="scroll-mt-20 py-7 lg:py-12 border-y" style={FOOTER_CREAM}>
         <div className={WRAP}>
-          <Eyebrow>Gagmay nga Kristohanong Katilingban</Eyebrow>
-          <h2 id="gkk-title" className="m-0 mb-4 lg:mb-6 font-serif text-[28px] lg:text-[36px] font-bold text-parish-navy leading-tight">Mga GKK</h2>
+          <div data-reveal>
+            <Eyebrow>Gagmay nga Kristohanong Katilingban</Eyebrow>
+            <h2 id="gkk-title" className="m-0 mb-4 lg:mb-6 font-serif text-[28px] lg:text-[36px] font-bold text-parish-navy leading-tight">Mga GKK</h2>
+          </div>
           <GkkDirectory />
         </div>
       </section>
@@ -164,7 +166,7 @@ function PrayerSection() {
     <section id="pag-ampo" aria-labelledby="prayers-title" className="scroll-mt-20 py-7 lg:py-12">
       <div className={WRAP}>
         <div className="flex items-end justify-between gap-x-6 gap-y-3 flex-wrap mb-4 lg:mb-6">
-          <div className="min-w-0">
+          <div data-reveal className="min-w-0">
             <Eyebrow>Mag-ampo kita alang sa usag usa</Eyebrow>
             <h2 id="prayers-title" className="m-0 font-serif text-[28px] lg:text-[36px] font-bold text-parish-navy leading-tight">Mga Hangyo sa Pag-ampo</h2>
             <p className="m-0 mt-0.5 text-[15px] lg:text-[16px] leading-normal text-[#4d4636]">Ang mga hangyo nga gusto sa mga parokyano nga ipaambit. Ampoan sila sa pari ug sa parokya.</p>

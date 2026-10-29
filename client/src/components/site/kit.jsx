@@ -77,11 +77,14 @@ export function PageTitle({ children, className = 'mb-3.5' }) {
   return <h1 className={`font-serif font-semibold text-[32px] lg:text-[46px] leading-[1.08] mt-0.5 text-parish-navy ${className}`}>{children}</h1>;
 }
 
-/** Eyebrow + title, with the section switch under them on phones and beside them on desktop. */
+/**
+ * Eyebrow + title, with the section switch under them on phones and beside
+ * them on desktop. They come in one after the other (site-stagger).
+ */
 export function PageHeader({ eyebrow, title, children }) {
   return (
-    <div className="lg:flex lg:items-end lg:justify-between lg:gap-6 lg:mb-[22px]">
-      <div>
+    <div className="site-stagger lg:flex lg:items-end lg:justify-between lg:gap-6 lg:mb-[22px]">
+      <div className="site-stagger">
         <Eyebrow>{eyebrow}</Eyebrow>
         <PageTitle className="mb-3.5 lg:mb-0">{title}</PageTitle>
       </div>
@@ -110,7 +113,7 @@ export function MessengerButton({ href, className = '' }) {
 /** A section title with an optional link on the right. `dark` is for sections on the navy band. */
 export function SectionHead({ title, to, action, actionLg, dark = false }) {
   return (
-    <div className="flex items-baseline justify-between mb-2.5 lg:mb-3.5">
+    <div data-reveal className="flex items-baseline justify-between mb-2.5 lg:mb-3.5">
       <h2 className={`font-serif font-semibold text-[25px] lg:text-[30px] m-0 ${dark ? 'text-white' : 'text-parish-navy'}`}>{title}</h2>
       {to && (
         <Link to={to} className={`min-h-[44px] inline-flex items-center font-bold text-[14.5px] lg:text-[15px] ${dark ? 'text-[var(--p-gold-light)] hover:underline' : 'text-parish-blue'}`}>

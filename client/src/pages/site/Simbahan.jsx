@@ -41,8 +41,8 @@ export default function Simbahan() {
     <main className="animate-fadeUp">
       <Band aria-labelledby="simbahan-title">
         <div className={`${WRAP} ${BAND_PAD}`}>
-          <div className="lg:flex lg:items-end lg:justify-between lg:gap-6">
-            <div>
+          <div className="site-stagger lg:flex lg:items-end lg:justify-between lg:gap-6">
+            <div className="site-stagger">
               <Eyebrow>Pulong, Misa ug Sakramento</Eyebrow>
               <h1 id="simbahan-title" className="font-serif font-semibold text-[32px] lg:text-[46px] leading-[1.08] mt-0.5 mb-3 lg:mb-0 text-parish-navy">Ang Simbahan</h1>
             </div>
@@ -53,7 +53,7 @@ export default function Simbahan() {
 
       <section id="misa" aria-labelledby="misa-title" className="scroll-mt-16 lg:scroll-mt-[76px] py-7 lg:py-12">
         <div className={WRAP}>
-          <div className="mb-3 lg:mb-[22px]">
+          <div data-reveal className="mb-3 lg:mb-[22px]">
             <Eyebrow>Iskedyul sa Misa</Eyebrow>
             <h2 id="misa-title" className="m-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Misa</h2>
           </div>
@@ -108,7 +108,7 @@ function TeachingTabs({ tab, onTab, chart, onChart, jump }) {
     <Band id="tudlo" aria-labelledby="tudlo-section-title" className="scroll-mt-16 lg:scroll-mt-[76px] border-t">
       <div className={`${WRAP} ${BAND_PAD}`}>
         <div className="lg:flex lg:items-end lg:justify-between lg:gap-6 lg:mb-[22px]">
-          <div>
+          <div data-reveal>
             <Eyebrow>Mga giya ug ang parokya</Eyebrow>
             {/* The switch names the part shown, so the heading names the section, not the part again. */}
             <h2 id="tudlo-section-title" className="m-0 mb-3 lg:mb-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">

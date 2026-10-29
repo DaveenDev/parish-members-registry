@@ -11,6 +11,7 @@ import { messengerLink, validCoords } from '../../lib/website.js';
 import { applyPageMeta, canonicalUrl, pageDescription, pageNoindex, parishJsonLd, resetPageMeta } from '../../lib/seo.js';
 import { useCensusProgress, useOffice, useParishTitle } from './data.js';
 import { preloadSitePages } from './lazyPages.js';
+import { useScrollReveal } from '../../components/site/useScrollReveal.js';
 
 // The parish's name is the one saved in Parish Config (useParishTitle, in data.js),
 // its address, map link and pin the ones saved in Parish Website → Office.
@@ -89,6 +90,8 @@ export default function SiteLayout() {
   const logo = useParishLogo();
   const parish = useParishTitle();
   const isRoot = ROOTS.includes(pathname);
+  const content = useRef(null);
+  useScrollReveal(content);
 
   const say = useCallback((msg) => {
     clearTimeout(timer.current);
@@ -178,7 +181,7 @@ export default function SiteLayout() {
           )}
 
           {/* A page opened for the first time loads its code (lazyPages.js) under the header. */}
-          <div id="sulod" tabIndex={-1} className="lg:flex-1 outline-none"><Suspense fallback={<div className="min-h-[70vh]" />}><Outlet /></Suspense></div>
+          <div id="sulod" ref={content} tabIndex={-1} className="lg:flex-1 outline-none"><Suspense fallback={<div className="min-h-[70vh]" />}><Outlet /></Suspense></div>
 
           <DesktopFooter />
 

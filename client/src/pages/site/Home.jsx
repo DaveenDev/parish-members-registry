@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Card, ErrorNote, SectionHead, Skeletons, Skeleton } from '../../components/site/kit.jsx';
@@ -68,17 +68,17 @@ export default function Home() {
         {hero && (
           <>
             {/* Desktop: the photo behind the hero, faded to cream on the left so the text stays readable. */}
-            <img src={hero} alt="" aria-hidden="true" className="hidden lg:block absolute inset-0 w-full h-full object-cover" />
+            <img src={hero} alt="" aria-hidden="true" className="site-hero-photo hidden lg:block absolute inset-0 w-full h-full object-cover" />
             <div aria-hidden="true" className="hidden lg:block absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(247,242,232,.97) 0%, rgba(247,242,232,.9) 34%, rgba(247,242,232,.35) 56%, rgba(247,242,232,0) 72%)' }} />
             {/* Phones: the photo as a banner, fading into the hero below it. */}
-            <div className="lg:hidden relative h-[210px]">
-              <img src={hero} alt={parish.full} className="absolute inset-0 w-full h-full object-cover" />
+            <div className="lg:hidden relative h-[210px] overflow-hidden">
+              <img src={hero} alt={parish.full} className="site-hero-photo absolute inset-0 w-full h-full object-cover" />
               <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-20" style={{ background: 'linear-gradient(180deg, rgba(247,242,232,0) 0%, #f7f2e8 100%)' }} />
             </div>
           </>
         )}
         <div className="relative lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-16 lg:pb-[60px] lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-14 lg:items-center lg:min-h-[480px]">
-          <div className={`text-center px-[22px] pb-7 lg:text-left lg:p-0 ${hero ? 'pt-2' : 'pt-[30px]'}`}>
+          <div className={`site-stagger text-center px-[22px] pb-7 lg:text-left lg:p-0 ${hero ? 'pt-2' : 'pt-[30px]'}`}>
             <div className="font-bold text-[11.5px] lg:text-[12.5px] tracking-[.2em] lg:tracking-[.22em] uppercase text-[var(--p-eyebrow)] mb-2.5 lg:mb-3">Rehistro sa mga Miyembro sa Parokya</div>
             <h1 className="font-serif font-semibold text-[38px] lg:text-[64px] leading-[1.02] lg:leading-[.98] m-0 mb-1 lg:mb-1.5 text-parish-navy">{parish.name}</h1>
             {parish.sub && <div className="font-serif text-[20px] lg:text-[27px] text-parish-blue tracking-[.04em] mb-4 lg:mb-5">{parish.sub}</div>}
@@ -369,7 +369,7 @@ function ParishStats({ mass }) {
   const sub = (t) => (t.key === 'gkks' && s.oldest_gkk_year ? `Sukad ${s.oldest_gkk_year}` : null);
   return (
     <section className="hidden lg:block max-w-[1240px] mx-auto px-6 pt-11">
-      <div className="flex items-baseline justify-between gap-4 mb-3.5">
+      <div data-reveal className="flex items-baseline justify-between gap-4 mb-3.5">
         <div>
           <div className="font-bold text-[12px] tracking-[.18em] uppercase text-[var(--p-eyebrow)] mb-1">Parokya sa usa ka tan-aw</div>
           <h2 className="font-serif font-semibold text-[32px] m-0 text-parish-navy">Atong pamilya sa parokya</h2>
@@ -385,7 +385,7 @@ function ParishStats({ mass }) {
                 <Icon name={t.icon} size={30} />
               </span>
               <div className="min-w-0">
-                <div className="font-serif text-[36px] font-bold text-parish-blue leading-none">{n.toLocaleString('en-US')}</div>
+                <div className="font-serif text-[36px] font-bold text-parish-blue leading-none"><CountUp value={n} /></div>
                 <div className="font-bold text-[11px] tracking-[.1em] uppercase text-parish-text2 mt-1.5 leading-[1.3]">{t.label}</div>
                 {sub(t) && <div className="text-[12px] text-parish-text2 mt-0.5">{sub(t)}</div>}
               </div>
@@ -394,6 +394,43 @@ function ParishStats({ mass }) {
         })}
       </div>
     </section>
+  );
+}
+
+const stillMotion = () => typeof IntersectionObserver === 'undefined' || !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+/**
+ * A total that counts up from 0 the first time it's on screen, easing out
+ * over COUNT_MS. Screen readers get the number itself; with reduced motion
+ * it simply shows.
+ */
+const COUNT_MS = 1400;
+function CountUp({ value }) {
+  const ref = useRef(null);
+  const [shown, setShown] = useState(() => (stillMotion() ? value : 0));
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || stillMotion()) { setShown(value); return undefined; }
+    let frame = 0;
+    const io = new IntersectionObserver(([e]) => {
+      if (!e.isIntersecting) return;
+      io.disconnect();
+      const start = performance.now();
+      const tick = (now) => {
+        const p = Math.min(1, (now - start) / COUNT_MS);
+        setShown(Math.round(value * (1 - (1 - p) ** 3)));
+        if (p < 1) frame = requestAnimationFrame(tick);
+      };
+      frame = requestAnimationFrame(tick);
+    });
+    io.observe(el);
+    return () => { io.disconnect(); cancelAnimationFrame(frame); };
+  }, [value]);
+  return (
+    <span ref={ref}>
+      <span aria-hidden="true">{shown.toLocaleString('en-US')}</span>
+      <span className="sr-only">{value.toLocaleString('en-US')}</span>
+    </span>
   );
 }
 
@@ -421,7 +458,7 @@ function LatestArticles() {
 function ArticleRow({ a, flip }) {
   const path = articlePath(a.id);
   return (
-    <div className="relative">
+    <div data-reveal className="relative site-lift-group">
       <CardShare title={a.title} path={path} />
       <Link
         to={path}
@@ -446,7 +483,7 @@ function ArticleRow({ a, flip }) {
 
 function QuickLink({ to, icon, sub, children }) {
   return (
-    <Link to={to} className="min-h-[88px] bg-parish-card border border-parish-border rounded-2xl p-3 flex flex-col gap-2 text-parish-blue lg:rounded-[18px] lg:p-[18px] lg:gap-3 hover:border-[var(--p-blue-border)]">
+    <Link to={to} data-reveal className="site-lift min-h-[88px] bg-parish-card border border-parish-border rounded-2xl p-3 flex flex-col gap-2 text-parish-blue lg:rounded-[18px] lg:p-[18px] lg:gap-3 hover:border-[var(--p-blue-border)]">
       <Icon name={icon} size={24} className="lg:w-7 lg:h-7" />
       <span className="font-semibold text-[14.5px] leading-[1.25] text-parish-ink lg:font-bold lg:text-[17px]">{children}</span>
       {sub && <span className="hidden lg:block -mt-1 text-[14.5px] text-parish-text2">{sub}</span>}

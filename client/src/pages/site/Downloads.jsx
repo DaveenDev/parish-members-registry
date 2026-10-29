@@ -59,7 +59,7 @@ export default function Downloads() {
   return (
     <main className="animate-fadeUp">
       <Band aria-label="Downloads">
-        <div className={`${WRAP} ${BAND_PAD}`}>
+        <div className={`${WRAP} ${BAND_PAD} site-stagger`}>
           <PageHeader eyebrow="Downloads" title="Forms and Song Lyrics" />
           <p className="m-0 mb-3.5 lg:mt-1 lg:mb-5 text-[15px] lg:text-[17px] leading-normal text-[#4d4636] max-w-[720px]">
             Mga porma gikan sa opisina sa parokya nga ma-download ug ma-print, ug ang mga liriko sa mga kanta sa Kasaulogan sa GKK, Bible Service ug uban pa.
