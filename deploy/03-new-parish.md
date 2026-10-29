@@ -35,17 +35,27 @@ as they are. Rather have it set up for you? See
 
   ```bash
   git add -A
-  git commit -m "Initial commit"
+  git -c user.name="<Parish name>" -c user.email="<parish GitHub email>" commit -m "Initial commit"
   git remote add parish https://github.com/<owner>/<repository>.git
   git push parish parish-fresh:main
   ```
+
+  The `-c` settings make the **parish** the commit's author, for that one
+  command only. Vercel's free Hobby plan builds a private repository only
+  from commits its owner wrote: it matches the commit's author email to a
+  GitHub account, and a commit authored by you stops with "the commit author
+  doesn't have permission to create deployments". Use an email the parish's
+  GitHub account has verified, or its noreply address (GitHub → Settings →
+  Emails). Don't set it with plain `git config`: that changes the author of
+  every commit in the folder, `main` included. Step 5 covers later pushes.
 
   If the whole history went up by mistake, undo it by deleting the repository
   in GitHub (Settings → Danger Zone), recreating it empty and pushing again.
   A force-push is not enough: the old commits stay reachable by their SHA for
   a while.
 - New Supabase, Vercel and Cloudflare accounts, ideally under the **parish's
-  own Gmail**, with you added as a member. The free Supabase plan's 2 projects
+  own Gmail**, with you added as a member (Vercel's Hobby plan has no members:
+  sign in to it as the parish). The free Supabase plan's 2 projects
   are taken by the live and demo sites of one parish, and the parish
   should own its parishioners' data.
 
@@ -177,14 +187,33 @@ git tag parish-synced main
 git worktree add ../registry-parish parish-fresh
 ```
 
+Make the parish the author of what you commit in that folder only (see the
+Hobby plan note in step 1), leaving this folder's `main` as you:
+
+```bash
+cd ../registry-parish
+git config extensions.worktreeConfig true
+git config --worktree user.name "<Parish name>"
+git config --worktree user.email "<parish GitHub email>"
+```
+
 For each round of changes, after committing on `main`:
 
 ```bash
 cd ../registry-parish
 git cherry-pick parish-synced..main
+git commit --amend --no-edit --reset-author
 git tag -f parish-synced main
 git push parish parish-fresh:main
 ```
+
+- A cherry-pick keeps the original author, you, and Vercel looks at the
+  newest commit of the push. The `--amend --reset-author` line makes the
+  parish the author of that newest one, so the deploy isn't blocked. Skip
+  it when every commit of the round was skipped: the newest commit is then
+  one already pushed, and amending it would need a force-push. To deploy
+  without new changes, push an empty commit instead:
+  `git commit --allow-empty -m "Trigger deploy"`.
 
 - A commit that only edits files the copy removed (the README, `docs/`,
   `deploy/`) stops with a modify/delete conflict. Drop the file with
