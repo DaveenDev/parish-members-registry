@@ -156,6 +156,13 @@ name another parish's project.
    organizations, Mass schedule, office contact. Run the migrations with
    `npx supabase link --project-ref <the new live project>` and
    `npx supabase db push`.
+
+   **The first staff admin is made in SQL** (01 step 6), in the new live
+   project's SQL Editor. Adding your email under Authentication → Users
+   only makes a login whose staff profile is not an admin and has no
+   access, so you aren't an admin yet. Run 01 step 6's
+   `insert into profiles` with your email, then sign out and back in.
+   Every other account is made from Settings → Staff.
 2. [02-demo.md](02-demo.md), if the parish wants a demo site.
 3. **Deploy the three Edge Functions** to the new live project. The scripts
    of step 2 name the project, so they deploy there whichever project the CLI

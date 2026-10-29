@@ -99,18 +99,23 @@ Supabase dashboard:
 ## Step 6. The first staff admin
 
 1. **Authentication → Users → Add user → Create new user**: your email, a
-   strong password, tick **Auto Confirm User**. Copy the new user's **UID**.
-2. **SQL Editor**, with the UID pasted in:
+   strong password, tick **Auto Confirm User**.
+2. **SQL Editor**, with your email and name:
 
    ```sql
    insert into profiles (id, name, role, is_admin, access)
-   values ('<uid>', 'Your Name', 'Parish Secretary', true, 'full')
+   select id, 'Your Name', 'Parish Secretary', true, 'full'
+   from auth.users
+   where email = 'your-email@example.com'
    on conflict (id) do update
      set name = excluded.name, role = excluded.role, is_admin = true, access = 'full';
    ```
 
-   `access = 'full'` matters: since migration 0065 a new login has no access
-   until someone gives it some, and you're the first.
+   It should say 1 row affected; 0 means that email has no login in this
+   project yet (step 1). Adding the user makes a staff profile by itself,
+   but not an admin one, and since migration 0065 with no access until
+   someone gives it some. You're the first, so it's set here.
+3. Sign out of the admin panel and back in, so it reads the new profile.
 
 Every other account is made in the admin panel (Settings → Staff), not here.
 
