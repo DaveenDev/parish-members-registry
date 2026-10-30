@@ -229,9 +229,11 @@ git push parish parish-fresh:main
 - Files the copy changed for its parish (`database.js`, `vercel.json`,
   `.env.production`, `package.json`) can conflict. Keep the parish's values
   and take the rest.
-- Pushing doesn't run anything on Supabase. A new migration still needs
-  `npx supabase db push`, and a change under `supabase/functions/` needs the
-  matching deploy command of step 4, both against the parish's project.
+- Pushing doesn't run anything on Supabase. Run a new migration on the
+  parish's database **before** pushing, from the original folder with
+  `npm run release:db -- <parish>`; see [04-releases.md](04-releases.md).
+  A change under `supabase/functions/` needs the matching deploy command of
+  step 4, from this folder.
 
 ## Step 6. Hand over
 

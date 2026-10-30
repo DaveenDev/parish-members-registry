@@ -223,16 +223,15 @@ Editor → `select * from cron.job;` lists `staff-morning-digest`. Details:
   [docs/backups.md](../docs/backups.md), then **Actions → Encrypted database
   backup → Run workflow** and check the file appears in the bucket.
 
-## Step 13. Migrations from GitHub (optional)
+## Step 13. New migrations later
 
-So new migrations run on the live database when they reach `main`:
-Supabase → Project Settings → Integrations → **GitHub** → connect the
-repository, Supabase directory `supabase`, production branch `main`, "Deploy
-to production" **on**.
+Later migrations go out with `npm run release:db`, demo site first, each
+database before its website: see [04-releases.md](04-releases.md). Add this
+project's Session pooler connection string to `parishes.json` there.
 
-Because step 3 used `db push`, the migration history is already complete; the
-one-time marking in [docs/github-migrations.md](../docs/github-migrations.md)
-is only for a project whose migrations were pasted into the SQL editor.
+Leave Supabase's GitHub integration ("Deploy to production") **off**: it
+runs migrations while Vercel rebuilds the website, so the database can't go
+first.
 
 ## Step 14. Search engines (Google Search Console)
 

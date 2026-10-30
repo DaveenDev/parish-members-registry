@@ -1,0 +1,21 @@
+[
+  {
+    "name": "demo",
+    "label": "Demo site",
+    "projectRef": "qyoyuukpdjrwfhovtrwd",
+    "backup": false,
+    "dbUrl": "postgresql://postgres.qyoyuukpdjrwfhovtrwd:<password>@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+  },
+  {
+    "name": "muaan",
+    "label": "Guadalupe, Mua-an",
+    "projectRef": "rmlkowkbonbrtaqocsvo",
+    "dbUrl": "postgresql://postgres.rmlkowkbonbrtaqocsvo:<password>@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+  },
+  {
+    "name": "sjmv",
+    "label": "SJMV Parish",
+    "projectRef": "ixfzajjtzuwelkjnssjt",
+    "dbUrl": "postgresql://postgres.ixfzajjtzuwelkjnssjt:<password>@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+  }
+]
