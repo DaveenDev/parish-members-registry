@@ -615,6 +615,27 @@ export function initialsOf(name) {
   return String(name || '').split(/\s+/).filter(Boolean).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
 }
 
+// ---- Sacrament milestones ---------------------------------------------------
+
+const MILESTONES = [
+  ['baptism', 'nabunyagan'],
+  ['communion', 'nakadawat sa Unang Kalawat'],
+  ['confirmation', 'nakumpirmahan'],
+  ['matrimony', 'nakasal'],
+];
+
+/**
+ * The year's sacraments for the Home strip, from public_sacrament_milestones
+ * (0106): [{ key, count, label }], leaving out the ones under 5 (the database
+ * sends null) so a small number points at no one. Empty for nothing to show.
+ */
+export function milestoneItems(data) {
+  if (!data) return [];
+  return MILESTONES
+    .filter(([key]) => Number.isFinite(Number(data[key])) && data[key] !== null && Number(data[key]) >= 5)
+    .map(([key, label]) => ({ key, count: Number(data[key]), label }));
+}
+
 // ---- Office hours ---------------------------------------------------------
 
 const range = (a, b) => `${fmtTime12(a)} – ${fmtTime12(b)}`;

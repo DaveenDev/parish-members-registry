@@ -6,7 +6,7 @@ import { AnnouncementCard, ArticleChip, CardShare, EventCard } from '../../compo
 import CreditFooter from '../../components/CreditFooter.jsx';
 import VerseOfDay from '../../components/site/VerseOfDay.jsx';
 import PrayerTicker from '../../components/site/PrayerTicker.jsx';
-import { ARTICLES_PAGE, BIS_DAYS, KALENDARYO_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, fmtTime12, massKindLabel, nextMassDays, parseIso } from '../../lib/site.js';
+import { ARTICLES_PAGE, BIS_DAYS, KALENDARYO_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, fmtTime12, massKindLabel, milestoneItems, nextMassDays, parseIso } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
 import { manilaNow } from '../../lib/manila.js';
 import { api } from '../../api.js';
@@ -169,6 +169,8 @@ export default function Home() {
       </section>
 
       <ParishStats mass={mass} />
+
+      <SacramentMilestones />
 
       <LatestArticles />
 
@@ -394,6 +396,35 @@ function ParishStats({ mass }) {
             </div>
           );
         })}
+      </div>
+    </section>
+  );
+}
+
+/**
+ * "Karong 2026: 84 ang nabunyagan · 140 ang nakumpirmahan…": this year's
+ * sacraments as a celebratory strip. Totals only, from the dates families
+ * gave; a count under 5 is left out (milestoneItems), and the strip with it
+ * when none is left, while loading, on error or before 0106 is run.
+ */
+function SacramentMilestones() {
+  const q = usePublicData('milestones', api.publicSacramentMilestones);
+  const items = milestoneItems(q.data);
+  if (q.loading || !items.length) return null;
+  return (
+    <section aria-labelledby="milestones-title" className="px-3.5 pt-7 lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-12">
+      <div className="rounded-2xl lg:rounded-[20px] border px-4 py-5 lg:px-8 lg:py-7" style={{ background: 'var(--p-gold-tint)', borderColor: 'color-mix(in srgb, var(--p-gold) 45%, white)' }}>
+        <div className="font-bold text-[11.5px] lg:text-[12px] tracking-[.18em] uppercase text-[var(--p-eyebrow)] mb-1">Mga Sakramento</div>
+        <h2 id="milestones-title" className="m-0 mb-3 font-serif font-semibold text-[25px] lg:text-[30px] text-parish-navy">Karong {q.data.year}</h2>
+        <ul className="list-none m-0 p-0 grid grid-cols-2 gap-3 lg:flex lg:flex-wrap lg:gap-x-10 lg:gap-y-3">
+          {items.map((m) => (
+            <li key={m.key} className="min-w-0">
+              <span className="font-serif font-bold text-[34px] lg:text-[40px] leading-none text-parish-blue">{m.count.toLocaleString('en-US')}</span>
+              <span className="block text-[14px] lg:text-[15px] text-[#4d4636] leading-snug mt-0.5">ang {m.label}</span>
+            </li>
+          ))}
+        </ul>
+        <p className="m-0 mt-3 text-[13px] text-parish-text2">Ihap lang, walay ngalan.</p>
       </div>
     </section>
   );

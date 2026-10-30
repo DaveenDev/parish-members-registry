@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { barangayCodeSuggestion, barangayPatch, filterGkks, gkkBarangayOf, gkkBarangays, gkkParts, gkksByBarangay, isListedBarangay } from '../src/lib/site.js';
+import { barangayCodeSuggestion, barangayPatch, filterGkks, gkkBarangayOf, gkkBarangays, gkkParts, gkksByBarangay, isListedBarangay, milestoneItems } from '../src/lib/site.js';
 
 const gkks = [
   { name: 'Sto. Niño -Ginatilan', puroks: 'Purok 1, Purok 2' },
@@ -82,4 +82,10 @@ test('barangayPatch picks a barangay’s only GKK, but never replaces a chosen o
   assert.deepEqual(barangayPatch({ gkk: 'San Isidro -Meohao' }, 'Balabag', names, saved), { barangay: 'Balabag' });
   assert.deepEqual(barangayPatch({ gkk: '' }, 'Meohao', names, saved), { barangay: 'Meohao' });
   assert.deepEqual(barangayPatch({ gkk: '' }, 'Poblacion', names, saved), { barangay: 'Poblacion' });
+});
+
+test('milestoneItems: the year\'s sacraments, leaving out any under 5', () => {
+  assert.deepEqual(milestoneItems({ year: 2026, baptism: 84, communion: null, confirmation: 140, matrimony: 4 }).map((m) => [m.key, m.count]), [['baptism', 84], ['confirmation', 140]]);
+  assert.deepEqual(milestoneItems({ year: 2026, baptism: null }), []);
+  assert.deepEqual(milestoneItems(null), []);
 });

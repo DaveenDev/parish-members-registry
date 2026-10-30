@@ -197,6 +197,17 @@ export const api = {
   },
 
   /** The logo uploaded in Parish Config (a data URL), or null if there isn't one. */
+  /**
+   * This year's sacraments (0106): { year, baptism, communion, confirmation,
+   * matrimony }, a count under 5 null. Before the migration (or on any
+   * error) nothing, and the website leaves the strip out.
+   */
+  async publicSacramentMilestones() {
+    const { data, error } = await supabase.rpc('public_sacrament_milestones', { p_year: null });
+    if (error) return null;
+    return data || null;
+  },
+
   async publicParishLogo() {
     const { data, error } = await supabase.rpc('public_parish_logo');
     if (error) throw mapError(error);
