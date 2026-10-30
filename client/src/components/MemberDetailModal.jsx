@@ -174,7 +174,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
     const name = [member?.first_name, member?.last_name].filter(Boolean).join(' ') || 'this member';
     const ok = await confirm({
       title: `Remove ${name}?`,
-      message: 'The member record moves to the Trash, where it can be restored for 30 days.',
+      message: 'The member record moves to the Trash, where it can be restored for 3 months.',
       confirmLabel: 'Remove member',
       tone: 'danger',
     });

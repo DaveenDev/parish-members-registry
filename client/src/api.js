@@ -22,6 +22,7 @@ import { addDays, ANNOUNCEMENT_DAYS, todayIso } from './lib/website.js';
 import { MEN_ONLY_FALLBACK, menOnlyBlocked, menOnlyMessage } from './lib/ministries.js';
 import { resizePhotoBlob } from './lib/images.js';
 import { gkkDocumentPath, gkkDocumentType } from './lib/gkkDocuments.js';
+import { trashFiles, trashKindHasFiles } from './lib/trash.js';
 import { cleanLyrics, downloadFilePath, downloadFileType } from './lib/downloads.js';
 
 const MAX_PAGE_SIZE = 100;
@@ -545,15 +546,27 @@ export const api = {
     if (error) throw migrationError(error, 'deleted_records');
     return { rows: data || [] };
   },
-  /** Put a trash entry back. Resolves to { kind, record_id, household_id }. */
-  async restoreDeleted(id) {
-    const { data, error } = await supabase.rpc('restore_deleted', { p_id: id });
+  /**
+   * Put a trash entry back. A household or member (the default, as the Undo
+   * after deleting one has only the entry's id) comes back through
+   * restore_deleted and resolves to { kind, record_id, household_id }; any
+   * other kind through restore_trashed_record (0103), to { kind, record_id }.
+   */
+  async restoreDeleted(id, kind = 'household') {
+    const fn = kind === 'household' || kind === 'member' ? 'restore_deleted' : 'restore_trashed_record';
+    const { data, error } = await supabase.rpc(fn, { p_id: id });
     if (error) throw mapError(error);
     return data;
   },
-  async purgeDeleted(id) {
+  /**
+   * Delete a trash entry for good. An event, article or history chapter keeps
+   * its photos on R2 while it is in the Trash, so they go now (best effort).
+   */
+  async purgeDeleted(id, kind) {
+    const files = trashKindHasFiles(kind) ? await trashEntryFiles(id, kind) : [];
     const { error } = await supabase.rpc('purge_deleted', { p_id: id });
     if (error) throw mapError(error);
+    await Promise.allSettled(files.map((url) => callMediaFunction({ action: 'delete', url })));
   },
 
   /**
@@ -920,12 +933,6 @@ export const api = {
     return data || [];
   },
 
-  async addGkk(name) {
-    const { error } = await supabase.from('gkks').insert({ name });
-    if (error && error.code !== '23505') throw mapError(error);
-    return { ok: true };
-  },
-
   async renameGkk(oldName, newName) {
     const { error } = await supabase.rpc('rename_gkk', { old_name: oldName, new_name: newName });
     if (error) throw mapError(error, { dupLabel: 'A GKK with this name' });
@@ -1109,6 +1116,13 @@ export const api = {
     return { passed: !!data?.passed, steps: data?.steps || [] };
   },
 
+  /** { latest: { taken_at, file_name, size_bytes, run_url } | null, count } of the weekly database backups (0104; staff admins). */
+  async backupStatus() {
+    const { data, error } = await supabase.rpc('backup_status');
+    if (error) throw mapError(error);
+    return data;
+  },
+
   // ---- parish website content (0011 migration) ------------------------
   async listMassSchedules() {
     return listWebsite('mass_schedules', (q) => q.order('day_of_week').order('start_time'));
@@ -1145,12 +1159,8 @@ export const api = {
       throw e;
     }
   },
-  /** Delete an event, then (best effort) its cover on R2 unless another event still uses it. */
-  async deleteEvent(id) {
-    const { data: row } = await supabase.from('events').select('*').eq('id', id).maybeSingle();
-    await deleteWebsiteRow('events', id);
-    if (row?.photo_url) await api.deleteEventCover(row.photo_url, id).catch(() => {});
-  },
+  /** Delete an event. It goes to the Trash (0103) with its cover, which stays on R2 until the Trash entry is deleted for good. */
+  deleteEvent: (id) => deleteWebsiteRow('events', id),
   /**
    * Remove an event cover from R2 unless an event other than `exceptId` still
    * uses it: Duplicate copies the cover, so a series can share one photo.
@@ -1178,13 +1188,8 @@ export const api = {
       throw e;
     }
   },
-  /** Delete an article, then (best effort) its photos on R2; articles don't go to the trash. */
-  async deleteArticle(id) {
-    const { data: row } = await supabase.from('articles').select('*').eq('id', id).maybeSingle();
-    await deleteWebsiteRow('articles', id);
-    const urls = [row?.photo_url, ...(row?.photos || []).map((p) => p.url)].filter(Boolean);
-    await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
-  },
+  /** Delete an article. It goes to the Trash (0103) with its photos, which stay on R2 until the Trash entry is deleted for good. */
+  deleteArticle: (id) => deleteWebsiteRow('articles', id),
 
   // The History page (0068): one main article, then chapters in order of year.
   async listHistory() {
@@ -1199,13 +1204,8 @@ export const api = {
       throw e;
     }
   },
-  /** Delete a chapter, then (best effort) its photos on R2. The main article can't be deleted. */
-  async deleteHistory(id) {
-    const { data: row } = await supabase.from('history_articles').select('*').eq('id', id).maybeSingle();
-    await deleteWebsiteRow('history_articles', id);
-    const urls = [row?.photo_url, row?.body_photo_url, row?.video_url, ...(row?.photos || []).map((p) => p.url)].filter(Boolean);
-    await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
-  },
+  /** Delete a chapter. It goes to the Trash (0103) with its photos, which stay on R2 until the Trash entry is deleted for good. The main article can't be deleted. */
+  deleteHistory: (id) => deleteWebsiteRow('history_articles', id),
 
   // The Downloads page (0096): song lyrics, and forms as files in the public downloads bucket.
   async listSongs() {
@@ -2514,9 +2514,6 @@ export const api = {
     throw new Error('Unsupported source');
   },
 
-  // ---- exports (client-side CSV now — no backend to stream a download from)
-  exportUrl: (name) => `/exports/${name}`,
-
   /**
    * Data for the Membership Activeness analysis: current members with their
    * Practicing Catholic status (0017), and the participation answers behind
@@ -2643,6 +2640,28 @@ async function saveWebsiteRow(table, row, dupLabel) {
 async function deleteWebsiteRow(table, id) {
   const { error } = await supabase.from(table).delete().eq('id', id);
   if (error) throw mapError(error);
+}
+
+/**
+ * The photos on R2 to remove with a trash entry that is being deleted for good
+ * (an event, article or history chapter). An event cover that another event,
+ * live or in the Trash, still uses stays: Duplicate copies a cover, so a
+ * series can share one photo.
+ */
+async function trashEntryFiles(id, kind) {
+  const { data, error } = await supabase.from('deleted_records').select('data').eq('id', id).maybeSingle();
+  if (error || !data) return [];
+  const urls = trashFiles(kind, data.data?.row);
+  if (kind !== 'event') return urls;
+  const unused = [];
+  for (const url of urls) {
+    const [live, trashed] = await Promise.all([
+      supabase.from('events').select('id').eq('photo_url', url).limit(1),
+      supabase.from('deleted_records').select('id').eq('kind', 'event').neq('id', id).eq('data->row->>photo_url', url).limit(1),
+    ]);
+    if (!live.error && !trashed.error && !live.data?.length && !trashed.data?.length) unused.push(url);
+  }
+  return unused;
 }
 
 const REQUEST_TABLES = ['certificate_requests', 'prayer_requests', 'blood_requests', 'blood_donors', 'sacrament_requests'];

@@ -22,6 +22,11 @@ describe('can', () => {
     for (const access of ['read_only', 'gkk_leader', 'website']) assert.ok(!can({ access }, 'exports'), access);
   });
 
+  test('website staff also download the Requests files they run; nobody else without full access does', () => {
+    for (const access of ['full', 'website']) assert.ok(can({ access }, 'exportRequests'), access);
+    for (const access of ['read_only', 'gkk_leader', 'clergy', 'none']) assert.ok(!can({ access }, 'exportRequests'), access);
+  });
+
   test('a GKK leader edits the registry only; website staff edit website and requests', () => {
     assert.ok(can({ access: 'gkk_leader' }, 'editRegistry'));
     assert.ok(!can({ access: 'gkk_leader' }, 'requests'));
@@ -91,6 +96,12 @@ describe('admin nav', async () => {
     assert.ok(!navAllowed(requests, { access: 'gkk_leader' }));
     assert.ok(!navAllowed(navItemFor('/admin/settings/staff'), { access: 'full', isAdmin: false }));
     assert.ok(navAllowed(navItemFor('/admin/settings'), { access: 'read_only' }));
+  });
+
+  test('the Exports page opens for website staff, who download the Requests files, and for no one else new', () => {
+    const exportsItem = navItemFor('/admin/exports');
+    for (const access of ['full', 'website']) assert.ok(navAllowed(exportsItem, { access }), access);
+    for (const access of ['read_only', 'gkk_leader', 'clergy', 'none']) assert.ok(!navAllowed(exportsItem, { access }), access);
   });
 
   test('a login without an access level has only its own account settings (0065)', async () => {

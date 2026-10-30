@@ -5,6 +5,7 @@ import { fmtDate, fmtDateTime, BLOOD_TYPES } from '../../constants.js';
 import { useLiveRefresh, useUrlState } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
+import { trashNote } from '../../lib/trash.js';
 import { Field, TextInput, Select, Checkbox, Badge } from '../ui.jsx';
 import { EmptyState, LoadingState, ErrorState, rowActivationProps, NewItemsNote } from '../admin.jsx';
 import { SidePanel, SectionLabel, TextArea, RowButton, Panel, TabIntro, AddButton, Detail } from '../panels.jsx';
@@ -145,7 +146,7 @@ function BloodRequestDrawer({ request: r, onClose, onSaved, onDeleted }) {
   }
 
   async function remove() {
-    const ok = await confirm({ title: `Delete ${r.ref_no}?`, message: "Only for spam or duplicates. This also removes the contact log. It can't be undone.", confirmLabel: 'Delete', tone: 'danger' });
+    const ok = await confirm({ title: `Delete ${r.ref_no}?`, message: `Only for spam or duplicates. ${trashNote(' with its donor contact log')}`, confirmLabel: 'Delete', tone: 'danger' });
     if (!ok) return;
     try { await api.deleteRequest('blood_requests', r.id); toast.success('Deleted'); onDeleted(); } catch (e) { setError(e.message || 'Could not delete'); }
   }

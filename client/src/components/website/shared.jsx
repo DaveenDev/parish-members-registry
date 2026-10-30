@@ -5,6 +5,7 @@ import { STATE_TONES } from '../../lib/website.js';
 import { useAsyncData } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
+import { TRASHED_WEBSITE_TABLES, trashNote } from '../../lib/trash.js';
 
 export { SidePanel, SectionLabel, TextArea, RowButton, Panel, TabIntro, AddButton } from '../panels.jsx';
 
@@ -41,7 +42,9 @@ export function useContentList({ table, load, remove, describe }) {
   async function removeRow(row) {
     const ok = await confirm({
       title: `Delete “${describe(row)}”?`,
-      message: "This can't be undone. To hide it without deleting, make it a draft instead.",
+      message: `${TRASHED_WEBSITE_TABLES.includes(table)
+        ? trashNote(['events', 'articles', 'history_articles'].includes(table) ? ' with its photos' : '')
+        : "This can't be undone."} To hide it without deleting, make it a draft instead.`,
       confirmLabel: 'Delete',
       tone: 'danger',
     });

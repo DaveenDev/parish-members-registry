@@ -180,8 +180,8 @@ export default function HouseholdEditDrawer({ household, gkkOptions = [], onClos
     const ok = await confirm({
       title: `Remove ${name}?`,
       message: isHead
-        ? `${name} is the ${m.relationship}. After removing them, edit another member of ${m.relationship === HEAD ? 'the household' : 'their family'} and set their relationship to "${m.relationship}". Their record moves to the Trash, where it can be restored for 30 days.`
-        : 'The member record moves to the Trash, where it can be restored for 30 days.',
+        ? `${name} is the ${m.relationship}. After removing them, edit another member of ${m.relationship === HEAD ? 'the household' : 'their family'} and set their relationship to "${m.relationship}". Their record moves to the Trash, where it can be restored for 3 months.`
+        : 'The member record moves to the Trash, where it can be restored for 3 months.',
       confirmLabel: 'Remove member',
       tone: 'danger',
     });
