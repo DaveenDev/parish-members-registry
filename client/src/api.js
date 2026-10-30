@@ -1545,6 +1545,14 @@ export const api = {
   /** { open, label, ends_on, pct, gkks: [{ name, pct|null }] } */
   publicCensusProgress: () => publicRpc('public_census_progress'),
   publicOfficeDetails: () => publicRpc('public_office_details'),
+  /**
+   * The ministries and organizations staff put on the website (0111): [{ kind:
+   * 'ministry'|'organization', id, name, blurb, who_can_join, meets, members
+   * (null under 5), contact: { name, mobile }|null }].
+   */
+  publicGroups: () => publicRpc('public_groups'),
+  /** "Interesado ko" (0111): { ref_no }. payload: groupKind, groupName, fullName, mobile, gkk, message, consent. */
+  submitGroupInterest: (payload) => publicRpc('submit_group_interest', { payload }),
   /** { ref_no, status, registered_on } (the current number, also when found by an old one), or null if not found. */
   registrationStatus: (refNo) => publicRpc('registration_status', { p_ref: refNo }),
 
@@ -1559,6 +1567,50 @@ export const api = {
     return listRequests('certificate_requests', CERT_SELECT);
   },
   saveCertificateRequest: (row) => saveRequestRow('certificate_requests', row, CERT_FIELDS),
+
+  /** "Interesado ko" sign-ups from the website (0111). */
+  async listGroupInterests() {
+    try {
+      return await listRequests('group_interests');
+    } catch (e) {
+      if (/0012_requests/.test(e.message || '')) throw new Error('Run the 0111_group_interests.sql migration in Supabase to use this tab');
+      throw e;
+    }
+  },
+  saveGroupInterest: (row) => saveRequestRow('group_interests', row, GROUP_INTEREST_FIELDS),
+
+  /**
+   * The ministries and organizations with what the website says about each
+   * (0111), for Parish Config → Ministries & Organizations → Website:
+   * [{ kind, id, name, published, public_blurb, who_can_join, meets, contact_* }].
+   */
+  async listGroupDetails() {
+    const read = (table) => supabase.from(table).select('id, name, published, public_blurb, who_can_join, meets, contact_name, contact_mobile, contact_public, contact_consent_on').order('name');
+    const [m, o] = await Promise.all([read('ministries'), read('organizations')]);
+    for (const { error } of [m, o]) {
+      if (error) throw (['42703', 'PGRST204'].includes(error.code) ? new Error('Run the 0111_group_interests.sql migration in Supabase to use this tab') : mapError(error));
+    }
+    return [...(m.data || []).map((r) => ({ ...r, kind: 'ministry' })), ...(o.data || []).map((r) => ({ ...r, kind: 'organization' }))];
+  },
+  /** Save what the website says about one ministry or organization; a contact's consent day is noted when ticked. */
+  async saveGroupDetails(kind, id, fields) {
+    const table = kind === 'ministry' ? 'ministries' : kind === 'organization' ? 'organizations' : null;
+    if (!table) throw new Error('Unknown group');
+    const text = (v) => (String(v ?? '').trim() || null);
+    const patch = {
+      published: !!fields.published,
+      public_blurb: text(fields.public_blurb),
+      who_can_join: text(fields.who_can_join),
+      meets: text(fields.meets),
+      contact_name: text(fields.contact_name),
+      contact_mobile: text(fields.contact_mobile),
+      contact_public: !!fields.contact_public && !!text(fields.contact_name),
+    };
+    patch.contact_consent_on = patch.contact_public ? fields.contact_consent_on || todayIso() : null;
+    const { data, error } = await supabase.from(table).update(patch).eq('id', id).select().single();
+    if (error) throw mapError(error);
+    return { ...data, kind };
+  },
 
   async listSacramentRequests() {
     try {
@@ -2708,7 +2760,8 @@ async function trashEntryFiles(id, kind) {
   return unused;
 }
 
-const REQUEST_TABLES = ['certificate_requests', 'prayer_requests', 'blood_requests', 'blood_donors', 'sacrament_requests'];
+const REQUEST_TABLES = ['certificate_requests', 'prayer_requests', 'blood_requests', 'blood_donors', 'sacrament_requests', 'group_interests'];
+const GROUP_INTEREST_FIELDS = ['group_kind', 'group_name', 'full_name', 'mobile', 'gkk', 'message', 'status', 'source', 'staff_notes'];
 
 // The columns staff may set on each request table. Ref numbers, who handled
 // it and the timestamps are filled in by the database.

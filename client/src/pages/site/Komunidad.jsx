@@ -8,7 +8,8 @@ import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkk
 import { todayIso } from '../../lib/website.js';
 import { PageMeta, useParishTitle, useSiteTitle } from './SiteLayout.jsx';
 import { excerpt } from '../../lib/seo.js';
-import { listState, useArticles, useCensusProgress, useGkkDirectory, useGkkPage, usePrayerWall } from './data.js';
+import { listState, useArticles, useCensusProgress, useGkkDirectory, useGkkPage, useGroups, usePrayerWall } from './data.js';
+import { GROUPS_PAGE } from '../../lib/groups.js';
 import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
 import { PrayerCard } from '../../components/site/prayers.jsx';
 import { PRAYER_FORM, PRAYER_WALL } from '../../lib/prayers.js';
@@ -114,6 +115,7 @@ function KomunidadPage({ params }) {
         )}
       </Band>
       <PrayerSection />
+      <GroupsPointer />
       {/* On the darker cream, between the prayer requests and the articles on the page's own. */}
       <section id="mga-gkk" aria-labelledby="gkk-title" className="scroll-mt-20 py-7 lg:py-12 border-y" style={FOOTER_CREAM}>
         <div className={WRAP}>
@@ -187,6 +189,27 @@ function PrayerSection() {
           {q.rows.length > 0 && <BigButton to={PRAYER_WALL} variant="secondary" className="sm:w-auto sm:px-6">Tan-awa ang tanan ({q.rows.length})</BigButton>}
         </div>
       </div>
+    </section>
+  );
+}
+
+/**
+ * The way to the ministries and organizations (Mga Grupo, 0111), with
+ * "Interesado ko" there. Left out until staff have put one on the website.
+ */
+function GroupsPointer() {
+  const q = listState(useGroups());
+  if (q.loading || q.error || !q.rows.length) return null;
+  return (
+    <section aria-label="Mga ministry ug organisasyon" className={`${WRAP} pb-7 lg:pb-12`}>
+      <Link to={GROUPS_PAGE} className="flex items-center gap-3 rounded-2xl lg:rounded-[18px] border border-parish-border bg-parish-card px-4 py-3.5 lg:px-6 lg:py-5 shadow-cardSm hover:border-[var(--p-blue-border)]">
+        <span className="w-11 h-11 flex-none rounded-xl flex items-center justify-center" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)' }}><Icon name="people" size={22} /></span>
+        <span className="flex-1 min-w-0">
+          <span className="block font-serif font-bold text-[21px] lg:text-[24px] leading-tight text-parish-navy">Mga Ministry ug Organisasyon</span>
+          <span className="block text-[14px] lg:text-[15px] text-parish-text2">Gusto ka mag-alagad? Tan-awa ang mga grupo ug i-tap ang “Interesado ko”.</span>
+        </span>
+        <Icon name="chev" size={18} className="text-parish-muted" />
+      </Link>
     </section>
   );
 }

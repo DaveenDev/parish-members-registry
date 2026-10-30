@@ -22,6 +22,8 @@ function initialValues(F, params) {
     if (f.def !== undefined) values[f.k] = now(f.def);
     const asked = params.get(f.k);
     if (asked && Array.isArray(f.opts) && f.opts.some(([v]) => v === asked)) values[f.k] = asked;
+    // A field taken from the link as it is (the group a sign-up is for).
+    if (asked && f.prefill) values[f.k] = asked.slice(0, 120);
   }));
   return values;
 }
@@ -59,8 +61,11 @@ function SickCallNote() {
 /** A request form: one step at a time, a review before sending, then the reference number. */
 export default function RequestForm() {
   const { form: formId } = useParams();
+  const [params] = useSearchParams();
   const F = FORMS[formId];
   if (!F) return <Navigate to="/serbisyo" replace />;
+  // A form about one group needs the link's group: without it, pick one first.
+  if (F.needs && !params.get(F.needs)) return <Navigate to="/komunidad/grupo" replace />;
   return <FormPage key={formId} F={F} />;
 }
 
@@ -269,7 +274,7 @@ function optionsFor(f, gkks) {
 
 function reviewRows(F, values, gkks) {
   const rows = [];
-  F.steps.forEach((st, step) => st.fields.filter((f) => visible(f, values) && f.k !== 'consent').forEach((f) => {
+  F.steps.forEach((st, step) => st.fields.filter((f) => visible(f, values) && f.k !== 'consent' && f.type !== 'hidden').forEach((f) => {
     const v = values[f.k];
     if (blank(v)) return;
     const label = (optionsFor(f, gkks) || []).find(([val]) => val === v)?.[1];
@@ -281,6 +286,7 @@ function reviewRows(F, values, gkks) {
 const INPUT = 'w-full min-h-[52px] px-3.5 text-[17px] text-parish-ink bg-parish-card border-[1.5px] rounded-xl outline-none focus:border-parish-blue';
 
 function FieldView({ f, value, error, onChange, gkks }) {
+  if (f.type === 'hidden') return null;
   const id = `fld-${f.k}`;
   // A missing or wrong answer: red outline, light red fill and glow, still red while focused.
   const border = error ? '!border-parish-error !bg-parish-errorBg/40 ring-4 ring-parish-error/20' : 'border-parish-borderSoft';
@@ -344,7 +350,7 @@ function FieldView({ f, value, error, onChange, gkks }) {
     const type = f.type === 'number' ? 'text' : f.type;
     const inputMode = f.type === 'tel' ? 'tel' : f.type === 'email' ? 'email' : f.im || 'text';
     const range = f.type === 'date' ? { min: now(f.min), max: now(f.max) } : {};
-    control = <>{label}<input id={id} type={type} inputMode={inputMode} {...range} value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={f.ph} aria-invalid={!!error} aria-describedby={describedBy} className={`${INPUT} ${border}`} /></>;
+    control = <>{label}<input id={id} type={type} inputMode={inputMode} {...range} value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={f.ph} readOnly={!!f.readOnly} aria-invalid={!!error} aria-describedby={describedBy} className={`${INPUT} ${border} ${f.readOnly ? 'bg-[#f1ead9] font-semibold' : ''}`} /></>;
   }
 
   return (

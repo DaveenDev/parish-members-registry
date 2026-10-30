@@ -22,6 +22,7 @@ const DESCRIPTIONS = [
   ['/pahibalo', (p) => `Mga pahibalo, bulletin ug kalihokan sa ${sa(p)}.`],
   ['/komunidad/artikulo', (p) => `Mga artikulo ug balita gikan sa ${sa(p)}.`],
   ['/komunidad/pag-ampo', (p) => `Mga hangyo sa pag-ampo gikan sa mga parokyano sa ${sa(p)}: mag-ampo kita alang sa usag usa.`],
+  ['/komunidad/grupo', (p) => `Mga ministry ug organisasyon sa ${sa(p)}: unsa ang ilang buhat ug unsaon pag-apil.`],
   ['/komunidad/gkk', (p) => `Usa sa mga GKK (Gagmayng Kristohanong Katilingban) sa ${sa(p)}.`],
   ['/komunidad', (p) => `Ang mga GKK, mga artikulo, mga hangyo sa pag-ampo ug kinabuhi sa komunidad sa ${sa(p)}.`],
   ['/serbisyo/dugo', (p) => `Blood Donor Call sa ${sa(p)}: mga nanginahanglan og dugo ug unsaon pagtabang.`],

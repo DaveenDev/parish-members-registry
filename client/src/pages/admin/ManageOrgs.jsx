@@ -3,8 +3,9 @@ import { useSearchParams } from 'react-router-dom';
 import { api } from '../../api.js';
 import { PageHeader, PageBody, Tabs } from '../../components/admin.jsx';
 import { ManageListCard } from '../../components/ManageList.jsx';
+import GroupWebsiteDetails from '../../components/GroupWebsiteDetails.jsx';
 
-const TABS = [['ministries', 'Ministries'], ['structure', 'Parish Organization Structure'], ['lay', 'Lay Organizations']];
+const TABS = [['ministries', 'Ministries'], ['structure', 'Parish Organization Structure'], ['lay', 'Lay Organizations'], ['website', 'Website']];
 
 /** The staff-managed name lists registrants pick from, one tab each (?tab=). */
 export default function ManageOrgs() {
@@ -45,6 +46,7 @@ export default function ManageOrgs() {
               listFn={api.listOrganizations} addFn={api.addOrganization} renameFn={api.renameOrganization} deleteFn={api.deleteOrganization}
             />
           )}
+          {tab === 'website' && <GroupWebsiteDetails key="website" />}
         </div>
       </PageBody>
     </>

@@ -73,6 +73,7 @@ export const STATUS_TONES = {
   Declined: 'red',
   Donated: 'green',
   Scheduled: 'green',
+  Joined: 'green',
   Done: 'gray',
   Cancelled: 'red',
 };
@@ -152,3 +153,7 @@ export function bloodCallSms(request, parishName = 'parokya') {
 /** Text used by search boxes. */
 export const certSearchText = (r) => [r.ref_no, r.subject_first_name, r.subject_middle_name, r.subject_last_name, r.requester_name, r.requester_mobile].join(' ');
 export const subjectName = (r) => [r.subject_first_name, r.subject_middle_name, r.subject_last_name].filter(Boolean).join(' ');
+
+// "Interesado ko" sign-ups for a ministry or organization (0111_group_interests.sql).
+export const GROUP_INTEREST_STATUSES = ['New', 'Contacted', 'Joined', 'Closed'];
+export const GROUP_INTEREST_OPEN = ['New', 'Contacted'];

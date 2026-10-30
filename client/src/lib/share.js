@@ -24,6 +24,7 @@ const PAGE_TITLES = [
   ['/pahibalo', 'Pahibalo ug Kalihokan'],
   ['/komunidad/artikulo', 'Mga Artikulo'],
   ['/komunidad/pag-ampo', 'Mga Hangyo sa Pag-ampo'],
+  ['/komunidad/grupo', 'Mga Ministry ug Organisasyon'],
   ['/komunidad', 'Komunidad'],
   ['/serbisyo/dugo', 'Blood Donor Call'],
   ['/serbisyo/susiha', 'Susiha ang Rehistro'],

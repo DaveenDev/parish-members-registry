@@ -16,6 +16,7 @@ export const SITEMAP_PAGES = [
   ['/komunidad', 'weekly', '0.8'],
   ['/komunidad/artikulo', 'weekly', '0.7'],
   ['/komunidad/pag-ampo', 'daily', '0.6'],
+  ['/komunidad/grupo', 'weekly', '0.6'],
   ['/serbisyo', 'monthly', '0.8'],
   ['/downloads', 'weekly', '0.7'],
   ['/kontak', 'monthly', '0.8'],

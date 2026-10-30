@@ -151,6 +151,31 @@ export const FORMS = {
     submit: (v) => api.submitPrayerRequest(v),
   },
 
+  // "Interesado ko" on a ministry or organization page (0111 submit_group_interest);
+  // the group comes from the link (?groupName=…&groupKind=…), so there's no form without one.
+  interesado: {
+    title: 'Interesado Ko',
+    short: 'Interesado ko',
+    intro: 'Isulat ang imong ngalan ug numero, ug kontakon ka sa among kawani bahin sa grupo.',
+    who: 'Ang kawani sa opisina sa parokya lang ang makakita niini.',
+    needs: 'groupName',
+    steps: [
+      { title: 'Ikaw ug ang grupo', fields: [
+        { k: 'groupKind', type: 'hidden', prefill: true },
+        { k: 'groupName', type: 'text', req: true, readOnly: true, prefill: true, label: 'Grupo' },
+        { k: 'fullName', type: 'text', req: true, label: 'Imong ngalan' },
+        mobile('mobile'),
+        { k: 'gkk', type: 'select', label: 'Imong GKK (opsyonal)', opts: 'gkks' },
+        { k: 'message', type: 'area', label: 'Mensahe (opsyonal)', ph: 'e.g. Kanus-a ang sunod nga tigom?' },
+        consent,
+      ] },
+    ],
+    next: ['Kontakon ka sa kawani sa parokya sa imong mobile number.', 'Ipahibalo namo kanimo ang sunod nga tigom sa grupo.'],
+    noRef: true,
+    doneLink: { to: '/komunidad/grupo', label: 'Tan-awa ang uban pang grupo' },
+    submit: (v) => api.submitGroupInterest(v),
+  },
+
   dugo: {
     title: 'Nanginahanglan og Dugo',
     short: 'Nanginahanglan og dugo',
