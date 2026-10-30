@@ -129,11 +129,31 @@ export function Card({ as: Tag = 'div', className = '', children, ...rest }) {
   );
 }
 
-/** Two-way switch at the top of a section (role=tablist). */
+/**
+ * Arrow keys for a group where one item is chosen (radio buttons, tabs):
+ * Left/Up and Right/Down move round the group, Home and End to its ends.
+ * Calls `onMove(index)` with the item to choose, and focuses it; returns
+ * whether the key was one of those.
+ */
+export function rovingKey(e, index, count, onMove) {
+  const next = { ArrowRight: index + 1, ArrowDown: index + 1, ArrowLeft: index - 1, ArrowUp: index - 1, Home: 0, End: count - 1 }[e.key];
+  if (next === undefined || !count) return false;
+  e.preventDefault();
+  const i = (next + count) % count;
+  onMove(i);
+  const items = e.currentTarget.parentElement?.querySelectorAll(':scope > [role="tab"], :scope > [role="radio"]');
+  items?.[i]?.focus();
+  return true;
+}
+
+/**
+ * Two-way switch at the top of a section (role=tablist): one tab stop, the
+ * arrow keys move between the parts (rovingKey).
+ */
 export function Segmented({ options, value, onChange, label }) {
   return (
     <div role="tablist" aria-label={label} className="grid gap-1 p-1 bg-[#efe7d6] rounded-[14px] mb-4 lg:mb-0 lg:flex lg:flex-none" style={{ gridTemplateColumns: `repeat(${options.length},1fr)` }}>
-      {options.map(([v, l]) => {
+      {options.map(([v, l], i) => {
         const on = v === value;
         return (
           <button
@@ -141,6 +161,8 @@ export function Segmented({ options, value, onChange, label }) {
             type="button"
             role="tab"
             aria-selected={on}
+            tabIndex={on ? 0 : -1}
+            onKeyDown={(e) => rovingKey(e, i, options.length, (n) => onChange(options[n][0]))}
             onClick={() => onChange(v)}
             className={`min-h-[44px] rounded-[11px] font-bold text-[14.5px] lg:px-[22px] lg:text-[15px] ${on ? 'bg-parish-blue text-white' : 'text-parish-ink hover:text-parish-blueDeep'}`}
           >
