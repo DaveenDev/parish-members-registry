@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from './Icons.jsx';
 import { Chip, TONES, useShare } from './kit.jsx';
+import { api } from '../../api.js';
+import { fmtFileSize } from '../../lib/gkkDocuments.js';
 import { EVENT_TONES, todayIso } from '../../lib/website.js';
 import {
   ANNOUNCEMENT_LABELS, ARTICLE_LABELS, EVENT_ICONS, EVENT_TYPE_LABELS, BIS_MONTHS_SHORT,
@@ -60,6 +62,23 @@ export function AnnouncementMeta({ a, className = 'mb-1.5 lg:mb-2', showEnd = tr
       <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.publish_on)}</span>
       {showEnd && a.expires_on && <span className="text-[13px] lg:text-[13.5px] font-semibold text-[var(--p-eyebrow)]">· Hangtod {fmtShort(a.expires_on)}</span>}
     </div>
+  );
+}
+
+/**
+ * A bulletin's PDF, when it has one (0110): "I-download ang PDF (1.2 MB)".
+ * The size is there because mobile data is costly; it opens in the browser
+ * (the download attribute isn't relied on, phones differ).
+ */
+export function BulletinPdf({ b, className = '' }) {
+  if (!b?.file_path) return null;
+  return (
+    <a
+      href={api.bulletinFileUrl(b)} target="_blank" rel="noopener noreferrer"
+      className={`inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14.5px] text-parish-blueDeep hover:bg-[var(--p-blue-tint)] ${className}`}
+    >
+      <Icon name="doc" size={18} />I-download ang PDF{b.size_bytes ? <span className="font-semibold text-parish-text2">({fmtFileSize(b.size_bytes)})</span> : null}
+    </a>
   );
 }
 

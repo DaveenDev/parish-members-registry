@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BigButton, Card, EmptyNote, ErrorNote, INNER, InfoRow, LinkedText, Skeletons, useShare, useSiteToast } from '../../components/site/kit.jsx';
-import { AnnouncementChip, ArticleChip, eventTone } from '../../components/site/cards.jsx';
+import { AnnouncementChip, ArticleChip, BulletinPdf, eventTone } from '../../components/site/cards.jsx';
 import { triggerDownload } from '../../lib/csv.js';
 import {
   ARTICLES_PAGE, BIS_DAYS, EVENT_ICONS, EVENT_TYPE_LABELS, articlePath, eventDays, eventIcs, eventSpan, eventTime, fmtLong, fmtShort, paragraphs, parseIso,
@@ -149,6 +149,7 @@ export function BulletinDetail() {
           <PageMeta title={b.title} description={excerpt(b.body) || `Bulletin sa semana sa ${fmtLong(b.week_of)}`} />
           <div className="text-[13.5px] text-parish-text2 mb-1">Semana sa {fmtLong(b.week_of)}</div>
           <h1 className={DETAIL_TITLE}>{b.title}</h1>
+          <BulletinPdf b={b} className="mb-4" />
           <Body text={b.body} />
           <BigButton className={SHARE} onClick={() => share(b.title)}><Icon name="share" />Ipaambit sa Messenger</BigButton>
         </>

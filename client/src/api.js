@@ -1155,7 +1155,40 @@ export const api = {
   async listBulletins() {
     return listWebsite('bulletins', (q) => q.order('week_of', { ascending: false }));
   },
-  saveBulletin: (row) => saveWebsiteRow('bulletins', row, 'A bulletin for this week'),
+  /**
+   * Save a bulletin; with `file` (a PDF), upload it first into the public
+   * downloads bucket (0110). A replaced or removed PDF (file_path cleared in
+   * `row`) is deleted once the row is saved; a new one is deleted again if the
+   * row can't be saved.
+   */
+  async saveBulletin(row, file = null, { removeFile = false } = {}) {
+    let upload = null;
+    if (file) {
+      if (downloadFileType(file) !== 'application/pdf') throw new Error('The bulletin file must be a PDF.');
+      const path = downloadFilePath('application/pdf', crypto.randomUUID());
+      const { error } = await supabase.storage.from(DOWNLOADS_BUCKET).upload(path, file, { contentType: 'application/pdf', upsert: false });
+      if (error) {
+        if (/bucket not found/i.test(error.message || '')) throw new Error(`Run the ${DOWNLOADS_MIGRATION} migration in Supabase to upload files`);
+        throw new Error(/row-level security|unauthorized/i.test(error.message || '') ? "Your account can't upload files for the website" : error.message || 'Could not upload the file');
+      }
+      upload = { file_path: path, file_name: file.name.slice(0, 255), size_bytes: file.size };
+    }
+    const oldPath = row.file_path;
+    const withFile = upload || (removeFile ? { file_path: null, file_name: null, size_bytes: null } : {});
+    try {
+      const saved = await saveWebsiteRow('bulletins', { ...row, ...withFile }, 'A bulletin for this week');
+      if (oldPath && (upload || removeFile)) await supabase.storage.from(DOWNLOADS_BUCKET).remove([oldPath]).catch(() => {});
+      return saved;
+    } catch (e) {
+      if (upload) await supabase.storage.from(DOWNLOADS_BUCKET).remove([upload.file_path]).catch(() => {});
+      if (/file_path|file_name|size_bytes/.test(e.message || '')) throw new Error('Run the 0110_bulletin_pdf.sql migration in Supabase to attach a PDF');
+      throw e;
+    }
+  },
+  /** A bulletin's PDF link (saved under its own name when `download`). */
+  bulletinFileUrl(row, opts) {
+    return row?.file_path ? api.downloadFileUrl(row, opts) : null;
+  },
   deleteBulletin: (id) => deleteWebsiteRow('bulletins', id),
 
   async listEvents() {
