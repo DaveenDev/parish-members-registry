@@ -73,6 +73,8 @@ export default function Komunidad() {
 function KomunidadPage({ params }) {
   const q = useCensusProgress();
   const open = !!q.data?.open;
+  // For 30 days after a census closes its final results stay (0109).
+  const final = !open && !!q.data?.closed && q.data.pct != null;
   const scrollTo = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   // The old "Mga GKK" tab's link goes to the GKKs (?view=gkk); Home's census
   // notice to the progress (?view=census), under the header, or to the GKKs
@@ -97,11 +99,11 @@ function KomunidadPage({ params }) {
       <Band as="div">
         <div className={`${WRAP} pt-4 lg:pt-9 flow-root`}>
           <PageHeader eyebrow="Komunidad" title="Ang atong komunidad">
-            <PageJumps census={open} onJump={scrollTo} />
+            <PageJumps census={open || final} onJump={scrollTo} />
           </PageHeader>
           {open && q.data.pct != null && <CensusStrip c={q.data} onMore={() => scrollTo('census')} />}
         </div>
-        {open && (
+        {(open || final) && (
           <section id="census" aria-labelledby="census-h" className="scroll-mt-20">
             <div className={`${WRAP} pt-3 pb-7 lg:pt-5 lg:pb-12`}>
               <Eyebrow>Census sa parokya</Eyebrow>
@@ -490,7 +492,8 @@ function CensusProgress() {
 
   if (q.loading) return <div className="lg:grid lg:grid-cols-[380px_1fr] lg:gap-6"><Skeleton h={200} className="mb-3 lg:h-[420px]" /><Skeleton h={260} alt className="lg:h-[520px]" /></div>;
   if (q.error) return <ErrorNote onRetry={q.reload}>Wala ma-load ang progreso sa census.</ErrorNote>;
-  if (!c?.open) {
+  const closed = !c?.open && !!c?.closed;
+  if (!c?.open && !closed) {
     return (
       <Card className="px-[18px] py-[22px] text-center shadow-none lg:max-w-[560px] lg:mx-auto lg:p-[30px] lg:rounded-[18px]">
         <div className="font-serif text-[23px] lg:text-[28px] font-bold text-parish-navy mb-1.5">Sirado ang census karon</div>
@@ -510,19 +513,31 @@ function CensusProgress() {
   return (
     <div className="lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-6 lg:items-start">
       <Card className="px-4 py-[18px] text-center mb-4 shadow-card lg:sticky lg:top-24 lg:mb-0 lg:px-6 lg:py-7 lg:rounded-[20px]" style={CENSUS_CARD}>
-        <CensusAlertBadges label={c.label} className="justify-center mb-2" />
-        <CensusCountdown endsOn={c.ends_on} className="mb-3 lg:mb-4" />
+        {closed ? (
+          <div className="flex justify-center mb-3 lg:mb-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-bold text-[13px] text-parish-navy" style={{ background: 'var(--p-gold-light)' }}>
+              <Icon name="check" size={15} />Natapos na · {c.closed_on ? fmtShort(c.closed_on) : ''}
+            </span>
+          </div>
+        ) : (
+          <>
+            <CensusAlertBadges label={c.label} className="justify-center mb-2" />
+            <CensusCountdown endsOn={c.ends_on} className="mb-3 lg:mb-4" />
+          </>
+        )}
         <div role="img" aria-label={`${c.pct} porsyento`} className="w-[132px] h-[132px] lg:w-[180px] lg:h-[180px] rounded-full mx-auto mb-3 lg:mb-4 flex items-center justify-center" style={{ background: `conic-gradient(var(--p-blue) 0 ${c.pct}%, rgba(255,255,255,.85) 0)` }}>
           <div className="w-[104px] h-[104px] lg:w-[144px] lg:h-[144px] rounded-full bg-parish-card flex flex-col items-center justify-center">
             <div className="font-serif text-[40px] lg:text-[54px] font-bold leading-none text-parish-blue">{c.pct}%</div>
             <div className="text-[12px] lg:text-[13px] text-parish-text2">na-update</div>
           </div>
         </div>
-        <h2 className="font-serif font-semibold text-[24px] lg:text-[28px] leading-[1.15] lg:leading-[1.12] m-0 mb-1.5 lg:mb-2 text-parish-navy">{c.label}: {c.pct}% sa mga pamilya na-update na</h2>
+        <h2 className="font-serif font-semibold text-[24px] lg:text-[28px] leading-[1.15] lg:leading-[1.12] m-0 mb-1.5 lg:mb-2 text-parish-navy">{closed ? 'Final nga resulta: ' : ''}{c.label}: {c.pct}% sa mga pamilya na-update na</h2>
         <p className="m-0 mb-3.5 lg:mb-[18px] text-[15px] lg:text-[15.5px] leading-normal lg:leading-[1.55] text-[#4d4636]">
-          Salamat sa tanang GKK!{c.ends_on ? ` Abli pa hangtod ${fmtLong(c.ends_on)}.` : ''} Ang matag pamilya nga mo-update makatabang sa parokya sa pag-alagad.
+          {closed
+            ? 'Salamat sa tanang GKK ug pamilya nga miapil! Kini ang resulta sa pagsirado sa census.'
+            : <>Salamat sa tanang GKK!{c.ends_on ? ` Abli pa hangtod ${fmtLong(c.ends_on)}.` : ''} Ang matag pamilya nga mo-update makatabang sa parokya sa pag-alagad.</>}
         </p>
-        <BigButton to="/census" className="min-h-[52px] text-[16px]">I-update ang among rekord</BigButton>
+        {!closed && <BigButton to="/census" className="min-h-[52px] text-[16px]">I-update ang among rekord</BigButton>}
         {(c.gkks || []).some((r) => r.pct === 100) && (
           <div className="hidden lg:block text-[13px] text-parish-text2 mt-3">{c.gkks.filter((r) => r.pct === 100).length} ka GKK ang kompleto na</div>
         )}
