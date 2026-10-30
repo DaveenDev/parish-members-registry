@@ -42,6 +42,11 @@ const BTN = 'inline-flex items-center gap-1.5 min-h-[40px] px-3 rounded-xl borde
  * there for screen readers.
  */
 export default function OrgChartView({ nodes, showHolders = true, height = 520, fileName = 'organisasyon' }) {
+  const phone = useIsPhone();
+  // Phones read it as a nested list (a pan-and-zoom drawing is hard to use on
+  // a small screen); the drawing is one tap away.
+  const [pick, setPick] = useState(null);
+  const asChart = pick ? pick === 'chart' : !phone;
   const wrap = useRef(null);
   const box = useRef(null);
   const chart = useRef(null);
@@ -96,7 +101,7 @@ export default function OrgChartView({ nodes, showHolders = true, height = 520, 
 
   useEffect(() => {
     const el = box.current; // the same box when the chart is cleared
-    if (!el || !rows.length) return undefined;
+    if (!asChart || !el || !rows.length) return undefined;
     const narrow = el.clientWidth < 640;
     const c = new OrgChart()
       .container(box.current)
@@ -140,11 +145,21 @@ export default function OrgChartView({ nodes, showHolders = true, height = 520, 
       chart.current = null;
       el.innerHTML = '';
     };
-  }, [rows, showHolders, height]);
+  }, [rows, showHolders, height, asChart]);
+
+  if (!asChart) {
+    return (
+      <div ref={wrap}>
+        <button type="button" className={`${BTN} mb-3`} onClick={() => setPick('chart')}>Tan-awa ang chart</button>
+        <PositionTree rows={rows} showHolders={showHolders} />
+      </div>
+    );
+  }
 
   return (
     <div ref={wrap} className={full ? 'fixed inset-0 z-[100] flex flex-col bg-parish-bg p-3 sm:p-4' : ''}>
       <div className="flex flex-wrap gap-2 mb-2.5">
+        {phone && <button type="button" className={BTN} onClick={() => { closeFull(); setPick('list'); }}>Tan-awa ang lista</button>}
         <button type="button" className={BTN} onClick={full ? closeFull : openFull}>
           {full ? (
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 4v5H4M15 4v5h5M9 20v-5H4M15 20v-5h5" /></svg>
@@ -166,6 +181,46 @@ export default function OrgChartView({ nodes, showHolders = true, height = 520, 
       <p className="m-0 mt-2 text-[12.5px] text-parish-text2">I-drag aron molihok, i-pinch o i-scroll aron mo-zoom. I-tap ang button sa ubos sa usa ka katungdanan aron ablihan o tikopon.</p>
       <div className="sr-only"><PositionList rows={rows} parentId={null} showHolders={showHolders} /></div>
     </div>
+  );
+}
+
+/** True on a phone-sized screen (under Tailwind's sm), following the window. */
+function useIsPhone() {
+  const query = '(max-width: 639px)';
+  const [on, setOn] = useState(() => typeof window !== 'undefined' && !!window.matchMedia?.(query).matches);
+  useEffect(() => {
+    const m = window.matchMedia?.(query);
+    if (!m) return undefined;
+    const change = () => setOn(m.matches);
+    m.addEventListener?.('change', change);
+    return () => m.removeEventListener?.('change', change);
+  }, []);
+  return on;
+}
+
+/**
+ * The chart as a nested, indented list on phones: each position with who
+ * holds it ("—" when nobody is shown) and the positions under it indented
+ * beneath, with no sideways scrolling.
+ */
+function PositionTree({ rows, parentId = null, showHolders, depth = 0 }) {
+  const here = rows.filter((r) => r.parentId === parentId);
+  if (!here.length) return null;
+  return (
+    <ul className={`list-none m-0 p-0 flex flex-col gap-2 ${depth ? 'mt-2 ml-3 pl-3 border-l-2 border-[var(--p-blue-border)]' : ''}`}>
+      {here.map((r) => (r.hidden ? (
+        <li key={r.id}><PositionTree rows={rows} parentId={r.id} showHolders={showHolders} depth={depth} /></li>
+      ) : (
+        <li key={r.id}>
+          <div className="rounded-xl border border-parish-border bg-parish-card px-3 py-2">
+            <div className="font-bold text-[15px] leading-snug text-parish-navy">{r.title}</div>
+            {showHolders && <div className="text-[14px] text-[#3f3b2f]">{(r.holders || []).join(', ') || '—'}</div>}
+            {r.note && <div className="text-[12.5px] text-parish-text2">{r.note}</div>}
+          </div>
+          <PositionTree rows={rows} parentId={r.id} showHolders={showHolders} depth={depth + 1} />
+        </li>
+      )))}
+    </ul>
   );
 }
 
