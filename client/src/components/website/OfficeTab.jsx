@@ -9,7 +9,7 @@ import { officeHourRows, officeStatus } from '../../lib/site.js';
 import { TextArea, Panel } from './shared.jsx';
 import { useViewOnly } from '../panels.jsx';
 
-const TEXT_FIELDS = ['address', 'contact', 'mobile', 'email', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'secretary_messenger'];
+const TEXT_FIELDS = ['address', 'contact', 'mobile', 'email', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'secretary_messenger', 'certificate_note'];
 // Monday first, as the website lists the hours (DAYS and office_hours start on Sunday).
 const WEEK = [1, 2, 3, 4, 5, 6, 0];
 
@@ -38,6 +38,7 @@ export default function OfficeTab() {
   const [attempted, setAttempted] = useState(false); // show "enter the times" errors after a save attempt
   const [migrated, setMigrated] = useState(true);
   const [messengerReady, setMessengerReady] = useState(true);
+  const [noteReady, setNoteReady] = useState(true); // 0107's certificate_note
   const viewOnly = useViewOnly();
 
   function apply(settings) {
@@ -53,6 +54,7 @@ export default function OfficeTab() {
         // Before 0011 is run the new columns aren't there; saving them would fail.
         setMigrated('mobile' in settings);
         setMessengerReady('secretary_messenger' in settings);
+        setNoteReady('certificate_note' in settings);
         apply(settings);
       })
       .catch((e) => setLoadError(e.message || 'Could not load the office details'));
@@ -83,6 +85,7 @@ export default function OfficeTab() {
       patch.secretary_messenger = messenger;
       if (!migrated) for (const k of ['mobile', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'latitude', 'longitude', 'office_hours']) delete patch[k];
       if (!messengerReady) delete patch.secretary_messenger;
+      if (!noteReady) delete patch.certificate_note;
       const { settings } = await api.updateSettings(patch);
       apply(settings);
       setAttempted(false);
@@ -148,6 +151,13 @@ export default function OfficeTab() {
                 <Hint>A number to call any time for a priest. The website shows it in a dark “Sick call” box beside the page title.</Hint>
               </Field>
             </div>
+          </Card>
+
+          <Card title="Certificate requests" subtitle="A line on the website's certificate request form.">
+            <Field label="Processing time and fee (optional)">
+              <TextInput value={form.certificate_note} onChange={set('certificate_note')} disabled={!noteReady} maxLength={240} placeholder="e.g. Ready in 3 working days. Donation: ₱100 per copy." />
+              <Hint>Shown under “Bring an ID” on the form. Leave blank to publish no time or fee. Needs migration 0107.</Hint>
+            </Field>
           </Card>
 
           <Card title="Email & Facebook">

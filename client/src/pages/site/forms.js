@@ -20,6 +20,8 @@ export const FORMS = {
     intro: 'Para sa sertipiko sa Bunyag, Kumpil o Kasal nga nahimo dinhi sa parokya.',
     who: 'Ang kawani sa opisina sa parokya lang ang makakita niini.',
     notes: ['Kinahanglan og ID inig kuha.', 'Mo-text ang opisina kung andam na kuhaon.'],
+    // The office's own line about the processing time and fee (Parish Website → Office), when it set one.
+    officeNote: 'certificate_note',
     steps: [
       { title: 'Unsang sertipiko?', fields: [
         { k: 'certType', type: 'choice', req: true, label: 'Klase sa sertipiko', opts: opts([['baptism', 'Bunyag (Baptismal)'], ['confirmation', 'Kumpil (Confirmation)'], ['matrimony', 'Kasal (Marriage)']]) },
@@ -38,6 +40,8 @@ export const FORMS = {
       { title: 'Para asa ug pila?', fields: [
         { k: 'purpose', type: 'choice', req: true, label: 'Para asa', opts: opts(['Eskwelahan', 'Trabaho', 'Kasal', 'Uban pa']) },
         { k: 'copies', type: 'select', label: 'Pila ka kopya', opts: opts(['1', '2', '3', '4', '5']), def: '1' },
+        // The values the database accepts (0107 submit_certificate_request).
+        { k: 'pickup', type: 'select', label: 'Unsaon pagkuha (opsyonal)', opts: opts(['Ako mismo', 'Ang akong representante', 'Ipadala sa courier']), hint: 'Ang representante magdala og sulat, ID sa nangayo ug ID sa iyang kaugalingon.' },
       ] },
       { title: 'Kinsa ang nangayo?', fields: [
         { k: 'requesterName', type: 'text', req: true, label: 'Imong ngalan' },

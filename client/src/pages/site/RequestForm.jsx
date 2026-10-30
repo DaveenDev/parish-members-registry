@@ -79,6 +79,7 @@ function FormFlow({ F, embedded = false, onAgain }) {
   const navigate = useNavigate();
   const top = useRef(null);
   const gkks = usePublicData('gkkNames', () => api.listPublicGkks().catch(() => [])).data || [];
+  const office = useOffice().data;
   const [step, setStep] = useState(0);
   const [params] = useSearchParams();
   const [values, setValues] = useState(() => initialValues(F, params));
@@ -222,7 +223,7 @@ function FormFlow({ F, embedded = false, onAgain }) {
           </div>
           {F.notes && step === F.steps.length - 1 && (
             <div className="mt-5 bg-[#f1ead9] rounded-xl px-3.5 py-3 flex flex-col gap-1.5">
-              {F.notes.map((n) => <div key={n} className="flex gap-2 text-[14px] leading-[1.4] text-[#3f3b2f]"><Icon name="idcard" size={16} className="mt-0.5 text-parish-blue" />{n}</div>)}
+              {[...F.notes, ...(F.officeNote && office?.[F.officeNote] ? [office[F.officeNote]] : [])].map((n) => <div key={n} className="flex gap-2 text-[14px] leading-[1.4] text-[#3f3b2f]"><Icon name="idcard" size={16} className="mt-0.5 text-parish-blue" />{n}</div>)}
             </div>
           )}
           <div className="flex gap-2.5 mt-[22px]">

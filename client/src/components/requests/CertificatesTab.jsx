@@ -217,6 +217,7 @@ function CertificateDrawer({ request: r, onClose, onSaved, onDeleted, onVerifica
         <Detail label="Mother">{r.mother_name}</Detail>
         <Detail label="Spouse">{r.spouse_name}</Detail>
         <Detail label="Purpose">{r.purpose}</Detail>
+        <Detail label="Pick-up">{r.pickup}</Detail>
         <Detail label="Copies">{r.copies}</Detail>
       </div>
       <div><RowButton tone="gray" onClick={() => setEditing(true)}>Edit request details</RowButton></div>
