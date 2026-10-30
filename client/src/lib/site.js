@@ -177,6 +177,14 @@ export const massLocations = (rows) => [...new Set(rows.map((r) => r.location).f
 
 // ---- Announcements and articles -------------------------------------------
 
+/**
+ * A sacrament guide's own address on Ang Simbahan, to share or bookmark:
+ * /simbahan?guide=wedding opens the page on that guide.
+ */
+export const guidePath = (key) => `/simbahan?guide=${encodeURIComponent(key)}`;
+/** A guide key as the database stores them (baptism, first_communion…), or '' for anything else. */
+export const cleanGuideKey = (key) => (/^[a-z0-9_-]{1,40}$/i.test(String(key || '')) ? String(key) : '');
+
 /** "Bunyag (Baptism)" → "Bunyag": a sacrament guide's name without the translation, for the tabs. */
 export function guideShortTitle(title) {
   const t = String(title || '').trim();

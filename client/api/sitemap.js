@@ -28,9 +28,11 @@ export async function GET(request) {
   const lists = await Promise.all([
     ...TABLES.map((t) => rest(`${t}?select=id,${t === 'songs' ? 'title,' : ''}created_at,updated_at&published=eq.true&order=id`)),
     rest('rpc/public_gkk_directory', { method: 'POST', body: '{}' }),
+    rest('sacrament_guides?select=key,created_at,updated_at&published=eq.true&order=sort,id'),
   ]);
   const items = Object.fromEntries(TABLES.map((t, i) => [t, lists[i]]));
   items.gkks = lists[TABLES.length];
+  items.guides = lists[TABLES.length + 1];
   return new Response(sitemapXml(origin, items), {
     headers: {
       'Content-Type': 'application/xml; charset=utf-8',

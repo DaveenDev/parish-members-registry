@@ -50,15 +50,17 @@ export function useSiteTitle(title) {
 // engines and link previews with <PageMeta title description image />: its own
 // title in the browser tab (the header keeps its short one), its text, its photo,
 // and `jsonLd`, structured data saying what it is (a song's lyrics, say).
+// `path` names the page's own address when a query picks what it shows (a
+// sacrament guide's /simbahan?guide=…); otherwise it's the path alone.
 const MetaContext = createContext(() => {});
-export function PageMeta({ title, description, image, noindex = false, jsonLd = null }) {
+export function PageMeta({ title, description, image, noindex = false, jsonLd = null, path = null }) {
   const set = useContext(MetaContext);
   // By its text, so a new object with the same data doesn't set it again.
   const ld = jsonLd ? JSON.stringify(jsonLd) : '';
   useEffect(() => {
-    set({ title, description, image, noindex, jsonLd: ld ? JSON.parse(ld) : null });
+    set({ title, description, image, noindex, jsonLd: ld ? JSON.parse(ld) : null, path });
     return () => set(null);
-  }, [set, title, description, image, noindex, ld]);
+  }, [set, title, description, image, noindex, ld, path]);
   return null;
 }
 
@@ -118,7 +120,7 @@ export default function SiteLayout() {
     applyPageMeta({
       title: name ? `${name} · ${parish.name}` : parish.title,
       description: pageMeta?.description || pageDescription(pathname, parish.saved),
-      url: canonicalUrl(origin, pathname),
+      url: canonicalUrl(origin, pageMeta?.path || pathname),
       image: pageMeta?.image ? new URL(pageMeta.image, origin).href : null,
       noindex: !!pageMeta?.noindex || pageNoindex(pathname),
       jsonLd: pageMeta?.jsonLd || (pathname === '/' ? parishJsonLd({
