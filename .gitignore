@@ -4,6 +4,8 @@ build/
 church photos/
 .env
 .env.local
+# Which Supabase project this folder is linked to: each computer's own
+supabase/.temp/
 # Every parish's database connection string, with its password (scripts/release-db.mjs)
 parishes.json
 client/.env.local

@@ -133,9 +133,10 @@ Take out of git, and keep out of the parish's repository:
   and `design-prompt-public-site.md`.
 - Demo and sample data: `scripts/`, `supabase/seed/`, the root
   `.env.example` (only the seed script reads it).
-- Database moves of the first parish: `supabase/export/`, and
-  `supabase/.temp/` (it links the folder to that parish's Supabase project,
-  so `db push` or a deploy would hit the wrong database).
+- Database moves of the first parish: `supabase/export/`. (Git ignores
+  `supabase/.temp/`, which links a folder to one Supabase project. If an
+  older copy still tracks it, take it out too, or `db push` or a deploy
+  there would hit the wrong database.)
 
 Keep four files in `docs/`, because the app's messages point to them:
 `backups.md`, `email-setup.md`, `media-storage.md` and `notifications.md`
