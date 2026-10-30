@@ -6,7 +6,15 @@ import { ThemeProvider } from './ThemeContext.jsx';
 import { ToastProvider } from './ToastContext.jsx';
 import { ConfirmProvider } from './components/ConfirmDialog.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { reloadForNewCode } from './lib/chunkReload.js';
 import './index.css';
+
+// A page's code (or its CSS) failed to download before it was needed: after a
+// deploy while the site was open, its old files are gone. Reload once for the
+// new ones instead of showing an error (Vite fires this for dynamic imports).
+window.addEventListener('vite:preloadError', (event) => {
+  if (reloadForNewCode()) event.preventDefault();
+});
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

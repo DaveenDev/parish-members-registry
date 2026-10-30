@@ -136,7 +136,13 @@ function FormFlow({ F, embedded = false, onAgain }) {
   }
 
   function back() {
-    if (step === 0) { navigate(-1); return; }
+    // On the first step: back to the page before, or to Mga Serbisyo when the
+    // form was opened from a shared link (going back would leave the website).
+    if (step === 0) {
+      if (window.history.state?.idx > 0) navigate(-1);
+      else navigate('/serbisyo');
+      return;
+    }
     setErrors({});
     setBanner('');
     setStatus('edit');

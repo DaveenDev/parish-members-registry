@@ -32,8 +32,9 @@ const DESCRIPTIONS = [
   ['/kontak', (p) => `Kontak, oras sa opisina ug direksyon padulong sa ${sa(p)}.`],
 ];
 
-// Pages search engines shouldn't list: a status lookup with nothing to read.
-const NOINDEX = ['/serbisyo/susiha'];
+// Pages search engines shouldn't list: a status lookup and the request forms
+// (an empty form is nothing to read; Mga Serbisyo itself is listed).
+const NOINDEX = ['/serbisyo/susiha', '/serbisyo/hangyo'];
 
 /** The description for a page with no text of its own (`pathname` without the query). */
 export function pageDescription(pathname, parish) {

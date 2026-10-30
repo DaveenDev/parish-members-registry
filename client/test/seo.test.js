@@ -30,8 +30,11 @@ describe('pageDescription', () => {
   });
 });
 
-test('pageNoindex: only the status lookup', () => {
+test('pageNoindex: the status lookup and the request forms', () => {
   assert.equal(pageNoindex('/serbisyo/susiha'), true);
+  assert.equal(pageNoindex('/serbisyo/hangyo/sertipiko'), true);
+  assert.equal(pageNoindex('/serbisyo/hangyo/pag-ampo'), true);
+  assert.equal(pageNoindex('/serbisyo/dugo'), false);
   assert.equal(pageNoindex('/serbisyo'), false);
   assert.equal(pageNoindex('/'), false);
 });
