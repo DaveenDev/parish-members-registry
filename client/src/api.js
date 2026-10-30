@@ -18,7 +18,7 @@ import {
   requestOutcomeRows, feesByMonth, byGkk, peso, missingDetails, dataQualityByGkk, householdProblems, censusComparisonRows,
 } from './lib/reports.js';
 import { certTypeLabel, sacramentRequestLabel, SACRAMENT_REQUEST_OPEN, BLOOD_OPEN } from './lib/requests.js';
-import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
+import { addDays, ANNOUNCEMENT_DAYS, todayIso } from './lib/website.js';
 import { MEN_ONLY_FALLBACK, menOnlyBlocked, menOnlyMessage } from './lib/ministries.js';
 import { resizePhotoBlob } from './lib/images.js';
 import { gkkDocumentPath, gkkDocumentType } from './lib/gkkDocuments.js';
@@ -2616,11 +2616,8 @@ async function listWebsite(table, order, migration = '0011_website_content.sql')
   return { rows: data || [] };
 }
 
-/** Today as YYYY-MM-DD on the visitor's clock (the parish is in one time zone). */
-function todayLocal() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+/** Today as YYYY-MM-DD by the parish's clock (Manila), as parish_today() in the database. */
+const todayLocal = () => todayIso();
 
 /** Published rows of a website content table, for the public site. */
 async function listPublished(table, order, { missingAsEmpty = false } = {}) {

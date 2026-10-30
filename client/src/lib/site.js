@@ -3,6 +3,7 @@
 // Pure functions, so they're easy to test (client/test/site.test.js).
 
 import { dayList, groupDaily, isCurrentMass, massOnDate, massType } from './website.js';
+import { manilaNow } from './manila.js';
 
 export const BIS_DAYS = ['Domingo', 'Lunes', 'Martes', 'Miyerkules', 'Huwebes', 'Biyernes', 'Sabado'];
 export const BIS_DAYS_SHORT = ['Dom', 'Lun', 'Mar', 'Miy', 'Huw', 'Biy', 'Sab'];
@@ -135,7 +136,7 @@ export function massWhen(row) {
  * Confession, Adoration…). Dated rows drop off once their date has passed;
  * today's next Mass is marked `next`. Empty sections are left out.
  */
-export function massSections(rows, { location = 'all', language = 'all' } = {}, now = new Date()) {
+export function massSections(rows, { location = 'all', language = 'all' } = {}, now = manilaNow()) {
   const today = isoOf(now);
   // Today's next Mass (a one-day look ahead), if one is still to come.
   const nextId = nextMassDays(rows, now, 1, 1)[0]?.rows[0]?.id;
@@ -621,7 +622,7 @@ export function dayHours(d) {
  * Office hours as rows, Monday first, with neighbouring days that keep the
  * same hours merged ("Martes – Sabado"). `today` marks the row with today.
  */
-export function officeHourRows(hours, today = new Date().getDay()) {
+export function officeHourRows(hours, today = manilaNow().getDay()) {
   if (!Array.isArray(hours) || hours.length !== 7) return [];
   const order = [1, 2, 3, 4, 5, 6, 0];
   const rows = [];
@@ -640,7 +641,7 @@ export function officeHourRows(hours, today = new Date().getDay()) {
 }
 
 /** Whether the office is open at `now`, from the saved hours. null when hours aren't set. */
-export function officeOpenNow(hours, now = new Date()) {
+export function officeOpenNow(hours, now = manilaNow()) {
   if (!Array.isArray(hours) || hours.length !== 7) return null;
   const d = hours[now.getDay()];
   if (!d || d.closed || !d.open || !d.close) return false;
@@ -655,7 +656,7 @@ export function officeOpenNow(hours, now = new Date()) {
  * no hours are set. "Abli karon hangtod 4:00 PM" while open (until the break
  * if there is one), else when it opens next: later today, "ugma", or the day.
  */
-export function officeStatus(hours, now = new Date()) {
+export function officeStatus(hours, now = manilaNow()) {
   if (!Array.isArray(hours) || hours.length !== 7) return null;
   const t = now.getHours() * 60 + now.getMinutes();
   const today = hours[now.getDay()];

@@ -2,6 +2,7 @@
 // match the check constraints in supabase/migrations/0011_website_content.sql.
 
 import { parishTitle } from './parishName.js';
+import { manilaToday } from './manila.js';
 
 export const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -205,10 +206,9 @@ export function toTimeInput(t) {
   return t ? String(t).slice(0, 5) : '';
 }
 
-/** Today as YYYY-MM-DD in the browser's (the parish office's) time zone. */
+/** Today as YYYY-MM-DD in the parish's time zone (Manila), wherever the visitor is. */
 export function todayIso() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return manilaToday();
 }
 
 /** YYYY-MM-DD plus `days`. */

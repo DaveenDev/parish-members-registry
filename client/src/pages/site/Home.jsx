@@ -8,6 +8,7 @@ import VerseOfDay from '../../components/site/VerseOfDay.jsx';
 import PrayerTicker from '../../components/site/PrayerTicker.jsx';
 import { ARTICLES_PAGE, BIS_DAYS, KALENDARYO_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, fmtTime12, massKindLabel, nextMassDays, parseIso } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
+import { manilaNow } from '../../lib/manila.js';
 import { api } from '../../api.js';
 import { usePublicData } from '../../components/site/usePublicData.js';
 import { SiteFooter, useParishTitle } from './SiteLayout.jsx';
@@ -264,7 +265,8 @@ function CensusNotice() {
  * Computers: a card per day, the three side by side.
  */
 function UpcomingMasses({ mass }) {
-  const days = nextMassDays(mass.rows, new Date(), 3);
+  // By Manila's clock, so a parishioner abroad sees the parish's "today".
+  const days = nextMassDays(mass.rows, manilaNow(), 3);
   // "13 Okt"
   const dayMonth = (iso) => fmtShort(iso).replace(/ \d{4}$/, '');
   return (
