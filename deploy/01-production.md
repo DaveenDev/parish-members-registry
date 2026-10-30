@@ -226,8 +226,8 @@ Editor → `select * from cron.job;` lists `staff-morning-digest`. Details:
 ## Step 13. New migrations later
 
 Later migrations go out with `npm run release:db`, demo site first, each
-database before its website: see [04-releases.md](04-releases.md). Add this
-project's Session pooler connection string to `parishes.json` there.
+database before its website: see [04-releases.md](04-releases.md). Record
+this project there with `npm run parish -- add`.
 
 Leave Supabase's GitHub integration ("Deploy to production") **off**: it
 runs migrations while Vercel rebuilds the website, so the database can't go

@@ -16,23 +16,49 @@ of which have run, so a parish that is behind gets every one it missed.
 `npm run release:db` reaches each database by its connection string, so it
 works whatever Supabase account the project is on, and never uses
 `supabase link`. The connection strings hold the database passwords, so they
-live in `parishes.json` in the repository root, which git ignores:
+live in `parishes.json` in the repository root, which git ignores. Record
+each parish, **the demo site first**:
 
 ```bash
-cp parishes.example.json parishes.json
+npm run parish -- add
 ```
 
-For each parish fill in `dbUrl`: Supabase → the project → **Connect** →
-*Session pooler* string (port 5432), with the database password in it
-(Project Settings → Database resets it). A password with `@`, `#`, `/` or
-`%` must be percent-encoded (`@` is `%40`). `name` is what you type in the
-commands; `"backup": false` skips the backup question (the demo site has no
-backups).
+It asks for a short name (what you type in the commands, e.g. `demo`,
+`muaan`, `sjmv`), a label, the connection string (Supabase → the project →
+**Connect** → *Session pooler*, pasted as it is, with `[YOUR-PASSWORD]` in
+it) and the database password, which it doesn't show and fills in for you
+(Project Settings → Database resets it). The project ref comes from the
+connection string. Answer "n" to the backup question for the demo site,
+which has no backups. Then check it connects:
 
-**Keep the demo site first** in the file. The script won't run a migration
-on any other parish until the first one has run every migration.
+```bash
+npm run release:db -- status <name>
+```
 
-Add each new parish at the end once its database is set up (03 step 4).
+The script won't run a migration on any other parish until the **first** one
+in the file has run every migration, so the demo site stays first. Add each
+new parish once its database is set up (03 step 4); it goes at the end.
+`parishes.example.json` shows the file's shape, to edit by hand.
+
+### Which project this folder is linked to
+
+`npm run db:migrations` and a plain `npx supabase db push` use the project
+this folder is linked to, which is each computer's own (git ignores
+`supabase/.temp/`). See the parishes and which one is linked:
+
+```bash
+npm run parish
+```
+
+Link to one by its name, with the password from `parishes.json`:
+
+```bash
+npm run parish -- link muaan
+```
+
+Keep it linked to the live parish you work on most (Mua-an). It needs
+`npx supabase login` with an account in that project's Supabase
+organization. Releases don't depend on it.
 
 ## Rules for a migration
 

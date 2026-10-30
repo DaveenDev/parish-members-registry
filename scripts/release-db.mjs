@@ -5,7 +5,7 @@
 // its connection string, and each database's own migration history decides
 // what still has to run, so a parish that is behind gets every migration it
 // missed. The connection strings hold the database passwords: they live in
-// the root `parishes.json`, which git ignores (copy `parishes.example.json`).
+// the root `parishes.json`, which git ignores (`npm run parish -- add`).
 // The first parish in the file is the one every migration is tried on first,
 // normally the demo site.
 //
@@ -17,61 +17,8 @@
 //
 // See deploy/04-releases.md.
 import { spawnSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { createInterface } from 'node:readline/promises';
-
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const PARISHES_FILE = join(ROOT, 'parishes.json');
-
-function fail(message) {
-  console.error(`\n${message}`);
-  process.exit(1);
-}
-
-function loadParishes() {
-  if (!existsSync(PARISHES_FILE)) {
-    fail('No parishes.json in the repository root. Copy parishes.example.json to parishes.json and fill in each database\'s connection string.');
-  }
-  let parishes;
-  try {
-    parishes = JSON.parse(readFileSync(PARISHES_FILE, 'utf8'));
-  } catch (err) {
-    fail(`parishes.json isn't valid JSON: ${err.message}`);
-  }
-  if (!Array.isArray(parishes) || parishes.length === 0) fail('parishes.json must be a list of parishes.');
-  const names = new Set();
-  for (const p of parishes) {
-    if (!p.name || !/^[a-z0-9-]+$/.test(p.name)) fail(`Each parish needs a "name" of lower-case letters, digits or dashes (got ${JSON.stringify(p.name)}).`);
-    if (p.name === 'all' || p.name === 'status') fail(`"${p.name}" can't be a parish name.`);
-    if (names.has(p.name)) fail(`Two parishes are named "${p.name}".`);
-    names.add(p.name);
-    if (!/^postgres(ql)?:\/\//.test(p.dbUrl || '') || p.dbUrl.includes('[YOUR-PASSWORD]') || p.dbUrl.includes('<')) {
-      fail(`${p.name}: "dbUrl" must be the Session pooler connection string with the password filled in.`);
-    }
-    p.label = p.label || p.name;
-  }
-  return parishes;
-}
-
-// npx is a .cmd file on Windows, which Node only starts through cmd.exe, and
-// cmd.exe would mangle the % and & in a connection string. Run npm's own
-// npx script with node instead.
-function npx(args, options) {
-  if (process.platform === 'win32') {
-    const cli = join(dirname(process.execPath), 'node_modules', 'npm', 'bin', 'npx-cli.js');
-    if (existsSync(cli)) return spawnSync(process.execPath, [cli, ...args], { cwd: ROOT, ...options });
-  }
-  return spawnSync('npx', args, { cwd: ROOT, ...options });
-}
-
-// Never echo a connection string: it carries the database password.
-function hidePasswords(text, parishes) {
-  let out = text;
-  for (const p of parishes) out = out.split(p.dbUrl).join(`<${p.name} database>`);
-  return out.replace(/(postgres(?:ql)?:\/\/[^:\s]+:)[^@\s]+@/g, '$1****@');
-}
+import { ROOT, fail, hidePasswords, loadParishes, npx } from './parishes-file.mjs';
 
 // What `db push` would run there, without running it.
 function pending(parish, parishes) {
