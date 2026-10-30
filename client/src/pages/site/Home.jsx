@@ -342,8 +342,8 @@ function SlimMass({ m, day = null }) {
 // Public totals, in order. `people` counts under 5 aren't shown; the rest
 // (groups, Masses) aren't about individuals, so they show as they are.
 const STAT_TILES = [
-  // A count of households doesn't point to anyone, so it always shows.
-  { key: 'households', label: 'Pamilya', icon: 'home' },
+  // A count under 5 is left out, here too: one or two families could be told apart.
+  { key: 'households', label: 'Pamilya', icon: 'home', people: true },
   { key: 'members', label: 'Miyembro', icon: 'people', people: true },
   { key: 'gkks', label: 'GKK', icon: 'ev-gkk' },
   { key: 'ministries', label: 'Ministry', icon: 'heart' },

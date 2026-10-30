@@ -19,7 +19,7 @@ function cardHtml(d, showHolders) {
     : `<div style="width:50px;height:50px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:var(--p-navy);color:#fff;font-weight:700;font-size:17px">${escapeHtml(nameInitials(name)) || PERSON}</div>`;
   const holder = !showHolders ? ''
     : name ? `<div style="font-size:13.5px;font-weight:600;color:#3f3b2f;line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(name)}</div>`
-      : '<div style="font-size:13px;font-style:italic;color:#6b6552">Bakante</div>';
+      : '<div style="font-size:13px;color:#6b6552" aria-hidden="true">—</div>';
   const note = n.note ? `<div style="font-size:12px;color:#6b6552;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(n.note)}</div>` : '';
   return `<div style="width:${d.width}px;height:${d.height}px;box-sizing:border-box;background:#fffdf8;border:1px solid #e7dcc4;border-radius:14px;box-shadow:0 6px 18px -10px rgba(26,43,74,.35);overflow:hidden;font-family:inherit">
     <div style="height:4px;background:var(--p-gold)"></div>
@@ -177,7 +177,7 @@ function PositionList({ rows, parentId, showHolders }) {
     <ul>
       {here.map((r) => (r.hidden ? <li key={r.id}><PositionList rows={rows} parentId={r.id} showHolders={showHolders} /></li> : (
         <li key={r.id}>
-          {r.title}{showHolders ? `: ${(r.holders || []).join(', ') || 'Bakante'}` : ''}{r.note ? ` (${r.note})` : ''}
+          {r.title}{showHolders ? `: ${(r.holders || []).join(', ') || '—'}` : ''}{r.note ? ` (${r.note})` : ''}
           <PositionList rows={rows} parentId={r.id} showHolders={showHolders} />
         </li>
       )))}
