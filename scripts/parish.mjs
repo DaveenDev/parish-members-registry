@@ -1,8 +1,10 @@
 // Keep the list of parishes' Supabase projects, and link this folder to one.
 //
 // Each parish (and the demo site) is one entry in the root `parishes.json`:
-// a short name, a label, the project ref and the database connection string.
-// scripts/release-db.mjs runs migrations from the same file. `supabase link`
+// a short name, a label, the project ref, the database connection string
+// and, for a project on another Supabase account, an access token for that
+// account. scripts/release-db.mjs runs migrations from the same file, and
+// scripts/release-functions.mjs deploys the Edge Functions. `supabase link`
 // decides which project this folder's --linked commands reach (npm run
 // db:migrations, a plain `supabase db push`); `link` switches it by name,
 // with the password from the file, so you don't type project refs.
@@ -11,16 +13,27 @@
 //   npm run parish                 # the parishes, and which one is linked
 //   npm run parish -- add          # record a parish (asks for each detail)
 //   npm run parish -- link muaan   # link this folder to that parish's project
+//   npm run parish -- token sjmv   # set or change its Edge Function deploy token
 //
 // See deploy/04-releases.md.
 import { createInterface } from 'node:readline';
 import { Writable } from 'node:stream';
 import {
-  checkName, fail, linkedRef, loadParishes, npx, passwordFromDbUrl,
+  ACCESS_TOKEN, checkName, fail, linkedRef, loadParishes, npx, passwordFromDbUrl,
   readParishes, refFromDbUrl, writeParishes,
 } from './parishes-file.mjs';
 
 const PLACEHOLDER = '[YOUR-PASSWORD]';
+const TOKEN_HELP = 'Edge Functions are deployed with a Supabase access token for the account that owns the project:\n'
+  + 'sign in to supabase.com as that account → Account (top right) → Access Tokens → Generate new token.\n'
+  + 'Leave it blank to use this computer\'s own `npx supabase login` (fine when that account is a member of the project).';
+
+// An access token from the prompt: '' for none, or fails on one that isn't a token.
+async function askToken(io) {
+  const token = (await io.askHidden('Access token (sbp_…), not shown, blank for none: ')).trim();
+  if (token && !ACCESS_TOKEN.test(token)) fail('That isn\'t a Supabase access token: it starts with sbp_. Nothing was saved.');
+  return token;
+}
 
 function list() {
   const parishes = readParishes();
@@ -31,7 +44,7 @@ function list() {
     const width = Math.max(...parishes.map((p) => String(p.name).length));
     parishes.forEach((p, i) => {
       const ref = p.projectRef || refFromDbUrl(p.dbUrl) || '?';
-      const notes = [i === 0 && 'tried first', ref === linked && 'linked'].filter(Boolean);
+      const notes = [i === 0 && 'tried first', ref === linked && 'linked', p.accessToken && 'deploy token'].filter(Boolean);
       console.log(`  ${String(p.name).padEnd(width)}  ${ref}  ${p.label || ''}${notes.length ? `  (${notes.join(', ')})` : ''}`);
     });
   }
@@ -112,14 +125,19 @@ async function add() {
     }
 
     const backupAnswer = (await io.ask('Does it have the weekly backup workflow? (the demo site doesn\'t) [Y/n]: ')).trim().toLowerCase();
+    console.log(`\n${TOKEN_HELP}`);
+    const accessToken = await askToken(io);
+
     const entry = { name, label, projectRef };
     if (backupAnswer === 'n' || backupAnswer === 'no') entry.backup = false;
     entry.dbUrl = dbUrl;
+    if (accessToken) entry.accessToken = accessToken;
 
     writeParishes([...parishes, entry]);
     console.log(`\nSaved ${label} (${name}, project ${projectRef}) to parishes.json.`);
-    if (parishes.length === 0) console.log('It is first in the file, so every migration is tried on it first: make the first one the demo site.');
+    if (parishes.length === 0) console.log('It is first in the file, so every migration and function is tried on it first: make the first one the demo site.');
     console.log(`Check the connection: npm run release:db -- status ${name}`);
+    console.log(`Check the functions:  npm run release:functions -- status ${name}`);
   } finally {
     io.close();
   }
@@ -144,8 +162,29 @@ function link(name) {
   console.log(`\nThis folder is now linked to ${parish.label}. --linked commands (npm run db:migrations, supabase db push) reach its database.`);
 }
 
+// Set, change or clear a parish's access token, for one recorded before
+// tokens were asked for, or when a token is renewed.
+async function token(name) {
+  const parishes = readParishes();
+  if (!name) fail(`Which parish? npm run parish -- token <name>. Names: ${parishes.map((p) => p.name).join(', ')}.`);
+  const parish = parishes.find((p) => p.name === name);
+  if (!parish) fail(`No parish named "${name}" in parishes.json. Names: ${parishes.map((p) => p.name).join(', ')}.`);
+  const io = prompter();
+  try {
+    console.log(`${parish.label || name}${parish.accessToken ? ' has a token now; a new one replaces it, blank removes it' : ' has no token now'}.\n\n${TOKEN_HELP}`);
+    const accessToken = await askToken(io);
+    if (accessToken) parish.accessToken = accessToken;
+    else delete parish.accessToken;
+    writeParishes(parishes);
+    console.log(accessToken ? `\nSaved. Check it: npm run release:functions -- status ${name}` : `\n${parish.label || name} has no token: deploys use this computer's \`npx supabase login\`.`);
+  } finally {
+    io.close();
+  }
+}
+
 const [command, arg] = process.argv.slice(2);
 if (!command || command === 'list') list();
 else if (command === 'add') await add();
 else if (command === 'link') link(arg);
-else fail('Usage: npm run parish   |   npm run parish -- add   |   npm run parish -- link <name>');
+else if (command === 'token') await token(arg);
+else fail('Usage: npm run parish   |   npm run parish -- add   |   npm run parish -- link <name>   |   npm run parish -- token <name>');

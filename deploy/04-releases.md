@@ -29,10 +29,25 @@ It asks for a short name (what you type in the commands, e.g. `demo`,
 it) and the database password, which it doesn't show and fills in for you
 (Project Settings → Database resets it). The project ref comes from the
 connection string. Answer "n" to the backup question for the demo site,
-which has no backups. Then check it connects:
+which has no backups.
+
+Last it asks for an **access token**, for deploying the Edge Functions
+(`release:functions`, below). The database password doesn't reach them: they
+go through the Supabase account that owns the project. Sign in to
+supabase.com as that account → **Account** (top right) → **Access Tokens** →
+**Generate new token**, and paste it (it isn't shown). Leave it blank when
+this computer's own `npx supabase login` is a member of that project. To add
+or change one later (a parish recorded before this, or a renewed token):
+
+```bash
+npm run parish -- token <name>
+```
+
+Then check it connects:
 
 ```bash
 npm run release:db -- status <name>
+npm run release:functions -- status <name>
 ```
 
 The script won't run a migration on any other parish until the **first** one
@@ -102,9 +117,9 @@ organization. Releases don't depend on it.
    npm run release:db -- muaan
    ```
 
-   Then push `main`: both the live and demo websites rebuild. A changed Edge
-   Function goes to both too: `npm run deploy:demo:<function>`, then
-   `npm run deploy:production:<function>`.
+   A changed Edge Function goes to both too: `npm run release:functions --
+   demo`, then `npm run release:functions -- muaan`. Then push `main`: both
+   the live and demo websites rebuild.
 5. **SJMV, a day or two later**, once Mua-an has used the change without
    trouble. Its backup (GitHub → `SJMVparish/website` → Actions), then:
 
@@ -112,7 +127,8 @@ organization. Releases don't depend on it.
    npm run release:db -- sjmv
    ```
 
-   Then carry the code across and push it, as in
+   A changed Edge Function: `npm run release:functions -- sjmv`. Then carry
+   the code across and push it, as in
    [03-new-parish.md step 5](03-new-parish.md#step-5-keeping-the-copy-up-to-date).
 6. **Every later parish**, the same as SJMV.
 
@@ -124,12 +140,25 @@ For each parish the script shows what would run, asks whether the backup
 ran, and runs nothing until you type the parish's name. It stops at the
 first problem, and the parishes after it aren't touched.
 
-### Edge Functions: from each parish's own folder
+### Edge Functions: `npm run release:functions`
 
-A parish's copy of `manage-staff` names that parish's live project
-(`LIVE_PROJECT_ID`), so deploy a parish's functions from its own folder, with
-its own scripts (03 step 4), never from this one. Run `npx supabase login`
-with an account that is a member of that parish's Supabase organization.
+The functions are the same for every parish (`manage-staff` names the demo
+project, the only one allowing Demo access, not a parish), so they all go
+from this folder, to each project in `parishes.json`, with its access token:
+
+```bash
+npm run release:functions -- status          # what each project has deployed
+npm run release:functions -- demo            # all of them, to one parish
+npm run release:functions -- muaan media-upload   # just one function
+```
+
+Like `release:db`, it only sends what is committed on `main`, asks you to
+type the parish's name, and for any parish after the first asks whether
+they were tried on the demo site. `notify-staff` gets `--no-verify-jwt`
+from `supabase/config.toml`. Deploy a changed function to a parish right
+after its migrations, before pushing its website. The `deploy:demo:*` and
+`deploy:production:*` scripts still work for the demo site and Mua-an with
+this computer's login.
 
 ## Supabase's GitHub integration: leave it off
 
@@ -144,6 +173,8 @@ production" **off**. The release script does the same job, in order.
 | Message | What to do |
 |---|---|
 | `couldn't check` with *password authentication failed* | The password in that `dbUrl` is wrong, or not percent-encoded |
+| `release:functions` with *status 403* or *necessary privileges* | The access token (or, with none, this computer's `npx supabase login`) is for an account that isn't a member of that project. `npm run parish -- token <name>` with a token made while signed in as the account that owns it |
+| `release:functions` with *Unauthorized* | The token was deleted or expired: make a new one and set it with `npm run parish -- token <name>` |
 | `couldn't check` with *could not translate host name* or a timeout | Use the **Session pooler** string, not Direct connection. Or the project is paused: Supabase → the project → Restore |
 | *numbered before the last one this database ran* | A migration was committed with a number lower than one already run there (two sessions at once). If it hasn't run anywhere yet, rename it to the next free number and commit |
 | *still has migrations to run* | Run them on the demo site first, then go on |

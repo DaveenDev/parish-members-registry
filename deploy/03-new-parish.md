@@ -66,7 +66,7 @@ Do this in the new repository before the first deploy. Steps marked
 
 | What | File | Change to |
 |---|---|---|
-| Live database (*after 01 step 2*) | [`client/src/lib/database.js`](../client/src/lib/database.js) and [`supabase/functions/manage-staff/handler.js`](../supabase/functions/manage-staff/handler.js) `LIVE_PROJECT_ID` | the new live project ref, in both. Every other project shows the demo banner, and only there may an account get Demo access |
+| Live database (*after 01 step 2*) | [`client/src/lib/database.js`](../client/src/lib/database.js) `LIVE_PROJECT_ID` | the new live project ref. Every other project shows the demo banner. (Leave `DEMO_PROJECT_ID` in `manage-staff/handler.js` alone: it names the shared demo site, the only project where an account may get Demo access, so the Edge Functions are the same for every parish. A parish with a demo site of its own has no Demo access there unless its copy names that demo project and deploys that demo's functions itself) |
 | Live database (*after 01 step 7*) | [`client/.env.production`](../client/.env.production) | the new live `VITE_SUPABASE_URL` and anon key (keep-alive reads them) |
 | Photo buckets (*after 01 step 8 / 02 step 8*) | [`client/vercel.json`](../client/vercel.json), the `/media` rules | the rules with `"has"`: keep one, with the demo site's name in `"pre"` and its testing bucket's r2.dev address (or delete them if there's no demo site); the last rule: the live bucket's r2.dev address |
 | Demo site kept out of search | [`client/vercel.json`](../client/vercel.json), the `X-Robots-Tag` rules with `"has"` | keep one, with the demo site's name in `"pre"`, as above (or delete them) |
@@ -80,7 +80,6 @@ Do this in the new repository before the first deploy. Steps marked
 | Parish fiesta (optional) | [`client/src/data/liturgical-calendar.json`](../client/src/data/liturgical-calendar.json) | give the patron's day a `"patron"`: a word from the parish name, like `"Guadalupe"` on 12-12 (add the day if it isn't there). See below |
 | Edge Function deploy scripts | root [`package.json`](../package.json) `deploy:production*` and `deploy:demo*` | in the copy, one set only (`deploy:functions`, `deploy:manage-staff`, `deploy:media-upload`, `deploy:notify-staff`), each with `--project-ref <the new live project>` so they can't deploy to another parish's project. See step 4 |
 | Scripts of this parish's demo and tests | root [`package.json`](../package.json) `db:*` scripts | delete them: `db:mark-applied` isn't needed for a new project (`db push` records history), and `db:seed-load`, `db:clean-load` and `db:fix-load-status` name this parish's demo project |
-| Tests that name the live project | [`client/test/staff-handler.test.js`](../client/test/staff-handler.test.js) | the live project ref in the two "refused on the live project" tests, to match `LIVE_PROJECT_ID` |
 
 Then find anything left over:
 
@@ -165,9 +164,17 @@ name another parish's project.
    `insert into profiles` with your email, then sign out and back in.
    Every other account is made from Settings → Staff.
 2. [02-demo.md](02-demo.md), if the parish wants a demo site.
-3. **Deploy the three Edge Functions** to the new live project. The scripts
-   of step 2 name the project, so they deploy there whichever project the CLI
-   is linked to (run `npx supabase login` once first):
+3. **Deploy the three Edge Functions** to the new live project. From the
+   main repository, once the parish is in `parishes.json` with its access
+   token ([04-releases.md](04-releases.md#once-per-computer-the-parishes-file)):
+
+   ```bash
+   npm run release:functions -- <name>
+   ```
+
+   Or from the parish's own folder: the scripts of step 2 name the project,
+   so they deploy there whichever project the CLI is linked to (run
+   `npx supabase login` once first, as an account in that project):
 
    | Function | Command |
    | --- | --- |

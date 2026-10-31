@@ -1,6 +1,8 @@
 // The root `parishes.json`: every parish's Supabase project and database
-// connection string, used by scripts/release-db.mjs and scripts/parish.mjs.
-// It holds the database passwords, so git ignores it; parishes.example.json
+// connection string, used by scripts/release-db.mjs, release-functions.mjs
+// and parish.mjs, and optionally a Supabase access token for deploying Edge
+// Functions to a project on another account. It holds the database
+// passwords and tokens, so git ignores it; parishes.example.json
 // shows its shape.
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -46,7 +48,7 @@ export function writeParishes(parishes) {
 
 export function checkName(name) {
   if (!name || !/^[a-z0-9-]+$/.test(name)) return 'a name of lower-case letters, digits or dashes';
-  if (['all', 'status', 'list', 'add', 'link'].includes(name)) return `a name other than "${name}"`;
+  if (['all', 'status', 'list', 'add', 'link', 'token'].includes(name)) return `a name other than "${name}"`;
   return null;
 }
 
@@ -69,6 +71,9 @@ export function loadParishes() {
     const ref = refFromDbUrl(p.dbUrl);
     if (p.projectRef && ref && p.projectRef !== ref) {
       fail(`${p.name}: "projectRef" is ${p.projectRef} but its connection string is for ${ref}.`);
+    }
+    if (p.accessToken !== undefined && !ACCESS_TOKEN.test(p.accessToken)) {
+      fail(`${p.name}: "accessToken" must be a Supabase access token (sbp_…), or left out.`);
     }
     p.projectRef = p.projectRef || ref;
     p.label = p.label || p.name;
@@ -93,9 +98,15 @@ export function npx(args, options) {
   return spawnSync('npx', args, { cwd: ROOT, ...options });
 }
 
-// Never echo a connection string: it carries the database password.
+// Never echo a connection string or an access token: they carry the keys.
 export function hidePasswords(text, parishes) {
   let out = text;
-  for (const p of parishes) out = out.split(p.dbUrl).join(`<${p.name} database>`);
-  return out.replace(/(postgres(?:ql)?:\/\/[^:\s]+:)[^@\s]+@/g, '$1****@');
+  for (const p of parishes) {
+    out = out.split(p.dbUrl).join(`<${p.name} database>`);
+    if (p.accessToken) out = out.split(p.accessToken).join(`<${p.name} token>`);
+  }
+  return out.replace(/(postgres(?:ql)?:\/\/[^:\s]+:)[^@\s]+@/g, '$1****@').replace(/\bsbp_\w{8,}/g, 'sbp_****');
 }
+
+// Supabase → Account → Access Tokens: "sbp_" and a long string of letters and digits.
+export const ACCESS_TOKEN = /^sbp_\w{20,}$/;

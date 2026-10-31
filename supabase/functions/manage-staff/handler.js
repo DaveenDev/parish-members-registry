@@ -29,16 +29,18 @@ const clean = (v) => (typeof v === 'string' ? v.trim() : '');
 export const ACCESS_LEVELS = ['full', 'read_only', 'gkk_leader', 'website', 'clergy', 'demo'];
 const MIGRATION_HINT = 'Run the 0014_roles_activity_trash.sql migration in Supabase to use access levels';
 
-// The live registry's project, as LIVE_PROJECT_ID in client/src/lib/database.js
-// (change both if the registry moves). Every other project is a demo site.
-export const LIVE_PROJECT_ID = 'rmlkowkbonbrtaqocsvo';
+// The demo site's project, the one place Demo access (0101) may be given.
+// Every other project is a parish's live registry, so the same function can
+// be deployed to every parish (npm run release:functions), and a project
+// this doesn't know refuses Demo access.
+export const DEMO_PROJECT_ID = 'qyoyuukpdjrwfhovtrwd';
 
-/** True when `url` (the function's SUPABASE_URL) is the live registry's project. */
+/** True when `url` (the function's SUPABASE_URL) is a parish's live registry: anything but the demo site. */
 export function isLiveProject(url) {
   try {
-    return new URL(url).hostname.toLowerCase() === `${LIVE_PROJECT_ID}.supabase.co`;
+    return new URL(url).hostname.toLowerCase() !== `${DEMO_PROJECT_ID}.supabase.co`;
   } catch {
-    return false;
+    return true;
   }
 }
 

@@ -150,10 +150,11 @@ Also update the repository so it knows the live project:
 [`client/.env.production`](../client/.env.production) holds the live
 `VITE_SUPABASE_URL` and anon key (the keep-alive workflow reads them), and
 `LIVE_PROJECT_ID` in [`client/src/lib/database.js`](../client/src/lib/database.js)
-and in [`supabase/functions/manage-staff/handler.js`](../supabase/functions/manage-staff/handler.js)
-is the live ref (any other project gets the demo banner, and only there
-may an account get Demo access). For our parish all of these are already
-right.
+is the live ref (any other project gets the demo banner). Demo access is
+decided by the demo project instead (`DEMO_PROJECT_ID` in
+[`supabase/functions/manage-staff/handler.js`](../supabase/functions/manage-staff/handler.js)),
+so the function is the same for every parish. For our parish all of these
+are already right.
 
 ## Step 8. Photo storage (Cloudflare R2)
 

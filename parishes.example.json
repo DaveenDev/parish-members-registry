@@ -16,6 +16,7 @@
     "name": "sjmv",
     "label": "SJMV Parish",
     "projectRef": "ixfzajjtzuwelkjnssjt",
-    "dbUrl": "postgresql://postgres.ixfzajjtzuwelkjnssjt:<password>@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres"
+    "dbUrl": "postgresql://postgres.ixfzajjtzuwelkjnssjt:<password>@aws-0-ap-southeast-1.pooler.supabase.com:5432/postgres",
+    "accessToken": "sbp_<token of the Supabase account that owns the project>"
   }
 ]
