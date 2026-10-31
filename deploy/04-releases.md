@@ -33,9 +33,14 @@ which has no backups.
 
 Last it asks for an **access token**, for deploying the Edge Functions
 (`release:functions`, below). The database password doesn't reach them: they
-go through the Supabase account that owns the project. Sign in to
-supabase.com as that account → **Account** (top right) → **Access Tokens** →
-**Generate new token**, and paste it (it isn't shown). Leave it blank when
+go through the Supabase account that owns the project. It's a **personal
+access token** of that account, not one of the project's API keys (anon,
+service_role): it lives under the account, not in the project. Sign in to
+supabase.com as that account, open
+[supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens)
+(or your avatar → **Account preferences** → **Access Tokens**), choose
+**Generate new token**, and paste it (it starts with `sbp_`, is shown only
+once, and isn't shown as you paste it). Leave it blank when
 this computer's own `npx supabase login` is a member of that project. To add
 or change one later (a parish recorded before this, or a renewed token):
 

@@ -24,8 +24,9 @@ import {
 } from './parishes-file.mjs';
 
 const PLACEHOLDER = '[YOUR-PASSWORD]';
-const TOKEN_HELP = 'Edge Functions are deployed with a Supabase access token for the account that owns the project:\n'
-  + 'sign in to supabase.com as that account → Account (top right) → Access Tokens → Generate new token.\n'
+const TOKEN_HELP = 'Edge Functions are deployed with a personal access token of the Supabase account that owns the project\n'
+  + '(not the project\'s anon or service_role key). Sign in as that account and open\n'
+  + 'https://supabase.com/dashboard/account/tokens → Generate new token. It starts with sbp_ and is shown only once.\n'
   + 'Leave it blank to use this computer\'s own `npx supabase login` (fine when that account is a member of the project).';
 
 // An access token from the prompt: '' for none, or fails on one that isn't a token.
