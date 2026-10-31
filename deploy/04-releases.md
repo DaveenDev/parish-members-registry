@@ -131,22 +131,39 @@ organization. Releases don't depend on it.
 
 ## Each release, in order
 
+For each parish the order is always: **database, then Edge Functions,
+then website**. The names below (`demo`, `muaan`, `sjmv`) are examples: use
+the ones in your `parishes.json` (`npm run parish` lists them).
+
 1. **Commit on `main`**, the migration with the code that uses it. Don't
-   push yet. The script only sends migrations committed on `main`, so
-   another session's unfinished file in the folder stops it.
-2. **See what each database still needs:**
+   push yet. The scripts only send migrations and functions committed on
+   `main`, so another session's unfinished file in the folder stops them.
+2. **See what each parish still needs:**
 
    ```bash
    npm run release:db -- status
    ```
 
-3. **Demo site.** Run them there and try the change on demo data
-   (`npm run dev`, with `client/.env.local` on the demo project):
+   ```bash
+   npm run release:functions -- status
+   ```
+
+   The first lists the migrations each database hasn't run. The second
+   lists each project's functions; if one fails with 403, fix its token
+   ([above](#access-token-for-edge-functions)) before going on.
+3. **Demo site.** Its migrations, then its functions (only when
+   `supabase/functions/` changed; deploying them again does no harm):
 
    ```bash
    npm run release:db -- demo
    ```
 
+   ```bash
+   npm run release:functions -- demo
+   ```
+
+   Then try the change on demo data (`npm run dev`, with
+   `client/.env.local` on the demo project).
 4. **Mua-an.** Run its backup (GitHub → this repository → Actions →
    Encrypted database backup → **Run workflow**) and wait for it to finish.
    Then:
@@ -155,20 +172,36 @@ organization. Releases don't depend on it.
    npm run release:db -- muaan
    ```
 
-   A changed Edge Function goes to both too: `npm run release:functions --
-   demo`, then `npm run release:functions -- muaan`. Then push `main`: both
-   the live and demo websites rebuild.
-5. **SJMV, a day or two later**, once Mua-an has used the change without
+   ```bash
+   npm run release:functions -- muaan
+   ```
+
+5. **Push `main`**: both the live and demo websites rebuild. If GitHub has
+   commits this folder doesn't (another session or computer pushed),
+   bring them in first:
+
+   ```bash
+   git pull --no-rebase
+   ```
+
+   ```bash
+   git push
+   ```
+
+6. **SJMV, a day or two later**, once Mua-an has used the change without
    trouble. Its backup (GitHub → `SJMVparish/website` → Actions), then:
 
    ```bash
    npm run release:db -- sjmv
    ```
 
-   A changed Edge Function: `npm run release:functions -- sjmv`. Then carry
-   the code across and push it, as in
+   ```bash
+   npm run release:functions -- sjmv
+   ```
+
+   Then carry the code across and push it, as in
    [03-new-parish.md step 5](03-new-parish.md#step-5-keeping-the-copy-up-to-date).
-6. **Every later parish**, the same as SJMV.
+7. **Every later parish**, the same as SJMV.
 
 `npm run release:db -- all` goes through every parish in the file's order,
 asking before each one. Doing them one at a time, with the website pushed in
