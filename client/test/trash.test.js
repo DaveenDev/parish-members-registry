@@ -63,7 +63,7 @@ test('a restored entry opens where it lives', () => {
   assert.equal(trashOpenPath({ kind: 'history_article', label: 'Founding' }), '/admin/website?tab=history');
 });
 
-test('photos are found in an event, an article and a history chapter, once each', () => {
+test('photos are found in an event, an announcement, an article and a history chapter, once each', () => {
   assert.deepEqual(trashFiles('event', { photo_url: 'https://i/e.jpg' }), ['https://i/e.jpg']);
   assert.deepEqual(trashFiles('article', { photo_url: 'https://i/a.jpg', photos: [{ url: 'https://i/a.jpg' }, { url: 'https://i/b.jpg' }, null] }), ['https://i/a.jpg', 'https://i/b.jpg']);
   assert.deepEqual(
@@ -71,10 +71,12 @@ test('photos are found in an event, an article and a history chapter, once each'
     ['https://i/h.jpg', 'https://i/hb.jpg', 'https://i/v.mp4', 'https://i/g.jpg'],
   );
   assert.deepEqual(trashFiles('event', { photo_url: null }), []);
-  assert.deepEqual(trashFiles('announcement', { photo_url: 'https://i/x.jpg' }), []);
+  assert.deepEqual(trashFiles('announcement', { photo_url: 'https://i/x.jpg' }), ['https://i/x.jpg']);
+  assert.deepEqual(trashFiles('bulletin', { photo_url: 'https://i/x.jpg' }), []);
   assert.deepEqual(trashFiles('event', null), []);
   assert.ok(trashKindHasFiles('event') && trashKindHasFiles('article') && trashKindHasFiles('history_article'));
-  assert.ok(!trashKindHasFiles('announcement') && !trashKindHasFiles('household'));
+  assert.ok(trashKindHasFiles('announcement'));
+  assert.ok(!trashKindHasFiles('bulletin') && !trashKindHasFiles('household'));
 });
 
 test('the messages say what happens', () => {

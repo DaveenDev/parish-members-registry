@@ -111,6 +111,7 @@ export const PHOTO_SHAPES = {
   gkk: { w: 16, h: 9, shape: 'Landscape', size: '1600 × 900 px', note: 'Phones show it a little taller and computers a little wider, so keep the chapel in the middle.' },
   cover: { w: 16, h: 9, shape: 'Landscape', size: '1600 × 900 px', note: 'Some screens trim the edges, so keep what matters in the middle.' },
   event: { w: 16, h: 9, shape: 'Landscape', size: '1600 × 900 px', note: 'A poster of another shape is shown whole, with soft edges filling the space.' },
+  announcement: { w: 16, h: 9, shape: 'Landscape', size: '1600 × 900 px', note: 'A poster of another shape is shown whole, with soft edges filling the space. The home page shows a small square from its middle.' },
   portrait: { w: 1, h: 1, shape: 'Square', size: '400 × 400 px', note: 'Shown in a circle, so keep the face in the middle.' },
   // Saved at 256 × 256 (resizeLogo).
   logo: { w: 1, h: 1, shape: 'Square', size: '256 × 256 px', note: 'A plain or clear (transparent) background.' },

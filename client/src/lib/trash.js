@@ -101,18 +101,18 @@ export function trashNote(withWhat = '') {
 export const TRASHED_WEBSITE_TABLES = ['announcements', 'bulletins', 'events', 'articles', 'history_articles', 'songs'];
 
 /** Whether deleting this kind for good also removes photos from storage. */
-export const trashKindHasFiles = (kind) => kind === 'event' || kind === 'article' || kind === 'history_article';
+export const trashKindHasFiles = (kind) => ['event', 'announcement', 'article', 'history_article'].includes(kind);
 
 /**
  * The photo addresses in a trashed row (`data.row` of a deleted_records entry):
- * an event's cover, a blog article's photos, a history chapter's photos and
+ * an event's or announcement's cover (0112), a blog article's photos, a history chapter's photos and
  * video. These stay in storage while the entry is in the Trash.
  */
 export function trashFiles(kind, row) {
   if (!row) return [];
   const gallery = (row.photos || []).map((p) => p?.url);
   let urls = [];
-  if (kind === 'event') urls = [row.photo_url];
+  if (kind === 'event' || kind === 'announcement') urls = [row.photo_url];
   else if (kind === 'article') urls = [row.photo_url, ...gallery];
   else if (kind === 'history_article') urls = [row.photo_url, row.body_photo_url, row.video_url, ...gallery];
   return [...new Set(urls.filter(Boolean))];

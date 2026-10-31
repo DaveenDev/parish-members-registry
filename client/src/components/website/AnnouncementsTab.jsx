@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { api } from '../../api.js';
 import { Field, TextInput, Select, Checkbox, Badge } from '../ui.jsx';
 import { FilterSelect, SearchInput, Pagination, EmptyState, LoadingState, ErrorState } from '../admin.jsx';
@@ -6,12 +6,13 @@ import { fmtDate } from '../../constants.js';
 import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { ANNOUNCEMENT_CATEGORIES, ANNOUNCEMENT_DAYS, MAX_PINNED, announcementLastDay, announcementState, todayIso } from '../../lib/website.js';
-import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton } from './shared.jsx';
+import { useContentList, SidePanel, SectionLabel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, PhotoIcon, FilePick, PhotoSizeHint, UploadOverlay } from './shared.jsx';
 
 const STATES = ['Live', 'Scheduled', 'Draft', 'Expired'];
 const URL_DEFAULTS = { state: 'All', q: '', page: 1, size: 10 };
 const URL_ALLOWED = { state: ['All', ...STATES], size: [10, 20, 50] };
 const describe = (r) => r.title;
+const MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 
 export default function AnnouncementsTab() {
   const list = useContentList({ table: 'announcements', load: api.listAnnouncements, remove: api.deleteAnnouncement, describe });
@@ -61,6 +62,7 @@ export default function AnnouncementsTab() {
         ) : (
           page.rows.map((r) => (
             <div key={r.id} className="flex items-start gap-3 px-5 py-4 border-b border-parish-line last:border-b-0 flex-wrap">
+              {r.photo_url && <img src={r.photo_url} alt="" className="w-[72px] h-[48px] flex-none rounded-lg object-cover border border-parish-line" />}
               <div className="flex-1 min-w-[220px]">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
                   {r.pinned && <Badge tone="gold">Pinned</Badge>}
@@ -115,19 +117,71 @@ function AnnouncementEditor({ row, otherPinned, onClose, onSaved }) {
   const toast = useToast();
   const [form, setForm] = useState({ ...row, expires_on: row.expires_on || '' });
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // The cover is uploaded to R2 as soon as it's picked, as on events.
+  // Cancelling deletes what this session uploaded; a cover taken off is
+  // deleted once the announcement is saved.
+  const uploaded = useRef(new Set());
+  const replaced = useRef(new Set());
+  const coverRef = useRef(form.photo_url || '');
+  coverRef.current = form.photo_url || '';
+
+  function setCover(url) {
+    const old = coverRef.current;
+    if (old && uploaded.current.has(old)) {
+      uploaded.current.delete(old);
+      api.deleteImage(old).catch(() => {});
+    } else if (old) {
+      replaced.current.add(old);
+    }
+    setForm((f) => ({ ...f, photo_url: url }));
+  }
+
+  async function pickCover([file]) {
+    if (!file.type.startsWith('image/')) { setError(`${file.name} isn't an image`); return; }
+    if (file.size > MAX_SOURCE_BYTES) { setError(`${file.name} is over 25 MB`); return; }
+    setUploading(true);
+    setError('');
+    try {
+      const url = await api.uploadImage(file, 'announcements');
+      uploaded.current.add(url);
+      setCover(url);
+    } catch (e) {
+      setError(e.message || 'Could not upload the photo');
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function close() {
+    for (const url of uploaded.current) api.deleteImage(url).catch(() => {});
+    onClose();
+  }
 
   async function save() {
     if (!form.title.trim()) { setError('Give the announcement a title.'); return; }
     if (!form.publish_on) { setError('Choose the date it starts showing.'); return; }
     if (form.expires_on && form.expires_on < form.publish_on) { setError('The end date must be on or after the start date.'); return; }
+    if (uploading) { setError('Wait for the photo to finish uploading.'); return; }
     setSaving(true);
     setError('');
     try {
-      const saved = await api.saveAnnouncement({ ...form, title: form.title.trim() });
+      const { photo_url: cover, ...fields } = form;
+      // Leave the cover out when there never was one, so announcements still save before the 0112 migration.
+      const withCover = cover || 'photo_url' in row ? { ...fields, photo_url: cover || '' } : fields;
+      const saved = await api.saveAnnouncement({ ...withCover, title: form.title.trim() });
+      for (const url of replaced.current) api.deleteImage(url).catch(() => {});
+      uploaded.current.clear();
+      // Now that it has an ID: announcement<ID>_cover.jpg on R2.
+      let named = null;
+      if (saved.photo_url) {
+        named = await api.nameImages('announcements', saved.id).catch((e) => { toast.error(`Announcement saved, but its photo wasn't renamed: ${e.message}`); return null; });
+      }
       toast.success('Announcement saved');
-      onSaved(saved);
+      onSaved(named || saved);
     } catch (e) {
       setError(e.message || 'Could not save');
     } finally {
@@ -136,11 +190,26 @@ function AnnouncementEditor({ row, otherPinned, onClose, onSaved }) {
   }
 
   return (
-    <SidePanel title={row.id ? 'Edit announcement' : 'New announcement'} onClose={onClose} onSave={save} saving={saving} error={error}>
+    <SidePanel title={row.id ? 'Edit announcement' : 'New announcement'} onClose={close} onSave={save} saving={saving} error={error}>
       <Field label="Title" required><TextInput value={form.title} onChange={(e) => set('title')(e.target.value)} maxLength={150} placeholder="e.g. Walay Misa sa Kapilya sa Balabag karong Domingo" /></Field>
       <Field label="Message">
         <TextArea rows={7} value={form.body || ''} onChange={(e) => set('body')(e.target.value)} placeholder="The full announcement. Blank lines start a new paragraph." />
       </Field>
+      <SectionLabel>Photo or poster (optional)</SectionLabel>
+      <div className="flex items-start gap-4 flex-wrap">
+        <div className="relative w-[220px] aspect-[16/10] rounded-xl overflow-hidden border-2 border-dashed border-parish-borderStrong bg-parish-field flex items-center justify-center text-parish-faint">
+          {form.photo_url ? <img src={form.photo_url} alt="Cover" className="w-full h-full object-cover" /> : <PhotoIcon size={32} />}
+          <UploadOverlay busy={uploading} />
+        </div>
+        <div className="flex flex-col gap-2 items-start">
+          <FilePick label={form.photo_url ? 'Replace photo' : 'Upload photo'} onFiles={pickCover} busy={uploading} />
+          {form.photo_url && !uploading && <button type="button" onClick={() => setCover('')} className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13px] text-parish-error">Remove photo</button>}
+          <span className="text-[12px] text-parish-muted max-w-[260px]">
+            Shown on the announcement's card and page. Put the key details in the message too: the urgent banner and the pinned list show no photo, and screen readers can't read a poster.
+          </span>
+          <PhotoSizeHint kind="announcement" />
+        </div>
+      </div>
       <div className="grid gap-4 sm:grid-cols-3">
         <Field label="Category">
           <Select value={form.category} onChange={(e) => set('category')(e.target.value)}>

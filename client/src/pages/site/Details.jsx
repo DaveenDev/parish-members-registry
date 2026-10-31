@@ -127,9 +127,11 @@ export function AnnouncementDetail() {
     <Detail q={useItem('announcements', id)} notFound="Wala na kini nga pahibalo.">
       {(a) => (
         <>
-          <PageMeta title={a.title} description={excerpt(a.body)} />
+          <PageMeta title={a.title} description={excerpt(a.body)} image={a.photo_url} />
           <div className="flex gap-2 items-center mb-2"><AnnouncementChip a={a} /><span className="text-[13.5px] lg:text-[14.5px] text-parish-text2">{fmtShort(a.publish_on)}</span></div>
           <h1 className={DETAIL_TITLE}>{a.title}</h1>
+          {/* The whole poster, as on the event page (0112). */}
+          <Photo src={a.photo_url} h={260} hLg={520} alt={a.title} whole />
           <Body text={a.body} />
           <BigButton className={SHARE} onClick={() => share(a.title)}><Icon name="share" />Ipaambit sa Messenger</BigButton>
         </>
