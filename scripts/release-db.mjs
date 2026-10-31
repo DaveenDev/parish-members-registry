@@ -15,10 +15,22 @@
 //   npm run release:db -- demo            # run them on one parish
 //   npm run release:db -- all             # every parish, in the file's order
 //
+// A database set up by hand (migrations pasted into the SQL Editor) has no
+// history of them, so `db push` would run them again from 0001 and fail.
+// Check which of them are already there, then record those as applied:
+//   npm run release:db -- check demo      # which missing ones are there
+//   npm run release:db -- mark demo 0110  # record up to 0110 as applied
+//
 // See deploy/04-releases.md.
 import { spawnSync } from 'node:child_process';
+import { mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { createInterface } from 'node:readline/promises';
 import { ROOT, fail, hidePasswords, loadParishes, npx } from './parishes-file.mjs';
+import { checkSql, lastDone, migrationMarkers, verdicts, versionOf } from './migration-markers.mjs';
+
+const MIGRATIONS_DIR = join(ROOT, 'supabase', 'migrations');
 
 // What `db push` would run there, without running it.
 function pending(parish, parishes) {
@@ -125,10 +137,94 @@ async function release(parishes, target) {
   }
 }
 
-const [command, target] = process.argv.slice(2);
+// The migrations `db push` would run on `parish`, each checked against its
+// database: is what it adds already there?
+function checkPending(parish, parishes) {
+  const state = pending(parish, parishes);
+  if (!state.ok) fail(describe(parish, state));
+  if (state.upToDate) return { state, checked: [] };
+  const all = readdirSync(MIGRATIONS_DIR).filter((f) => f.endsWith('.sql')).sort()
+    .map((file) => ({ file, sql: readFileSync(join(MIGRATIONS_DIR, file), 'utf8') }));
+  // In the order db push would run them.
+  const byFile = new Map(migrationMarkers(all).map((e) => [e.file, e]));
+  const entries = state.files.map((f) => byFile.get(f)).filter(Boolean);
+
+  // A file, not an argument: a hundred migrations' checks are too long for a command line.
+  const dir = mkdtempSync(join(tmpdir(), 'release-db-'));
+  try {
+    const file = join(dir, 'check.sql');
+    writeFileSync(file, checkSql(entries));
+    const result = npx(['supabase', 'db', 'query', '--db-url', parish.dbUrl, '--output-format', 'json', '--file', file], { encoding: 'utf8' });
+    if (result.status !== 0) fail(`Couldn't check ${parish.label}:\n${indent(hidePasswords(`${result.stdout || ''}${result.stderr || ''}`, parishes).trim())}`);
+    let rows;
+    try {
+      rows = JSON.parse(result.stdout).rows || [];
+    } catch {
+      fail(`Couldn't read the check's answer from ${parish.label}:\n${indent(hidePasswords(result.stdout || '', parishes).trim())}`);
+    }
+    return { state, checked: verdicts(entries, rows) };
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+const VERDICT_TEXT = { done: 'there', 'not run': 'NOT there', partly: 'PARTLY there', unknown: "can't tell (only changes earlier ones)" };
+
+function check(parishes, target) {
+  if (!target || target === 'all') fail('Which parish? npm run release:db -- check <name>');
+  const [parish] = pick(parishes, target);
+  const { checked } = checkPending(parish, parishes);
+  if (!checked.length) {
+    console.log(`${parish.label} (${parish.name}): up to date, nothing to check.`);
+    return;
+  }
+  console.log(`${parish.label} (${parish.name}): ${checked.length} not in its history. What each adds:`);
+  for (const c of checked) {
+    console.log(`    ${c.file.padEnd(44)} ${VERDICT_TEXT[c.verdict]}`);
+    if (c.verdict === 'partly') console.log(`        missing: ${c.missing.join(', ')}`);
+  }
+  const last = lastDone(checked);
+  if (!last) {
+    console.log(`\nThe first of them isn't there: nothing to mark. Run them: npm run release:db -- ${parish.name}`);
+  } else {
+    const rest = checked.length - checked.findIndex((c) => c.version === last) - 1;
+    console.log(`\nAlready there up to ${last}. Record those as applied:\n    npm run release:db -- mark ${parish.name} ${last}`);
+    console.log(rest ? `Then run the ${rest} after it: npm run release:db -- ${parish.name}` : 'Then it is up to date.');
+  }
+}
+
+async function mark(parishes, target, upTo) {
+  if (!target || target === 'all' || !upTo) fail('Usage: npm run release:db -- mark <parish> <last version already there>, e.g. mark demo 0110');
+  const [parish] = pick(parishes, target);
+  const { checked } = checkPending(parish, parishes);
+  const end = checked.findIndex((c) => c.version === upTo);
+  if (end < 0) fail(`${upTo} isn't one of ${parish.label}'s migrations still to run. See: npm run release:db -- check ${parish.name}`);
+  const marking = checked.slice(0, end + 1);
+  const absent = marking.filter((c) => c.verdict === 'not run' || c.verdict === 'partly');
+  if (absent.length) {
+    fail(`Not marked: ${absent.map((c) => c.file).join(', ')} ${absent.length === 1 ? 'isn\'t' : 'aren\'t'} fully there on ${parish.label}. Mark only up to before the first of them (npm run release:db -- check ${parish.name}).`);
+  }
+  console.log(`${parish.label} (${parish.name}): recording ${marking.length} as applied, without running them:`);
+  console.log(marking.map((c) => `    ${c.file}`).join('\n'));
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const typed = (await rl.question(`Type "${parish.name}" to record them: `)).trim();
+    if (typed !== parish.name) fail('Nothing was recorded.');
+  } finally {
+    rl.close();
+  }
+  const result = npx(['supabase', 'migration', 'repair', '--status', 'applied', '--db-url', parish.dbUrl, ...marking.map((c) => c.version)], { encoding: 'utf8' });
+  const output = hidePasswords(`${result.stdout || ''}${result.stderr || ''}`, parishes).trim();
+  if (result.status !== 0) fail(`Couldn't record them:\n${indent(output)}`);
+  console.log(`Recorded. Now:\n${indent(describe(parish, pending(parish, parishes)))}`);
+}
+
+const [command, target, extra] = process.argv.slice(2);
 if (!command) {
-  fail('Usage: npm run release:db -- status [parish]   or   npm run release:db -- <parish|all>');
+  fail('Usage: npm run release:db -- status [parish]   |   <parish|all>   |   check <parish>   |   mark <parish> <version>');
 }
 const parishes = loadParishes();
 if (command === 'status') status(parishes, target);
+else if (command === 'check') check(parishes, target);
+else if (command === 'mark') await mark(parishes, target, extra);
 else await release(parishes, command);

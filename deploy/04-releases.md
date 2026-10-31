@@ -93,6 +93,55 @@ in the file has run every migration, so the demo site stays first. Add each
 new parish once its database is set up (03 step 4); it goes at the end.
 `parishes.example.json` shows the file's shape, to edit by hand.
 
+### A database whose migrations were run by hand
+
+`db push` runs whatever isn't in the database's **migration history**
+(`supabase_migrations.schema_migrations`). A migration pasted into the SQL
+Editor works, but isn't recorded there. So a database set up or kept up by
+hand shows far more "to run" than it really needs (the demo site: all 116),
+and the release fails on the first one that can't run twice, often 0001:
+
+```
+Applying migration 0001_init.sql...
+ERROR: cannot drop columns from view (SQLSTATE 42P16)
+```
+
+Nothing is changed when that happens. Don't guess which migrations ran, and
+don't mark them all as done: a migration skipped by hand (on both the demo
+site and Mua-an, 0089 and 0106–0109 were) would never run. Instead:
+
+1. **Check** which of the missing ones are in fact there. It's read-only:
+   for each migration it looks for the tables, columns, views and functions
+   that migration adds:
+
+   ```bash
+   npm run release:db -- check <name>
+   ```
+
+   Each is *there*, *NOT there*, *PARTLY there* (with what's missing), or
+   *can't tell* (it only changes what an earlier one added). It ends with
+   the last migration that is there with nothing missing before it.
+
+2. **Record those as applied**, without running them. It checks again,
+   refuses if any of them isn't fully there, lists them and asks you to type
+   the parish's name:
+
+   ```bash
+   npm run release:db -- mark <name> <version>
+   ```
+
+   e.g. `npm run release:db -- mark demo 0088`.
+
+3. **Run the rest** as a normal release (`npm run release:db -- <name>`).
+   It runs every migration after that one, including any that were also run
+   by hand: from 0089 on they're all written to be safe to run again, so
+   those just repeat harmlessly while the skipped ones finally run.
+
+Mark only up to the **first** gap, as `check` suggests, never past it. A
+history with a gap in the middle makes `db push` refuse ("numbered before the
+last one this database ran"). Once a parish's history is complete, keep its
+migrations going through `release:db` only, so it stays complete.
+
 ### Which project this folder is linked to
 
 `npm run db:migrations` and a plain `npx supabase db push` use the project
@@ -138,7 +187,9 @@ the ones in your `parishes.json` (`npm run parish` lists them).
 1. **Commit on `main`**, the migration with the code that uses it. Don't
    push yet. The scripts only send migrations and functions committed on
    `main`, so another session's unfinished file in the folder stops them.
-2. **See what each parish still needs:**
+2. **See what each parish still needs** (far more than this release's new
+   ones means its history is missing hand-run migrations: fix that first, as
+   in [A database whose migrations were run by hand](#a-database-whose-migrations-were-run-by-hand)):
 
    ```bash
    npm run release:db -- status
@@ -249,5 +300,6 @@ production" **off**. The release script does the same job, in order.
 | `couldn't check` with *could not translate host name* or a timeout | Use the **Session pooler** string, not Direct connection. Or the project is paused: Supabase → the project → Restore |
 | *numbered before the last one this database ran* | A migration was committed with a number lower than one already run there (two sessions at once). If it hasn't run anywhere yet, rename it to the next free number and commit |
 | *still has migrations to run* | Run them on the demo site first, then go on |
+| *Applying migration 0001_init.sql* (or another old one) then an error like *cannot drop columns from view* or *already exists* | Its migrations were run by hand, so its history is missing them: see [A database whose migrations were run by hand](#a-database-whose-migrations-were-run-by-hand) |
 | A migration fails on one parish | The ones before it have run there; the failed one isn't recorded. It's usually data that parish has and the demo hasn't. Don't edit the file if it ran elsewhere: fix that parish's data in its SQL Editor, or add a new migration that copes with it, then run the release again |
 | The website broke after a release | Look at the database first: `npm run release:db -- status <parish>`. To go back, restore that parish's backup ([docs/backups.md](../docs/backups.md)) |

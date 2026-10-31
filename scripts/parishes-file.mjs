@@ -48,7 +48,7 @@ export function writeParishes(parishes) {
 
 export function checkName(name) {
   if (!name || !/^[a-z0-9-]+$/.test(name)) return 'a name of lower-case letters, digits or dashes';
-  if (['all', 'status', 'list', 'add', 'link', 'token'].includes(name)) return `a name other than "${name}"`;
+  if (['all', 'status', 'list', 'add', 'link', 'token', 'check', 'mark'].includes(name)) return `a name other than "${name}"`;
   return null;
 }
 
