@@ -110,6 +110,16 @@ async function release(parishes, target) {
       if (state.upToDate) continue;
       if (!state.ok || state.outOfOrder) fail(`Stopped at ${parish.label}. Nothing was run there.`);
 
+      // The first one already there means they were run by hand and aren't
+      // in its history: db push would run them again and fail (often 0001).
+      const { checked } = checkPending(parish, parishes);
+      if (checked[0]?.verdict === 'done') {
+        const last = lastDone(checked);
+        fail(`Stopped at ${parish.label}: ${checked[0].file} is already there, run by hand, so it isn't in its history and db push would fail on it. Nothing was run.\n`
+          + `Record the ones already there first:\n    npm run release:db -- check ${parish.name}\n    npm run release:db -- mark ${parish.name} ${last}\n`
+          + `then run this again. (deploy/04-releases.md, "A database whose migrations were run by hand")`);
+      }
+
       if (parish !== first) {
         const firstState = pending(first, parishes);
         if (!firstState.upToDate) {
