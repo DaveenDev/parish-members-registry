@@ -166,7 +166,7 @@ name another parish's project.
 2. [02-demo.md](02-demo.md), if the parish wants a demo site.
 3. **Deploy the three Edge Functions** to the new live project. From the
    main repository, once the parish is in `parishes.json` with its access
-   token ([04-releases.md](04-releases.md#once-per-computer-the-parishes-file)):
+   token ([04-releases.md](04-releases.md#access-token-for-edge-functions)):
 
    ```bash
    npm run release:functions -- <name>

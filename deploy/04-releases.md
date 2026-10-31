@@ -32,23 +32,56 @@ connection string. Answer "n" to the backup question for the demo site,
 which has no backups.
 
 Last it asks for an **access token**, for deploying the Edge Functions
-(`release:functions`, below). The database password doesn't reach them: they
-go through the Supabase account that owns the project. It's a **personal
-access token** of that account, not one of the project's API keys (anon,
-service_role): it lives under the account, not in the project. Sign in to
-supabase.com as that account, open
-[supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens)
-(or your avatar → **Account preferences** → **Access Tokens**), choose
-**Generate new token**, and paste it (it starts with `sbp_`, is shown only
-once, and isn't shown as you paste it). Leave it blank when
-this computer's own `npx supabase login` is a member of that project. To add
-or change one later (a parish recorded before this, or a renewed token):
+(`release:functions`, below). Leave it blank when this computer's own
+`npx supabase login` is a member of that project; otherwise follow the
+steps below.
 
-```bash
-npm run parish -- token <name>
-```
+### Access token for Edge Functions
 
-Then check it connects:
+The database password doesn't reach the Edge Functions: they go through the
+Supabase **account** that owns the project. So each parish needs a
+**personal access token** of that account:
+
+- **Not** one of the project's API keys (anon, service_role), and not under
+  the project's settings: it belongs to the account.
+- **Not read-only.** Read-only is enough for `release:functions -- status`,
+  but deploying uploads new code and is refused (403 / Unauthorized). If the
+  page offers scopes, give it Edge Functions **read and write**; nothing
+  else is needed (migrations use the connection string, not the token).
+- One per account: when one account owns several projects (the demo site
+  and Mua-an, say), the same token works for all of them.
+
+To make one:
+
+1. Sign in to supabase.com as the account that **owns** the parish's
+   project (each parish may be a different account).
+2. Open
+   [supabase.com/dashboard/account/tokens](https://supabase.com/dashboard/account/tokens)
+   (or the avatar, top right → **Account preferences** → **Access Tokens**).
+3. **Generate new token**, named for what it's for (e.g.
+   `release-sjmvp`), with the access above. Copy it: it starts with `sbp_`
+   and is shown only once.
+4. Save it to that parish in `parishes.json` (it isn't shown as you paste):
+
+   ```bash
+   npm run parish -- token <name>
+   ```
+
+5. Check it reaches the project:
+
+   ```bash
+   npm run release:functions -- status <name>
+   ```
+
+The token is stored only in `parishes.json` on this computer (git ignores
+it, as it does the database passwords) and the scripts mask it in their
+output. When a token expires, leaks, or this computer is retired, revoke it
+on the same page and repeat the steps with a new one; `npm run parish`
+lists which parishes have a token ("deploy token").
+
+### Check each parish connects
+
+After adding a parish, check its database and its functions both answer:
 
 ```bash
 npm run release:db -- status <name>
