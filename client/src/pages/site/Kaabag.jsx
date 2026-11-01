@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { BAND_PAD, Band, BigButton, Card, DataState, Eyebrow, PageHeader, Skeleton, Skeletons, WRAP, useShare } from '../../components/site/kit.jsx';
 import { KaabagChart, useKaabagChart } from '../../components/site/OrgCharts.jsx';
-import { BIS_MONTHS_SHORT, fmtTime12, initialsOf, parseIso } from '../../lib/site.js';
+import { BIS_MONTHS_SHORT, fmtLong, fmtTime12, initialsOf, parseIso } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
 import { KAABAG_PAGE, groupMonths, groupSundays, isKaabagGroup, monthTitle, peopleLines, unnamedCount } from '../../lib/kaabag.js';
 import { groupInterestPath, groupPath } from '../../lib/groups.js';
@@ -11,8 +11,9 @@ import { useSiteTitle } from './SiteLayout.jsx';
 import { listState, useGroups, useKaabagDirectory, useKaabagSchedule } from './data.js';
 
 /**
- * /simbahan/kaabag: who serves at each Sunday Mass, a table for each month
- * (made to be screenshotted for the group chat). The office makes the
+ * /simbahan/kaabag: who serves at each Sunday Mass. On a phone, a compact
+ * table for each month (to screenshot for the group chat); on a big screen,
+ * the next Sunday in big cards, then the rest by month. The office makes the
  * schedule (Parish Website → Kaabag Schedule). A person shows by name only
  * once they've agreed; the others are just counted (peopleLines). Then the
  * directory (names and photos, again only of those who agreed) and the
@@ -37,7 +38,8 @@ export default function Kaabag() {
   const sundays = groupSundays(q.rows);
   return (
     <main className="animate-fadeUp">
-      <Band as="div">
+      {/* Not on a phone, so the month's table is what fills the screen for a screenshot. */}
+      <Band as="div" className="hidden lg:block">
         <div className={`${WRAP} ${BAND_PAD}`}>
           <PageHeader eyebrow="Pag-alagad sa Misa" title="Mga Kaabag">
             <button
@@ -53,7 +55,7 @@ export default function Kaabag() {
         </div>
       </Band>
 
-      <section aria-label="Iskedyul sa mga Kaabag" className={`${WRAP} py-7 lg:py-12`}>
+      <section aria-label="Iskedyul sa mga Kaabag" className={`${WRAP} py-3 lg:py-12`}>
         <DataState
           state={q}
           skeleton={<Skeletons n={3} h={130} />}
@@ -61,8 +63,20 @@ export default function Kaabag() {
           empty={q.empty}
           emptyText="Wala pay iskedyul sa mga Kaabag. Balik unya o pangutana sa opisina sa parokya."
         >
-          <div className="flex flex-col gap-6 lg:gap-10">
+          {/* A phone gets a compact table per month, to screenshot for the group chat; a big screen, cards. */}
+          <div className="flex flex-col gap-5 lg:hidden">
             {groupMonths(sundays).map((m) => <MonthTable key={m.month} month={m.month} sundays={m.sundays} next={sundays[0]?.date} />)}
+          </div>
+          <div className="hidden lg:block">
+            {sundays[0] && <NextSunday sunday={sundays[0]} />}
+            {groupMonths(sundays.slice(1)).map((m) => (
+              <section key={m.month} aria-labelledby={`bulan-${m.month}`} className="mt-12">
+                <h2 id={`bulan-${m.month}`} className="m-0 mb-4 font-serif text-[32px] font-bold text-parish-navy leading-tight">{monthTitle(m.month)}</h2>
+                <div className="grid grid-cols-2 gap-4">
+                  {m.sundays.map((s) => <SundayCard key={s.date} sunday={s} />)}
+                </div>
+              </section>
+            ))}
           </div>
         </DataState>
       </section>
@@ -86,26 +100,66 @@ export default function Kaabag() {
   );
 }
 
+/** Today's Sunday, or the next one: a card for each Mass (big screens). */
+function NextSunday({ sunday }) {
+  return (
+    <section aria-labelledby="sunod-nga-domingo">
+      <Eyebrow>{sunday.date === todayIso() ? 'Karong Domingo' : 'Sunod nga Domingo'}</Eyebrow>
+      <h2 id="sunod-nga-domingo" className="m-0 mb-4 font-serif text-[40px] font-bold text-parish-navy leading-tight">{fmtLong(sunday.date)}</h2>
+      <div className="grid grid-cols-3 gap-4">
+        {sunday.masses.map((m, i) => (
+          <Card key={i} className="p-5 rounded-[18px]">
+            <div className="font-serif text-[32px] font-bold leading-none text-parish-blue">{fmtTime12(m.time)}</div>
+            <div className="mt-1 text-[14.5px] text-parish-text2">{massPlace(m)}</div>
+            <People names={m.names} className="mt-3 pt-3 border-t border-[#f0e8d6] text-[16.5px]" />
+          </Card>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/** One later Sunday: its date, then a row for each Mass (big screens). */
+function SundayCard({ sunday }) {
+  return (
+    <Card className="overflow-hidden rounded-[18px]">
+      <h3 className="m-0 px-4 py-3 bg-[#fbf7ef] border-b border-[#f0e8d6] font-serif text-[22px] font-bold text-parish-navy">{fmtLong(sunday.date)}</h3>
+      <ul className="list-none m-0 p-0">
+        {sunday.masses.map((m, i) => (
+          <li key={i} className="flex gap-3 px-4 py-3 border-t border-[#f4eddd] first:border-t-0">
+            <div className="w-[92px] flex-none">
+              <div className="font-serif text-[20px] font-bold leading-tight text-parish-blue">{fmtTime12(m.time)}</div>
+              <div className="text-[13px] leading-snug text-parish-text2">{massPlace(m)}</div>
+            </div>
+            <People names={m.names} className="min-w-0 flex-1 text-[15.5px]" />
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 /**
- * A month's schedule as one table, so a Kaabag can screenshot it whole and
- * send it to the group chat: a row for each Mass, its Sunday's date spanning
- * them. The heading is inside the table, so the screenshot says what it is.
- * The first Sunday shown (today's, or the next) is marked.
+ * A month on a phone: one compact table, small enough that the whole month
+ * fits on one screen for a screenshot to the group chat. A row for each Mass,
+ * its Sunday's date spanning them, the names on one line. The month is in the
+ * table's own heading, so the screenshot says what it is. The first Sunday
+ * shown (today's, or the next) is marked.
  */
 function MonthTable({ month, sundays, next }) {
-  const cell = 'px-3 py-2.5 lg:px-4 lg:py-3 align-top border-t border-[#efe5cf]';
+  const cell = 'px-2 py-1 align-top border-t border-[#efe5cf]';
   return (
-    <Card className="overflow-hidden lg:rounded-[18px] max-w-[860px]">
+    <Card className="overflow-hidden rounded-xl">
       <table className="w-full border-collapse text-left">
-        <caption className="px-3 py-3 lg:px-4 bg-parish-navy text-white text-left">
-          <span className="block text-[11.5px] font-bold tracking-[.12em] uppercase text-[var(--p-gold)]">Iskedyul sa mga Kaabag</span>
-          <span className="block font-serif text-[24px] lg:text-[28px] font-bold leading-tight">{monthTitle(month)}</span>
+        <caption className="px-2.5 py-1.5 bg-parish-navy text-white text-left">
+          <span className="font-serif text-[19px] font-bold leading-tight">{monthTitle(month)}</span>
+          <span className="ml-2 text-[10.5px] font-bold tracking-[.12em] uppercase text-[var(--p-gold)]">Iskedyul sa mga Kaabag</span>
         </caption>
         <thead>
-          <tr className="bg-[#fbf7ef] text-[12px] font-bold tracking-[.08em] uppercase text-parish-text2">
-            <th scope="col" className="px-3 py-2 lg:px-4 w-[84px] lg:w-[120px]">Domingo</th>
-            <th scope="col" className="px-3 py-2 lg:px-4 w-[104px] lg:w-[200px]">Misa</th>
-            <th scope="col" className="px-3 py-2 lg:px-4">Mga Kaabag</th>
+          <tr className="bg-[#fbf7ef] text-[10px] font-bold tracking-[.08em] uppercase text-parish-text2">
+            <th scope="col" className="px-2 py-1 w-[46px]">Adlaw</th>
+            <th scope="col" className="px-2 py-1 w-[112px]">Misa</th>
+            <th scope="col" className="px-2 py-1">Mga Kaabag</th>
           </tr>
         </thead>
         <tbody>
@@ -114,17 +168,17 @@ function MonthTable({ month, sundays, next }) {
             return s.masses.map((m, i) => (
               <tr key={`${s.date}-${i}`} className={`${isNext ? 'bg-[var(--p-blue-tint)]' : ''} ${i === 0 ? '[&>*]:border-t-2 [&>*]:border-t-[#e2d4b4]' : ''}`}>
                 {i === 0 && (
-                  <th scope="rowgroup" rowSpan={s.masses.length} className={`${cell} border-r ${isNext ? '' : 'bg-[#fdfaf3]'}`}>
-                    <span className="block font-serif text-[26px] lg:text-[30px] font-bold leading-none text-parish-navy">{parseIso(s.date).getDate()}</span>
-                    <span className="block mt-0.5 text-[12.5px] font-semibold text-parish-text2">{BIS_MONTHS_SHORT[parseIso(s.date).getMonth()]}</span>
-                    {isNext && <span className="inline-block mt-1.5 px-1.5 py-0.5 rounded bg-parish-blue text-white text-[10.5px] font-bold tracking-[.06em] uppercase">{s.date === todayIso() ? 'Karon' : 'Sunod'}</span>}
+                  <th scope="rowgroup" rowSpan={s.masses.length} className={`${cell} border-r text-center ${isNext ? '' : 'bg-[#fdfaf3]'}`}>
+                    <span className="block font-serif text-[20px] font-bold leading-none text-parish-navy">{parseIso(s.date).getDate()}</span>
+                    <span className="block text-[11px] font-semibold text-parish-text2">{BIS_MONTHS_SHORT[parseIso(s.date).getMonth()]}</span>
+                    {isNext && <span className="inline-block mt-1 px-1 rounded bg-parish-blue text-white text-[9px] font-bold tracking-[.04em] uppercase">{s.date === todayIso() ? 'Karon' : 'Sunod'}</span>}
                   </th>
                 )}
                 <td className={cell}>
-                  <span className="block font-serif text-[18px] lg:text-[20px] font-bold leading-tight text-parish-blue whitespace-nowrap">{fmtTime12(m.time)}</span>
-                  <span className="block text-[12.5px] lg:text-[13.5px] leading-snug text-parish-text2">{massPlace(m)}</span>
+                  <span className="block text-[13.5px] font-bold leading-tight text-parish-blue whitespace-nowrap">{fmtTime12(m.time)}</span>
+                  <span className="block text-[10.5px] leading-tight text-parish-text2">{massPlace(m)}</span>
                 </td>
-                <td className={cell}><People names={m.names} className="text-[15px] lg:text-[16px]" /></td>
+                <td className={`${cell} text-[12.5px] font-semibold leading-tight text-parish-ink`}>{peopleLines(m.names).join(', ') || '—'}</td>
               </tr>
             ));
           })}
