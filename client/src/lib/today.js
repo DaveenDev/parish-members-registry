@@ -3,11 +3,21 @@
 // it can be unit tested. Each item: { key, label, detail, n, to, tone }.
 import { can } from './access.js';
 import { addDays, sundayOf } from './website.js';
+import { daysAgoText } from './backup.js';
 
-export function todayItems({ user, counts, census, events = [], bulletins = [], today }) {
+/** `backup` is lib/backup.js's backupSummary(): only a staff admin is told, and only when a backup is late. */
+export function todayItems({ user, counts, census, events = [], bulletins = [], today, backup }) {
   const items = [];
   const r = counts?.requests;
   const push = (item) => { if (item.n || item.always) items.push(item); };
+
+  if (user?.isAdmin && backup?.state === 'overdue') {
+    items.push({
+      key: 'backup', label: 'The weekly database backup is late',
+      detail: `The last one was ${daysAgoText(backup.days)}. Check the "Encrypted database backup" run on GitHub (docs/backups.md)`,
+      to: '/admin/settings?tab=integrations', tone: 'red',
+    });
+  }
 
   if (can(user, 'registry') && counts?.pending_households) {
     push({ key: 'households', label: 'Households awaiting verification', detail: 'New registrations: check the details against the family', n: counts.pending_households, to: '/admin/households?status=Pending', tone: 'gold' });

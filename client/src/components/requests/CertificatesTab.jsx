@@ -5,6 +5,7 @@ import { fmtDate, fmtDateTime } from '../../constants.js';
 import { useLiveRefresh, useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
+import { trashNote } from '../../lib/trash.js';
 import { Field, TextInput, Select, Badge } from '../ui.jsx';
 import { SearchInput, FilterSelect, Pagination, EmptyState, LoadingState, ErrorState, rowActivationProps, NewItemsNote } from '../admin.jsx';
 import { SidePanel, SectionLabel, TextArea, RowButton, Panel, TabIntro, AddButton, Detail } from '../panels.jsx';
@@ -172,7 +173,7 @@ function CertificateDrawer({ request: r, onClose, onSaved, onDeleted, onVerifica
   }
 
   async function remove() {
-    const ok = await confirm({ title: `Delete ${r.ref_no}?`, message: "Only for spam or duplicates. This can't be undone.", confirmLabel: 'Delete', tone: 'danger' });
+    const ok = await confirm({ title: `Delete ${r.ref_no}?`, message: `Only for spam or duplicates. ${trashNote()}`, confirmLabel: 'Delete', tone: 'danger' });
     if (!ok) return;
     try { await api.deleteRequest('certificate_requests', r.id); toast.success('Deleted'); onDeleted(); } catch (e) { setError(e.message || 'Could not delete'); }
   }
@@ -216,6 +217,7 @@ function CertificateDrawer({ request: r, onClose, onSaved, onDeleted, onVerifica
         <Detail label="Mother">{r.mother_name}</Detail>
         <Detail label="Spouse">{r.spouse_name}</Detail>
         <Detail label="Purpose">{r.purpose}</Detail>
+        <Detail label="Pick-up">{r.pickup}</Detail>
         <Detail label="Copies">{r.copies}</Detail>
       </div>
       <div><RowButton tone="gray" onClick={() => setEditing(true)}>Edit request details</RowButton></div>

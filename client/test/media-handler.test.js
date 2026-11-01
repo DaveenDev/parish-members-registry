@@ -330,6 +330,19 @@ describe('name', () => {
     await run(db, { table: 'events', id: 56 }, r2);
     assert.deepEqual(r2.calls, [['copy', 'events/event55_cover.jpg', 'events/event56_cover.jpg']]);
   });
+  test('renames an announcement cover to announcement<ID>_cover.jpg (0112)', async () => {
+    const db = fakeDb({ articles: [], events: [], announcements: [{ id: 42, cover_seq: 0, photo_url: `${BASE}/announcements/2026/10/a.png` }] });
+    const r2 = r2WithCopy();
+    const res = await run(db, { table: 'announcements', id: 42 }, r2);
+    assert.equal(res.body.row.photo_url, `${BASE}/announcements/announcement42_cover.png`);
+    assert.deepEqual(r2.calls, [['copy', 'announcements/2026/10/a.png', 'announcements/announcement42_cover.png'], ['delete', 'announcements/2026/10/a.png']]);
+  });
+  test('an announcement before 0112 asks for the migration', async () => {
+    const db = fakeDb({ articles: [], events: [], announcements: [{ id: 42 }] });
+    const res = await run(db, { table: 'announcements', id: 42 }, r2WithCopy());
+    assert.equal(res.status, 400);
+    assert.match(res.body.error, /0112/);
+  });
   test('nothing to do when the photos are already named', async () => {
     const db = fakeDb({ articles: [], events: [{ id: 5, cover_seq: 1, photo_url: `${BASE}/events/event5_cover.jpg` }] });
     const r2 = r2WithCopy();

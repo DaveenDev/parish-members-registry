@@ -14,18 +14,22 @@ const ICONS = {
   clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>,
 };
 
-// Every export: which group it sits in, what it needs (lib/access.js), and its file.
+// What each group needs (lib/access.js): full access downloads the registry and the activity log;
+// Website & requests staff, who run the queues, also the Requests files.
+const GROUP_NEEDS = { Registry: 'exports', Requests: 'exportRequests', Records: 'exports' };
+
+// Every export: which group it sits in, and its file.
 const EXPORTS = [
   { group: 'Registry', path: '/exports/members.csv', file: 'members.csv', icon: 'people', tone: 'blue', title: 'Members', desc: 'Every member record with personal details, sacraments, ministries and census status.' },
   { group: 'Registry', path: '/exports/households.csv', file: 'households.csv', icon: 'house', tone: 'gold', title: 'Households', desc: 'Household directory with address, GKK, grouping, status and the participation survey.' },
   { group: 'Registry', path: '/exports/rosters.csv', file: 'ministry-rosters.csv', icon: 'group', tone: 'green', title: 'Ministry & organization rosters', desc: 'One row per member per ministry or organization, sorted by group.' },
   { group: 'Registry', path: '/exports/blood.csv', file: 'blood-directory.csv', icon: 'drop', tone: 'red', title: 'Blood type directory', desc: 'Current members with a blood type on file, with GKK and contact number.' },
-  { group: 'Requests', need: 'requests', path: '/exports/certificates.csv', file: 'certificate-requests.csv', icon: 'doc', tone: 'blue', title: 'Certificate requests', desc: 'Every request with its status, fee and OR number, and when it was released.' },
-  { group: 'Requests', need: 'requests', path: '/exports/sacrament-requests.csv', file: 'sacrament-requests.csv', icon: 'heart', tone: 'gold', title: 'Sacrament requests', desc: 'OCIA and Anointing of the Sick requests, with their status and the date set.' },
-  { group: 'Requests', need: 'requests', path: '/exports/prayers.csv', file: 'prayer-requests.csv', icon: 'heart', tone: 'blue', title: 'Prayer requests', desc: 'Every prayer request: whether it showed on the website and until when, its prayed count, and the Mass it was offered at.' },
-  { group: 'Requests', need: 'requests', path: '/exports/blood-requests.csv', file: 'blood-requests.csv', icon: 'drop', tone: 'red', title: 'Blood requests', desc: 'Every blood call with the patient, hospital, units needed and its status.' },
-  { group: 'Requests', need: 'requests', path: '/exports/donors.csv', file: 'blood-donors.csv', icon: 'drop', tone: 'red', title: 'Blood donors', desc: 'People who agreed to be contacted for blood, with their last donation.' },
-  { group: 'Records', need: 'activity', path: '/exports/activity.csv', file: 'activity-log.csv', icon: 'clock', tone: 'green', title: 'Activity log', desc: 'Every recorded change: households, members, requests, the census, the website, settings and staff accounts.' },
+  { group: 'Requests', path: '/exports/certificates.csv', file: 'certificate-requests.csv', icon: 'doc', tone: 'blue', title: 'Certificate requests', desc: 'Every request with its status, fee and OR number, and when it was released.' },
+  { group: 'Requests', path: '/exports/sacrament-requests.csv', file: 'sacrament-requests.csv', icon: 'heart', tone: 'gold', title: 'Sacrament requests', desc: 'OCIA and Anointing of the Sick requests, with their status and the date set.' },
+  { group: 'Requests', path: '/exports/prayers.csv', file: 'prayer-requests.csv', icon: 'heart', tone: 'blue', title: 'Prayer requests', desc: 'Every prayer request: whether it showed on the website and until when, its prayed count, and the Mass it was offered at.' },
+  { group: 'Requests', path: '/exports/blood-requests.csv', file: 'blood-requests.csv', icon: 'drop', tone: 'red', title: 'Blood requests', desc: 'Every blood call with the patient, hospital, units needed and its status.' },
+  { group: 'Requests', path: '/exports/donors.csv', file: 'blood-donors.csv', icon: 'drop', tone: 'red', title: 'Blood donors', desc: 'People who agreed to be contacted for blood, with their last donation.' },
+  { group: 'Records', path: '/exports/activity.csv', file: 'activity-log.csv', icon: 'clock', tone: 'green', title: 'Activity log', desc: 'Every recorded change: households, members, requests, the census, the website, settings and staff accounts.' },
 ];
 
 const TONES = {
@@ -54,7 +58,8 @@ function ExportCard({ item, busy, disabled, onExport }) {
 export default function Exports() {
   const csvExport = useCsvExport();
   const { user } = useAuth();
-  const shown = EXPORTS.filter((e) => !e.need || can(user, e.need));
+  const shown = EXPORTS.filter((e) => can(user, GROUP_NEEDS[e.group]));
+  const wholeRegistry = can(user, 'exports');
   const groups = [...new Set(shown.map((e) => e.group))];
   return (
     <>
@@ -72,8 +77,9 @@ export default function Exports() {
             </section>
           ))}
           <div className="bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl px-[18px] py-4 text-[13.5px] text-parish-info leading-relaxed">
-            CSV files open directly in Microsoft Excel and Google Sheets. Filtered lists can be exported from the Households and Members pages
-            (Export this view), and census results from Census → Results. Exported data is handled discreetly — share only with authorized parish personnel.
+            CSV files open directly in Microsoft Excel and Google Sheets.{' '}
+            {wholeRegistry && 'Filtered lists can be exported from the Households and Members pages (Export this view), and census results from Census → Results. '}
+            Exported data is handled discreetly — share only with authorized parish personnel.
           </div>
         </div>
       </PageBody>

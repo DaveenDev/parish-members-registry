@@ -6,7 +6,7 @@ export const ACCESS_LEVELS = [
   { key: 'full', label: 'Full access', note: 'Everything in the admin panel.' },
   { key: 'read_only', label: 'Read only', note: 'Sees the registry, census, requests, website and activity log, and changes nothing. No exports, census codes, GKK documents or trash.' },
   { key: 'gkk_leader', label: 'GKK leader', note: 'Sees and updates the households and members of one GKK (not their blood types), and those with no GKK yet, which they can move into theirs. Records their census and reviews their online updates, and gets or renews their census codes. Dashboard and reports cover that GKK only; possible duplicates also show another GKK\'s records that match theirs, which they send to the parish office to fix.' },
-  { key: 'website', label: 'Website & requests', note: 'Runs the Parish Website (including the office and contact details) and the Requests queues; views the registry and blood types but not the census.' },
+  { key: 'website', label: 'Website & requests', note: 'Runs the Parish Website (including the office and contact details) and the Requests queues, and downloads the Requests files from Exports; views the registry and blood types but not the census.' },
   { key: 'clergy', label: 'Clergy', note: 'For the parish priests. Sees the registry, sacraments, census and reports, verifies sacraments and handles the Requests queues. Changes no household or member. No blood types, exports, census codes, website, activity log or trash.' },
   // 0101: only offered on the demo site; signs in as full access there (AuthContext).
   { key: 'demo', label: 'Demo', demoOnly: true, note: 'The shared login behind "Login to Demo Site", for other parishes trying the app. Everything Full access does, but never a staff admin (no Staff accounts or Platform Integrations), and only a staff admin\'s Reset password changes its password. Demo site only.' },
@@ -24,6 +24,9 @@ const RULES = {
   reports: ['full', 'read_only', 'gkk_leader', 'clergy'],
   // Whole-registry downloads (the Exports page, Households and Members CSV): full access only.
   exports: ['full'],
+  // The Requests files on the Exports page (certificates, sacraments, prayers, blood requests and donors):
+  // also the staff who run the Requests queues. The Exports page opens for anyone who may download one.
+  exportRequests: ['full', 'website'],
   // Members' blood types: the Blood Types page, the field, filter and report (not GKK leaders, 0050, or clergy, 0087).
   bloodTypes: ['full', 'read_only', 'website'],
   activity: ['full', 'read_only'],

@@ -6,7 +6,9 @@ import { fmtDate } from '../../constants.js';
 import { useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { sundayOf, todayIso, addDays } from '../../lib/website.js';
-import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton } from './shared.jsx';
+import { useContentList, SidePanel, TextArea, PublishSwitch, StateBadge, RowButton, Panel, TabIntro, AddButton, FilePick } from './shared.jsx';
+import { downloadFileType } from '../../lib/downloads.js';
+import { fmtFileSize } from '../../lib/gkkDocuments.js';
 
 const describe = (r) => `Bulletin for ${fmtDate(r.week_of)}`;
 
@@ -51,7 +53,7 @@ export default function BulletinTab() {
               </div>
               <div className="flex-1 min-w-[180px]">
                 <div className="font-semibold text-[15px] text-parish-navy">{r.title}</div>
-                <div className="text-[12.5px] text-parish-muted">{(r.body || '').trim() ? `${(r.body || '').trim().split(/\s+/).length} words` : 'Empty'}</div>
+                <div className="text-[12.5px] text-parish-muted">{[(r.body || '').trim() ? `${(r.body || '').trim().split(/\s+/).length} words` : 'Empty', r.file_path && `PDF ${fmtFileSize(r.size_bytes)}`].filter(Boolean).join(' · ')}</div>
               </div>
               <StateBadge state={r.published ? 'Published' : 'Draft'} />
               <div className="flex gap-1.5">
@@ -73,9 +75,23 @@ export default function BulletinTab() {
 function BulletinEditor({ row, onClose, onSaved }) {
   const toast = useToast();
   const [form, setForm] = useState(row);
+  const [file, setFile] = useState(null);
+  const [removeFile, setRemoveFile] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const set = (k) => (v) => setForm((f) => ({ ...f, [k]: v }));
+
+  function pick([f]) {
+    try {
+      if (downloadFileType(f) !== 'application/pdf') throw new Error('The bulletin file must be a PDF.');
+    } catch (e) {
+      setError(e.message);
+      return;
+    }
+    setError('');
+    setFile(f);
+    setRemoveFile(false);
+  }
 
   async function save() {
     if (!form.week_of) { setError('Choose the week.'); return; }
@@ -83,7 +99,7 @@ function BulletinEditor({ row, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
-      const saved = await api.saveBulletin({ ...form, week_of: sundayOf(form.week_of), title: form.title.trim() });
+      const saved = await api.saveBulletin({ ...form, week_of: sundayOf(form.week_of), title: form.title.trim() }, file, { removeFile });
       toast.success('Bulletin saved');
       onSaved(saved);
     } catch (e) {
@@ -101,6 +117,20 @@ function BulletinEditor({ row, onClose, onSaved }) {
       </div>
       <Field label="Bulletin">
         <TextArea rows={18} value={form.body || ''} onChange={(e) => set('body')(e.target.value)} placeholder={'Type the bulletin here. Put each section on its own line, e.g.\n\nMGA PAHIBALO\n…\n\nMGA MISA KARONG SEMANA\n…'} />
+      </Field>
+      <Field label="PDF (optional)">
+        <div className="flex items-center gap-3 flex-wrap">
+          <FilePick label={file || (form.file_path && !removeFile) ? 'Choose another PDF' : 'Choose PDF'} accept=".pdf,application/pdf" onFiles={pick} disabled={saving} />
+          {(file || (form.file_path && !removeFile)) && (
+            <span className="text-[13px] text-parish-text2 min-w-0 break-all">
+              <strong className="font-semibold text-parish-navy">{file ? file.name : form.file_name}</strong>
+              {` · ${fmtFileSize(file ? file.size : form.size_bytes)}`}
+              {file && form.file_path ? ' (replaces the current PDF)' : ''}
+              <button type="button" onClick={() => { setFile(null); setRemoveFile(true); }} className="ml-2 appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold text-parish-error underline">Remove</button>
+            </span>
+          )}
+        </div>
+        <div className="text-[12.5px] text-parish-muted mt-1">The website offers it as a download beside the text, with its size (data is costly for many parishioners). Up to 20 MB.</div>
       </Field>
       <PublishSwitch checked={!!form.published} onChange={set('published')} />
     </SidePanel>

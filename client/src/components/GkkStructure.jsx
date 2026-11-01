@@ -212,6 +212,12 @@ export default function GkkStructure({ gkk, office = false, canEdit = true }) {
                             </div>
                           </div>
                           {canEdit ? (
+                            <label className="flex items-center gap-1.5 text-[12.5px] text-parish-ink cursor-pointer" title="Tick only when the person has agreed to have their name on the website">
+                              <input type="checkbox" checked={!!o.showPublicly} onChange={(e) => update(o.key, { showPublicly: e.target.checked, consentOn: e.target.checked ? o.consentOn || null : null })} />
+                              Show on the website
+                            </label>
+                          ) : <Badge tone={o.showPublicly ? 'green' : 'gray'}>{o.showPublicly ? 'On the website' : 'Not on the website'}</Badge>}
+                          {canEdit ? (
                             <TextInput
                               aria-label={`Note for ${displayName(o)}`} value={o.note || ''} maxLength={60}
                               onChange={(e) => update(o.key, { note: e.target.value })}

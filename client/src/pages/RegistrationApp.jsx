@@ -22,6 +22,7 @@ import MemberCensusCards, { MemberCensusReview } from '../components/MemberCensu
 import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationChecks } from '../components/MemberFields.jsx';
 import { barangayPatch, gkkBarangays, isListedBarangay } from '../lib/site.js';
 import { BarangayInput, GkkSelect, useGkkBarangayMap } from '../components/BarangayGkkFields.jsx';
+import GkkHelpSheet from '../components/GkkHelpSheet.jsx';
 import ChurchEmblem from '../components/ChurchEmblem.jsx';
 import { useParishTitle } from './site/data.js';
 
@@ -972,6 +973,7 @@ function StepHousehold({ household, err, onHouseholdField, gkkOptions, gkkLoad, 
               labels={{ choose: 'Pilia ang inyong GKK…', here: (b) => `Sa ${b}`, others: 'Ubang GKK' }}
             />
             {outside && <div className="text-[13px] text-parish-text2 mt-1.5">Pilia ang GKK nga inyong gi-apilan, bisan gawas sa inyong barangay ang inyong puy-anan.</div>}
+            <GkkHelpSheet onPick={(name) => onHouseholdField('gkk', name)} />
             {!gkkOptions.length && gkkLoad !== 'ok' && (
               <div role="status" className="text-[13px] text-parish-error mt-1.5">
                 {gkkLoad === 'loading' ? 'Gikuha pa ang listahan sa mga GKK…' : (

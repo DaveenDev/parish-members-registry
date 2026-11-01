@@ -18,12 +18,12 @@ import {
   requestOutcomeRows, feesByMonth, byGkk, peso, missingDetails, dataQualityByGkk, householdProblems, censusComparisonRows,
 } from './lib/reports.js';
 import { certTypeLabel, sacramentRequestLabel, SACRAMENT_REQUEST_OPEN, BLOOD_OPEN } from './lib/requests.js';
-import { addDays, ANNOUNCEMENT_DAYS } from './lib/website.js';
+import { addDays, ANNOUNCEMENT_DAYS, todayIso } from './lib/website.js';
 import { MEN_ONLY_FALLBACK, menOnlyBlocked, menOnlyMessage } from './lib/ministries.js';
 import { resizePhotoBlob } from './lib/images.js';
 import { gkkDocumentPath, gkkDocumentType } from './lib/gkkDocuments.js';
+import { trashFiles, trashKindHasFiles } from './lib/trash.js';
 import { cleanLyrics, downloadFilePath, downloadFileType } from './lib/downloads.js';
-import { KAABAG_MIGRATION, registryName, slotsPayload } from './lib/kaabag.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -197,6 +197,17 @@ export const api = {
   },
 
   /** The logo uploaded in Parish Config (a data URL), or null if there isn't one. */
+  /**
+   * This year's sacraments (0106): { year, baptism, communion, confirmation,
+   * matrimony }, a count under 5 null. Before the migration (or on any
+   * error) nothing, and the website leaves the strip out.
+   */
+  async publicSacramentMilestones() {
+    const { data, error } = await supabase.rpc('public_sacrament_milestones', { p_year: null });
+    if (error) return null;
+    return data || null;
+  },
+
   async publicParishLogo() {
     const { data, error } = await supabase.rpc('public_parish_logo');
     if (error) throw mapError(error);
@@ -546,15 +557,27 @@ export const api = {
     if (error) throw migrationError(error, 'deleted_records');
     return { rows: data || [] };
   },
-  /** Put a trash entry back. Resolves to { kind, record_id, household_id }. */
-  async restoreDeleted(id) {
-    const { data, error } = await supabase.rpc('restore_deleted', { p_id: id });
+  /**
+   * Put a trash entry back. A household or member (the default, as the Undo
+   * after deleting one has only the entry's id) comes back through
+   * restore_deleted and resolves to { kind, record_id, household_id }; any
+   * other kind through restore_trashed_record (0103), to { kind, record_id }.
+   */
+  async restoreDeleted(id, kind = 'household') {
+    const fn = kind === 'household' || kind === 'member' ? 'restore_deleted' : 'restore_trashed_record';
+    const { data, error } = await supabase.rpc(fn, { p_id: id });
     if (error) throw mapError(error);
     return data;
   },
-  async purgeDeleted(id) {
+  /**
+   * Delete a trash entry for good. An event, article or history chapter keeps
+   * its photos on R2 while it is in the Trash, so they go now (best effort).
+   */
+  async purgeDeleted(id, kind) {
+    const files = trashKindHasFiles(kind) ? await trashEntryFiles(id, kind) : [];
     const { error } = await supabase.rpc('purge_deleted', { p_id: id });
     if (error) throw mapError(error);
+    await Promise.allSettled(files.map((url) => callMediaFunction({ action: 'delete', url })));
   },
 
   /**
@@ -921,12 +944,6 @@ export const api = {
     return data || [];
   },
 
-  async addGkk(name) {
-    const { error } = await supabase.from('gkks').insert({ name });
-    if (error && error.code !== '23505') throw mapError(error);
-    return { ok: true };
-  },
-
   async renameGkk(oldName, newName) {
     const { error } = await supabase.rpc('rename_gkk', { old_name: oldName, new_name: newName });
     if (error) throw mapError(error, { dupLabel: 'A GKK with this name' });
@@ -1110,12 +1127,60 @@ export const api = {
     return { passed: !!data?.passed, steps: data?.steps || [] };
   },
 
+  /** { latest: { taken_at, file_name, size_bytes, run_url } | null, count } of the weekly database backups (0104; staff admins). */
+  async backupStatus() {
+    const { data, error } = await supabase.rpc('backup_status');
+    if (error) throw mapError(error);
+    return data;
+  },
+
   // ---- parish website content (0011 migration) ------------------------
   async listMassSchedules() {
     return listWebsite('mass_schedules', (q) => q.order('day_of_week').order('start_time'));
   },
   saveMassSchedule: (row) => saveWebsiteRow('mass_schedules', row),
   deleteMassSchedule: (id) => deleteWebsiteRow('mass_schedules', id),
+
+  // ---- the Kaabag's Sunday schedule (0113 migration) ------------------
+  /** The admin tab: { settings, masses, roster, services (each with people), cron }. Brings the list up to date with the registry. */
+  async kaabagAdmin() {
+    const { data, error } = await supabase.rpc('kaabag_admin');
+    if (error) {
+      // Before the migration is run the function doesn't exist; say which file fixes it.
+      if (error.code === 'PGRST202') throw new Error('Run the 0113_kaabag_schedule.sql migration in Supabase to use this page');
+      throw mapError(error);
+    }
+    return data;
+  },
+  /** Makes a month's schedule: { masses, places, filled }. `replace` redoes the Sundays still to come. */
+  generateKaabag: (month, replace = false) => publicRpc('kaabag_generate', { p_month: month, p_replace: replace }),
+  async saveKaabagSettings({ servers_per_mass, mass_rules, auto_generate }) {
+    const { error } = await supabase.from('kaabag_settings').update({ servers_per_mass, mass_rules, auto_generate }).eq('id', 1);
+    if (error) throw mapError(error);
+  },
+  /** A name the office types in, for a parish with nobody registered as Kaabag yet. */
+  async addKaabagName(name) {
+    const { error } = await supabase.from('kaabag_roster').insert({ name: name.trim() });
+    if (error) throw mapError(error, { dupLabel: name.trim() });
+  },
+  async removeKaabagName(id) {
+    const { error } = await supabase.from('kaabag_roster').delete().eq('id', id);
+    if (error) throw mapError(error);
+  },
+  /** Whether someone is in the draw (on_rotation); or shown by name on the website, which notes the day they agreed. */
+  async saveKaabagPerson(id, patch) {
+    const consent = 'show_publicly' in patch ? { consent_on: patch.show_publicly ? todayIso() : null } : {};
+    const { error } = await supabase.from('kaabag_roster').update({ ...patch, ...consent }).eq('id', id);
+    if (error) throw mapError(error);
+  },
+  async addKaabagToMass(serviceId, person) {
+    const { error } = await supabase.from('kaabag_assignments').insert({ service_id: serviceId, roster_id: person.id, name: person.name });
+    if (error) throw mapError(error);
+  },
+  async removeKaabagFromMass(id) {
+    const { error } = await supabase.from('kaabag_assignments').delete().eq('id', id);
+    if (error) throw mapError(error);
+  },
 
   async listSacramentGuides() {
     return listWebsite('sacrament_guides', (q) => q.order('sort').order('id'));
@@ -1131,7 +1196,40 @@ export const api = {
   async listBulletins() {
     return listWebsite('bulletins', (q) => q.order('week_of', { ascending: false }));
   },
-  saveBulletin: (row) => saveWebsiteRow('bulletins', row, 'A bulletin for this week'),
+  /**
+   * Save a bulletin; with `file` (a PDF), upload it first into the public
+   * downloads bucket (0110). A replaced or removed PDF (file_path cleared in
+   * `row`) is deleted once the row is saved; a new one is deleted again if the
+   * row can't be saved.
+   */
+  async saveBulletin(row, file = null, { removeFile = false } = {}) {
+    let upload = null;
+    if (file) {
+      if (downloadFileType(file) !== 'application/pdf') throw new Error('The bulletin file must be a PDF.');
+      const path = downloadFilePath('application/pdf', crypto.randomUUID());
+      const { error } = await supabase.storage.from(DOWNLOADS_BUCKET).upload(path, file, { contentType: 'application/pdf', upsert: false });
+      if (error) {
+        if (/bucket not found/i.test(error.message || '')) throw new Error(`Run the ${DOWNLOADS_MIGRATION} migration in Supabase to upload files`);
+        throw new Error(/row-level security|unauthorized/i.test(error.message || '') ? "Your account can't upload files for the website" : error.message || 'Could not upload the file');
+      }
+      upload = { file_path: path, file_name: file.name.slice(0, 255), size_bytes: file.size };
+    }
+    const oldPath = row.file_path;
+    const withFile = upload || (removeFile ? { file_path: null, file_name: null, size_bytes: null } : {});
+    try {
+      const saved = await saveWebsiteRow('bulletins', { ...row, ...withFile }, 'A bulletin for this week');
+      if (oldPath && (upload || removeFile)) await supabase.storage.from(DOWNLOADS_BUCKET).remove([oldPath]).catch(() => {});
+      return saved;
+    } catch (e) {
+      if (upload) await supabase.storage.from(DOWNLOADS_BUCKET).remove([upload.file_path]).catch(() => {});
+      if (/file_path|file_name|size_bytes/.test(e.message || '')) throw new Error('Run the 0110_bulletin_pdf.sql migration in Supabase to attach a PDF');
+      throw e;
+    }
+  },
+  /** A bulletin's PDF link (saved under its own name when `download`). */
+  bulletinFileUrl(row, opts) {
+    return row?.file_path ? api.downloadFileUrl(row, opts) : null;
+  },
   deleteBulletin: (id) => deleteWebsiteRow('bulletins', id),
 
   async listEvents() {
@@ -1146,12 +1244,8 @@ export const api = {
       throw e;
     }
   },
-  /** Delete an event, then (best effort) its cover on R2 unless another event still uses it. */
-  async deleteEvent(id) {
-    const { data: row } = await supabase.from('events').select('*').eq('id', id).maybeSingle();
-    await deleteWebsiteRow('events', id);
-    if (row?.photo_url) await api.deleteEventCover(row.photo_url, id).catch(() => {});
-  },
+  /** Delete an event. It goes to the Trash (0103) with its cover, which stays on R2 until the Trash entry is deleted for good. */
+  deleteEvent: (id) => deleteWebsiteRow('events', id),
   /**
    * Remove an event cover from R2 unless an event other than `exceptId` still
    * uses it: Duplicate copies the cover, so a series can share one photo.
@@ -1179,13 +1273,8 @@ export const api = {
       throw e;
     }
   },
-  /** Delete an article, then (best effort) its photos on R2; articles don't go to the trash. */
-  async deleteArticle(id) {
-    const { data: row } = await supabase.from('articles').select('*').eq('id', id).maybeSingle();
-    await deleteWebsiteRow('articles', id);
-    const urls = [row?.photo_url, ...(row?.photos || []).map((p) => p.url)].filter(Boolean);
-    await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
-  },
+  /** Delete an article. It goes to the Trash (0103) with its photos, which stay on R2 until the Trash entry is deleted for good. */
+  deleteArticle: (id) => deleteWebsiteRow('articles', id),
 
   // The History page (0068): one main article, then chapters in order of year.
   async listHistory() {
@@ -1200,13 +1289,8 @@ export const api = {
       throw e;
     }
   },
-  /** Delete a chapter, then (best effort) its photos on R2. The main article can't be deleted. */
-  async deleteHistory(id) {
-    const { data: row } = await supabase.from('history_articles').select('*').eq('id', id).maybeSingle();
-    await deleteWebsiteRow('history_articles', id);
-    const urls = [row?.photo_url, row?.body_photo_url, row?.video_url, ...(row?.photos || []).map((p) => p.url)].filter(Boolean);
-    await Promise.allSettled(urls.map((url) => callMediaFunction({ action: 'delete', url })));
-  },
+  /** Delete a chapter. It goes to the Trash (0103) with its photos, which stay on R2 until the Trash entry is deleted for good. The main article can't be deleted. */
+  deleteHistory: (id) => deleteWebsiteRow('history_articles', id),
 
   // The Downloads page (0096): song lyrics, and forms as files in the public downloads bucket.
   async listSongs() {
@@ -1270,99 +1354,6 @@ export const api = {
   /** A file's public link; `download` saves it under its own name instead of opening it. */
   downloadFileUrl(row, { download = false } = {}) {
     return supabase.storage.from(DOWNLOADS_BUCKET).getPublicUrl(row.file_path, download ? { download: row.file_name } : undefined).data.publicUrl;
-  },
-
-  // ---- Kaabag (0102): the directory and the month's rotation at the Masses --
-  async listKaabagMembers() {
-    return listWebsite('kaabag_members', (q) => q.order('sort_order').order('id'), KAABAG_MIGRATION);
-  },
-  /** Insert (no id) or update (with id) a directory entry: name, role, photo_url, published. */
-  async saveKaabagMember(row) {
-    const fields = Object.fromEntries(KAABAG_FIELDS.filter((f) => f in row).map((f) => [f, typeof row[f] === 'string' ? row[f].trim() : row[f]]));
-    try {
-      return await saveWebsiteRow('kaabag_members', { id: row.id, ...fields });
-    } catch (e) {
-      if (/kaabag_members_member_idx/.test(e.message || '')) throw new Error('This member is already in the directory.');
-      throw e;
-    }
-  },
-  /** Add registry members (picked from the Kaabag ministry) to the end of the directory, hidden until shown. */
-  async addKaabagFromRegistry(members, startOrder = 0) {
-    if (!members.length) return [];
-    const rows = members.map((m, i) => ({ member_id: m.id, name: registryName(m), sort_order: startOrder + i, published: false }));
-    const { data, error } = await supabase.from('kaabag_members').insert(rows).select();
-    if (error?.code === '23505') throw new Error('Someone picked is already in the directory. Reload the page and try again.');
-    if (error) throw mapError(error);
-    return data || [];
-  },
-  /** Show an entry in the website's directory, or hide it. */
-  async setKaabagPublished(id, published) {
-    const { data, error } = await supabase.from('kaabag_members').update({ published }).eq('id', id).select().single();
-    if (error) throw mapError(error);
-    return data;
-  },
-  /** The directory's order, top to bottom (one activity log entry). */
-  async reorderKaabagMembers(ids) {
-    const { error } = await supabase.rpc('reorder_kaabag_members', { p_ids: ids });
-    if (error) throw mapError(error);
-  },
-  /** Delete an entry (it comes off every rotation too), then its photo on R2. */
-  async deleteKaabagMember(id) {
-    const { data: row } = await supabase.from('kaabag_members').select('photo_url').eq('id', id).maybeSingle();
-    await deleteWebsiteRow('kaabag_members', id);
-    if (row?.photo_url) await callMediaFunction({ action: 'delete', url: row.photo_url }).catch(() => {});
-  },
-  /** The registry's members in the Kaabag ministry (any ministry named Kaabag), for Add from the registry. */
-  async listKaabagRegistry() {
-    const { data: groups, error: e1 } = await supabase.from('ministries').select('name').ilike('name', '%kaabag%');
-    if (e1) throw mapError(e1);
-    const names = (groups || []).map((g) => g.name);
-    if (!names.length) return { ministry: null, rows: [] };
-    const rows = await fetchAll(() => supabase.from('members')
-      .select('id, first_name, middle_name, last_name, suffix, membership_status')
-      .overlaps('ministries', names).order('last_name').order('first_name').order('id'));
-    return { ministry: names[0], rows };
-  },
-
-  /** The months with a saved rotation: [{ month, published, count }]. */
-  async listKaabagMonths() {
-    const { data, error } = await supabase.from('kaabag_months').select('month, published, services:kaabag_services(count)').order('month');
-    if (['42P01', 'PGRST205'].includes(error?.code)) throw new Error(`Run the ${KAABAG_MIGRATION} migration in Supabase to use this page`);
-    if (error) throw mapError(error);
-    return (data || []).map((m) => ({ month: m.month, published: m.published, count: m.services?.[0]?.count || 0 }));
-  },
-  /** One month's rotation: { month, saved, published, note, slots: [{ date, time, location, note, servers: [id…] }] }. */
-  async getKaabagMonth(month) {
-    const [head, list] = await Promise.all([
-      supabase.from('kaabag_months').select('*').eq('month', month).maybeSingle(),
-      supabase.from('kaabag_services').select('service_date, start_time, location, note, servers:kaabag_service_servers(kaabag_id, sort_order)')
-        .eq('month', month).order('service_date').order('start_time').order('id'),
-    ]);
-    const error = head.error || list.error;
-    if (['42P01', 'PGRST205'].includes(error?.code)) throw new Error(`Run the ${KAABAG_MIGRATION} migration in Supabase to use this page`);
-    if (error) throw mapError(error);
-    return {
-      month,
-      saved: !!head.data,
-      published: !!head.data?.published,
-      note: head.data?.note || '',
-      slots: (list.data || []).map((s) => ({
-        date: s.service_date,
-        time: String(s.start_time).slice(0, 5),
-        location: s.location || '',
-        note: s.note || '',
-        servers: [...(s.servers || [])].sort((a, b) => a.sort_order - b.sort_order).map((x) => x.kaabag_id),
-      })),
-    };
-  },
-  /** Save a month: its Masses and their Kaabag (`slots`, or null to keep them), whether it's on the website, its note. */
-  async saveKaabagMonth(month, { slots = null, published = null, note = null } = {}) {
-    const { data, error } = await supabase.rpc('save_kaabag_month', {
-      p_month: month, p_services: slots ? slotsPayload(slots) : null, p_published: published, p_note: note,
-    });
-    if (error?.code === 'PGRST202') throw new Error(`Run the ${KAABAG_MIGRATION} migration in Supabase to save the rotation`);
-    if (error) throw mapError(error);
-    return data;
   },
 
   // Article photos and event covers on Cloudflare R2, through the media-upload Edge Function.
@@ -1537,6 +1528,17 @@ export const api = {
   // ---- public website reads (0011 tables, 0013 functions) -------------
   // Published items only, even for a signed-in staff member browsing the site.
   publicMassSchedules: () => listPublished('mass_schedules', (q) => q.order('day_of_week').order('start_time')),
+  /**
+   * The Kaabag's Sunday schedule, today on (0113): [{ date, time, location,
+   * language, names }], with null in `names` for anyone who hasn't agreed to
+   * be shown. Nothing before the migration is run.
+   */
+  async publicKaabagSchedule() {
+    const { data, error } = await supabase.rpc('public_kaabag_schedule');
+    if (error?.code === 'PGRST202') return [];
+    if (error) throw mapError(error);
+    return data || [];
+  },
   /** Published sacrament guides (requirements and steps), in the office's order. */
   publicSacramentGuides: () => listPublished('sacrament_guides', (q) => q.order('sort').order('id')),
   /**
@@ -1588,20 +1590,31 @@ export const api = {
       return h && { photo_url: null, photos: [], history: h.history, history_photos: h.photos };
     }
   },
-  /** The Kaabag page (0102): { directory, months }; empty before the migration is run. */
-  async publicKaabag() {
-    const { data, error } = await supabase.rpc('public_kaabag');
-    if (error?.code === 'PGRST202') return { directory: [], months: [] };
-    if (error) throw mapError(error);
-    return { directory: data?.directory || [], months: data?.months || [] };
-  },
   /** The published org charts, in order: [{ title, slug, scope }] (0057). */
   publicOrgCharts: () => publicRpc('public_org_charts'),
   /** One published chart: { title, slug, scope, nodes: [{ id, parentId, title, holders, photo, note }] }, or null. `gkk` fills in the GKK Structure. */
   publicOrgChart: (slug, gkk) => publicRpc('public_org_chart', { p_slug: slug, p_gkk: gkk || null }),
   /** { open, label, ends_on, pct, gkks: [{ name, pct|null }] } */
   publicCensusProgress: () => publicRpc('public_census_progress'),
+  /**
+   * The last census closed (0114), or null when none has closed yet (also before 0114 is run):
+   * { label, starts_on, ends_on, closed_at, members, confirmed, pct, statuses: { Active: n|null, … }, gkks: [{ name, pct|null }] }
+   */
+  async publicCensusResult() {
+    const { data, error } = await supabase.rpc('public_census_result');
+    if (isMissingFunction(error)) return null;
+    if (error) throw mapError(error);
+    return data || null;
+  },
   publicOfficeDetails: () => publicRpc('public_office_details'),
+  /**
+   * The ministries and organizations staff put on the website (0111): [{ kind:
+   * 'ministry'|'organization', id, name, blurb, who_can_join, meets, members
+   * (null under 5), contact: { name, mobile }|null }].
+   */
+  publicGroups: () => publicRpc('public_groups'),
+  /** "Interesado ko" (0111): { ref_no }. payload: groupKind, groupName, fullName, mobile, gkk, message, consent. */
+  submitGroupInterest: (payload) => publicRpc('submit_group_interest', { payload }),
   /** { ref_no, status, registered_on } (the current number, also when found by an old one), or null if not found. */
   registrationStatus: (refNo) => publicRpc('registration_status', { p_ref: refNo }),
 
@@ -1616,6 +1629,50 @@ export const api = {
     return listRequests('certificate_requests', CERT_SELECT);
   },
   saveCertificateRequest: (row) => saveRequestRow('certificate_requests', row, CERT_FIELDS),
+
+  /** "Interesado ko" sign-ups from the website (0111). */
+  async listGroupInterests() {
+    try {
+      return await listRequests('group_interests');
+    } catch (e) {
+      if (/0012_requests/.test(e.message || '')) throw new Error('Run the 0111_group_interests.sql migration in Supabase to use this tab');
+      throw e;
+    }
+  },
+  saveGroupInterest: (row) => saveRequestRow('group_interests', row, GROUP_INTEREST_FIELDS),
+
+  /**
+   * The ministries and organizations with what the website says about each
+   * (0111), for Parish Config → Ministries & Organizations → Website:
+   * [{ kind, id, name, published, public_blurb, who_can_join, meets, contact_* }].
+   */
+  async listGroupDetails() {
+    const read = (table) => supabase.from(table).select('id, name, published, public_blurb, who_can_join, meets, contact_name, contact_mobile, contact_public, contact_consent_on').order('name');
+    const [m, o] = await Promise.all([read('ministries'), read('organizations')]);
+    for (const { error } of [m, o]) {
+      if (error) throw (['42703', 'PGRST204'].includes(error.code) ? new Error('Run the 0111_group_interests.sql migration in Supabase to use this tab') : mapError(error));
+    }
+    return [...(m.data || []).map((r) => ({ ...r, kind: 'ministry' })), ...(o.data || []).map((r) => ({ ...r, kind: 'organization' }))];
+  },
+  /** Save what the website says about one ministry or organization; a contact's consent day is noted when ticked. */
+  async saveGroupDetails(kind, id, fields) {
+    const table = kind === 'ministry' ? 'ministries' : kind === 'organization' ? 'organizations' : null;
+    if (!table) throw new Error('Unknown group');
+    const text = (v) => (String(v ?? '').trim() || null);
+    const patch = {
+      published: !!fields.published,
+      public_blurb: text(fields.public_blurb),
+      who_can_join: text(fields.who_can_join),
+      meets: text(fields.meets),
+      contact_name: text(fields.contact_name),
+      contact_mobile: text(fields.contact_mobile),
+      contact_public: !!fields.contact_public && !!text(fields.contact_name),
+    };
+    patch.contact_consent_on = patch.contact_public ? fields.contact_consent_on || todayIso() : null;
+    const { data, error } = await supabase.from(table).update(patch).eq('id', id).select().single();
+    if (error) throw mapError(error);
+    return { ...data, kind };
+  },
 
   async listSacramentRequests() {
     try {
@@ -2615,9 +2672,6 @@ export const api = {
     throw new Error('Unsupported source');
   },
 
-  // ---- exports (client-side CSV now — no backend to stream a download from)
-  exportUrl: (name) => `/exports/${name}`,
-
   /**
    * Data for the Membership Activeness analysis: current members with their
    * Practicing Catholic status (0017), and the participation answers behind
@@ -2682,15 +2736,12 @@ export const api = {
   },
 };
 
-const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'secretary_messenger'];
+const OFFICE_TEXT_FIELDS = ['mobile', 'facebook_url', 'sick_call_contact', 'directions', 'map_url', 'secretary_messenger', 'certificate_note'];
 
 const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', 'bulletins', 'events', 'articles', 'history_articles', 'songs', 'download_files'];
 
 const DOWNLOADS_BUCKET = 'downloads';
 const DOWNLOADS_MIGRATION = '0096_downloads.sql';
-
-// What staff set on a Kaabag directory entry; member_id comes from Add from the registry.
-const KAABAG_FIELDS = ['name', 'role', 'photo_url', 'published', 'member_id', 'sort_order'];
 
 const GKK_DETAIL_FIELDS = ['barangay', 'puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'previous_families', 'history', 'history_photos', 'history_published', 'photo_url', 'photos'];
 
@@ -2720,11 +2771,8 @@ async function listWebsite(table, order, migration = '0011_website_content.sql')
   return { rows: data || [] };
 }
 
-/** Today as YYYY-MM-DD on the visitor's clock (the parish is in one time zone). */
-function todayLocal() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
+/** Today as YYYY-MM-DD by the parish's clock (Manila), as parish_today() in the database. */
+const todayLocal = () => todayIso();
 
 /** Published rows of a website content table, for the public site. */
 async function listPublished(table, order, { missingAsEmpty = false } = {}) {
@@ -2752,7 +2800,30 @@ async function deleteWebsiteRow(table, id) {
   if (error) throw mapError(error);
 }
 
-const REQUEST_TABLES = ['certificate_requests', 'prayer_requests', 'blood_requests', 'blood_donors', 'sacrament_requests'];
+/**
+ * The photos on R2 to remove with a trash entry that is being deleted for good
+ * (an event, article or history chapter). An event cover that another event,
+ * live or in the Trash, still uses stays: Duplicate copies a cover, so a
+ * series can share one photo.
+ */
+async function trashEntryFiles(id, kind) {
+  const { data, error } = await supabase.from('deleted_records').select('data').eq('id', id).maybeSingle();
+  if (error || !data) return [];
+  const urls = trashFiles(kind, data.data?.row);
+  if (kind !== 'event') return urls;
+  const unused = [];
+  for (const url of urls) {
+    const [live, trashed] = await Promise.all([
+      supabase.from('events').select('id').eq('photo_url', url).limit(1),
+      supabase.from('deleted_records').select('id').eq('kind', 'event').neq('id', id).eq('data->row->>photo_url', url).limit(1),
+    ]);
+    if (!live.error && !trashed.error && !live.data?.length && !trashed.data?.length) unused.push(url);
+  }
+  return unused;
+}
+
+const REQUEST_TABLES = ['certificate_requests', 'prayer_requests', 'blood_requests', 'blood_donors', 'sacrament_requests', 'group_interests'];
+const GROUP_INTEREST_FIELDS = ['group_kind', 'group_name', 'full_name', 'mobile', 'gkk', 'message', 'status', 'source', 'staff_notes'];
 
 // The columns staff may set on each request table. Ref numbers, who handled
 // it and the timestamps are filled in by the database.

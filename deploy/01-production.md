@@ -150,10 +150,11 @@ Also update the repository so it knows the live project:
 [`client/.env.production`](../client/.env.production) holds the live
 `VITE_SUPABASE_URL` and anon key (the keep-alive workflow reads them), and
 `LIVE_PROJECT_ID` in [`client/src/lib/database.js`](../client/src/lib/database.js)
-and in [`supabase/functions/manage-staff/handler.js`](../supabase/functions/manage-staff/handler.js)
-is the live ref (any other project gets the demo banner, and only there
-may an account get Demo access). For our parish all of these are already
-right.
+is the live ref (any other project gets the demo banner). Demo access is
+decided by the demo project instead (`DEMO_PROJECT_ID` in
+[`supabase/functions/manage-staff/handler.js`](../supabase/functions/manage-staff/handler.js)),
+so the function is the same for every parish. For our parish all of these
+are already right.
 
 ## Step 8. Photo storage (Cloudflare R2)
 
@@ -223,16 +224,15 @@ Editor → `select * from cron.job;` lists `staff-morning-digest`. Details:
   [docs/backups.md](../docs/backups.md), then **Actions → Encrypted database
   backup → Run workflow** and check the file appears in the bucket.
 
-## Step 13. Migrations from GitHub (optional)
+## Step 13. New migrations later
 
-So new migrations run on the live database when they reach `main`:
-Supabase → Project Settings → Integrations → **GitHub** → connect the
-repository, Supabase directory `supabase`, production branch `main`, "Deploy
-to production" **on**.
+Later migrations go out with `npm run release:db`, demo site first, each
+database before its website: see [04-releases.md](04-releases.md). Record
+this project there with `npm run parish -- add`.
 
-Because step 3 used `db push`, the migration history is already complete; the
-one-time marking in [docs/github-migrations.md](../docs/github-migrations.md)
-is only for a project whose migrations were pasted into the SQL editor.
+Leave Supabase's GitHub integration ("Deploy to production") **off**: it
+runs migrations while Vercel rebuilds the website, so the database can't go
+first.
 
 ## Step 14. Search engines (Google Search Console)
 

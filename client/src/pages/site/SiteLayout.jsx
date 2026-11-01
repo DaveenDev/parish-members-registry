@@ -1,4 +1,4 @@
-import React, { Suspense, createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
+import React, { Suspense, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icon, IconSprite } from '../../components/site/Icons.jsx';
 import { FOOTER_CREAM, SiteToastContext } from '../../components/site/kit.jsx';
@@ -12,8 +12,6 @@ import { applyPageMeta, canonicalUrl, pageDescription, pageNoindex, parishJsonLd
 import { useCensusProgress, useOffice, useParishTitle } from './data.js';
 import { preloadSitePages } from './lazyPages.js';
 import { useScrollReveal } from '../../components/site/useScrollReveal.js';
-import { HISTORY_PAGE } from '../../lib/history.js';
-import { KAABAG_PAGE } from '../../lib/kaabag.js';
 
 // The parish's name is the one saved in Parish Config (useParishTitle, in data.js),
 // its address, map link and pin the ones saved in Parish Website → Office.
@@ -30,23 +28,21 @@ const TABS = [
 
 const ROOTS = TABS.map((t) => t.to);
 
-// Ang Simbahan's parts, in a menu under it on desktop. The Mass schedule and
-// the sacraments are sections of the Simbahan page (?view= takes it there);
-// the History and the Kaabag have pages of their own.
-const SIMBAHAN_MENU = [
-  { to: '/simbahan?view=misa', label: 'Iskedyul sa Misa', note: 'Oras sa Misa matag semana', icon: 'clock' },
-  { to: '/simbahan?view=sakramento', label: 'Mga Sakramento', note: 'Unsa ang dad-on ug ang mga lakang', icon: 'church' },
-  { to: HISTORY_PAGE, label: 'Kasaysayan', note: 'Ang kasaysayan sa parokya', icon: 'cross' },
-  { to: KAABAG_PAGE, label: 'Kaabag', note: 'Iskedyul sa serbisyo ug mga sakop', icon: 'people' },
-];
-
 // Desktop top navigation: the same sections with their full names, plus Kontak.
 // `short` is shown on small laptops (under 1280px), where the full names don't fit.
 const DESK_NAV = [
   { to: '/', label: 'Home', match: (p) => p === '/' },
   { to: '/pahibalo', label: 'Pahibalo ug Kalihokan', short: 'Pahibalo', match: (p) => p.startsWith('/pahibalo') },
-  { to: '/simbahan', label: 'Ang Simbahan', short: 'Simbahan', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa'), menu: SIMBAHAN_MENU },
-  { to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad') },
+  { to: '/simbahan', label: 'Ang Simbahan', short: 'Simbahan', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa') },
+  {
+    to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad'),
+    // Its submenu: Komunidad itself still opens /komunidad.
+    sub: [
+      { to: '/komunidad/census', label: 'Census', hint: 'Progreso o resulta sa census', icon: 'idcard', match: (p) => p === '/komunidad/census' },
+      { to: '/komunidad?view=gkk', label: 'Mga GKK', hint: 'Direktoryo sa mga GKK', icon: 'church', match: (p, q) => p.startsWith('/komunidad/gkk/') || (p === '/komunidad' && q.get('view') === 'gkk') },
+      { to: '/komunidad/artikulo', label: 'Artikulo', hint: 'Tanang artikulo ug balita', icon: 'doc', match: (p) => p.startsWith('/komunidad/artikulo') },
+    ],
+  },
   { to: '/serbisyo', label: 'Mga Serbisyo', short: 'Serbisyo', match: (p) => p.startsWith('/serbisyo') },
   { to: '/downloads', label: 'Downloads', match: (p) => p.startsWith('/downloads') },
   { to: '/kontak', label: 'Kontak', match: (p) => p.startsWith('/kontak') },
@@ -63,15 +59,17 @@ export function useSiteTitle(title) {
 // engines and link previews with <PageMeta title description image />: its own
 // title in the browser tab (the header keeps its short one), its text, its photo,
 // and `jsonLd`, structured data saying what it is (a song's lyrics, say).
+// `path` names the page's own address when a query picks what it shows (a
+// sacrament guide's /simbahan?guide=…); otherwise it's the path alone.
 const MetaContext = createContext(() => {});
-export function PageMeta({ title, description, image, noindex = false, jsonLd = null }) {
+export function PageMeta({ title, description, image, noindex = false, jsonLd = null, path = null }) {
   const set = useContext(MetaContext);
   // By its text, so a new object with the same data doesn't set it again.
   const ld = jsonLd ? JSON.stringify(jsonLd) : '';
   useEffect(() => {
-    set({ title, description, image, noindex, jsonLd: ld ? JSON.parse(ld) : null });
+    set({ title, description, image, noindex, jsonLd: ld ? JSON.parse(ld) : null, path });
     return () => set(null);
-  }, [set, title, description, image, noindex, ld]);
+  }, [set, title, description, image, noindex, ld, path]);
   return null;
 }
 
@@ -133,7 +131,7 @@ export default function SiteLayout() {
     applyPageMeta({
       title: name ? `${name} · ${parish.name}` : parish.title,
       description: pageMeta?.description || pageDescription(pathname, parish.saved),
-      url: canonicalUrl(origin, pathname),
+      url: canonicalUrl(origin, pageMeta?.path || pathname),
       image: pageMeta?.image ? new URL(pageMeta.image, origin).href : null,
       noindex: !!pageMeta?.noindex || pageNoindex(pathname),
       jsonLd: pageMeta?.jsonLd || (pathname === '/' ? parishJsonLd({
@@ -293,6 +291,7 @@ function CensusTicker() {
 }
 
 function DesktopHeader({ pathname, logo, parish }) {
+  const { search } = useLocation();
   return (
     <header className="hidden lg:block sticky top-0 z-20 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.96)' }}>
       <div className="max-w-[1240px] mx-auto px-6 h-[76px] flex items-center gap-4 xl:gap-7">
@@ -306,16 +305,18 @@ function DesktopHeader({ pathname, logo, parish }) {
         <nav aria-label="Main" className="flex items-stretch gap-0.5 ml-auto h-full">
           {DESK_NAV.map((t) => {
             const on = t.match(pathname);
-            const label = t.short ? <><span className="xl:hidden">{t.short}</span><span className="hidden xl:inline">{t.label}</span></> : t.label;
-            const bar = <span className="absolute left-[10px] right-[10px] xl:left-[13px] xl:right-[13px] -bottom-px h-[3px] rounded-t-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />;
-            const tone = `whitespace-nowrap text-[15.5px] hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`;
-            if (t.menu) return <NavMenu key={t.to} item={t} on={on} pathname={pathname} tone={tone} bar={bar}>{label}</NavMenu>;
-            return (
-              <NavLink key={t.to} to={t.to} aria-current={on ? 'page' : undefined} className={`relative flex items-center px-[10px] xl:px-[13px] ${tone}`}>
-                {label}
-                {bar}
+            const link = (
+              <NavLink
+                key={t.to}
+                to={t.to}
+                aria-current={on ? 'page' : undefined}
+                className={`relative flex items-center ${t.sub ? 'pl-[10px] pr-1 xl:pl-[13px]' : 'px-[10px] xl:px-[13px]'} text-[15.5px] whitespace-nowrap hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`}
+              >
+                {t.short ? <><span className="xl:hidden">{t.short}</span><span className="hidden xl:inline">{t.label}</span></> : t.label}
+                <span className={`absolute left-[10px] xl:left-[13px] ${t.sub ? 'right-1' : 'right-[10px] xl:right-[13px]'} -bottom-px h-[3px] rounded-t-[3px]`} style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
               </NavLink>
             );
+            return t.sub ? <NavMenu key={t.to} item={t} link={link} pathname={pathname} search={search} /> : link;
           })}
         </nav>
       </div>
@@ -324,72 +325,61 @@ function DesktopHeader({ pathname, logo, parish }) {
 }
 
 /**
- * A desktop menu item with its parts under it (Ang Simbahan): the name is
- * still a link to its page, and the arrow beside it opens the list. The list
- * opens on hover too, closes when the pointer or focus leaves it, with Escape
- * (back to the arrow) and once one of its links is followed. Links carry
- * `jump`, so following one to a part of the page you're on still goes there.
+ * A main menu item with a submenu (Komunidad): the item itself still opens its
+ * page; the submenu opens under it on hover or keyboard focus, and with the
+ * arrow button beside it (for touch screens). A choice, Escape, or
+ * leaving it closes it.
  */
-function NavMenu({ item, on, pathname, tone, bar, children }) {
+function NavMenu({ item, link, pathname, search }) {
   const [open, setOpen] = useState(false);
-  const wrap = useRef(null);
-  const toggle = useRef(null);
-  const timer = useRef(null);
-  const menuId = useId();
-  const { key } = useLocation();
-  useEffect(() => { setOpen(false); }, [key]);
-  useEffect(() => () => clearTimeout(timer.current), []);
-  const openedAt = useRef(0);
-  const show = () => { clearTimeout(timer.current); if (!open) openedAt.current = Date.now(); setOpen(true); };
-  // A tap (or a click straight after the pointer arrived) opened it on its
-  // way in: the click that follows keeps it open instead of closing it again.
-  const press = () => setOpen((o) => (o && Date.now() - openedAt.current < 500 ? true : !o));
-  // A short wait, so moving the pointer down onto the list doesn't close it.
-  const hide = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(false), 160); };
-  const name = item.short || item.label;
-
+  const box = useRef(null);
+  const params = new URLSearchParams(search);
+  const id = `menu-${item.to.replace(/\W/g, '')}`;
+  // Closed again on every page change.
+  useEffect(() => { setOpen(false); }, [pathname, search]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (!box.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [open]);
   return (
     <div
-      ref={wrap}
+      ref={box}
       className="relative flex items-stretch"
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onBlur={(e) => { if (!wrap.current?.contains(e.relatedTarget)) setOpen(false); }}
-      onKeyDown={(e) => { if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false); toggle.current?.focus(); } }}
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={(e) => { if (!box.current?.contains(e.relatedTarget)) setOpen(false); }}
+      onKeyDown={(e) => { if (e.key === 'Escape' && open) { setOpen(false); box.current?.querySelector('a')?.focus(); } }}
     >
-      <NavLink to={item.to} aria-current={on ? 'page' : undefined} className={`flex items-center pl-[10px] xl:pl-[13px] pr-0.5 ${tone}`}>
-        {children}
-      </NavLink>
+      {link}
       <button
-        ref={toggle}
         type="button"
+        aria-label={`${item.label}: mga panid`}
         aria-expanded={open}
-        aria-controls={menuId}
-        aria-label={`Mga bahin sa ${name}`}
-        onClick={press}
-        className={`flex items-center pl-0.5 pr-[8px] xl:pr-[11px] appearance-none bg-transparent border-none cursor-pointer ${tone}`}
+        aria-controls={id}
+        onClick={() => setOpen((v) => !v)}
+        className="self-center w-7 h-8 mr-[6px] xl:mr-[9px] flex items-center justify-center rounded-lg border-0 bg-transparent cursor-pointer text-[#3f3b2f] hover:text-parish-blueDeep hover:bg-[var(--p-blue-tint)]"
       >
-        <Icon name="chev" size={15} className={`transition-transform duration-150 ${open ? '-rotate-90' : 'rotate-90'}`} />
+        <Icon name="chev" size={15} className={`transition-transform ${open ? '-rotate-90' : 'rotate-90'}`} />
       </button>
-      {bar}
-      <div id={menuId} hidden={!open} className="absolute left-0 top-full pt-1.5 z-30">
-        <ul className="list-none m-0 w-[340px] p-2 bg-parish-card border border-parish-border rounded-2xl shadow-card animate-fadeUp">
-          {item.menu.map((m) => {
-            const here = !m.to.includes('?') && pathname === m.to;
+      <div id={id} className={`absolute left-0 top-full pt-1.5 z-30 ${open ? 'block' : 'hidden'}`}>
+        <ul className="list-none m-0 p-1.5 min-w-[250px] bg-parish-card border border-parish-border rounded-2xl shadow-card animate-fadeUp">
+          {item.sub.map((s) => {
+            const on = s.match(pathname, params);
             return (
-              <li key={m.to}>
+              <li key={s.to}>
                 <Link
-                  to={m.to}
-                  state={{ jump: true }}
-                  aria-current={here ? 'page' : undefined}
-                  className={`flex gap-3 items-start rounded-xl px-3 py-2.5 hover:bg-[var(--p-blue-tint)] focus-visible:bg-[var(--p-blue-tint)] ${here ? 'bg-[var(--p-blue-tint)]' : ''}`}
+                  to={s.to}
+                  aria-current={on ? 'page' : undefined}
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[var(--p-blue-tint)] ${on ? 'bg-[var(--p-blue-tint)]' : ''}`}
                 >
-                  <span className="w-10 h-10 flex-none rounded-xl flex items-center justify-center text-parish-blue" style={{ background: 'var(--p-blue-tint)' }}>
-                    <Icon name={m.icon} size={20} />
-                  </span>
-                  <span className="min-w-0 pt-0.5">
-                    <span className="block font-bold text-[15.5px] leading-tight text-parish-navy">{m.label}</span>
-                    <span className="block text-[13px] leading-snug text-parish-text2 mt-0.5">{m.note}</span>
+                  <span className="w-9 h-9 flex-none rounded-lg flex items-center justify-center text-parish-blue" style={{ background: 'var(--p-blue-tint)' }}><Icon name={s.icon} size={18} /></span>
+                  <span className="min-w-0">
+                    <span className={`block text-[15px] text-parish-navy ${on ? 'font-bold' : 'font-semibold'}`}>{s.label}</span>
+                    <span className="block text-[13px] text-parish-text2 whitespace-nowrap">{s.hint}</span>
                   </span>
                 </Link>
               </li>

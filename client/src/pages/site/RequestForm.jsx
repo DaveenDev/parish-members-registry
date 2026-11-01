@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { BigButton, INNER, Spin } from '../../components/site/kit.jsx';
+import { BigButton, INNER, Spin, rovingKey } from '../../components/site/kit.jsx';
 import { api } from '../../api.js';
 import { fmtLong, validEmail, validMobile } from '../../lib/site.js';
 import { useSiteTitle } from './SiteLayout.jsx';
@@ -22,6 +22,8 @@ function initialValues(F, params) {
     if (f.def !== undefined) values[f.k] = now(f.def);
     const asked = params.get(f.k);
     if (asked && Array.isArray(f.opts) && f.opts.some(([v]) => v === asked)) values[f.k] = asked;
+    // A field taken from the link as it is (the group a sign-up is for).
+    if (asked && f.prefill) values[f.k] = asked.slice(0, 120);
   }));
   return values;
 }
@@ -59,8 +61,11 @@ function SickCallNote() {
 /** A request form: one step at a time, a review before sending, then the reference number. */
 export default function RequestForm() {
   const { form: formId } = useParams();
+  const [params] = useSearchParams();
   const F = FORMS[formId];
   if (!F) return <Navigate to="/serbisyo" replace />;
+  // A form about one group needs the link's group: without it, pick one first.
+  if (F.needs && !params.get(F.needs)) return <Navigate to="/komunidad/grupo" replace />;
   return <FormPage key={formId} F={F} />;
 }
 
@@ -79,6 +84,7 @@ function FormFlow({ F, embedded = false, onAgain }) {
   const navigate = useNavigate();
   const top = useRef(null);
   const gkks = usePublicData('gkkNames', () => api.listPublicGkks().catch(() => [])).data || [];
+  const office = useOffice().data;
   const [step, setStep] = useState(0);
   const [params] = useSearchParams();
   const [values, setValues] = useState(() => initialValues(F, params));
@@ -103,17 +109,21 @@ function FormFlow({ F, embedded = false, onAgain }) {
   const fields = isReview ? [] : F.steps[step].fields.filter((f) => visible(f, values));
 
   // A page form goes back to the top of the page; one inside another page
-  // brings its own top into view, but not when the page first opens.
+  // brings its own top into view, but not when the page first opens. A new
+  // step (or the thank-you) also takes the keyboard and screen reader to its
+  // heading, so they hear where they are instead of staying on Padayon.
   const shown = useRef(`${step}|${status}`);
+  const heading = useRef(null);
   function toTop() {
     if (embedded) top.current?.scrollIntoView({ block: 'start' });
     else window.scrollTo(0, 0);
   }
   useEffect(() => {
     const at = `${step}|${status}`;
-    if (embedded && at === shown.current) return;
+    if (at === shown.current) { if (!embedded) toTop(); return; }
     shown.current = at;
     toTop();
+    if (status !== 'sending') heading.current?.focus({ preventScroll: true });
   }, [step, status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function set(k, v) {
@@ -127,7 +137,15 @@ function FormFlow({ F, embedded = false, onAgain }) {
     if (Object.keys(errs).length) {
       setErrors(errs);
       setBanner('Palihug ayoha ang mga gimarkahan sa ubos.');
-      toTop();
+      // To the first answer to fix (its field, or the chosen-or-first choice of a group).
+      const first = fields.find((f) => errs[f.k]);
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`fld-${first.k}`)
+          || document.querySelector(`[aria-labelledby="fld-${first.k}-legend"] [tabindex="0"]`)
+          || document.querySelector(`input[aria-describedby~="fld-${first.k}-err"]`);
+        if (el) el.focus();
+        else toTop();
+      });
       return;
     }
     setErrors({});
@@ -136,7 +154,13 @@ function FormFlow({ F, embedded = false, onAgain }) {
   }
 
   function back() {
-    if (step === 0) { navigate(-1); return; }
+    // On the first step: back to the page before, or to Mga Serbisyo when the
+    // form was opened from a shared link (going back would leave the website).
+    if (step === 0) {
+      if (window.history.state?.idx > 0) navigate(-1);
+      else navigate('/serbisyo');
+      return;
+    }
     setErrors({});
     setBanner('');
     setStatus('edit');
@@ -172,7 +196,7 @@ function FormFlow({ F, embedded = false, onAgain }) {
   if (status === 'done') {
     return (
       <div ref={top} className={embedded ? 'scroll-mt-20' : undefined}>
-        <Done F={F} refNo={ref} embedded={embedded} onAgain={onAgain} />
+        <Done F={F} refNo={ref} embedded={embedded} onAgain={onAgain} headingRef={heading} />
       </div>
     );
   }
@@ -190,7 +214,7 @@ function FormFlow({ F, embedded = false, onAgain }) {
         <Icon name="lock" size={16} className="mt-px text-parish-blue" /><span>{F.who}</span>
       </div>
       {F.sickCall && step === 0 && <SickCallNote />}
-      <StepTitle className="font-serif font-bold text-[23px] m-0 mb-3 text-parish-navy">{isReview ? 'Susiha una ipadala' : F.steps[step].title}</StepTitle>
+      <StepTitle ref={heading} tabIndex={-1} className="font-serif font-bold text-[23px] m-0 mb-3 text-parish-navy outline-none">{isReview ? 'Susiha una ipadala' : F.steps[step].title}</StepTitle>
       {banner && (
         <div role="alert" className="flex gap-[9px] bg-parish-errorBg border border-parish-errorBorder rounded-xl px-[13px] py-[11px] mb-3.5 text-parish-error font-semibold text-[14.5px]">
           <Icon name="alert" size={18} />{banner}
@@ -204,7 +228,7 @@ function FormFlow({ F, embedded = false, onAgain }) {
           </div>
           {F.notes && step === F.steps.length - 1 && (
             <div className="mt-5 bg-[#f1ead9] rounded-xl px-3.5 py-3 flex flex-col gap-1.5">
-              {F.notes.map((n) => <div key={n} className="flex gap-2 text-[14px] leading-[1.4] text-[#3f3b2f]"><Icon name="idcard" size={16} className="mt-0.5 text-parish-blue" />{n}</div>)}
+              {[...F.notes, ...(F.officeNote && office?.[F.officeNote] ? [office[F.officeNote]] : [])].map((n) => <div key={n} className="flex gap-2 text-[14px] leading-[1.4] text-[#3f3b2f]"><Icon name="idcard" size={16} className="mt-0.5 text-parish-blue" />{n}</div>)}
             </div>
           )}
           <div className="flex gap-2.5 mt-[22px]">
@@ -250,7 +274,7 @@ function optionsFor(f, gkks) {
 
 function reviewRows(F, values, gkks) {
   const rows = [];
-  F.steps.forEach((st, step) => st.fields.filter((f) => visible(f, values) && f.k !== 'consent').forEach((f) => {
+  F.steps.forEach((st, step) => st.fields.filter((f) => visible(f, values) && f.k !== 'consent' && f.type !== 'hidden').forEach((f) => {
     const v = values[f.k];
     if (blank(v)) return;
     const label = (optionsFor(f, gkks) || []).find(([val]) => val === v)?.[1];
@@ -262,6 +286,7 @@ function reviewRows(F, values, gkks) {
 const INPUT = 'w-full min-h-[52px] px-3.5 text-[17px] text-parish-ink bg-parish-card border-[1.5px] rounded-xl outline-none focus:border-parish-blue';
 
 function FieldView({ f, value, error, onChange, gkks }) {
+  if (f.type === 'hidden') return null;
   const id = `fld-${f.k}`;
   // A missing or wrong answer: red outline, light red fill and glow, still red while focused.
   const border = error ? '!border-parish-error !bg-parish-errorBg/40 ring-4 ring-parish-error/20' : 'border-parish-borderSoft';
@@ -286,16 +311,20 @@ function FieldView({ f, value, error, onChange, gkks }) {
   } else if (f.type === 'choice') {
     control = (
       <fieldset className="border-none m-0 p-0" aria-describedby={describedBy}>
-        <legend className="font-bold text-[14.5px] mb-2 p-0">{f.label}{star}</legend>
-        <div role="radiogroup" className={`grid gap-2 ${f.grid ? 'grid-cols-4' : 'grid-cols-1'}`}>
-          {f.opts.map(([v, l]) => {
+        <legend id={`${id}-legend`} className="font-bold text-[14.5px] mb-2 p-0">{f.label}{star}</legend>
+        {/* One tab stop: the choice (or the first, with none yet); the arrow keys move and choose. */}
+        <div role="radiogroup" aria-labelledby={`${id}-legend`} className={`grid gap-2 ${f.grid ? 'grid-cols-4' : 'grid-cols-1'}`}>
+          {f.opts.map(([v, l], i) => {
             const on = value === v;
+            const stop = on || (i === 0 && !f.opts.some(([x]) => x === value));
             return (
               <button
                 key={v}
                 type="button"
                 role="radio"
                 aria-checked={on}
+                tabIndex={stop ? 0 : -1}
+                onKeyDown={(e) => rovingKey(e, i, f.opts.length, (n) => onChange(f.opts[n][0]))}
                 onClick={() => onChange(v)}
                 className={`min-h-[52px] flex items-center gap-2.5 px-3 rounded-xl border-[1.5px] text-left font-semibold text-[15.5px] ${f.grid ? 'justify-center' : ''}`}
                 style={{ borderColor: on ? 'var(--p-blue)' : error ? '#a13d29' : '#e0d6c1', background: on ? 'var(--p-blue-tint)' : error ? '#fbeeea' : '#fffdf8' }}
@@ -321,7 +350,7 @@ function FieldView({ f, value, error, onChange, gkks }) {
     const type = f.type === 'number' ? 'text' : f.type;
     const inputMode = f.type === 'tel' ? 'tel' : f.type === 'email' ? 'email' : f.im || 'text';
     const range = f.type === 'date' ? { min: now(f.min), max: now(f.max) } : {};
-    control = <>{label}<input id={id} type={type} inputMode={inputMode} {...range} value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={f.ph} aria-invalid={!!error} aria-describedby={describedBy} className={`${INPUT} ${border}`} /></>;
+    control = <>{label}<input id={id} type={type} inputMode={inputMode} {...range} value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={f.ph} readOnly={!!f.readOnly} aria-invalid={!!error} aria-describedby={describedBy} className={`${INPUT} ${border} ${f.readOnly ? 'bg-[#f1ead9] font-semibold' : ''}`} /></>;
   }
 
   return (
@@ -333,14 +362,14 @@ function FieldView({ f, value, error, onChange, gkks }) {
   );
 }
 
-function Done({ F, refNo, embedded = false, onAgain }) {
+function Done({ F, refNo, embedded = false, onAgain, headingRef }) {
   const Shell = embedded ? 'div' : 'main';
   const Title = embedded ? 'h2' : 'h1';
   const Sub = embedded ? 'h3' : 'h2';
   return (
     <Shell className={embedded ? 'text-center' : `${INNER} lg:max-w-[680px] text-center`}>
       <div className="w-[76px] h-[76px] rounded-full bg-parish-okBg text-parish-ok flex items-center justify-center mx-auto mb-4"><Icon name="check" size={38} /></div>
-      <Title className="font-serif font-semibold text-[32px] leading-[1.1] m-0 mb-2 text-parish-navy">Salamat! Nadawat na namo.</Title>
+      <Title ref={headingRef} tabIndex={-1} className="font-serif font-semibold text-[32px] leading-[1.1] m-0 mb-2 text-parish-navy outline-none">Salamat! Nadawat na namo.</Title>
       {refNo && !F.noRef && (
         <div className="bg-parish-card border border-parish-border rounded-2xl shadow-card p-[18px] my-4">
           <div className="font-bold text-[11.5px] tracking-[.16em] uppercase text-[var(--p-eyebrow)] mb-1.5">Reference number</div>

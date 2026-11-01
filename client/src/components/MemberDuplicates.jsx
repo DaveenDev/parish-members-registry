@@ -243,7 +243,7 @@ function MergeDialog({ group, onClose, onMerged }) {
         await api.mergeMembers(keepId, m.id);
         done += 1;
       }
-      toast.success(`${done} record(s) merged into ${fullName(keep)}. The other record is in the Trash for 30 days.`);
+      toast.success(`${done} record(s) merged into ${fullName(keep)}. The other record is in the Trash for 3 months.`);
       onMerged();
     } catch (e) {
       setError(`${done ? `${done} merged, then: ` : ''}${e.message || 'Could not merge these records'}`);
@@ -257,7 +257,7 @@ function MergeDialog({ group, onClose, onMerged }) {
     <Modal title="Merge duplicate records" onClose={onClose} maxWidth={560}>
       <p className="text-[13.5px] text-parish-text2 leading-relaxed mt-0 mb-4">
         The record you keep gets what it's missing from the others: blank details, sacraments, ministries and organizations, blood type,
-        sacrament verifications, census answers and service history, and every request linked to them. The others go to the Trash, where they stay for 30 days.
+        sacrament verifications, census answers and service history, and every request linked to them. The others go to the Trash, where they stay for 3 months.
       </p>
       {error && <div role="alert" className="mb-3 text-[13.5px] text-parish-error font-medium">{error}</div>}
       <fieldset className="border-none p-0 m-0 flex flex-col gap-2">

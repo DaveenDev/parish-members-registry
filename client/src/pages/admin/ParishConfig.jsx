@@ -16,7 +16,8 @@ import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '../../components/Change
 import { resizeLogo, resizePhoto } from '../../lib/images.js';
 import { fmtDateTime } from '../../constants.js';
 import { DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl } from '../../lib/census.js';
-import { projectIdFromUrl } from '../../lib/database.js';
+import { isDemoDatabase, projectIdFromUrl } from '../../lib/database.js';
+import { backupAgeText, backupSummary, fmtFileSize } from '../../lib/backup.js';
 import { markPasswordResetWorking, saveEmailSettings, sendPasswordReset } from '../../emailApi.js';
 import ChurchEmblem from '../../components/ChurchEmblem.jsx';
 import { SetupChecklistCard } from '../../components/SetupChecklist.jsx';
@@ -443,7 +444,52 @@ function DatabaseCard() {
         { label: 'Project ID', value: projectId, mono: true, copy: true },
         { label: 'Project URL', value: url, copy: true },
       ]} />
+      {!isDemoDatabase(url) && <BackupStatus />}
     </IntegrationCard>
+  );
+}
+
+/**
+ * The weekly encrypted backup to Cloudflare R2 (.github/workflows/backup.yml,
+ * docs/backups.md): when the last one was made, from backup_runs (0104), which
+ * the workflow fills in. Late after 9 days: a Sunday run was missed.
+ */
+function BackupStatus() {
+  const [summary, setSummary] = useState(undefined); // undefined while loading, null when it can't be read
+  useEffect(() => { api.backupStatus().then((s) => setSummary(backupSummary(s))).catch(() => setSummary(null)); }, []);
+
+  const base = 'mt-3 rounded-xl border px-3.5 py-3 text-[13.5px] leading-relaxed';
+  if (summary === undefined) return <div className={`${base} border-parish-line bg-parish-field text-parish-muted`} role="status">Checking the last backup…</div>;
+  if (summary === null) {
+    return (
+      <div className={`${base} border-parish-line bg-parish-field text-parish-text2`} role="status">
+        The backup status couldn’t be read. Run <code>0104_backup_status.sql</code> in Supabase, then reload this page.
+      </div>
+    );
+  }
+  if (summary.state === 'none') {
+    return (
+      <div className={`${base} border-parish-line bg-parish-field text-parish-text2`} role="status">
+        <strong>No backup recorded yet.</strong> The weekly backup is set up as in <code>docs/backups.md</code>; once its first run finishes, it shows here.
+      </div>
+    );
+  }
+  const late = summary.state === 'overdue';
+  const { latest } = summary;
+  return (
+    <div className={`${base} ${late ? 'bg-parish-warnBg border-parish-warnBorder text-parish-warnStrong' : 'bg-parish-okBg border-parish-line text-parish-ok'}`} role="status">
+      <strong>{late ? 'The weekly backup is late' : 'The weekly backup is up to date'}</strong>
+      <div>
+        Last backup: {fmtDateTime(latest.taken_at)} ({backupAgeText(latest.taken_at).toLowerCase()})
+        {latest.size_bytes != null && <> · {fmtFileSize(latest.size_bytes)}</>}
+      </div>
+      {late && <div>A Sunday run was missed. On GitHub, open Actions → Encrypted database backup to see why.</div>}
+      {latest.run_url && (
+        <a href={latest.run_url} target="_blank" rel="noreferrer" className="font-semibold text-[13px] underline text-inherit">
+          View the run<span className="sr-only"> (opens in a new tab)</span>
+        </a>
+      )}
+    </div>
   );
 }
 

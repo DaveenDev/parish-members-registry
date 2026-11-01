@@ -1,216 +1,132 @@
-// The Kaabag page (/simbahan/kaabag, 0102 migration): the month's rotation of
-// Kaabag at the Masses, the Kaabag directory and the Kaabag Structure chart.
-// Pure helpers shared by the page and Parish Website → Kaabag, so they can be
-// unit tested (client/test/kaabag.test.js).
-//
-// A rotation slot is one Mass the Kaabag serve at:
-//   { date: 'YYYY-MM-DD', time: 'HH:MM', location, note, servers: [kaabag id…] }
-// A month is 'YYYY-MM-01'.
+// The Kaabag's Sunday schedule (0113): its dates and how the pages lay it out.
+// The database draws the names (kaabag_fill), so the Generate button and the
+// monthly run share one scheduler; what's here is pure, so it can be tested.
 
-import { massOnDate, massType } from './website.js';
-import { BIS_MONTHS, minutesOf } from './site.js';
+import { BIS_MONTHS, parseIso } from './site.js';
+import { addDays, todayIso } from './website.js';
 
 export const KAABAG_PAGE = '/simbahan/kaabag';
-/** The built-in Kaabag Structure org chart (0102); its slug stays when it's renamed. */
-export const KAABAG_CHART_SLUG = 'kaabag-structure';
-export const isKaabagChart = (c) => c?.slug === KAABAG_CHART_SLUG;
-export const KAABAG_MIGRATION = '0102_kaabag.sql';
+/** The ministry the schedule is for ("Kaabag", or a longer name starting with it, as in kaabag_registered). */
+export const isKaabagGroup = (name) => /^\s*kaabag/i.test(String(name || ''));
 
-const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-
-/** The month 'YYYY-MM-01' that the date `iso` is in. */
+/** The first of the month `iso` is in. */
 export const monthOf = (iso) => `${String(iso).slice(0, 7)}-01`;
 
-/** The month `n` months after `month` (before it, for a negative `n`). */
-export function addMonths(month, n) {
-  const d = new Date(Number(month.slice(0, 4)), Number(month.slice(5, 7)) - 1 + n, 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+export function nextMonth(month) {
+  const [y, m] = String(month).split('-').map(Number);
+  return m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 }
 
-/** Every date of `month`, first to last. */
-export function monthDates(month) {
-  const y = Number(month.slice(0, 4));
-  const m = Number(month.slice(5, 7));
-  const last = new Date(y, m, 0).getDate();
-  return Array.from({ length: last }, (_, i) => `${month.slice(0, 7)}-${String(i + 1).padStart(2, '0')}`);
+/** "December 2026", for staff. */
+export const monthName = (month) => parseIso(month).toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+/** "Disyembre 2026", for the website. */
+export const monthTitle = (month) => `${BIS_MONTHS[parseIso(month).getMonth()]} ${String(month).slice(0, 4)}`;
+
+/** The month's first Sunday (the database's kaabag_first_sunday). */
+export function firstSunday(month) {
+  const first = monthOf(month);
+  return addDays(first, (7 - parseIso(first).getDay()) % 7);
 }
 
-/** "Nobyembre 2026", for the website. */
-export const monthTitle = (month) => `${BIS_MONTHS[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
-/** "November 2026", for the admin. */
-export const monthTitleEn = (month) => `${MONTHS_EN[Number(month.slice(5, 7)) - 1]} ${month.slice(0, 4)}`;
-
-/** The months the admin's month picker offers: from last month to six ahead, and any with a saved rotation. */
-export function monthChoices(today, saved = []) {
-  const now = monthOf(today);
-  const set = new Set([...Array.from({ length: 8 }, (_, i) => addMonths(now, i - 1)), ...saved]);
-  return [...set].sort();
-}
-
-// The Mass schedule's types a rotation can be filled from, and those ticked at first.
-export const FILL_TYPES = [
-  ['Regular Mass', 'Sunday Masses'],
-  ['Anticipated Mass', 'Anticipated Masses'],
-  ['Special Mass', 'Special Masses (feasts, holy days)'],
-  ['Daily Mass', 'Daily Masses'],
-  ['GKK Mass', 'GKK Masses'],
-];
-export const DEFAULT_FILL = ['Regular Mass', 'Anticipated Mass', 'Special Mass'];
-
-const hhmm = (t) => {
-  const [h, m] = String(t || '').split(':');
-  return h === undefined || m === undefined ? '' : `${String(Number(h)).padStart(2, '0')}:${m.slice(0, 2)}`;
-};
-const placeKey = (s) => String(s || '').trim().toLowerCase();
-const slotKey = (s) => `${s.date}|${hhmm(s.time)}|${placeKey(s.location)}`;
-
-/** Slots in order: by date, then time, then place. */
-export function sortSlots(slots) {
-  return [...slots].sort((a, b) => a.date.localeCompare(b.date) || minutesOf(a.time) - minutesOf(b.time)
-    || placeKey(a.location).localeCompare(placeKey(b.location)));
-}
-
-/** `slots` with `extra` added, leaving out any already there (same date, time and place). */
-export function mergeSlots(slots, extra) {
-  const seen = new Set(slots.map(slotKey));
-  const added = [];
-  for (const s of extra) {
-    const k = slotKey(s);
-    if (seen.has(k)) continue;
-    seen.add(k);
-    added.push(s);
-  }
-  return sortSlots([...slots, ...added]);
+/** The last Sunday of the month. */
+function lastSunday(month) {
+  const last = addDays(nextMonth(monthOf(month)), -1);
+  return addDays(last, -parseIso(last).getDay());
 }
 
 /**
- * The Masses of `month` in the Mass schedule (mass_schedules rows), as
- * empty slots: the published ones of `types` (massType), at `location`
- * ('all' for every church and chapel). A Special Mass carries its occasion
- * as the note.
+ * The months to choose from on the Generate button: the next `count` with a
+ * Sunday still to come, and any others that already have a schedule (`dates`).
  */
-export function slotsFromSchedule(rows, month, { types = DEFAULT_FILL, location = 'all' } = {}) {
-  const picked = (rows || []).filter((r) => r.published !== false && types.includes(massType(r))
-    && (location === 'all' || placeKey(r.location) === placeKey(location)));
+export function monthChoices(today = todayIso(), dates = [], count = 3) {
+  const out = new Set(dates.map(monthOf));
+  let month = monthOf(today);
+  if (lastSunday(month) < today) month = nextMonth(month);
+  for (let i = 0; i < count; i += 1) {
+    out.add(month);
+    month = nextMonth(month);
+  }
+  return [...out].sort();
+}
+
+/** The month the tab opens on: the next Sunday's that has a schedule, else the next one to make. */
+export function openingMonth(dates, choices, today = todayIso()) {
+  const next = dates.filter((d) => d >= today).sort()[0];
+  return next ? monthOf(next) : choices.find((m) => m >= monthOf(today)) || choices[0];
+}
+
+/**
+ * When the schedule next makes itself, as the database decides it in
+ * kaabag_auto_generate: { on, month }, for the first month with none (`dates`
+ * are the days scheduled). The run is 7 days before the month's first Sunday,
+ * and each morning after that up to that Sunday if it was missed.
+ */
+export function nextAutoRun(today = todayIso(), dates = []) {
+  const done = new Set(dates.map(monthOf));
+  let month = monthOf(today);
+  for (let i = 0; i < 14; i += 1) {
+    const first = firstSunday(month);
+    const due = addDays(first, -7);
+    const on = due > today ? due : addDays(today, 1);
+    if (!done.has(month) && on <= first) return { on, month };
+    month = nextMonth(month);
+  }
+  return null;
+}
+
+/**
+ * Rows of one list ordered by date, as [{ date, masses }], one per Sunday.
+ * `key` is the row's date field: `date` on the website, `service_date` in the admin.
+ */
+export function groupSundays(rows, key = 'date') {
   const out = [];
-  for (const date of monthDates(month)) {
-    for (const r of picked) {
-      if (!massOnDate(r, date)) continue;
-      out.push({ date, time: hhmm(r.start_time), location: r.location || '', note: massType(r) === 'Special Mass' ? r.occasion || '' : '', servers: [] });
-    }
+  for (const row of rows) {
+    const date = String(row[key]).slice(0, 10);
+    const last = out[out.length - 1];
+    if (last?.date === date) last.masses.push(row);
+    else out.push({ date, masses: [row] });
   }
-  return mergeSlots([], out);
+  return out;
+}
+
+/** Sundays by month: [{ month, sundays }]. */
+export function groupMonths(sundays) {
+  const out = [];
+  for (const sunday of sundays) {
+    const month = monthOf(sunday.date);
+    const last = out[out.length - 1];
+    if (last?.month === month) last.sundays.push(sunday);
+    else out.push({ month, sundays: [sunday] });
+  }
+  return out;
 }
 
 /**
- * Hand the Kaabag in `ids` (the directory's order) round the slots that
- * have nobody yet, `perMass` to each, carrying on from one Mass to the next
- * so everyone gets a turn before anyone gets a second. Slots that already
- * have Kaabag keep them. Returns new slots.
+ * The lines the website shows for a Mass. `names` has null for anyone who
+ * hasn't agreed to be shown by name, so they're only counted.
  */
-export function rotate(slots, ids, perMass = 2) {
-  const n = Math.max(1, Math.min(Number(perMass) || 1, ids.length));
-  if (!ids.length) return slots;
-  let next = 0;
-  return slots.map((s) => {
-    if (s.servers.length) return s;
-    const servers = [];
-    while (servers.length < n) {
-      servers.push(ids[next % ids.length]);
-      next += 1;
-    }
-    return { ...s, servers };
-  });
+export function peopleLines(names = []) {
+  const named = names.filter(Boolean);
+  const hidden = names.length - named.length;
+  if (!hidden) return named;
+  return [...named, named.length ? `ug ${hidden} pa ka Kaabag` : `${hidden} ka Kaabag`];
 }
 
-/** How many Masses each Kaabag serves at in `slots`: a Map of id → count. */
-export function turnsOf(slots) {
-  const turns = new Map();
-  for (const s of slots) for (const id of s.servers) turns.set(id, (turns.get(id) || 0) + 1);
-  return turns;
+/** How many places a Mass still needs filled. */
+export const placesShort = (service) => Math.max(0, service.needed - service.people.length);
+
+/** The rules for one Mass: { skip, servers } (`servers` empty means the usual number). */
+export const massRule = (rules, id) => rules?.[id] || {};
+
+/** `rules` with one Mass's changed; a Mass with nothing special is left out. */
+export function setMassRule(rules, id, patch) {
+  const rule = { ...massRule(rules, id), ...patch };
+  if (!rule.skip) delete rule.skip;
+  if (!rule.servers) delete rule.servers;
+  const { [id]: _old, ...others } = rules || {};
+  return Object.keys(rule).length ? { ...others, [id]: rule } : others;
 }
 
-/** Slots by day: [{ date, slots }], in order. */
-export function slotsByDate(slots) {
-  const days = [];
-  for (const s of sortSlots(slots)) {
-    const last = days[days.length - 1];
-    if (last?.date === s.date) last.slots.push(s);
-    else days.push({ date: s.date, slots: [s] });
-  }
-  return days;
-}
-
-/** What stops `slots` from being saved as `month`'s rotation, or ''. */
-export function slotsError(slots, month) {
-  for (const s of slots) {
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(s.date || '')) return 'Every Mass needs its date.';
-    if (monthOf(s.date) !== month) return `The Mass on ${s.date} isn't in ${monthTitleEn(month)}.`;
-    if (!hhmm(s.time)) return `The Mass on ${s.date} needs its time.`;
-  }
-  const keys = slots.map(slotKey);
-  const twice = keys.find((k, i) => keys.indexOf(k) !== i);
-  if (twice) {
-    const [date, time] = twice.split('|');
-    return `There are two Masses on ${date} at ${time} in the same place. Remove one.`;
-  }
-  return '';
-}
-
-/** The slots as save_kaabag_month() takes them. */
-export const slotsPayload = (slots) => sortSlots(slots).map((s) => ({
-  date: s.date, time: hhmm(s.time), location: (s.location || '').trim(), note: (s.note || '').trim(), servers: [...new Set(s.servers)],
-}));
-
-/**
- * The month the website opens on (`months` are public_kaabag()'s, in
- * order): this month's when it's published, else the next one, else the
- * latest. null when none is published.
- */
-export function pickMonth(months, today) {
-  if (!months?.length) return null;
-  const now = monthOf(today);
-  return months.find((m) => m.month === now) || months.find((m) => m.month > now) || months[months.length - 1];
-}
-
-/** A published month's Masses by day, with `filter` (a Kaabag's name) keeping only their turns. */
-export function monthDays(month, filter = '') {
-  const services = (month?.services || []).filter((s) => !filter || s.servers.some((k) => k.name === filter));
-  return slotsByDate(services.map((s) => ({ ...s, time: hhmm(s.time) })));
-}
-
-/** Everyone on a published month's rotation, A to Z, for "Pangitaa ang imong ngalan". */
-export function monthNames(month) {
-  const names = new Set((month?.services || []).flatMap((s) => s.servers.map((k) => k.name)));
-  return [...names].sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
-}
-
-/** A registry member's name for the directory: "Juan D. Dela Cruz Jr.". */
-export function registryName(m) {
-  const middle = String(m.middle_name || '').trim();
-  return [m.first_name, middle ? `${middle[0].toUpperCase()}.` : '', m.last_name, m.suffix].map((x) => String(x || '').trim()).filter(Boolean).join(' ');
-}
-
-// No longer in the parish: not offered for the directory.
-const GONE = ['Moved away', 'Deceased', 'Left the Church'];
-
-/** The registry's Kaabag (members of the ministry) not in the directory yet, A to Z. */
-export function notListed(registry, directory) {
-  const listed = new Set(directory.map((d) => d.member_id).filter(Boolean));
-  return registry
-    .filter((m) => !listed.has(m.id) && !GONE.includes(m.membership_status))
-    .sort((a, b) => `${a.last_name} ${a.first_name}`.localeCompare(`${b.last_name} ${b.first_name}`, undefined, { sensitivity: 'base' }));
-}
-
-/** The directory in its order on the page. */
-export const sortDirectory = (rows) => [...rows].sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)
-  || String(a.name).localeCompare(String(b.name), undefined, { sensitivity: 'base' }) || a.id - b.id);
-
-/** The directory's order after moving the row at `i` by `d` (-1 up, 1 down): the ids, top to bottom. */
-export function moved(rows, i, d) {
-  const ids = sortDirectory(rows).map((r) => r.id);
-  const j = i + d;
-  if (j < 0 || j >= ids.length) return ids;
-  [ids[i], ids[j]] = [ids[j], ids[i]];
-  return ids;
-}
+export const MAX_SERVERS = 12;
+/** A whole number of Kaabag a Mass can have. */
+export const validServers = (n) => Number.isInteger(n) && n >= 1 && n <= MAX_SERVERS;

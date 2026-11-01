@@ -58,10 +58,10 @@ describe('GKK structure', () => {
       { nodeId: 5, name: 'Idul, Nelly M.' }, { nodeId: 1, memberId: 7, name: 'Analiza Padua', note: '' }, { nodeId: 4, name: 'B' }, { nodeId: 4, name: 'A' },
     ]);
     assert.deepEqual(payload, [
-      { nodeId: 1, memberId: 7, name: 'Analiza Padua', note: null },
-      { nodeId: 4, memberId: null, name: 'B', note: null },
-      { nodeId: 4, memberId: null, name: 'A', note: null },
-      { nodeId: 5, memberId: null, name: 'Idul, Nelly M.', note: null },
+      { nodeId: 1, memberId: 7, name: 'Analiza Padua', note: null, showPublicly: false, consentOn: null },
+      { nodeId: 4, memberId: null, name: 'B', note: null, showPublicly: false, consentOn: null },
+      { nodeId: 4, memberId: null, name: 'A', note: null, showPublicly: false, consentOn: null },
+      { nodeId: 5, memberId: null, name: 'Idul, Nelly M.', note: null, showPublicly: false, consentOn: null },
     ]);
   });
 
@@ -84,8 +84,8 @@ describe('GKK structure', () => {
 
   test('the chart shows each position with its people, as the website does', () => {
     const nodes = chartNodes(positions, [
-      { nodeId: 4, memberId: 7, firstName: 'Richel', lastName: 'Penaso' },
-      { nodeId: 4, name: 'Lilibeth Balunan', note: ' Family Group 1 ' },
+      { nodeId: 4, memberId: 7, firstName: 'Richel', lastName: 'Penaso', showPublicly: true },
+      { nodeId: 4, name: 'Lilibeth Balunan', note: ' Family Group 1 ', showPublicly: true },
     ]);
     assert.equal(nodes.length, positions.length);
     assert.deepEqual(nodes.find((n) => n.id === 4), {
@@ -99,5 +99,23 @@ describe('GKK structure', () => {
     assert.equal(statusText({ status: null, approvedAt: '2026-10-09' }), 'Approved, on the website');
     assert.equal(statusText({ status: 'submitted' }), 'Sent, waiting for the parish office');
     assert.equal(statusText({ status: 'returned' }), 'Sent back by the parish office');
+  });
+});
+
+describe('officers on the website need their agreement', () => {
+  const positions = [{ id: 1, parentId: null, title: 'President', max: 1 }, { id: 2, parentId: 1, title: 'Secretary', max: 1 }];
+  const officers = [
+    { nodeId: 1, name: 'Ana Cruz', showPublicly: true, consentOn: '2026-10-01' },
+    { nodeId: 2, name: 'Ben Reyes' },
+  ];
+
+  test('the chart the website draws leaves out anyone who has not agreed', () => {
+    const nodes = chartNodes(positions, officers);
+    assert.deepEqual(nodes.map((n) => n.holders), [['Ana Cruz'], []]);
+  });
+
+  test('savePayload carries the agreement and its date, and drops a date once unticked', () => {
+    const payload = savePayload(positions, [...officers, { nodeId: 2, name: 'Cy Lim', showPublicly: false, consentOn: '2026-01-01' }]);
+    assert.deepEqual(payload.map((p) => [p.showPublicly, p.consentOn]), [[true, '2026-10-01'], [false, null], [false, null]]);
   });
 });

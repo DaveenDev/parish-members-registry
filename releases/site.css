@@ -1,0 +1,159 @@
+/* The releases page, in the parish website's colours and type. */
+:root {
+  --bg: #f7f2e8;
+  --card: #fffdf8;
+  --ink: #2a2620;
+  --muted: #6b6457;
+  --line: #e6dcc7;
+  --navy: #1a2b4a;
+  --blue: #34589c;
+  --gold: #c39b4e;
+  --gold-soft: #f3e7cb;
+  --code: #f1ead9;
+  color-scheme: light dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #14171d;
+    --card: #1c2028;
+    --ink: #e9e4da;
+    --muted: #a59e90;
+    --line: #2f3440;
+    --navy: #e9e4da;
+    --blue: #8fb0ea;
+    --gold: #d9b56c;
+    --gold-soft: #3a3222;
+    --code: #262b35;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16.5px/1.6 'Source Sans 3', system-ui, sans-serif;
+}
+a { color: var(--blue); }
+code {
+  font: 0.88em ui-monospace, SFMono-Regular, Consolas, monospace;
+  background: var(--code);
+  padding: 0.1em 0.35em;
+  border-radius: 5px;
+  overflow-wrap: anywhere;
+}
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+.hero {
+  background: #1a2b4a;
+  color: #f7f2e8;
+  padding: 44px 0 36px;
+  border-bottom: 4px solid #c39b4e;
+}
+.hero a { color: #e4c06a; }
+.eyebrow {
+  margin: 0;
+  font-weight: 700;
+  font-size: 12.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #e4c06a;
+}
+h1, h2, h3 { font-family: 'Cormorant Garamond', Georgia, serif; line-height: 1.15; }
+.hero h1 { margin: 6px 0 8px; font-size: clamp(40px, 7vw, 60px); font-weight: 700; }
+.lede { margin: 0; max-width: 640px; font-size: 18px; color: #e8e1d2; }
+.actions { display: flex; flex-wrap: wrap; gap: 10px; margin: 22px 0 12px; }
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(247, 242, 232, 0.35);
+  color: #f7f2e8 !important;
+  font-weight: 700;
+  font-size: 15px;
+  text-decoration: none;
+}
+.button:hover { background: rgba(247, 242, 232, 0.08); }
+.button.primary { background: #c39b4e; border-color: #c39b4e; color: #1a2b4a !important; }
+.button.primary:hover { background: #e4c06a; }
+.hint { margin: 0; font-size: 14px; color: #cfc6b4; }
+.hint code { background: rgba(247, 242, 232, 0.12); color: #f7f2e8; }
+
+/* The releases come first in the page, so on a phone the latest is right under
+   the header; on a computer the version list sits to their left. */
+.layout { display: grid; gap: 28px; padding-top: 28px; padding-bottom: 40px; }
+@media (min-width: 900px) {
+  .layout { grid-template-columns: 250px minmax(0, 1fr); align-items: start; }
+  .layout > .side { grid-column: 1; grid-row: 1; position: sticky; top: 20px; }
+  .layout > main { grid-column: 2; grid-row: 1; }
+}
+.side h2 { margin: 0 0 8px; font-size: 21px; color: var(--navy); }
+.side nav ul { list-style: none; margin: 0; padding: 0; }
+.side nav li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px solid var(--line); }
+.side nav a { font-weight: 700; text-decoration: none; }
+.side nav span { color: var(--muted); font-size: 14px; }
+.howto {
+  margin-top: 22px;
+  padding: 14px 16px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  font-size: 14.5px;
+}
+.howto ol { margin: 0; padding-left: 20px; }
+.howto li { margin-bottom: 6px; }
+.howto p { margin: 8px 0 0; color: var(--muted); }
+
+.release {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 22px 20px 10px;
+  margin-bottom: 24px;
+  scroll-margin-top: 16px;
+}
+@media (min-width: 640px) { .release { padding: 28px 32px 14px; } }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; font-size: 14px; color: var(--muted); }
+.version {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--navy);
+  text-decoration: none;
+  background: var(--gold-soft);
+  border-radius: 8px;
+  padding: 2px 9px;
+}
+.badge {
+  font-weight: 700;
+  font-size: 11.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fff;
+  background: #2f7a4f;
+  border-radius: 999px;
+  padding: 2px 9px;
+}
+.release h2 { margin: 10px 0 6px; font-size: clamp(28px, 4.5vw, 36px); color: var(--navy); }
+.summary { margin: 0 0 16px; font-size: 17.5px; color: var(--muted); }
+.upgrade {
+  display: grid;
+  gap: 10px 24px;
+  margin: 0 0 18px;
+  padding: 12px 16px;
+  border-left: 4px solid var(--gold);
+  background: var(--bg);
+  border-radius: 0 12px 12px 0;
+}
+@media (min-width: 640px) { .upgrade { grid-template-columns: 1fr 1fr; } }
+.upgrade dt { font-weight: 700; font-size: 12px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.upgrade dd { margin: 2px 0 0; }
+.notes h3 { margin: 24px 0 8px; font-size: 25px; color: var(--navy); }
+.notes h4 { margin: 18px 0 6px; font-size: 20px; color: var(--navy); }
+.notes p { margin: 0 0 12px; }
+.notes ul { margin: 0 0 12px; padding-left: 22px; }
+.notes li { margin-bottom: 6px; }
+.notes li ul { margin: 6px 0 0; }
+
+.foot { border-top: 1px solid var(--line); padding: 18px 0 28px; color: var(--muted); font-size: 14px; }

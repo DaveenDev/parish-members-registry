@@ -17,12 +17,14 @@ export const siteDescription = (parish) => `${String(parish || '').trim() || 'An
 const DESCRIPTIONS = [
   ['/simbahan/pagbasa', (p) => `Mga pagbasa sa Misa karong adlawa ug sa umaabot nga Domingo, gikan sa ${sa(p)}.`],
   ['/simbahan/kasaysayan', (p) => `Ang kasaysayan sa ${sa(p)}.`],
-  ['/simbahan/kaabag', (p) => `Ang Kaabag sa ${sa(p)}: kinsa ang moalagad sa matag Misa karong bulana, ug ang mga sakop.`],
+  ['/simbahan/kaabag', (p) => `Iskedyul sa mga Kaabag: kinsa ang mag-alagad sa matag Misa sa Domingo sa ${sa(p)}.`],
   ['/simbahan', (p) => `Oras sa Misa, mga sakramento ug unsaon pagpangandam alang niini sa ${sa(p)}.`],
   ['/misa', (p) => `Oras sa Misa ug mga kalihokan sa ${sa(p)}.`],
   ['/pahibalo', (p) => `Mga pahibalo, bulletin ug kalihokan sa ${sa(p)}.`],
+  ['/komunidad/census', (p) => `Ang census sa ${sa(p)}: ang progreso matag GKK samtang abli, ug ang resulta sa katapusang census.`],
   ['/komunidad/artikulo', (p) => `Mga artikulo ug balita gikan sa ${sa(p)}.`],
   ['/komunidad/pag-ampo', (p) => `Mga hangyo sa pag-ampo gikan sa mga parokyano sa ${sa(p)}: mag-ampo kita alang sa usag usa.`],
+  ['/komunidad/grupo', (p) => `Mga ministry ug organisasyon sa ${sa(p)}: unsa ang ilang buhat ug unsaon pag-apil.`],
   ['/komunidad/gkk', (p) => `Usa sa mga GKK (Gagmayng Kristohanong Katilingban) sa ${sa(p)}.`],
   ['/komunidad', (p) => `Ang mga GKK, mga artikulo, mga hangyo sa pag-ampo ug kinabuhi sa komunidad sa ${sa(p)}.`],
   ['/serbisyo/dugo', (p) => `Blood Donor Call sa ${sa(p)}: mga nanginahanglan og dugo ug unsaon pagtabang.`],
@@ -33,8 +35,9 @@ const DESCRIPTIONS = [
   ['/kontak', (p) => `Kontak, oras sa opisina ug direksyon padulong sa ${sa(p)}.`],
 ];
 
-// Pages search engines shouldn't list: a status lookup with nothing to read.
-const NOINDEX = ['/serbisyo/susiha'];
+// Pages search engines shouldn't list: a status lookup and the request forms
+// (an empty form is nothing to read; Mga Serbisyo itself is listed).
+const NOINDEX = ['/serbisyo/susiha', '/serbisyo/hangyo'];
 
 /** The description for a page with no text of its own (`pathname` without the query). */
 export function pageDescription(pathname, parish) {

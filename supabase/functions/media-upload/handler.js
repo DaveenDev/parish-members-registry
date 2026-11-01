@@ -1,4 +1,5 @@
-// Photo uploads for the Parish Website (Blog Articles, event covers, GKK
+// Photo uploads for the Parish Website (Blog Articles, event and announcement
+// covers, GKK
 // history photos, the parish History page, the Organization Structure's
 // holder photos and the parish photo on the home page), and the video of the
 // History page's main article (0080), stored on Cloudflare R2.
@@ -20,7 +21,7 @@ const isDisabled = (user, now) => !!user?.banned_until && new Date(user.banned_u
 
 export const MAX_BYTES = 10 * 1024 * 1024;
 export const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
-export const FOLDERS = ['articles', 'events', 'gkks', 'org', 'parish', 'history'];
+export const FOLDERS = ['articles', 'events', 'announcements', 'gkks', 'org', 'parish', 'history'];
 const TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 // Videos only for the History page's main article (0080).
 const VIDEO_TYPES = { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' };
@@ -170,11 +171,12 @@ export function keyFromUrl(url, publicBase) {
 // Readable names once a row is saved (0029 migration): article101_cover.jpg,
 // article101_1.jpg…, event55_cover.jpg, and history3_cover.jpg, history3_1.jpg…
 // for the History page (0068), whose photo inside the main article (0069) and
-// video (0080, history3_4.mp4) are numbered with the gallery. Events only have
-// a cover.
+// video (0080, history3_4.mp4) are numbered with the gallery. Events and
+// announcements (0112, announcement42_cover.jpg) only have a cover.
 const NAMED = {
   articles: { folder: 'articles', prefix: 'article', gallery: true },
   events: { folder: 'events', prefix: 'event', gallery: false },
+  announcements: { folder: 'announcements', prefix: 'announcement', gallery: false },
   history_articles: { folder: 'history', prefix: 'history', gallery: true, inside: ['body_photo_url', 'video_url'] },
 };
 
@@ -223,7 +225,7 @@ export function namePlan(table, row, publicBase) {
   return { moves, patch };
 }
 
-/** True when any article, event, History page article or GKK history still links to `url` (or when we can't tell). */
+/** True when any article, event, announcement, History page article or GKK history still links to `url` (or when we can't tell). */
 async function inUse(admin, url) {
   const checks = await Promise.all([
     admin.from('articles').select('id').eq('photo_url', url).limit(1),
@@ -241,6 +243,9 @@ async function inUse(admin, url) {
   // Nor, before 0069 and 0080, a photo or video inside the main article.
   const noTable = (e) => ['42P01', 'PGRST205', '42703'].includes(e?.code);
   if (history.some((r) => (r.error && !noTable(r.error)) || r.data?.length)) return true;
+  // Announcements have no cover before 0112.
+  const announcement = await admin.from('announcements').select('id').eq('photo_url', url).limit(1);
+  if ((announcement.error && !noTable(announcement.error)) || announcement.data?.length) return true;
   const gkks = await gkksUsing(admin, url);
   return gkks.error || gkks.names.length > 0;
 }
@@ -343,6 +348,7 @@ export async function handleMediaRequest({ admin, token, body, r2, saved = null,
         throw new Error(error.message);
       }
       if (!row) return fail(404, 'That article or event no longer exists');
+      if (body.table === 'announcements' && !('cover_seq' in row)) return fail(400, 'Run the 0112_announcement_photo.sql migration in Supabase to add announcement photos');
       if (!('cover_seq' in row)) return fail(400, 'Run the 0029_photo_file_names.sql migration in Supabase to rename photos');
 
       const { moves, patch } = namePlan(body.table, row, r2.publicBase);

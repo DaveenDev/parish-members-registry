@@ -12,7 +12,6 @@ import { NODE_H, NODE_W, tidyPositions } from '../../lib/orgChartLayout.js';
 import NodePanel, { HolderAvatar } from './NodePanel.jsx';
 import GkkOfficers from './GkkOfficers.jsx';
 import { usePhotoUploads } from './usePhotoUploads.js';
-import { KAABAG_PAGE, isKaabagChart } from '../../lib/kaabag.js';
 
 // What the position cards need from the editor (kept out of node data, so
 // the data stays plain and comparable).
@@ -313,7 +312,7 @@ function Editor({ chart, canEdit, onChartUpdated, onDeleted, onDirtyChange }) {
 
   const context = useMemo(() => ({ canEdit, scope, preview, addChild: addPosition }), [canEdit, scope, preview, addPosition]);
   const savedPositions = saved.current.nodes.filter((n) => !isNewKey(n.id)).map((n) => ({ id: Number(n.id), title: n.data.title, gkkRole: n.data.gkkRole }));
-  const siteLink = isKaabagChart(chart) ? `${KAABAG_PAGE}#estruktura` : `/simbahan?tab=organisasyon&chart=${encodeURIComponent(chart.slug)}`;
+  const siteLink = `/simbahan?tab=organisasyon&chart=${encodeURIComponent(chart.slug)}`;
 
   if (state.loading) return <Panel><LoadingState label="Loading the chart…" /></Panel>;
   if (state.error) return <Panel><ErrorState message={state.error} onRetry={() => { setState({ loading: true, error: '' }); load().then(() => setState({ loading: false, error: '' })).catch((e) => setState({ loading: false, error: e.message })); }} /></Panel>;

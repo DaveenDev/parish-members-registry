@@ -7,17 +7,18 @@ import { useAsyncData, useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { fmtDateTime } from '../../constants.js';
+import {
+  TRASH_FILTERS, TRASH_KEEP_MONTHS, TRASH_KINDS, trashDaysLeftText, trashGroup, trashKindLabel, trashOpenPath, trashPurgeMessage, trashRestoredText,
+} from '../../lib/trash.js';
 
-const KEEP_DAYS = 30;
 const URL_DEFAULTS = { kind: 'All', q: '', page: 1, size: 20 };
-const URL_ALLOWED = { kind: ['All', 'household', 'member'], size: [10, 20, 50] };
-const trashText = (r) => [r.label, r.detail, r.deleted_by_name].filter(Boolean).join(' ');
+const URL_ALLOWED = { kind: TRASH_FILTERS.map(([value]) => value), size: [10, 20, 50] };
+const trashText = (r) => [r.label, trashKindLabel(r.kind), r.detail, r.deleted_by_name].filter(Boolean).join(' ');
 
-function daysLeft(deletedAt, now = Date.now()) {
-  return Math.max(0, KEEP_DAYS - Math.floor((now - new Date(deletedAt).getTime()) / 86400000));
-}
-
-/** Deleted households and members, kept for 30 days so they can be put back. */
+/**
+ * Deleted households and members (0014), and requests, donors and website
+ * content (0103), kept for 3 months so they can be put back.
+ */
 export default function Trash() {
   const toast = useToast();
   const confirm = useConfirm();
@@ -28,7 +29,7 @@ export default function Trash() {
   const all = trash.data?.rows || [];
   // Searched, filtered and paged here; the search and page are in the address bar.
   const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
-  const list = urlListPage(url.kind === 'All' ? all : all.filter((r) => r.kind === url.kind), trashText, url, setUrl);
+  const list = urlListPage(url.kind === 'All' ? all : all.filter((r) => trashGroup(r.kind) === url.kind), trashText, url, setUrl);
   const rows = list.rows;
   const filtered = url.kind !== 'All' || !!url.q;
 
@@ -78,29 +79,28 @@ export default function Trash() {
   }
 
   async function restoreSelected() {
-    report(await runBulk('Restoring', (r) => api.restoreDeleted(r.id)), 'restored to the registry');
+    report(await runBulk('Restoring', (r) => api.restoreDeleted(r.id, r.kind)), 'restored');
   }
 
   async function purgeSelected() {
     const n = selectedRows.length;
     const households = selectedRows.filter((r) => r.kind === 'household').length;
+    const photos = selectedRows.some((r) => ['event', 'article', 'history_article'].includes(r.kind));
     const ok = await confirm({
       title: `Delete ${n} ${n === 1 ? 'entry' : 'entries'} for good?`,
-      message: `${households ? `This includes ${households === 1 ? 'a household' : `${households} households`}, with all their members. ` : ''}They’re removed permanently and can’t be restored.`,
+      message: `${households ? `This includes ${households === 1 ? 'a household' : `${households} households`}, with all their members. ` : ''}${photos ? 'Their photos are deleted too. ' : ''}They’re removed permanently and can’t be restored.`,
       confirmLabel: `Delete ${n} for good`,
       tone: 'danger',
     });
     if (!ok) return;
-    report(await runBulk('Deleting', (r) => api.purgeDeleted(r.id)), 'deleted for good');
+    report(await runBulk('Deleting', (r) => api.purgeDeleted(r.id, r.kind)), 'deleted for good');
   }
 
   async function restore(r) {
     setBusyId(r.id);
     try {
-      const res = await api.restoreDeleted(r.id);
-      toast.success(`${r.label} is back in the registry`, {
-        action: { label: 'Open', onClick: () => navigate(res.kind === 'household' ? `/admin/households?status=All&q=${encodeURIComponent(r.label)}` : `/admin/members?q=${encodeURIComponent(r.label)}`) },
-      });
+      await api.restoreDeleted(r.id, r.kind);
+      toast.success(trashRestoredText(r), { action: { label: 'Open', onClick: () => navigate(trashOpenPath(r)) } });
       trash.reload();
       layout?.refreshNavCounts?.();
     } catch (e) {
@@ -113,16 +113,14 @@ export default function Trash() {
   async function purge(r) {
     const ok = await confirm({
       title: `Delete ${r.label} for good?`,
-      message: r.kind === 'household'
-        ? 'The household and its members are removed permanently and can’t be restored.'
-        : 'The member is removed permanently and can’t be restored.',
+      message: trashPurgeMessage(r),
       confirmLabel: 'Delete for good',
       tone: 'danger',
     });
     if (!ok) return;
     setBusyId(r.id);
     try {
-      await api.purgeDeleted(r.id);
+      await api.purgeDeleted(r.id, r.kind);
       toast.success('Deleted for good');
       trash.reload();
     } catch (e) {
@@ -134,17 +132,18 @@ export default function Trash() {
 
   return (
     <>
-      <PageHeader title="Trash" subtitle={`Deleted households and members, kept for ${KEEP_DAYS} days`}>
+      <PageHeader title="Trash" subtitle={`Deleted households, members, requests and website content, kept for ${TRASH_KEEP_MONTHS} months`}>
         <FilterSelect aria-label="What was deleted" value={url.kind} onChange={(e) => setUrl({ kind: e.target.value })}>
-          <option value="All">Households and members</option><option value="household">Households</option><option value="member">Members</option>
+          {TRASH_FILTERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
         </FilterSelect>
         <SearchInput placeholder="Search name or who deleted it…" aria-label="Search the trash" value={list.query} onChange={(e) => list.setQuery(e.target.value)} />
       </PageHeader>
       <PageBody>
         <div>
           <div className="mb-[18px] px-[18px] py-3.5 bg-[var(--p-blue-tint)] border border-parish-infoBorder rounded-xl text-[13.5px] text-parish-info leading-relaxed">
-            Restoring puts the record back as it was, with its members, sacrament verifications and census answers, and links it again to
-            certificate requests and the blood donor list. Items are removed for good after {KEEP_DAYS} days.
+            Restoring puts the record back as it was: a household with its members, sacrament verifications and census answers, linked again to
+            certificate requests and the blood donor list; a blood request with its donor contacts; an event or article with its photos.
+            Items are removed for good after {TRASH_KEEP_MONTHS} months. Only staff with full access can restore or empty the trash.
           </div>
           {(selectedRows.length > 0 || bulk) && (
             <div role="region" aria-label="Selected entries" className="sticky top-2 md:top-[92px] z-[5] mb-3 flex items-center gap-2.5 flex-wrap px-4 py-3 rounded-xl bg-parish-navy text-white shadow-card">
@@ -169,7 +168,7 @@ export default function Trash() {
             )}
             {trash.loading && !trash.data && <LoadingState label="Loading the trash…" />}
             {trash.error && <ErrorState message={trash.error} onRetry={trash.reload} />}
-            {trash.data && !all.length && <EmptyState title="The trash is empty" subtitle="Deleted households and members show up here." />}
+            {trash.data && !all.length && <EmptyState title="The trash is empty" subtitle="Deleted households, members, requests and website content show up here." />}
             {trash.data && !!all.length && !rows.length && filtered && <EmptyState title="Nothing in the trash matches" subtitle="Try another name or clear the search." />}
             {!!rows.length && (
               <ul className="list-none m-0 p-0 divide-y divide-parish-line">
@@ -179,12 +178,12 @@ export default function Trash() {
                     <div className="min-w-0 flex-1 basis-[calc(100%-40px)] sm:basis-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="font-semibold text-[14.5px] text-parish-navy">{r.label}</span>
-                        <Badge tone={r.kind === 'household' ? 'gold' : 'blue'}>{r.kind === 'household' ? 'Household' : 'Member'}</Badge>
+                        <Badge tone={TRASH_KINDS[r.kind]?.tone || 'gray'}>{trashKindLabel(r.kind)}</Badge>
                       </div>
                       <div className="text-[12.5px] text-parish-muted">
                         {[r.detail, `deleted ${fmtDateTime(r.deleted_at)}`, r.deleted_by_name && `by ${r.deleted_by_name}`].filter(Boolean).join(' · ')}
                       </div>
-                      <div className="text-[12px] text-parish-warn font-semibold">{daysLeft(r.deleted_at)} day(s) left</div>
+                      <div className="text-[12px] text-parish-warn font-semibold">{trashDaysLeftText(r.deleted_at)}</div>
                     </div>
                     {/* Phones: the buttons go under the details, side by side. */}
                     <div className="flex gap-2 max-sm:w-full max-sm:pl-[31px]">

@@ -10,8 +10,12 @@ import { ACTIVITY_AREAS } from '../../lib/activity.js';
 const TABLES = [['All', 'Everything'], ...ACTIVITY_AREAS.map(([k, l]) => [k, l])];
 const AREA_TABLES = Object.fromEntries(ACTIVITY_AREAS.map(([k, , tables]) => [k, tables]));
 // Where an entry opens, for the records logged since 0076 (a request by its reference number).
-const REQUEST_TABS = { certificate_requests: '', sacrament_requests: 'sacraments', blood_requests: 'blood', blood_donors: 'blood' };
-const WEBSITE_TABS = { announcements: 'announcements', articles: 'articles', bulletins: 'bulletin', events: 'events', mass_schedules: 'mass', sacrament_guides: 'sacraments', history_articles: 'history', songs: 'downloads&kind=songs', download_files: 'downloads', kaabag_members: 'kaabag&view=directory', kaabag_months: 'kaabag' };
+const REQUEST_TABS = { certificate_requests: '', sacrament_requests: 'sacraments', prayer_requests: 'prayers', blood_requests: 'blood', blood_donors: 'blood', blood_request_contacts: 'blood' };
+// Blood requests, donors and contacts open their tab; the others open the queue on the reference number.
+const NO_REF_SEARCH = new Set(['blood_donors', 'blood_requests', 'blood_request_contacts']);
+// Census entries: online updates, renewed codes and last-year lists are all on the Census page.
+const CENSUS_TABLES = new Set(['census_cycles', 'census_submissions', 'household_access_codes', 'census_last_year_list']);
+const WEBSITE_TABS = { announcements: 'announcements', articles: 'articles', bulletins: 'bulletin', events: 'events', mass_schedules: 'mass', sacrament_guides: 'sacraments', history_articles: 'history', songs: 'downloads&kind=songs', download_files: 'downloads', kaabag_settings: 'kaabag', kaabag_roster: 'kaabag', kaabag_services: 'kaabag', kaabag_assignments: 'kaabag' };
 const refOf = (label) => String(label || '').split(' · ')[0];
 const URL_DEFAULTS = { table: 'All', who: 'All', q: '', page: 1, size: 20 };
 const URL_ALLOWED = { table: TABLES.map(([k]) => k), who: ['All', 'online'], size: [10, 20, 50] };
@@ -32,9 +36,11 @@ export default function ActivityLog() {
   function open(e) {
     const t = e.table_name;
     if (t in REQUEST_TABS) {
-      const params = new URLSearchParams({ ...(REQUEST_TABS[t] ? { tab: REQUEST_TABS[t] } : {}), ...(t !== 'blood_donors' && t !== 'blood_requests' ? { view: t === 'sacrament_requests' ? 'All' : 'all', q: refOf(e.label) } : {}) });
+      const params = new URLSearchParams({ ...(REQUEST_TABS[t] ? { tab: REQUEST_TABS[t] } : {}), ...(!NO_REF_SEARCH.has(t) ? { view: t === 'sacrament_requests' ? 'All' : 'all', q: refOf(e.label) } : {}) });
       navigate(`/admin/requests?${params}`);
-    } else if (t === 'census_cycles') navigate('/admin/census');
+    } else if (CENSUS_TABLES.has(t)) navigate('/admin/census');
+    else if (t === 'gkk_documents') navigate('/admin/settings?tab=gkk');
+    else if (t === 'media_storage_settings') navigate('/admin/settings?tab=integrations');
     else if (t in WEBSITE_TABS) navigate(`/admin/website?tab=${WEBSITE_TABS[t]}`);
     else if (t === 'gkks') navigate('/admin/settings?tab=gkk');
     else if (['ministries', 'organizations', 'parish_positions'].includes(t)) navigate(`/admin/settings/organizations?tab=${{ ministries: 'ministries', organizations: 'lay', parish_positions: 'structure' }[t]}`);

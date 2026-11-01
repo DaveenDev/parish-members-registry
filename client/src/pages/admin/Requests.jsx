@@ -8,12 +8,14 @@ import CertificatesTab from '../../components/requests/CertificatesTab.jsx';
 import BloodRequestsTab from '../../components/requests/BloodRequestsTab.jsx';
 import SacramentsTab from '../../components/requests/SacramentsTab.jsx';
 import PrayerTab from '../../components/requests/PrayerTab.jsx';
+import InterestsTab from '../../components/requests/InterestsTab.jsx';
 
 const TABS = [
   ['certificates', 'Certificates', CertificatesTab, (c) => c.certificates + c.ready],
   ['sacraments', 'Sacraments', SacramentsTab, (c) => c.sacraments || 0],
   ['prayers', 'Prayers', PrayerTab, (c) => c.prayers || 0],
   ['blood', 'Blood Requests', BloodRequestsTab, (c) => c.blood],
+  ['interests', 'Interested', InterestsTab, (c) => c.interests || 0],
 ];
 
 /** Staff queues for what parishioners ask the parish office for. */
@@ -33,7 +35,7 @@ export default function Requests() {
 
   return (
     <>
-      <PageHeader title="Requests" subtitle="Certificates, sacraments, prayers and blood calls from parishioners" />
+      <PageHeader title="Requests" subtitle="Certificates, sacraments, prayers, blood calls and group sign-ups from parishioners" />
       <PageBody>
         {!can(user, 'editRequests') && <ViewOnlyNote />}
         <Tabs tabs={tabs} value={current[0]} onChange={setTab} />

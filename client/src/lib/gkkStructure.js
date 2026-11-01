@@ -97,6 +97,8 @@ export function savePayload(positions, officers) {
       memberId: o.memberId || null,
       name: clean(o.name) || null,
       note: clean(o.note) || null,
+      showPublicly: !!o.showPublicly,
+      consentOn: o.showPublicly ? o.consentOn || null : null,
     }));
 }
 
@@ -145,7 +147,8 @@ export function chartNodes(positions, officers) {
     id: p.id,
     parentId: p.parentId ?? null,
     title: p.title,
-    holders: (officers || []).filter((o) => o.nodeId === p.id)
+    // Only those who agreed to be on the website, as org_chart_tree.
+    holders: (officers || []).filter((o) => o.nodeId === p.id && o.showPublicly)
       .map((o) => `${displayName(o)}${clean(o.note) ? ` (${clean(o.note)})` : ''}`)
       .filter((n) => n.trim()),
     photo: null,

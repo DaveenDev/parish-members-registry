@@ -1,5 +1,10 @@
 # Running migrations from GitHub
 
+> **No longer used.** With more than one parish, migrations go out with
+> `npm run release:db`, database before website, and the GitHub integration
+> stays off: see [deploy/04-releases.md](../deploy/04-releases.md). The
+> numbering rules under "From now on" still apply.
+
 Supabase's GitHub integration can run new files in `supabase/migrations`
 when a pull request merges into `main`, instead of pasting each one into the
 SQL editor. It keeps track of what has run in its own migration history.

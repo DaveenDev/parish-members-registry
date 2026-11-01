@@ -13,6 +13,9 @@ Setting the site up for **another parish**: start with
 [03-new-parish.md](03-new-parish.md). It lists what to change in the code
 first, then sends you through 01 and 02.
 
+Releasing an update, with a database change, to the demo site and every
+parish: [04-releases.md](04-releases.md).
+
 Set up the live site first. The demo site is a second copy of the same
 setup with a few settings changed, and 02 only lists those changes.
 

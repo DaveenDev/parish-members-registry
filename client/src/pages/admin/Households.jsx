@@ -230,7 +230,7 @@ export default function Households() {
   async function removeHousehold(h) {
     const ok = await confirm({
       title: `Delete ${h.household_name}?`,
-      message: `The household and its ${h.member_count} member record(s) move to the Trash, where they can be restored for 30 days.`,
+      message: `The household and its ${h.member_count} member record(s) move to the Trash, where they can be restored for 3 months.`,
       confirmLabel: 'Delete household',
       tone: 'danger',
     });

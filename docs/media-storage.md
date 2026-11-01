@@ -136,6 +136,7 @@ in the SQL editor (adds each article's gallery and the History / Kasaysayan tag)
   | Article 101's cover | `articles/article101_cover.jpg` (a replacement: `article101_cover_2.jpg`, …) |
   | Article 101's gallery | `articles/article101_1.jpg`, `article101_2.jpg`, … |
   | Event 55's cover | `events/event55_cover.jpg` (a replacement: `event55_cover_2.jpg`, …) |
+| Announcement 42's photo | `announcements/announcement42_cover.jpg` |
   | History page article 3's main or cover photo | `history/history3_cover.jpg` |
   | History page article 3's gallery | `history/history3_1.jpg`, `history3_2.jpg`, … |
 
@@ -170,7 +171,7 @@ in the SQL editor (adds each article's gallery and the History / Kasaysayan tag)
   `history/YYYY/MM/<random>.mp4`, then numbered with the gallery
   (`history/history3_5.mp4`). Videos aren't allowed in any other folder. The
   CORS policy above already lets the browser upload them.
-- The function only deletes files under `articles/`, `events/`, `gkks/`, `org/`, `parish/` and `history/` in this bucket.
+- The function only deletes files under `articles/`, `events/`, `announcements/`, `gkks/`, `org/`, `parish/` and `history/` in this bucket.
 - A GKK's land titles and other documents are **not** kept on R2 (anyone with a
   photo's link can open it): they go in the private `gkk-documents` bucket of
   Supabase Storage, which 0044 creates.

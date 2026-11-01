@@ -134,25 +134,25 @@ const isGreat = (c) => ['special', 'solemnity', 'devotion'].includes(c.rank) || 
 
 /**
  * "Mga dakong adlaw sa Simbahan": the next twelve months of great days,
- * by month, with what the colors mean. Phones show the first few with a
- * button for the rest.
+ * by month, with what the colors mean. The first four months show (a full
+ * row on desktop), with a button for the rest.
  */
 export function ChurchYear({ today }) {
   const [all, setAll] = useState(false);
   const list = celebrationsBetween(today, addDays(today, 365), useLiturgy()).filter(isGreat);
-  const shown = all ? list : list.slice(0, 8);
   const months = [];
-  for (const c of shown) {
+  for (const c of list) {
     const key = c.date.slice(0, 7);
     if (months[months.length - 1]?.key !== key) months.push({ key, items: [] });
     months[months.length - 1].items.push(c);
   }
+  const shown = all ? months : months.slice(0, 4);
   return (
     <section aria-labelledby="church-year" className="mt-7 lg:mt-10">
       <h3 id="church-year" className="m-0 font-serif text-[24px] lg:text-[30px] font-bold text-parish-navy">Mga dakong adlaw sa Simbahan</h3>
       <p className="m-0 mt-0.5 mb-3.5 lg:mb-5 text-[14.5px] lg:text-[15.5px] text-[#4d4636]">Ang mga panahon ug kapistahan sulod sa usa ka tuig gikan karon, sumala sa kalendaryo sa Simbahan sa Pilipinas.</p>
-      <div className="grid gap-3.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 items-start">
-        {months.map((m) => (
+      <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4 items-start">
+        {shown.map((m) => (
           <div key={m.key} className="bg-parish-card border border-parish-border rounded-2xl shadow-cardSm overflow-hidden">
             <div className="px-3.5 py-2 bg-[#fbf7ef] border-b border-[#f0e8d6] font-bold text-[12.5px] tracking-[.12em] uppercase text-[#4d4636]">
               {BIS_MONTHS[Number(m.key.slice(5)) - 1]} {m.key.slice(0, 4)}
@@ -178,7 +178,7 @@ export function ChurchYear({ today }) {
           </div>
         ))}
       </div>
-      {list.length > shown.length && (
+      {months.length > shown.length && (
         <button type="button" onClick={() => setAll(true)} className="mt-3.5 w-full lg:w-auto min-h-[46px] px-5 rounded-[12px] border-[1.5px] border-[var(--p-blue-border)] bg-parish-card text-parish-blueDeep font-bold text-[15px] hover:bg-[var(--p-blue-tint)]">
           Tan-awa ang tanan ({list.length})
         </button>
