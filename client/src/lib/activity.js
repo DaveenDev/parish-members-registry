@@ -66,8 +66,14 @@ const RECORD_FIELD_LABELS = {
     access_gkk: 'GKK', disabled: 'Disabled', email: 'Email', theme: 'Parish theme', maintenance_mode: 'Maintenance mode', maintenance_message: 'Maintenance note',
     logo: 'Logo', hero_image: 'Home page photo', site_url: 'Website address', census_interval_months: 'Census schedule',
     outgoing_email: 'Parish email', outgoing_name: 'Email sender name',
-    servers_per_mass: 'Kaabag at each Mass', mass_rules: 'Rules for each Mass', auto_generate: 'Made automatically',
+    servers_per_mass: 'Kaabag at each Mass', mass_rules: 'Rules for each Mass', auto_generate: 'Made automatically', days: 'Other days with Kaabag',
     on_rotation: 'In the draw', photo_url: 'Photo', show_publicly: 'Show on the website', consent_on: 'Agreed on',
+};
+
+const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+// A value shown other than as it's stored: the Kaabag's other days (0116) are numbers, 6 for Saturday.
+const RECORD_FIELD_FORMAT = {
+  'kaabag_settings.days': (v) => (Array.isArray(v) && v.length ? v.map((d) => WEEKDAYS[d] || d).join(', ') : '—'),
 };
 
 /** A requests, census, website, settings or staff entry (0076). */
@@ -85,7 +91,8 @@ function describeRecord(e, c) {
   if (e.action === 'restore') return { title: `Restored the ${noun} from the trash`, lines: [] };
   const lines = Object.entries(c).map(([k, v]) => {
     const [from, to] = Array.isArray(v) && v.length === 2 ? v : [undefined, v];
-    return `${RECORD_FIELD_LABELS[k] || FIELD_LABELS[k] || k}: ${formatValue(from)} → ${formatValue(to)}`;
+    const show = RECORD_FIELD_FORMAT[`${e.table_name}.${k}`] || formatValue;
+    return `${RECORD_FIELD_LABELS[k] || FIELD_LABELS[k] || k}: ${show(from)} → ${show(to)}`;
   });
   if (c.status) return { title: `Set the ${noun} to ${formatValue(c.status[1])}`, lines: lines.filter((l) => !l.startsWith('Status:')) };
   return { title: e.table_name === 'parish_settings' ? 'Changed the parish settings' : `Updated the ${noun}`, lines };
