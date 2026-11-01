@@ -56,7 +56,7 @@ export default function Serbisyo() {
   return (
     <main className="animate-fadeUp">
       <Band aria-label="Unsaon namo pagtabang?">
-        <div className={`${WRAP} ${BAND_PAD}`}>
+        <div className={`${WRAP} ${BAND_PAD} site-stagger`}>
           <Eyebrow>Mga Serbisyo</Eyebrow>
           <PageTitle className="mb-1.5">Unsaon namo pagtabang?</PageTitle>
           <p className="m-0 mb-3 text-[15px] lg:text-[17px] leading-normal text-[#4d4636]">Ang matag hangyo moadto direkta sa kawani sa parokya.</p>
@@ -108,8 +108,10 @@ function NewestPrayers() {
     <div className="mt-5 lg:mt-0">
       {rows.length > 0 && (
         <section aria-labelledby="newest-prayers" className="hidden lg:block mb-4">
-          <Eyebrow>Mag-ampo kita alang sa usag usa</Eyebrow>
-          <h2 id="newest-prayers" className="m-0 mb-3 font-serif text-[26px] font-bold text-parish-navy leading-tight">Mga Hangyo sa Pag-ampo</h2>
+          <div data-reveal>
+            <Eyebrow>Mag-ampo kita alang sa usag usa</Eyebrow>
+            <h2 id="newest-prayers" className="m-0 mb-3 font-serif text-[26px] font-bold text-parish-navy leading-tight">Mga Hangyo sa Pag-ampo</h2>
+          </div>
           <div className="flex flex-col gap-3">{rows.map((r) => <PrayerCard key={r.id} r={r} />)}</div>
         </section>
       )}
@@ -209,7 +211,7 @@ export function Kontak() {
     <main className="animate-fadeUp">
       <Band aria-label="Opisina sa parokya">
         <div className={`${WRAP} ${BAND_PAD} lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)] lg:gap-10 lg:items-center`}>
-          <div>
+          <div className="site-stagger">
             <Eyebrow>Kontak</Eyebrow>
             <PageTitle className="mb-1.5">Opisina sa parokya</PageTitle>
             <p className="m-0 mb-4 text-[15px] lg:text-[17px] leading-normal text-[#4d4636]">Tawag, text o mensahe, o bisitaha kami sa opisina.</p>

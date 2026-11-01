@@ -231,6 +231,57 @@
   .census-update-cta { animation: none; }
 }
 
+/* ===== Public website motion =====
+   Scroll reveal (useScrollReveal.js): a block below the screen waits hidden
+   and rises in when scrolled to; the hook clears both classes when it's done. */
+.site-reveal { opacity: 0; transform: translateY(24px); }
+.site-reveal.site-reveal-in { animation: site-reveal .7s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes site-reveal {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* A page's opening lines (Home's hero, a main page's title) come in one
+   after the other. */
+.site-stagger > * { animation: site-rise .6s cubic-bezier(.2, .7, .2, 1) both; }
+.site-stagger > :nth-child(2) { animation-delay: 90ms; }
+.site-stagger > :nth-child(3) { animation-delay: 180ms; }
+.site-stagger > :nth-child(4) { animation-delay: 270ms; }
+.site-stagger > :nth-child(5) { animation-delay: 360ms; }
+.site-stagger > :nth-child(n+6) { animation-delay: 450ms; }
+@keyframes site-rise {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* Home's parish photo settles in from slightly closer. */
+.site-hero-photo { animation: site-hero-photo 1.8s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes site-hero-photo {
+  from { opacity: 0; transform: scale(1.06); }
+  to { opacity: 1; transform: none; }
+}
+
+/* A card that opens something lifts a little under the pointer. A card with
+   a share button in its corner lifts as a group (.site-lift-group on the
+   wrapper), so the button stays on it; its link carries the shadow. */
+.site-lift, .site-lift-group {
+  transition: transform .25s cubic-bezier(.2, .7, .2, 1), box-shadow .25s ease, border-color .2s ease;
+}
+.site-lift-group > a { transition: box-shadow .25s ease, border-color .2s ease; }
+@media (hover: hover) {
+  .site-lift:hover, .site-lift-group:hover { transform: translateY(-3px); }
+  .site-lift:hover, .site-lift-group:hover > a { box-shadow: 0 18px 38px -22px rgba(23, 38, 63, .45); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-reveal { opacity: 1; transform: none; }
+  .site-reveal.site-reveal-in, .site-stagger > *, .site-hero-photo { animation: none; }
+  .site-lift:hover, .site-lift-group:hover { transform: none; }
+}
+@media print {
+  .site-reveal { opacity: 1 !important; transform: none !important; animation: none !important; }
+}
+
 body {
   margin: 0;
   background: rgb(var(--c-bg));

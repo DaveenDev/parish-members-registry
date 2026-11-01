@@ -184,7 +184,7 @@ function Announcements() {
   return (
     <section id="pahibalo" aria-labelledby="announcements-title" className={JUMP_TARGET}>
       <div className="flex items-end justify-between gap-x-6 gap-y-3 flex-wrap mb-3.5 lg:mb-5">
-        <div className="flex items-center gap-3 min-w-0">
+        <div data-reveal className="flex items-center gap-3 min-w-0">
           <span className="w-11 h-11 lg:w-12 lg:h-12 flex-none rounded-2xl flex items-center justify-center border" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)', borderColor: 'var(--p-blue-border)' }}>
             <Icon name="mega" size={24} />
           </span>
@@ -250,7 +250,7 @@ function PinnedStrip({ rows }) {
 function CalendarSection() {
   return (
     <section id="kalendaryo" aria-labelledby="kalendaryo-title" className={`mt-10 pt-8 lg:mt-14 lg:pt-12 border-t border-parish-border ${JUMP_TARGET}`}>
-      <div className="flex items-center gap-3 min-w-0 mb-3.5 lg:mb-5">
+      <div data-reveal className="flex items-center gap-3 min-w-0 mb-3.5 lg:mb-5">
         <span className="w-11 h-11 lg:w-12 lg:h-12 flex-none rounded-2xl flex items-center justify-center border" style={{ background: 'var(--p-blue-tint)', color: 'var(--p-blue)', borderColor: 'var(--p-blue-border)' }}>
           <Icon name="cal" size={24} />
         </span>

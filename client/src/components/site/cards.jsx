@@ -48,7 +48,7 @@ export function AnnouncementCard({ a, full = false, fill = false }) {
   return (
     <Link
       to={`/pahibalo/${a.id}`}
-      className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm lg:rounded-[18px] transition-colors hover:border-[var(--p-blue-border)] ${cover ? 'overflow-hidden flex flex-col' : 'p-3.5 lg:p-[18px]'} ${a.urgent ? 'border-l-[5px]' : ''} ${fill ? 'flex flex-col flex-1' : cover ? '' : 'block'}`}
+      className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm lg:rounded-[18px] site-lift hover:border-[var(--p-blue-border)] ${cover ? 'overflow-hidden flex flex-col' : 'p-3.5 lg:p-[18px]'} ${a.urgent ? 'border-l-[5px]' : ''} ${fill ? 'flex flex-col flex-1' : cover ? '' : 'block'}`}
       style={a.urgent ? { borderLeftColor: TONES.red.color } : undefined}
     >
       {cover && (
@@ -132,7 +132,7 @@ export function ArticleCard({ a, wide = false }) {
   const count = (a.photos || []).length;
   const path = articlePath(a.id);
   return (
-    <div className="relative">
+    <div data-reveal className="relative site-lift-group">
       <CardShare title={a.title} path={path} />
       <Link to={path} className="block bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden transition-colors hover:border-[var(--p-blue-border)]">
         <div className={`relative bg-[#efe6d3] ${wide ? 'aspect-[16/9] lg:aspect-[21/9]' : 'aspect-[16/9]'} flex items-center justify-center text-[var(--p-gold-deep)]`}>
@@ -165,7 +165,7 @@ export function ArticleFeature({ a }) {
   if (!a.photo_url) {
     // No cover: the text alone, wide, with a gold edge (no empty picture box).
     return (
-      <div className="relative">
+      <div data-reveal className="relative site-lift-group">
         <CardShare title={a.title} path={path} />
         <Link
           to={path}
@@ -187,7 +187,7 @@ export function ArticleFeature({ a }) {
     );
   }
   return (
-    <div className="relative">
+    <div data-reveal className="relative site-lift-group">
       <CardShare title={a.title} path={path} />
       <Link to={path} className="grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] bg-parish-card border border-parish-border rounded-2xl lg:rounded-[20px] shadow-card overflow-hidden transition-colors hover:border-[var(--p-blue-border)]">
         <div className="relative aspect-[16/10] lg:aspect-auto lg:min-h-[360px] bg-[#efe6d3] flex items-center justify-center text-[var(--p-gold-deep)]">
@@ -246,7 +246,7 @@ export function EventCard({ e, showDate = false, fill = false, spotlight = false
   const path = `/misa/kalihokan/${e.id}`;
   if (e.photo_url) {
     return (
-      <div className={`relative ${fill ? 'h-full' : ''}`}>
+      <div data-reveal className={`relative site-lift-group ${fill ? 'h-full' : ''}`}>
         <CardShare title={e.title} path={path} />
         <Link to={path} className={`w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'flex flex-col h-full' : 'block'}`}>
           {/* The whole cover (posters keep their text) over a blurred copy that
@@ -270,7 +270,7 @@ export function EventCard({ e, showDate = false, fill = false, spotlight = false
   }
   // pr-14 keeps the text clear of the share button.
   return (
-    <div className={`relative ${fill ? 'h-full' : ''}`}>
+    <div data-reveal className={`relative site-lift-group ${fill ? 'h-full' : ''}`}>
       <CardShare title={e.title} path={path} />
       <Link to={path} className={`w-full text-left flex gap-3 bg-parish-card border border-parish-border rounded-[14px] p-3 pr-14 shadow-cardSm ${fill ? 'h-full' : ''}`}>
         <div className="w-10 h-10 flex-none rounded-xl flex items-center justify-center" style={{ background: tone.background, color: tone.color }}>
