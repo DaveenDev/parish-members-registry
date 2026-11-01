@@ -15,7 +15,7 @@ const REQUEST_TABS = { certificate_requests: '', sacrament_requests: 'sacraments
 const NO_REF_SEARCH = new Set(['blood_donors', 'blood_requests', 'blood_request_contacts']);
 // Census entries: online updates, renewed codes and last-year lists are all on the Census page.
 const CENSUS_TABLES = new Set(['census_cycles', 'census_submissions', 'household_access_codes', 'census_last_year_list']);
-const WEBSITE_TABS = { announcements: 'announcements', articles: 'articles', bulletins: 'bulletin', events: 'events', mass_schedules: 'mass', sacrament_guides: 'sacraments', history_articles: 'history', songs: 'downloads&kind=songs', download_files: 'downloads' };
+const WEBSITE_TABS = { announcements: 'announcements', articles: 'articles', bulletins: 'bulletin', events: 'events', mass_schedules: 'mass', sacrament_guides: 'sacraments', history_articles: 'history', songs: 'downloads&kind=songs', download_files: 'downloads', kaabag_settings: 'kaabag', kaabag_roster: 'kaabag', kaabag_services: 'kaabag', kaabag_assignments: 'kaabag' };
 const refOf = (label) => String(label || '').split(' · ')[0];
 const URL_DEFAULTS = { table: 'All', who: 'All', q: '', page: 1, size: 20 };
 const URL_ALLOWED = { table: TABLES.map(([k]) => k), who: ['All', 'online'], size: [10, 20, 50] };

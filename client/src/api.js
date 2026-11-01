@@ -1141,6 +1141,47 @@ export const api = {
   saveMassSchedule: (row) => saveWebsiteRow('mass_schedules', row),
   deleteMassSchedule: (id) => deleteWebsiteRow('mass_schedules', id),
 
+  // ---- the Kaabag's Sunday schedule (0113 migration) ------------------
+  /** The admin tab: { settings, masses, roster, services (each with people), cron }. Brings the list up to date with the registry. */
+  async kaabagAdmin() {
+    const { data, error } = await supabase.rpc('kaabag_admin');
+    if (error) {
+      // Before the migration is run the function doesn't exist; say which file fixes it.
+      if (error.code === 'PGRST202') throw new Error('Run the 0113_kaabag_schedule.sql migration in Supabase to use this page');
+      throw mapError(error);
+    }
+    return data;
+  },
+  /** Makes a month's schedule: { masses, places, filled }. `replace` redoes the Sundays still to come. */
+  generateKaabag: (month, replace = false) => publicRpc('kaabag_generate', { p_month: month, p_replace: replace }),
+  async saveKaabagSettings({ servers_per_mass, mass_rules, auto_generate }) {
+    const { error } = await supabase.from('kaabag_settings').update({ servers_per_mass, mass_rules, auto_generate }).eq('id', 1);
+    if (error) throw mapError(error);
+  },
+  /** A name the office types in, for a parish with nobody registered as Kaabag yet. */
+  async addKaabagName(name) {
+    const { error } = await supabase.from('kaabag_roster').insert({ name: name.trim() });
+    if (error) throw mapError(error, { dupLabel: name.trim() });
+  },
+  async removeKaabagName(id) {
+    const { error } = await supabase.from('kaabag_roster').delete().eq('id', id);
+    if (error) throw mapError(error);
+  },
+  /** Whether someone is in the draw (on_rotation); or shown by name on the website, which notes the day they agreed. */
+  async saveKaabagPerson(id, patch) {
+    const consent = 'show_publicly' in patch ? { consent_on: patch.show_publicly ? todayIso() : null } : {};
+    const { error } = await supabase.from('kaabag_roster').update({ ...patch, ...consent }).eq('id', id);
+    if (error) throw mapError(error);
+  },
+  async addKaabagToMass(serviceId, person) {
+    const { error } = await supabase.from('kaabag_assignments').insert({ service_id: serviceId, roster_id: person.id, name: person.name });
+    if (error) throw mapError(error);
+  },
+  async removeKaabagFromMass(id) {
+    const { error } = await supabase.from('kaabag_assignments').delete().eq('id', id);
+    if (error) throw mapError(error);
+  },
+
   async listSacramentGuides() {
     return listWebsite('sacrament_guides', (q) => q.order('sort').order('id'));
   },
@@ -1487,6 +1528,17 @@ export const api = {
   // ---- public website reads (0011 tables, 0013 functions) -------------
   // Published items only, even for a signed-in staff member browsing the site.
   publicMassSchedules: () => listPublished('mass_schedules', (q) => q.order('day_of_week').order('start_time')),
+  /**
+   * The Kaabag's Sunday schedule, today on (0113): [{ date, time, location,
+   * language, names }], with null in `names` for anyone who hasn't agreed to
+   * be shown. Nothing before the migration is run.
+   */
+  async publicKaabagSchedule() {
+    const { data, error } = await supabase.rpc('public_kaabag_schedule');
+    if (error?.code === 'PGRST202') return [];
+    if (error) throw mapError(error);
+    return data || [];
+  },
   /** Published sacrament guides (requirements and steps), in the office's order. */
   publicSacramentGuides: () => listPublished('sacrament_guides', (q) => q.order('sort').order('id')),
   /**

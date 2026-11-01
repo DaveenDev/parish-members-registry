@@ -22,6 +22,7 @@ export const SITEMAP_PAGES = [
   ['/kontak', 'monthly', '0.8'],
   ['/simbahan/pagbasa', 'daily', '0.6'],
   ['/simbahan/kasaysayan', 'yearly', '0.6'],
+  ['/simbahan/kaabag', 'weekly', '0.6'],
   ['/serbisyo/dugo', 'weekly', '0.5'],
   ['/register', 'yearly', '0.5'],
 ];

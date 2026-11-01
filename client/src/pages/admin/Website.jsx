@@ -5,6 +5,7 @@ import { useAuth } from '../../AuthContext.jsx';
 import { can } from '../../lib/access.js';
 import { ViewOnlyProvider } from '../../components/panels.jsx';
 import MassScheduleTab from '../../components/website/MassScheduleTab.jsx';
+import KaabagTab from '../../components/website/KaabagTab.jsx';
 import SacramentGuidesTab from '../../components/website/SacramentGuidesTab.jsx';
 import AnnouncementsTab from '../../components/website/AnnouncementsTab.jsx';
 import ArticlesTab from '../../components/website/ArticlesTab.jsx';
@@ -24,6 +25,7 @@ const TABS = [
   ['events', 'Events', EventsTab, '/pahibalo'],
   ['articles', 'Blog Articles', ArticlesTab, '/komunidad/artikulo'],
   ['mass', 'Mass Schedule', MassScheduleTab, '/simbahan'],
+  ['kaabag', 'Kaabag Schedule', KaabagTab, '/simbahan/kaabag'],
   ['sacraments', 'Sacraments', SacramentGuidesTab, '/simbahan'],
   ['history', 'History', HistoryTab, '/simbahan/kasaysayan'],
   ['downloads', 'Downloads', DownloadsTab, '/downloads'],

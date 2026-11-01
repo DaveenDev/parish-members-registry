@@ -38,6 +38,7 @@ describe('previews', () => {
     assert.doesNotMatch(pagePreview('/').title + pagePreview('/kontak').description, /guadalupe/i);
     assert.match(pagePreview('/kontak').title, /^Kontak · /);
     assert.match(pagePreview('/simbahan/pagbasa').title, /^Mga Pagbasa · /);
+    assert.match(pagePreview('/simbahan/kaabag').title, /^Mga Kaabag · /);
     assert.match(pagePreview('/simbahan').description, /Oras sa Misa/);
   });
 

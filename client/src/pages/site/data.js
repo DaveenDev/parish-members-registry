@@ -7,6 +7,8 @@ import { parishTitle } from '../../lib/parishName.js';
 
 // One hook per kind of public data, so every page shares the same cache key.
 export const useMassSchedule = () => usePublicData('mass', api.publicMassSchedules);
+/** The Kaabag's Sunday schedule, today on (0113). */
+export const useKaabagSchedule = () => usePublicData('kaabag', api.publicKaabagSchedule);
 export const useAnnouncements = () => usePublicData('announcements', api.publicAnnouncements);
 export const useSacramentGuides = () => usePublicData('sacraments', api.publicSacramentGuides);
 export const useBulletins = () => usePublicData('bulletins', api.publicBulletins);

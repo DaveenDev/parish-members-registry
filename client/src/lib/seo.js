@@ -17,6 +17,7 @@ export const siteDescription = (parish) => `${String(parish || '').trim() || 'An
 const DESCRIPTIONS = [
   ['/simbahan/pagbasa', (p) => `Mga pagbasa sa Misa karong adlawa ug sa umaabot nga Domingo, gikan sa ${sa(p)}.`],
   ['/simbahan/kasaysayan', (p) => `Ang kasaysayan sa ${sa(p)}.`],
+  ['/simbahan/kaabag', (p) => `Iskedyul sa mga Kaabag: kinsa ang mag-alagad sa matag Misa sa Domingo sa ${sa(p)}.`],
   ['/simbahan', (p) => `Oras sa Misa, mga sakramento ug unsaon pagpangandam alang niini sa ${sa(p)}.`],
   ['/misa', (p) => `Oras sa Misa ug mga kalihokan sa ${sa(p)}.`],
   ['/pahibalo', (p) => `Mga pahibalo, bulletin ug kalihokan sa ${sa(p)}.`],
