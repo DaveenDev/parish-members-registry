@@ -9,7 +9,8 @@ import { KALENDARYO_PAGE, cleanGuideKey, guidePath, guideShortTitle, massLocatio
 import { guideDescription } from '../../lib/share.js';
 import { PageMeta } from './SiteLayout.jsx';
 import { HISTORY_PAGE, openingParagraph } from '../../lib/history.js';
-import { listState, useAnnouncements, useHistory, useMassSchedule, useOrgCharts, useSacramentGuides } from './data.js';
+import { listState, useAnnouncements, useHistory, useKaabagSchedule, useMassSchedule, useOrgCharts, useSacramentGuides } from './data.js';
+import { KAABAG_PAGE } from '../../lib/kaabag.js';
 
 // The sections under Mass: the sacrament guides and the org charts, as tabs
 // (?tab=): [key, title when it's the only one, label on the switch].
@@ -62,6 +63,7 @@ export default function Simbahan() {
             <h2 id="misa-title" className="m-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Misa</h2>
           </div>
           <MassSchedule />
+          <KaabagLink />
         </div>
       </section>
 
@@ -95,6 +97,22 @@ function PageJumps({ onTab }) {
       {charts.rows.length > 0 && <button type="button" className={btn} onClick={() => open('organisasyon')}>{icon('people')}Organisasyon ↓</button>}
       {history.data?.main && <button type="button" className={btn} onClick={() => scrollTo('kasaysayan')}>{icon('cross')}Kasaysayan ↓</button>}
     </nav>
+  );
+}
+
+/** The way to /simbahan/kaabag under the Mass schedule, once there's a schedule to see. */
+function KaabagLink() {
+  const { rows } = listState(useKaabagSchedule());
+  if (!rows.length) return null;
+  return (
+    <Link
+      to={KAABAG_PAGE}
+      className="mt-3.5 lg:mt-[18px] flex items-center gap-2.5 rounded-[14px] px-3.5 py-3 lg:px-[18px] lg:py-3.5 border bg-parish-card border-[var(--p-blue-border)] text-parish-blueDeep hover:bg-[var(--p-blue-tint)]"
+    >
+      <Icon name="people" className="text-parish-blue flex-none" />
+      <span className="text-[15px] lg:text-[16px] leading-snug"><strong>Mga Kaabag:</strong> kinsa ang mag-alagad sa Misa sa Domingo</span>
+      <span aria-hidden="true" className="ml-auto font-bold">→</span>
+    </Link>
   );
 }
 

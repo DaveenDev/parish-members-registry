@@ -20,6 +20,7 @@ export const PREVIEW_BOTS = ['facebookexternalhit', 'Facebot', 'meta-externalage
 const PAGE_TITLES = [
   ['/simbahan/pagbasa', 'Mga Pagbasa'],
   ['/simbahan/kasaysayan', 'Kasaysayan'],
+  ['/simbahan/kaabag', 'Mga Kaabag'],
   ['/simbahan', 'Ang Simbahan'],
   ['/pahibalo', 'Pahibalo ug Kalihokan'],
   ['/komunidad/artikulo', 'Mga Artikulo'],

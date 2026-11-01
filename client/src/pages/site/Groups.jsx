@@ -7,6 +7,7 @@ import { excerpt } from '../../lib/seo.js';
 import { PageMeta, useSiteTitle } from './SiteLayout.jsx';
 import { listState, useGroups } from './data.js';
 import { groupPath, groupInterestPath, groupKindLabel } from '../../lib/groups.js';
+import { KAABAG_PAGE, isKaabagGroup } from '../../lib/kaabag.js';
 
 const SMALL = 'Ubos sa 5';
 
@@ -107,6 +108,7 @@ export function GroupDetail() {
           </InfoRow>
         )}
       </Card>
+      {g.kind === 'ministry' && isKaabagGroup(g.name) && <BigButton to={KAABAG_PAGE} variant="secondary" className="mb-2.5">Iskedyul sa mga Kaabag</BigButton>}
       <BigButton to={groupInterestPath(g)}><Icon name="heart" size={19} />Interesado ko</BigButton>
       <p className="m-0 mt-2.5 text-[13.5px] text-parish-text2">Isulat ang imong ngalan ug mobile number. Ang kawani sa parokya lang ang makakita, ug kontakon ka nila.</p>
       <Link to="/komunidad/grupo" className="inline-flex items-center min-h-[44px] mt-3 font-bold text-[15px] text-parish-blue">Tanang grupo</Link>

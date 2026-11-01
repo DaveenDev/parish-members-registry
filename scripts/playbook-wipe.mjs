@@ -46,6 +46,8 @@ const TABLES = [
   ['household_access_codes', 'household_id'],
   ['sacrament_verifications', 'member_id'],
   ['duplicate_dismissals', 'member_ids'],
+  ['kaabag_services', 'id'],
+  ['kaabag_roster', 'id'],
   ['members', 'id'],
   ['households', 'id'],
   ['census_cycles', 'id'],

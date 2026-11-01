@@ -41,6 +41,7 @@ const RECORD_NOUNS = {
   census_cycles: 'census',
   announcements: 'announcement', articles: 'article', bulletins: 'bulletin', events: 'event', mass_schedules: 'Mass time',
   sacrament_guides: 'sacrament guide', history_articles: 'history page', songs: 'song', download_files: 'form',
+  kaabag_settings: 'Kaabag schedule rules', kaabag_roster: 'name on the Kaabag list', kaabag_assignments: 'Kaabag at a Mass',
   parish_settings: 'parish settings', gkks: 'GKK', ministries: 'ministry', organizations: 'organization', parish_positions: 'parish position',
   profiles: 'staff account',
 };
@@ -51,7 +52,7 @@ export const ACTIVITY_AREAS = [
   ['sacrament_verifications', 'Sacrament verifications', ['sacrament_verifications']],
   ['requests', 'Requests', ['certificate_requests', 'sacrament_requests', 'prayer_requests', 'blood_requests', 'blood_donors', 'blood_request_contacts']],
   ['census', 'Census', ['census_cycles', 'census_submissions', 'household_access_codes', 'census_last_year_list']],
-  ['website', 'Parish website', ['announcements', 'articles', 'bulletins', 'events', 'mass_schedules', 'sacrament_guides', 'history_articles', 'songs', 'download_files']],
+  ['website', 'Parish website', ['announcements', 'articles', 'bulletins', 'events', 'mass_schedules', 'sacrament_guides', 'history_articles', 'songs', 'download_files', 'kaabag_settings', 'kaabag_roster', 'kaabag_services', 'kaabag_assignments']],
   ['settings', 'Settings and lists', ['parish_settings', 'gkks', 'gkk_documents', 'media_storage_settings', 'ministries', 'organizations', 'parish_positions']],
   ['staff', 'Staff accounts', ['profiles']],
   ['org_charts', 'Org charts', ['org_charts']],
@@ -65,6 +66,8 @@ const RECORD_FIELD_LABELS = {
     access_gkk: 'GKK', disabled: 'Disabled', email: 'Email', theme: 'Parish theme', maintenance_mode: 'Maintenance mode', maintenance_message: 'Maintenance note',
     logo: 'Logo', hero_image: 'Home page photo', site_url: 'Website address', census_interval_months: 'Census schedule',
     outgoing_email: 'Parish email', outgoing_name: 'Email sender name',
+    servers_per_mass: 'Kaabag at each Mass', mass_rules: 'Rules for each Mass', auto_generate: 'Made automatically',
+    on_rotation: 'In the draw', show_publicly: 'Show on the website', consent_on: 'Agreed on',
 };
 
 /** A requests, census, website, settings or staff entry (0076). */
@@ -105,6 +108,11 @@ function describeStaffAction(e, c) {
       };
     case 'household_access_codes':
       return { title: 'Renewed the census access code', lines: [] };
+    case 'kaabag_services':
+      return {
+        title: e.action === 'update' ? 'Redid the Kaabag schedule' : 'Made the Kaabag schedule',
+        lines: [`${c.filled} of ${c.places} places filled at ${c.masses} Masses`],
+      };
     case 'census_last_year_list': {
       const n = c.count || 1;
       const one = c.household ? `“${c.household}”` : 'a household';

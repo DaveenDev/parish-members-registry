@@ -9,6 +9,7 @@ describe('pageDescription', () => {
   test('each section has its own, inner pages their nearest section’s', () => {
     assert.match(pageDescription('/simbahan'), /Oras sa Misa/);
     assert.match(pageDescription('/simbahan/pagbasa'), /pagbasa/);
+    assert.match(pageDescription('/simbahan/kaabag'), /Kaabag/);
     assert.match(pageDescription('/komunidad/artikulo/12'), /artikulo/);
     assert.match(pageDescription('/komunidad/gkk/GKK San Isidro'), /GKK/);
     assert.match(pageDescription('/serbisyo/hangyo/baptism'), /sertipiko/);
