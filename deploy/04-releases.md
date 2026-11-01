@@ -130,7 +130,10 @@ site and Mua-an, 0089 and 0106–0109 were) would never run. Instead:
    npm run release:db -- mark <name> <version>
    ```
 
-   e.g. `npm run release:db -- mark demo 0088`.
+   e.g. `npm run release:db -- mark demo 0088`. A range records only those:
+   `npm run release:db -- mark demo 0094-0111` marks the ones still to run
+   from 0094 to 0111. It warns if any still to run come before the range,
+   since that leaves a gap (see below).
 
 3. **Run the rest** as a normal release (`npm run release:db -- <name>`).
    It runs every migration after that one, including any that were also run

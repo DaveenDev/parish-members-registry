@@ -20,6 +20,7 @@
 // Check which of them are already there, then record those as applied:
 //   npm run release:db -- check demo      # which missing ones are there
 //   npm run release:db -- mark demo 0110  # record up to 0110 as applied
+//   npm run release:db -- mark demo 0094-0111  # record just 0094 to 0111
 //
 // See deploy/04-releases.md.
 import { spawnSync } from 'node:child_process';
@@ -203,19 +204,44 @@ function check(parishes, target) {
   }
 }
 
-async function mark(parishes, target, upTo) {
-  if (!target || target === 'all' || !upTo) fail('Usage: npm run release:db -- mark <parish> <last version already there>, e.g. mark demo 0110');
+const MARK_USAGE = 'Usage: npm run release:db -- mark <parish> <last version already there>, e.g. mark demo 0110, or a range: mark demo 0094-0111';
+
+// "0110" is every pending one up to 0110; "0094-0111" only those from 0094 to 0111.
+function parseVersions(arg) {
+  const match = /^(\d{4,5})(?:-(\d{4,5}))?$/.exec(arg || '');
+  if (!match) fail(MARK_USAGE);
+  const [, a, b] = match;
+  if (b === undefined) return { from: null, to: Number(a) };
+  if (Number(a) > Number(b)) fail(`${a}-${b}: the first version comes after the second. Did you mean ${b}-${a}?`);
+  return { from: Number(a), to: Number(b) };
+}
+
+async function mark(parishes, target, versions) {
+  if (!target || target === 'all' || !versions) fail(MARK_USAGE);
+  const { from, to } = parseVersions(versions);
   const [parish] = pick(parishes, target);
   const { checked } = checkPending(parish, parishes);
-  const end = checked.findIndex((c) => c.version === upTo);
-  if (end < 0) fail(`${upTo} isn't one of ${parish.label}'s migrations still to run. See: npm run release:db -- check ${parish.name}`);
-  const marking = checked.slice(0, end + 1);
+  let marking;
+  if (from === null) {
+    const end = checked.findIndex((c) => Number(c.version) === to);
+    if (end < 0) fail(`${versions} isn't one of ${parish.label}'s migrations still to run. See: npm run release:db -- check ${parish.name}`);
+    marking = checked.slice(0, end + 1);
+  } else {
+    marking = checked.filter((c) => Number(c.version) >= from && Number(c.version) <= to);
+    if (!marking.length) fail(`None of ${parish.label}'s migrations still to run are in ${versions}. See: npm run release:db -- check ${parish.name}`);
+  }
+  // Pending ones before the range stay unrecorded: a gap db push refuses.
+  const skipped = checked.slice(0, checked.indexOf(marking[0]));
   const absent = marking.filter((c) => c.verdict === 'not run' || c.verdict === 'partly');
   if (absent.length) {
     fail(`Not marked: ${absent.map((c) => c.file).join(', ')} ${absent.length === 1 ? 'isn\'t' : 'aren\'t'} fully there on ${parish.label}. Mark only up to before the first of them (npm run release:db -- check ${parish.name}).`);
   }
   console.log(`${parish.label} (${parish.name}): recording ${marking.length} as applied, without running them:`);
   console.log(marking.map((c) => `    ${c.file}`).join('\n'));
+  if (skipped.length) {
+    console.log(`Warning: ${skipped.length} before them still aren't recorded (${skipped[0].version}${skipped.length > 1 ? `–${skipped.at(-1).version}` : ''}). `
+      + 'With that gap in its history, db push will refuse until they are recorded or run (deploy/04-releases.md).');
+  }
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try {
     const typed = (await rl.question(`Type "${parish.name}" to record them: `)).trim();
@@ -231,7 +257,7 @@ async function mark(parishes, target, upTo) {
 
 const [command, target, extra] = process.argv.slice(2);
 if (!command) {
-  fail('Usage: npm run release:db -- status [parish]   |   <parish|all>   |   check <parish>   |   mark <parish> <version>');
+  fail('Usage: npm run release:db -- status [parish]   |   <parish|all>   |   check <parish>   |   mark <parish> <version|from-to>');
 }
 const parishes = loadParishes();
 if (command === 'status') status(parishes, target);
