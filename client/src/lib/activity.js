@@ -39,6 +39,7 @@ const RECORD_NOUNS = {
   census_cycles: 'census',
   announcements: 'announcement', articles: 'article', bulletins: 'bulletin', events: 'event', mass_schedules: 'Mass time',
   sacrament_guides: 'sacrament guide', history_articles: 'history page', songs: 'song', download_files: 'form',
+  kaabag_members: 'Kaabag directory entry', kaabag_months: 'Kaabag rotation',
   parish_settings: 'parish settings', gkks: 'GKK', ministries: 'ministry', organizations: 'organization', parish_positions: 'parish position',
   profiles: 'staff account',
 };
@@ -49,7 +50,7 @@ export const ACTIVITY_AREAS = [
   ['sacrament_verifications', 'Sacrament verifications', ['sacrament_verifications']],
   ['requests', 'Requests', ['certificate_requests', 'sacrament_requests', 'blood_requests', 'blood_donors']],
   ['census', 'Census', ['census_cycles']],
-  ['website', 'Parish website', ['announcements', 'articles', 'bulletins', 'events', 'mass_schedules', 'sacrament_guides', 'history_articles', 'songs', 'download_files']],
+  ['website', 'Parish website', ['announcements', 'articles', 'bulletins', 'events', 'mass_schedules', 'sacrament_guides', 'history_articles', 'songs', 'download_files', 'kaabag_members', 'kaabag_months']],
   ['settings', 'Settings and lists', ['parish_settings', 'gkks', 'ministries', 'organizations', 'parish_positions']],
   ['staff', 'Staff accounts', ['profiles']],
   ['org_charts', 'Org charts', ['org_charts']],
@@ -62,11 +63,25 @@ const RECORD_FIELD_LABELS = {
     label: 'Name', starts_on: 'Starts on', ends_on: 'Target end', closed_at: 'Closed', name: 'Name', role: 'Role', is_admin: 'Staff admin', access: 'Access',
     access_gkk: 'GKK', disabled: 'Disabled', email: 'Email', theme: 'Parish theme', maintenance_mode: 'Maintenance mode', maintenance_message: 'Maintenance note',
     logo: 'Logo', hero_image: 'Home page photo', site_url: 'Website address', census_interval_months: 'Census schedule',
+    photo_url: 'Photo', sort_order: 'Order', note: 'Note', services: 'Masses',
 };
+
+/** A month of the Kaabag rotation (0102), saved in one go: its Masses, published or not, its note. */
+function describeKaabagMonth(e, c) {
+  const lines = [
+    c.services && `Masses: ${c.services[0]} → ${c.services[1]}`,
+    c.note && `Note: ${formatValue(c.note[0])} → ${formatValue(c.note[1])}`,
+  ].filter(Boolean);
+  const published = c.published && c.published[0] !== c.published[1] && (e.action === 'update' || c.published[1]);
+  if (published) return { title: c.published[1] ? 'Published the Kaabag rotation' : 'Took the Kaabag rotation off the website', lines };
+  return { title: e.action === 'insert' ? 'Started the Kaabag rotation' : 'Saved the Kaabag rotation', lines };
+}
 
 /** A requests, census, website, settings or staff entry (0076). */
 function describeRecord(e, c) {
   const noun = RECORD_NOUNS[e.table_name];
+  if (e.table_name === 'kaabag_months') return describeKaabagMonth(e, c);
+  if (e.table_name === 'kaabag_members' && c.order) return { title: 'Reordered the Kaabag directory', lines: [] };
   if (e.table_name === 'profiles') {
     if (e.action === 'insert') {
       return { title: 'Added the staff account', lines: [c.email && `Email: ${c.email}`, c.access && `Access: ${c.access}${c.access_gkk ? ` (${c.access_gkk})` : ''}`].filter(Boolean) };

@@ -1,7 +1,8 @@
 import React, { Suspense } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, DataState, EmptyNote, ErrorNote, Pills, Skeleton } from './kit.jsx';
-import { listState, useOrgChart, useOrgCharts } from '../../pages/site/data.js';
+import { listState, useOrgChart, useOrgCharts, useParishOrgCharts } from '../../pages/site/data.js';
+import { isKaabagChart } from '../../lib/kaabag.js';
 
 // d3 is heavy: the chart loads only when one is shown.
 const OrgChartView = React.lazy(() => import('./OrgChartView.jsx'));
@@ -11,16 +12,17 @@ const OrgChartView = React.lazy(() => import('./OrgChartView.jsx'));
 export function chartLabel(c) {
   if (c.scope === 'gkk') return 'Estruktura sa GKK';
   if (c.title === 'Church Structure') return 'Estruktura sa Parokya';
+  if (isKaabagChart(c) && c.title === 'Kaabag Structure') return 'Estruktura sa Kaabag';
   return c.title;
 }
 
 /**
  * The published org charts (Ang Simbahan → Organisasyon), one pill each;
  * the GKK Structure without names. `slug` is the chart asked for (else the
- * first), `onPick` changes it.
+ * first), `onPick` changes it. The Kaabag Structure is on the Kaabag page.
  */
 export function Organisasyon({ slug, onPick }) {
-  const list = listState(useOrgCharts());
+  const list = listState(useParishOrgCharts());
   const current = list.rows.find((c) => c.slug === slug) || list.rows[0];
   return (
     <DataState
@@ -33,6 +35,22 @@ export function Organisasyon({ slug, onPick }) {
       {list.rows.length > 1 && <Pills scroll options={list.rows.map((c) => [c.slug, chartLabel(c)])} value={current?.slug} onChange={onPick} className="mb-4" />}
       {current && <OrgChartBlock key={current.slug} chart={current} />}
     </DataState>
+  );
+}
+
+/** The published Kaabag Structure ({ title, slug, scope }), or null while it isn't. */
+export const useKaabagChart = () => (useOrgCharts().data || []).find(isKaabagChart) || null;
+
+/** The Kaabag Structure on the Kaabag page, with its officers' names and photos. */
+export function KaabagChart({ chart }) {
+  const q = useOrgChart(chart.slug);
+  if (q.loading) return <Skeleton h={460} />;
+  if (q.error) return <ErrorNote onRetry={q.reload}>Wala ma-load ang estruktura.</ErrorNote>;
+  if (!q.data?.nodes?.length) return <EmptyNote>Wala pay sulod kini nga estruktura.</EmptyNote>;
+  return (
+    <Suspense fallback={<Skeleton h={460} />}>
+      <OrgChartView nodes={q.data.nodes} height={460} fileName={chart.slug} />
+    </Suspense>
   );
 }
 

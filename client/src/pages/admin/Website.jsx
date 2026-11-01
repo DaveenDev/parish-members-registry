@@ -13,6 +13,8 @@ import EventsTab from '../../components/website/EventsTab.jsx';
 import OfficeTab from '../../components/website/OfficeTab.jsx';
 import HistoryTab from '../../components/website/HistoryTab.jsx';
 import DownloadsTab from '../../components/website/DownloadsTab.jsx';
+import KaabagTab from '../../components/website/KaabagTab.jsx';
+import { KAABAG_PAGE } from '../../lib/kaabag.js';
 
 // Ordered by how often the secretary updates each: weekly items first, the
 // office details (which almost never change) last. The first tab is also the
@@ -26,6 +28,7 @@ const TABS = [
   ['mass', 'Mass Schedule', MassScheduleTab, '/simbahan'],
   ['sacraments', 'Sacraments', SacramentGuidesTab, '/simbahan'],
   ['history', 'History', HistoryTab, '/simbahan/kasaysayan'],
+  ['kaabag', 'Kaabag', KaabagTab, KAABAG_PAGE],
   ['downloads', 'Downloads', DownloadsTab, '/downloads'],
   ['office', 'Office & Contact', OfficeTab, '/kontak'],
 ];
@@ -40,7 +43,7 @@ export default function Website() {
 
   return (
     <>
-      <PageHeader title="Parish Website" subtitle="Schedules, guides, news, downloads and contact details for parishioners">
+      <PageHeader title="Parish Website" subtitle="Schedules, guides, news, the Kaabag, downloads and contact details for parishioners">
         {/* The website is this same site, so this opens the one being edited (the demo site's on the demo site). */}
         <a
           href={current[3]}

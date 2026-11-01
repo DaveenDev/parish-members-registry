@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import SacramentIcon from '../../components/SacramentIcon.jsx';
 import { BAND_PAD, Band, BigButton, DataState, EmptyNote, Eyebrow, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
@@ -7,7 +7,8 @@ import { Organisasyon } from '../../components/site/OrgCharts.jsx';
 import { MassRow } from '../../components/site/cards.jsx';
 import { KALENDARYO_PAGE, guideShortTitle, massLocations, massSections } from '../../lib/site.js';
 import { HISTORY_PAGE, openingParagraph } from '../../lib/history.js';
-import { listState, useAnnouncements, useHistory, useMassSchedule, useOrgCharts, useSacramentGuides } from './data.js';
+import { KAABAG_PAGE } from '../../lib/kaabag.js';
+import { listState, useAnnouncements, useHistory, useMassSchedule, useParishOrgCharts, useSacramentGuides } from './data.js';
 
 // The sections under Mass: the sacrament guides and the org charts, as tabs
 // (?tab=): [key, title when it's the only one, label on the switch].
@@ -20,12 +21,14 @@ const NO_SCROLLBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
  * Bible verse that was here is on the home page now); then the Mass schedule; then the sacrament guides and the parish's
  * organization charts, as two tabs on the band again; last, the parish's
  * history (its main article's photo and opening paragraph, on to
- * /simbahan/kasaysayan). Old /misa links land here (?view=sakramento still
- * works). The Kalendaryo moved to Pahibalo ug Kalihokan: old
+ * /simbahan/kasaysayan). The menu's Iskedyul sa Misa and Mga Sakramento
+ * open it at their section (?view=misa, ?view=sakramento); old /misa links
+ * land here too. The Kalendaryo moved to Pahibalo ug Kalihokan: old
  * ?view=kalendaryo links go there.
  */
 export default function Simbahan() {
   const [params, setParams] = useSearchParams();
+  const location = useLocation();
   const tab = params.get('tab') === 'organisasyon' ? 'organisasyon' : 'sakramento';
   // Change some of the address's parameters, keep the rest.
   const update = (patch) => {
@@ -33,8 +36,17 @@ export default function Simbahan() {
     for (const [k, v] of Object.entries(patch)) { if (v == null) next.delete(k); else next.set(k, v); }
     setParams(next, { replace: true });
   };
-  // Arriving for the sacraments or the org charts: go straight to them.
-  const [jump] = useState(() => params.get('view') === 'sakramento' || params.has('tab'));
+  // Arriving for the Masses, the sacraments or the org charts, or following
+  // a menu link to one while here (it carries `jump`): go straight to it.
+  // Switching tabs on the page changes the address too, but doesn't jump.
+  const [arrival] = useState(location.key);
+  const jump = location.key === arrival || location.state?.jump ? location.key : null;
+  const view = params.get('view');
+  const toTeaching = view === 'sakramento' || params.has('tab');
+  useEffect(() => {
+    // After the layout's scroll to the top of a newly opened page.
+    if (jump && view === 'misa') requestAnimationFrame(() => scrollTo('misa'));
+  }, [jump, view]);
 
   if (params.get('view') === 'kalendaryo') return <Navigate replace to={KALENDARYO_PAGE} />;
   return (
@@ -61,7 +73,7 @@ export default function Simbahan() {
         </div>
       </section>
 
-      <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={jump} />
+      <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null, view: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={toTeaching ? jump : null} />
 
       <HistoryFeature />
     </main>
@@ -70,13 +82,18 @@ export default function Simbahan() {
 
 const scrollTo = (id, behavior = 'smooth') => document.getElementById(id)?.scrollIntoView({ behavior, block: 'start' });
 
-/** "On this page": the Mass schedule, the sacraments, the org charts and the history (those that have something to show). */
+/**
+ * "On this page": the Mass schedule, the sacraments and the org charts
+ * (those that have something to show), then the History and Kaabag pages,
+ * as the desktop menu has them under Ang Simbahan. On a phone this row is
+ * that menu.
+ */
 function PageJumps({ onTab }) {
   const guides = listState(useSacramentGuides());
-  const charts = listState(useOrgCharts());
+  const charts = listState(useParishOrgCharts());
   const history = useHistory();
   const btn = 'flex-none min-h-[40px] px-3 sm:px-3.5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)]';
-  // On a phone the icons go, so all three fit across without scrolling.
+  // On a phone the icons go, so more fit across before the row scrolls.
   const icon = (name) => <Icon name={name} size={16} className="hidden sm:block" />;
   const open = (t) => { onTab(t); requestAnimationFrame(() => scrollTo('tudlo')); };
   return (
@@ -84,7 +101,8 @@ function PageJumps({ onTab }) {
       <button type="button" className={btn} onClick={() => scrollTo('misa')}>{icon('clock')}<span className="lg:hidden">Misa ↓</span><span className="hidden lg:inline">Iskedyul sa Misa ↓</span></button>
       {guides.rows.length > 0 && <button type="button" className={btn} onClick={() => open('sakramento')}>{icon('church')}<span className="lg:hidden">Sakramento ↓</span><span className="hidden lg:inline">Mga Sakramento ↓</span></button>}
       {charts.rows.length > 0 && <button type="button" className={btn} onClick={() => open('organisasyon')}>{icon('people')}Organisasyon ↓</button>}
-      {history.data?.main && <button type="button" className={btn} onClick={() => scrollTo('kasaysayan')}>{icon('cross')}Kasaysayan ↓</button>}
+      {history.data?.main && <Link to={HISTORY_PAGE} className={btn}>{icon('cross')}Kasaysayan →</Link>}
+      <Link to={KAABAG_PAGE} className={btn}>{icon('people')}Kaabag →</Link>
     </nav>
   );
 }
@@ -96,12 +114,13 @@ function PageJumps({ onTab }) {
  */
 function TeachingTabs({ tab, onTab, chart, onChart, jump }) {
   const guides = listState(useSacramentGuides());
-  const charts = listState(useOrgCharts());
+  const charts = listState(useParishOrgCharts());
   const tabs = TEACH_TABS.filter(([k]) => (k === 'sakramento' ? guides.rows.length : charts.rows.length) > 0);
   const current = tabs.find(([k]) => k === tab) || tabs[0];
   const ready = !guides.loading && !charts.loading && tabs.length > 0;
-  // Straight there on arrival: a smooth scroll stops short when the chart draws under it.
-  useEffect(() => { if (jump && ready) scrollTo('tudlo', 'auto'); }, [jump, ready]);
+  // Straight there on arrival (after the layout's scroll to the top of a new
+  // page): a smooth scroll stops short when the chart draws under it.
+  useEffect(() => { if (jump && ready) requestAnimationFrame(() => scrollTo('tudlo', 'auto')); }, [jump, ready]);
 
   if (!ready) return null;
   return (

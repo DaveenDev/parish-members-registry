@@ -23,6 +23,7 @@ import { MEN_ONLY_FALLBACK, menOnlyBlocked, menOnlyMessage } from './lib/ministr
 import { resizePhotoBlob } from './lib/images.js';
 import { gkkDocumentPath, gkkDocumentType } from './lib/gkkDocuments.js';
 import { cleanLyrics, downloadFilePath, downloadFileType } from './lib/downloads.js';
+import { KAABAG_MIGRATION, registryName, slotsPayload } from './lib/kaabag.js';
 
 const MAX_PAGE_SIZE = 100;
 
@@ -1271,6 +1272,99 @@ export const api = {
     return supabase.storage.from(DOWNLOADS_BUCKET).getPublicUrl(row.file_path, download ? { download: row.file_name } : undefined).data.publicUrl;
   },
 
+  // ---- Kaabag (0102): the directory and the month's rotation at the Masses --
+  async listKaabagMembers() {
+    return listWebsite('kaabag_members', (q) => q.order('sort_order').order('id'), KAABAG_MIGRATION);
+  },
+  /** Insert (no id) or update (with id) a directory entry: name, role, photo_url, published. */
+  async saveKaabagMember(row) {
+    const fields = Object.fromEntries(KAABAG_FIELDS.filter((f) => f in row).map((f) => [f, typeof row[f] === 'string' ? row[f].trim() : row[f]]));
+    try {
+      return await saveWebsiteRow('kaabag_members', { id: row.id, ...fields });
+    } catch (e) {
+      if (/kaabag_members_member_idx/.test(e.message || '')) throw new Error('This member is already in the directory.');
+      throw e;
+    }
+  },
+  /** Add registry members (picked from the Kaabag ministry) to the end of the directory, hidden until shown. */
+  async addKaabagFromRegistry(members, startOrder = 0) {
+    if (!members.length) return [];
+    const rows = members.map((m, i) => ({ member_id: m.id, name: registryName(m), sort_order: startOrder + i, published: false }));
+    const { data, error } = await supabase.from('kaabag_members').insert(rows).select();
+    if (error?.code === '23505') throw new Error('Someone picked is already in the directory. Reload the page and try again.');
+    if (error) throw mapError(error);
+    return data || [];
+  },
+  /** Show an entry in the website's directory, or hide it. */
+  async setKaabagPublished(id, published) {
+    const { data, error } = await supabase.from('kaabag_members').update({ published }).eq('id', id).select().single();
+    if (error) throw mapError(error);
+    return data;
+  },
+  /** The directory's order, top to bottom (one activity log entry). */
+  async reorderKaabagMembers(ids) {
+    const { error } = await supabase.rpc('reorder_kaabag_members', { p_ids: ids });
+    if (error) throw mapError(error);
+  },
+  /** Delete an entry (it comes off every rotation too), then its photo on R2. */
+  async deleteKaabagMember(id) {
+    const { data: row } = await supabase.from('kaabag_members').select('photo_url').eq('id', id).maybeSingle();
+    await deleteWebsiteRow('kaabag_members', id);
+    if (row?.photo_url) await callMediaFunction({ action: 'delete', url: row.photo_url }).catch(() => {});
+  },
+  /** The registry's members in the Kaabag ministry (any ministry named Kaabag), for Add from the registry. */
+  async listKaabagRegistry() {
+    const { data: groups, error: e1 } = await supabase.from('ministries').select('name').ilike('name', '%kaabag%');
+    if (e1) throw mapError(e1);
+    const names = (groups || []).map((g) => g.name);
+    if (!names.length) return { ministry: null, rows: [] };
+    const rows = await fetchAll(() => supabase.from('members')
+      .select('id, first_name, middle_name, last_name, suffix, membership_status')
+      .overlaps('ministries', names).order('last_name').order('first_name').order('id'));
+    return { ministry: names[0], rows };
+  },
+
+  /** The months with a saved rotation: [{ month, published, count }]. */
+  async listKaabagMonths() {
+    const { data, error } = await supabase.from('kaabag_months').select('month, published, services:kaabag_services(count)').order('month');
+    if (['42P01', 'PGRST205'].includes(error?.code)) throw new Error(`Run the ${KAABAG_MIGRATION} migration in Supabase to use this page`);
+    if (error) throw mapError(error);
+    return (data || []).map((m) => ({ month: m.month, published: m.published, count: m.services?.[0]?.count || 0 }));
+  },
+  /** One month's rotation: { month, saved, published, note, slots: [{ date, time, location, note, servers: [id…] }] }. */
+  async getKaabagMonth(month) {
+    const [head, list] = await Promise.all([
+      supabase.from('kaabag_months').select('*').eq('month', month).maybeSingle(),
+      supabase.from('kaabag_services').select('service_date, start_time, location, note, servers:kaabag_service_servers(kaabag_id, sort_order)')
+        .eq('month', month).order('service_date').order('start_time').order('id'),
+    ]);
+    const error = head.error || list.error;
+    if (['42P01', 'PGRST205'].includes(error?.code)) throw new Error(`Run the ${KAABAG_MIGRATION} migration in Supabase to use this page`);
+    if (error) throw mapError(error);
+    return {
+      month,
+      saved: !!head.data,
+      published: !!head.data?.published,
+      note: head.data?.note || '',
+      slots: (list.data || []).map((s) => ({
+        date: s.service_date,
+        time: String(s.start_time).slice(0, 5),
+        location: s.location || '',
+        note: s.note || '',
+        servers: [...(s.servers || [])].sort((a, b) => a.sort_order - b.sort_order).map((x) => x.kaabag_id),
+      })),
+    };
+  },
+  /** Save a month: its Masses and their Kaabag (`slots`, or null to keep them), whether it's on the website, its note. */
+  async saveKaabagMonth(month, { slots = null, published = null, note = null } = {}) {
+    const { data, error } = await supabase.rpc('save_kaabag_month', {
+      p_month: month, p_services: slots ? slotsPayload(slots) : null, p_published: published, p_note: note,
+    });
+    if (error?.code === 'PGRST202') throw new Error(`Run the ${KAABAG_MIGRATION} migration in Supabase to save the rotation`);
+    if (error) throw mapError(error);
+    return data;
+  },
+
   // Article photos and event covers on Cloudflare R2, through the media-upload Edge Function.
   /**
    * After saving an article or event, rename its photos on R2 to readable
@@ -1493,6 +1587,13 @@ export const api = {
       const h = await publicRpc('public_gkk_history', { p_name: name }).catch(() => null);
       return h && { photo_url: null, photos: [], history: h.history, history_photos: h.photos };
     }
+  },
+  /** The Kaabag page (0102): { directory, months }; empty before the migration is run. */
+  async publicKaabag() {
+    const { data, error } = await supabase.rpc('public_kaabag');
+    if (error?.code === 'PGRST202') return { directory: [], months: [] };
+    if (error) throw mapError(error);
+    return { directory: data?.directory || [], months: data?.months || [] };
   },
   /** The published org charts, in order: [{ title, slug, scope }] (0057). */
   publicOrgCharts: () => publicRpc('public_org_charts'),
@@ -2587,6 +2688,9 @@ const WEBSITE_TABLES = ['mass_schedules', 'sacrament_guides', 'announcements', '
 
 const DOWNLOADS_BUCKET = 'downloads';
 const DOWNLOADS_MIGRATION = '0096_downloads.sql';
+
+// What staff set on a Kaabag directory entry; member_id comes from Add from the registry.
+const KAABAG_FIELDS = ['name', 'role', 'photo_url', 'published', 'member_id', 'sort_order'];
 
 const GKK_DETAIL_FIELDS = ['barangay', 'puroks', 'chapel_address', 'year_established','meeting_schedule', 'meeting_place', 'coordinator_name', 'coordinator_mobile', 'coordinator_public', 'coordinator_consent_on', 'previous_households', 'previous_families', 'history', 'history_photos', 'history_published', 'photo_url', 'photos'];
 

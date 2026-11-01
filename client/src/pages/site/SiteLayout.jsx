@@ -1,4 +1,4 @@
-import React, { Suspense, createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import React, { Suspense, createContext, useCallback, useContext, useEffect, useId, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Icon, IconSprite } from '../../components/site/Icons.jsx';
 import { FOOTER_CREAM, SiteToastContext } from '../../components/site/kit.jsx';
@@ -12,6 +12,8 @@ import { applyPageMeta, canonicalUrl, pageDescription, pageNoindex, parishJsonLd
 import { useCensusProgress, useOffice, useParishTitle } from './data.js';
 import { preloadSitePages } from './lazyPages.js';
 import { useScrollReveal } from '../../components/site/useScrollReveal.js';
+import { HISTORY_PAGE } from '../../lib/history.js';
+import { KAABAG_PAGE } from '../../lib/kaabag.js';
 
 // The parish's name is the one saved in Parish Config (useParishTitle, in data.js),
 // its address, map link and pin the ones saved in Parish Website → Office.
@@ -28,12 +30,22 @@ const TABS = [
 
 const ROOTS = TABS.map((t) => t.to);
 
+// Ang Simbahan's parts, in a menu under it on desktop. The Mass schedule and
+// the sacraments are sections of the Simbahan page (?view= takes it there);
+// the History and the Kaabag have pages of their own.
+const SIMBAHAN_MENU = [
+  { to: '/simbahan?view=misa', label: 'Iskedyul sa Misa', note: 'Oras sa Misa matag semana', icon: 'clock' },
+  { to: '/simbahan?view=sakramento', label: 'Mga Sakramento', note: 'Unsa ang dad-on ug ang mga lakang', icon: 'church' },
+  { to: HISTORY_PAGE, label: 'Kasaysayan', note: 'Ang kasaysayan sa parokya', icon: 'cross' },
+  { to: KAABAG_PAGE, label: 'Kaabag', note: 'Iskedyul sa serbisyo ug mga sakop', icon: 'people' },
+];
+
 // Desktop top navigation: the same sections with their full names, plus Kontak.
 // `short` is shown on small laptops (under 1280px), where the full names don't fit.
 const DESK_NAV = [
   { to: '/', label: 'Home', match: (p) => p === '/' },
   { to: '/pahibalo', label: 'Pahibalo ug Kalihokan', short: 'Pahibalo', match: (p) => p.startsWith('/pahibalo') },
-  { to: '/simbahan', label: 'Ang Simbahan', short: 'Simbahan', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa') },
+  { to: '/simbahan', label: 'Ang Simbahan', short: 'Simbahan', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa'), menu: SIMBAHAN_MENU },
   { to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad') },
   { to: '/serbisyo', label: 'Mga Serbisyo', short: 'Serbisyo', match: (p) => p.startsWith('/serbisyo') },
   { to: '/downloads', label: 'Downloads', match: (p) => p.startsWith('/downloads') },
@@ -294,21 +306,94 @@ function DesktopHeader({ pathname, logo, parish }) {
         <nav aria-label="Main" className="flex items-stretch gap-0.5 ml-auto h-full">
           {DESK_NAV.map((t) => {
             const on = t.match(pathname);
+            const label = t.short ? <><span className="xl:hidden">{t.short}</span><span className="hidden xl:inline">{t.label}</span></> : t.label;
+            const bar = <span className="absolute left-[10px] right-[10px] xl:left-[13px] xl:right-[13px] -bottom-px h-[3px] rounded-t-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />;
+            const tone = `whitespace-nowrap text-[15.5px] hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`;
+            if (t.menu) return <NavMenu key={t.to} item={t} on={on} pathname={pathname} tone={tone} bar={bar}>{label}</NavMenu>;
             return (
-              <NavLink
-                key={t.to}
-                to={t.to}
-                aria-current={on ? 'page' : undefined}
-                className={`relative flex items-center px-[10px] xl:px-[13px] text-[15.5px] whitespace-nowrap hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`}
-              >
-                {t.short ? <><span className="xl:hidden">{t.short}</span><span className="hidden xl:inline">{t.label}</span></> : t.label}
-                <span className="absolute left-[10px] right-[10px] xl:left-[13px] xl:right-[13px] -bottom-px h-[3px] rounded-t-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
+              <NavLink key={t.to} to={t.to} aria-current={on ? 'page' : undefined} className={`relative flex items-center px-[10px] xl:px-[13px] ${tone}`}>
+                {label}
+                {bar}
               </NavLink>
             );
           })}
         </nav>
       </div>
     </header>
+  );
+}
+
+/**
+ * A desktop menu item with its parts under it (Ang Simbahan): the name is
+ * still a link to its page, and the arrow beside it opens the list. The list
+ * opens on hover too, closes when the pointer or focus leaves it, with Escape
+ * (back to the arrow) and once one of its links is followed. Links carry
+ * `jump`, so following one to a part of the page you're on still goes there.
+ */
+function NavMenu({ item, on, pathname, tone, bar, children }) {
+  const [open, setOpen] = useState(false);
+  const wrap = useRef(null);
+  const toggle = useRef(null);
+  const timer = useRef(null);
+  const menuId = useId();
+  const { key } = useLocation();
+  useEffect(() => { setOpen(false); }, [key]);
+  useEffect(() => () => clearTimeout(timer.current), []);
+  const show = () => { clearTimeout(timer.current); setOpen(true); };
+  // A short wait, so moving the pointer down onto the list doesn't close it.
+  const hide = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(false), 160); };
+  const name = item.short || item.label;
+
+  return (
+    <div
+      ref={wrap}
+      className="relative flex items-stretch"
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onBlur={(e) => { if (!wrap.current?.contains(e.relatedTarget)) setOpen(false); }}
+      onKeyDown={(e) => { if (e.key === 'Escape' && open) { e.stopPropagation(); setOpen(false); toggle.current?.focus(); } }}
+    >
+      <NavLink to={item.to} aria-current={on ? 'page' : undefined} className={`flex items-center pl-[10px] xl:pl-[13px] pr-0.5 ${tone}`}>
+        {children}
+      </NavLink>
+      <button
+        ref={toggle}
+        type="button"
+        aria-expanded={open}
+        aria-controls={menuId}
+        aria-label={`Mga bahin sa ${name}`}
+        onClick={() => setOpen((o) => !o)}
+        className={`flex items-center pl-0.5 pr-[8px] xl:pr-[11px] appearance-none bg-transparent border-none cursor-pointer ${tone}`}
+      >
+        <Icon name="chev" size={15} className={`transition-transform duration-150 ${open ? '-rotate-90' : 'rotate-90'}`} />
+      </button>
+      {bar}
+      <div id={menuId} hidden={!open} className="absolute left-0 top-full pt-1.5 z-30">
+        <ul className="list-none m-0 w-[340px] p-2 bg-parish-card border border-parish-border rounded-2xl shadow-card animate-fadeUp">
+          {item.menu.map((m) => {
+            const here = !m.to.includes('?') && pathname === m.to;
+            return (
+              <li key={m.to}>
+                <Link
+                  to={m.to}
+                  state={{ jump: true }}
+                  aria-current={here ? 'page' : undefined}
+                  className={`flex gap-3 items-start rounded-xl px-3 py-2.5 hover:bg-[var(--p-blue-tint)] focus-visible:bg-[var(--p-blue-tint)] ${here ? 'bg-[var(--p-blue-tint)]' : ''}`}
+                >
+                  <span className="w-10 h-10 flex-none rounded-xl flex items-center justify-center text-parish-blue" style={{ background: 'var(--p-blue-tint)' }}>
+                    <Icon name={m.icon} size={20} />
+                  </span>
+                  <span className="min-w-0 pt-0.5">
+                    <span className="block font-bold text-[15.5px] leading-tight text-parish-navy">{m.label}</span>
+                    <span className="block text-[13px] leading-snug text-parish-text2 mt-0.5">{m.note}</span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
   );
 }
 

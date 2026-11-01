@@ -6,7 +6,7 @@ import DemoBanner from './components/DemoBanner.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Home from './pages/site/Home.jsx';
 import {
-  Developer, Simbahan, Pagbasa, Kasaysayan, Pahibalo, Komunidad, GkkDetail, ArticlesArchive, PrayerWall, PrayerDetail, Serbisyo, Kontak, Blood,
+  Developer, Simbahan, Pagbasa, Kasaysayan, Kaabag, Pahibalo, Komunidad, GkkDetail, ArticlesArchive, PrayerWall, PrayerDetail, Serbisyo, Kontak, Blood,
   CheckStatus, RequestForm, Downloads, SongPage, SiteNotFound, EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail, ArticleRedirect,
 } from './pages/site/lazyPages.js';
 
@@ -99,6 +99,7 @@ export default function App() {
           <Route path="/simbahan" element={<Simbahan />} />
           <Route path="/simbahan/pagbasa" element={<Pagbasa />} />
           <Route path="/simbahan/kasaysayan" element={<Kasaysayan />} />
+          <Route path="/simbahan/kaabag" element={<Kaabag />} />
           {/* The page was Misa ug Sakramento: old links keep their ?view=. */}
           <Route path="/misa" element={<ToSimbahan />} />
           <Route path="/misa/kalihokan/:id" element={<EventDetail />} />

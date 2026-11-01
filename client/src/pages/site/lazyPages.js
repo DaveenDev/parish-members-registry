@@ -9,6 +9,7 @@ const loaders = {
   simbahan: () => import('./Simbahan.jsx'),
   pagbasa: () => import('./Pagbasa.jsx'),
   kasaysayan: () => import('./Kasaysayan.jsx'),
+  kaabag: () => import('./Kaabag.jsx'),
   pahibalo: () => import('./Pahibalo.jsx'),
   komunidad: () => import('./Komunidad.jsx'),
   articles: () => import('./Articles.jsx'),
@@ -28,6 +29,7 @@ const page = (loader, name = 'default') => React.lazy(() => loader().then((m) =>
 export const Simbahan = page(loaders.simbahan);
 export const Pagbasa = page(loaders.pagbasa);
 export const Kasaysayan = page(loaders.kasaysayan);
+export const Kaabag = page(loaders.kaabag);
 export const Pahibalo = page(loaders.pahibalo);
 export const Komunidad = page(loaders.komunidad);
 export const GkkDetail = page(loaders.komunidad, 'GkkDetail');
