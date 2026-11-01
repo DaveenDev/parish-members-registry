@@ -48,6 +48,9 @@ test('the page, the feed and the GitHub Release text', () => {
   const page = pageHtml(releases, 'body{}');
   assert.match(page, new RegExp(`id="${anchor('1.1.0')}"`));
   assert.match(page, /Latest/);
+  // The newest release comes first in the page, ahead of the older ones and the side panel.
+  assert.ok(page.indexOf(`id="${anchor('1.1.0')}"`) < page.indexOf(`id="${anchor('1.0.0')}"`));
+  assert.ok(page.indexOf('<main>') < page.indexOf('<aside'));
   assert.match(page, /After <code>0112<\/code>, up to <code>0115<\/code>/);
   assert.match(page, /Every migration up to <code>0112<\/code>/);
   assert.match(page, /href="feed\.xml"/);

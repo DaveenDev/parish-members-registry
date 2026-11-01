@@ -179,6 +179,9 @@ export function pageHtml(releases, css) {
   </div>
 </header>
 <div class="wrap layout">
+  <main>
+${body}
+  </main>
   <aside class="side">
     <nav aria-label="Versions"><h2>Versions</h2><ul>${nav}</ul></nav>
     <section class="howto">
@@ -190,9 +193,6 @@ export function pageHtml(releases, css) {
       <p>Database first, then functions, then website.</p>
     </section>
   </aside>
-  <main>
-${body}
-  </main>
 </div>
 <footer class="foot"><div class="wrap">Built For Free by <a href="https://daveendev.vercel.app/">DaveenDev</a> · <a href="${REPO}">Source on GitHub</a></div></footer>
 </body>
