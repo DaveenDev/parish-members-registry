@@ -161,3 +161,23 @@ jobs:
               done
           echo "Backups kept:"
           aws s3 ls "s3://$R2_BUCKET/database/" --endpoint-url "$R2_ENDPOINT"
+
+      # Tells the admin panel (Parish Config → Platform Integrations → Database)
+      # when the last backup was made: the file name, its size and the time,
+      # never anything from the backup. It never fails the run, as the backup
+      # is already safely stored; before 0104_backup_status.sql is run the
+      # admin panel just has no date to show.
+      - name: Record the backup for the admin panel
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          size=$(stat -c %s "$BACKUP_FILE")
+          if psql -v ON_ERROR_STOP=1 -q -v file="$BACKUP_FILE" -v size="$size" -v run_url="$RUN_URL" "$DB_URL" <<'SQL'
+          insert into backup_runs (file_name, size_bytes, run_url) values (:'file', :size, :'run_url');
+          delete from backup_runs where id not in (select id from backup_runs order by id desc limit 100);
+          SQL
+          then
+            echo "Recorded the backup for the admin panel."
+          else
+            echo "::warning::The backup is stored, but it could not be recorded for the admin panel. Run supabase/migrations/0104_backup_status.sql if you have not."
+          fi

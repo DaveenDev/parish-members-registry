@@ -23,7 +23,10 @@
   <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Noto+Color+Emoji&display=swap" rel="stylesheet">
+  <!-- The fonts' stylesheet loads without holding up the first paint (on slow mobile data
+       the page shows in the phone's own font first, then swaps): preload, then apply. -->
+  <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Noto+Color+Emoji&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Source+Sans+3:wght@400;500;600;700&family=Noto+Color+Emoji&display=swap"></noscript>
 </head>
 <body>
   <div id="root"></div>

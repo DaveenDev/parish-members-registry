@@ -12,6 +12,17 @@ owner. The files people attach to a GKK (Parish Config → Parish GKK →
 Documents) live in Supabase Storage, not the database, and aren't in the
 backup; website photos are already in their own R2 bucket.
 
+## Seeing that it ran
+
+The admin panel shows when the last backup was made: staff admins see it under
+Parish Config → Platform Integrations → Database, and the Dashboard's Today
+list warns them when it is more than 9 days old (a Sunday was missed). The
+workflow records each run in the `backup_runs` table as its last step, so run
+[`0104_backup_status.sql`](../supabase/migrations/0104_backup_status.sql) once
+in Supabase's SQL editor. Only the file name, its size and the time are
+stored, never anything from the backup. The demo site has no backups, so it
+shows nothing.
+
 ## 1. A private bucket and a token for it
 
 1. Cloudflare dashboard → **R2 Object Storage** → **Create bucket**, e.g.
@@ -94,6 +105,10 @@ red step:
 
   The check writes and deletes a tiny `database/.write-check` file; if it's
   ever left behind, it's harmless.
+- **Record the backup for the admin panel** shows a yellow warning, not a red
+  failure: the backup itself is already stored. `backup_runs` is missing, so
+  run `supabase/migrations/0104_backup_status.sql`; the next Sunday's backup
+  (or **Run workflow**) then shows in the admin panel.
 
 ## Restoring
 

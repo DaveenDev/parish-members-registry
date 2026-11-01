@@ -76,7 +76,7 @@ function useStatusCheck(initial = '') {
       } else {
         const r = await api.registrationStatus(value);
         if (!r) setResult({ kind: 'notfound', ref: value });
-        else setResult({ kind: r.status === 'Verified' ? 'verified' : 'received', ...r, asked: value });
+        else setResult({ kind: r.status === 'Verified' ? 'verified' : r.correction_note ? 'correction' : 'received', ...r, asked: value });
       }
     } catch (err) {
       setResult(/Daghan na kaayo/i.test(err.message) ? { kind: 'limit' } : { kind: 'error' });
@@ -183,6 +183,25 @@ function Result({ r, censusOpen }) {
           <p className="m-0 text-[15.5px] leading-normal text-[#3f3b2f]">Nadawat namo ang inyong rehistro sa {fmtLong(r.registered_on)}. Gisusi pa sa kawani.</p>
           <NewRefNote r={r} />
           {censusOpen && <BigButton variant="secondary" to="/census" className="mt-3.5">I-update ang among rekord</BigButton>}
+        </div>
+      );
+    case 'correction':
+      // Amber (the site's warm gold tint), with the icon and words as well, so it doesn't rely on color.
+      return (
+        <div className="rounded-2xl p-4 border" style={{ background: 'var(--p-gold-tint)', borderColor: 'color-mix(in srgb, var(--p-gold) 55%, white)' }}>
+          <span className="inline-flex items-center gap-1.5 font-bold text-[13px] text-parish-navy rounded-full px-2.5 py-1 bg-white/70 border" style={{ borderColor: 'color-mix(in srgb, var(--p-gold) 55%, white)' }}>
+            <Icon name="alert" size={14} />Kinahanglan og koreksyon
+          </span>
+          <div className="font-serif text-[23px] font-bold text-parish-navy mt-2.5 mb-1">Rehistro · {r.ref_no}</div>
+          <p className="m-0 mb-2 text-[15.5px] leading-normal text-[#3f3b2f]">Nadawat namo ang inyong rehistro sa {fmtLong(r.registered_on)}, apan adunay gikinahanglan nga ayohon.</p>
+          <div className="rounded-xl bg-white/70 px-3.5 py-3 text-[15px] leading-normal text-parish-ink whitespace-pre-line [overflow-wrap:anywhere]">
+            <strong className="block text-[12.5px] tracking-[.08em] uppercase text-[var(--p-eyebrow)] mb-0.5">Nota gikan sa kawani</strong>{r.correction_note}
+          </div>
+          <NewRefNote r={r} />
+          <div className="flex flex-col gap-2 mt-3.5 sm:flex-row">
+            {censusOpen && <BigButton to="/census" className="sm:w-auto sm:px-5">I-update ang among rekord</BigButton>}
+            <BigButton variant="secondary" to="/kontak" className="sm:w-auto sm:px-5">Kontaka ang opisina</BigButton>
+          </div>
         </div>
       );
     case 'verified':

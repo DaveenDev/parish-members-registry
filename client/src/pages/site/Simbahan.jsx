@@ -2,12 +2,15 @@ import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import SacramentIcon from '../../components/SacramentIcon.jsx';
-import { BAND_PAD, Band, BigButton, DataState, EmptyNote, Eyebrow, Segmented, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { BAND_PAD, Band, BigButton, DataState, EmptyNote, Eyebrow, Segmented, Skeleton, Skeletons, WRAP, useShare } from '../../components/site/kit.jsx';
 import { Organisasyon } from '../../components/site/OrgCharts.jsx';
 import { MassRow } from '../../components/site/cards.jsx';
-import { KALENDARYO_PAGE, guideShortTitle, massLocations, massSections } from '../../lib/site.js';
+import { KALENDARYO_PAGE, cleanGuideKey, guidePath, guideShortTitle, massLocations, massSections } from '../../lib/site.js';
+import { guideDescription } from '../../lib/share.js';
+import { PageMeta } from './SiteLayout.jsx';
 import { HISTORY_PAGE, openingParagraph } from '../../lib/history.js';
-import { listState, useAnnouncements, useHistory, useMassSchedule, useOrgCharts, useSacramentGuides } from './data.js';
+import { listState, useAnnouncements, useHistory, useKaabagSchedule, useMassSchedule, useOrgCharts, useSacramentGuides } from './data.js';
+import { KAABAG_PAGE } from '../../lib/kaabag.js';
 
 // The sections under Mass: the sacrament guides and the org charts, as tabs
 // (?tab=): [key, title when it's the only one, label on the switch].
@@ -26,7 +29,9 @@ const NO_SCROLLBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
  */
 export default function Simbahan() {
   const [params, setParams] = useSearchParams();
-  const tab = params.get('tab') === 'organisasyon' ? 'organisasyon' : 'sakramento';
+  // ?guide= (guidePath) opens one sacrament's guide, so a link to it can be shared.
+  const guide = cleanGuideKey(params.get('guide'));
+  const tab = params.get('tab') === 'organisasyon' && !guide ? 'organisasyon' : 'sakramento';
   // Change some of the address's parameters, keep the rest.
   const update = (patch) => {
     const next = new URLSearchParams(params);
@@ -34,7 +39,7 @@ export default function Simbahan() {
     setParams(next, { replace: true });
   };
   // Arriving for the sacraments or the org charts: go straight to them.
-  const [jump] = useState(() => params.get('view') === 'sakramento' || params.has('tab'));
+  const [jump] = useState(() => params.get('view') === 'sakramento' || params.has('tab') || !!guide);
 
   if (params.get('view') === 'kalendaryo') return <Navigate replace to={KALENDARYO_PAGE} />;
   return (
@@ -46,7 +51,7 @@ export default function Simbahan() {
               <Eyebrow>Pulong, Misa ug Sakramento</Eyebrow>
               <h1 id="simbahan-title" className="font-serif font-semibold text-[32px] lg:text-[46px] leading-[1.08] mt-0.5 mb-3 lg:mb-0 text-parish-navy">Ang Simbahan</h1>
             </div>
-            <PageJumps onTab={(t) => update({ tab: t === 'sakramento' ? null : t, view: null })} />
+            <PageJumps onTab={(t) => update({ tab: t === 'sakramento' ? null : t, view: null, guide: t === 'sakramento' ? guide || null : null })} />
           </div>
         </div>
       </Band>
@@ -58,10 +63,16 @@ export default function Simbahan() {
             <h2 id="misa-title" className="m-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Misa</h2>
           </div>
           <MassSchedule />
+          <KaabagLink />
         </div>
       </section>
 
-      <TeachingTabs tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null })} chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug })} jump={jump} />
+      <TeachingTabs
+        tab={tab} onTab={(t) => update({ tab: t === 'sakramento' ? null : t, chart: null, guide: null })}
+        chart={params.get('chart')} onChart={(slug) => update({ tab: 'organisasyon', chart: slug, guide: null })}
+        guide={guide} onGuide={(key) => update({ guide: key, tab: null, chart: null, view: null })}
+        jump={jump}
+      />
 
       <HistoryFeature />
     </main>
@@ -89,12 +100,28 @@ function PageJumps({ onTab }) {
   );
 }
 
+/** The way to /simbahan/kaabag under the Mass schedule, once there's a schedule to see. */
+function KaabagLink() {
+  const { rows } = listState(useKaabagSchedule());
+  if (!rows.length) return null;
+  return (
+    <Link
+      to={KAABAG_PAGE}
+      className="mt-3.5 lg:mt-[18px] flex items-center gap-2.5 rounded-[14px] px-3.5 py-3 lg:px-[18px] lg:py-3.5 border bg-parish-card border-[var(--p-blue-border)] text-parish-blueDeep hover:bg-[var(--p-blue-tint)]"
+    >
+      <Icon name="people" className="text-parish-blue flex-none" />
+      <span className="text-[15px] lg:text-[16px] leading-snug"><strong>Mga Kaabag:</strong> kinsa ang mag-alagad sa Misa sa Domingo</span>
+      <span aria-hidden="true" className="ml-auto font-bold">→</span>
+    </Link>
+  );
+}
+
 /**
  * The sacrament guides and the org charts, as tabs on the light-blue band.
  * A tab with nothing published is left out, and the section with it when
  * neither has anything. `jump` scrolls down to it once it's there.
  */
-function TeachingTabs({ tab, onTab, chart, onChart, jump }) {
+function TeachingTabs({ tab, onTab, chart, onChart, guide, onGuide, jump }) {
   const guides = listState(useSacramentGuides());
   const charts = listState(useOrgCharts());
   const tabs = TEACH_TABS.filter(([k]) => (k === 'sakramento' ? guides.rows.length : charts.rows.length) > 0);
@@ -117,7 +144,7 @@ function TeachingTabs({ tab, onTab, chart, onChart, jump }) {
           </div>
           {tabs.length > 1 && <Segmented label="Sakramento ug Organisasyon" options={tabs.map(([k, , short]) => [k, short])} value={current[0]} onChange={onTab} />}
         </div>
-        {current[0] === 'sakramento' ? <SacramentGuides rows={guides.rows} /> : <Organisasyon slug={chart} onPick={onChart} />}
+        {current[0] === 'sakramento' ? <SacramentGuides rows={guides.rows} guideKey={guide} onGuide={onGuide} /> : <Organisasyon slug={chart} onPick={onChart} />}
       </div>
     </Band>
   );
@@ -164,14 +191,17 @@ const PICKER_COLS = { 2: 'lg:grid-cols-2', 3: 'lg:grid-cols-3', 4: 'lg:grid-cols
 
 /**
  * Mga Sakramento ug Pormasyon: a card per published guide to pick from,
- * then that sacrament's guide.
+ * then that sacrament's guide. The one picked is in the address
+ * (?guide=wedding), so it can be shared; opened that way, the page names it
+ * in the browser tab and in link previews.
  */
-function SacramentGuides({ rows }) {
+function SacramentGuides({ rows, guideKey, onGuide }) {
   const guides = [...rows].sort((a, b) => guideRank(a) - guideRank(b) || a.id - b.id);
-  const [key, setKey] = useState('');
-  const g = guides.find((x) => x.key === key) || guides[0];
+  const asked = guides.find((x) => x.key === guideKey);
+  const g = asked || guides[0];
   return (
     <>
+      {asked && <PageMeta title={asked.title} description={guideDescription(asked)} path={guidePath(asked.key)} />}
       <p className="m-0 mb-4 lg:mb-6 text-[15px] lg:text-[16.5px] leading-normal text-[#4d4636] lg:max-w-[760px]">
         Unsa ang dad-on ug unsa ang mga lakang sa matag sakramento. Palihug duol sa opisina sa parokya una sa tanan aron makumpirma.
       </p>
@@ -180,10 +210,10 @@ function SacramentGuides({ rows }) {
           role="group" aria-label="Pili og sakramento"
           className={`grid grid-cols-2 gap-2.5 mb-4 sm:grid-cols-3 lg:gap-3.5 lg:mb-6 ${PICKER_COLS[guides.length] || 'lg:grid-cols-6'}`}
         >
-          {guides.map((x) => <SacramentChoice key={x.key} g={x} on={x.key === g?.key} onPick={() => setKey(x.key)} />)}
+          {guides.map((x) => <SacramentChoice key={x.key} g={x} on={x.key === g?.key} onPick={() => onGuide(x.key)} />)}
         </div>
       )}
-      {g && <GuideCard g={g} />}
+      {g && <GuideCard key={g.key} g={g} />}
     </>
   );
 }
@@ -227,6 +257,7 @@ function GuideCard({ g }) {
   const docs = (g.requirements || []).filter(Boolean);
   const extras = [['Iskedyul', g.schedule, 'clock'], ['Donasyon', g.fees, 'heart'], ['Pahinumdom', g.notes, 'alert']].filter(([, v]) => v);
   const side = extras.length > 0;
+  const share = useShare();
   return (
     <article className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
       <header className="flex gap-3 items-start px-4 py-3.5 lg:gap-4 lg:px-6 lg:py-5 bg-[#fbf7ef] border-b border-[#f0e8d6]">
@@ -258,19 +289,7 @@ function GuideCard({ g }) {
               </ol>
             </section>
           )}
-          {docs.length > 0 && (
-            <section aria-labelledby={`docs-${g.key}`}>
-              <h4 id={`docs-${g.key}`} className="m-0 mb-3 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga dokumento nga dad-on</h4>
-              <ul className="list-none m-0 p-0 grid gap-2 sm:grid-cols-2">
-                {docs.map((d, i) => (
-                  <li key={i} className="flex gap-2.5 items-start text-[15px] leading-snug text-parish-ink">
-                    <span className="w-5 h-5 mt-px flex-none rounded border-[1.5px] border-parish-borderSoft bg-parish-card" aria-hidden />
-                    <span>{d}</span>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          )}
+          {docs.length > 0 && <DocChecklist guideKey={g.key} docs={docs} />}
         </div>
         <aside className={`flex flex-col gap-2.5 px-4 pb-4 ${side ? 'lg:p-6 lg:border-l lg:border-[#f0e8d6] lg:bg-[#fdfaf4]' : 'lg:px-6 lg:pb-6'}`}>
           {extras.map(([label, value, icon]) => (
@@ -284,10 +303,70 @@ function GuideCard({ g }) {
             {GUIDE_AVAIL[g.key] && <Link to={`/serbisyo/hangyo/${GUIDE_AVAIL[g.key]}`} className={BTN_MAIN}>Request to avail</Link>}
             <Link to="/kontak" className={GUIDE_AVAIL[g.key] ? BTN_SECOND : BTN_MAIN}>Pangutana sa opisina</Link>
             {GUIDE_CERT[g.key] && <Link to={`/serbisyo/hangyo/sertipiko?certType=${GUIDE_CERT[g.key]}`} className={BTN_SECOND}>Pangayo og sertipiko</Link>}
+            <button type="button" onClick={() => share(g.title, guidePath(g.key))} className={`${BTN_SECOND} gap-1.5 cursor-pointer`}>
+              <Icon name="share" size={17} />Ipaambit
+            </button>
           </div>
         </aside>
       </div>
     </article>
+  );
+}
+
+/** The ticked documents of one guide, kept on this phone (localStorage) by their text. */
+const docsKey = (key) => `pmr_guide_docs:${key}`;
+function readTicked(key) {
+  try {
+    const list = JSON.parse(localStorage.getItem(docsKey(key)) || '[]');
+    return new Set(Array.isArray(list) ? list : []);
+  } catch {
+    return new Set();
+  }
+}
+
+/**
+ * The documents to bring, as a checklist the visitor ticks as they gather
+ * them: for their own use only (nothing is sent), remembered on this phone
+ * for the next visit, with a count and a way to clear it.
+ */
+function DocChecklist({ guideKey, docs }) {
+  const [ticked, setTicked] = useState(() => readTicked(guideKey));
+  const have = docs.filter((d) => ticked.has(d)).length;
+  function save(next) {
+    setTicked(next);
+    try { localStorage.setItem(docsKey(guideKey), JSON.stringify([...next])); } catch { /* kept for this visit */ }
+  }
+  function toggle(d) {
+    const next = new Set(ticked);
+    if (next.has(d)) next.delete(d); else next.add(d);
+    save(next);
+  }
+  return (
+    <section aria-labelledby={`docs-${guideKey}`}>
+      <div className="flex items-baseline justify-between gap-3 mb-1">
+        <h4 id={`docs-${guideKey}`} className="m-0 font-bold text-[13px] tracking-[.1em] uppercase text-[var(--p-gold-deep)]">Mga dokumento nga dad-on</h4>
+        <span className="text-[13px] font-semibold text-parish-text2 whitespace-nowrap" aria-live="polite">{have} sa {docs.length} andam na</span>
+      </div>
+      <p className="m-0 mb-2.5 text-[13px] text-parish-text2">I-tick ang naa na nimo. Para lang nimo: dili kini ipadala sa parokya.</p>
+      <ul className="list-none m-0 p-0 grid gap-1 sm:grid-cols-2">
+        {docs.map((d, i) => {
+          const on = ticked.has(d);
+          return (
+            <li key={i}>
+              <label className="flex gap-2.5 items-start min-h-[44px] py-1.5 cursor-pointer text-[15px] leading-snug text-parish-ink">
+                <input type="checkbox" checked={on} onChange={() => toggle(d)} className="w-5 h-5 mt-px flex-none accent-[var(--p-blue)]" />
+                <span className={on ? 'line-through decoration-parish-muted text-parish-text2' : ''}>{d}</span>
+              </label>
+            </li>
+          );
+        })}
+      </ul>
+      {have > 0 && (
+        <button type="button" onClick={() => save(new Set())} className="mt-1 min-h-[40px] p-0 border-0 bg-transparent cursor-pointer font-semibold text-[14px] text-parish-blue hover:underline">
+          Hawani ang mga tick
+        </button>
+      )}
+    </section>
   );
 }
 

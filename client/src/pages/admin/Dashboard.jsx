@@ -6,6 +6,7 @@ import { useAsyncData, useLiveRefresh } from '../../hooks.js';
 import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
 import { todayItems } from '../../lib/today.js';
+import { backupSummary } from '../../lib/backup.js';
 import { gkkSlices } from '../../lib/stats.js';
 import { todayIso } from '../../lib/website.js';
 
@@ -170,6 +171,7 @@ function TodayPanel({ counts }) {
   const { user } = useAuth();
   const [census, setCensus] = useState(null);
   const [site, setSite] = useState({ events: [], bulletins: [] });
+  const [backup, setBackup] = useState(null);
 
   useEffect(() => {
     if (!can(user, 'census')) return;
@@ -186,8 +188,14 @@ function TodayPanel({ counts }) {
       .then(([e, b]) => setSite({ events: e.rows || [], bulletins: b.rows || [] }));
   }, [user]);
 
+  // Staff admins are told when the weekly database backup is late (0104); nothing shows before it's run.
+  useEffect(() => {
+    if (!user?.isAdmin) return;
+    api.backupStatus().then((s) => setBackup(backupSummary(s))).catch(() => {});
+  }, [user]);
+
   if (!counts) return null;
-  const items = todayItems({ user, counts, census, ...site, today: todayIso() });
+  const items = todayItems({ user, counts, census, ...site, today: todayIso(), backup });
   return (
     <Panel className="px-[22px] py-5 mb-[18px]">
       <h2 className="font-serif text-[20px] font-semibold text-parish-navy m-0 mb-0.5">Today</h2>

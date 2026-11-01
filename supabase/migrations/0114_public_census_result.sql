@@ -1,5 +1,5 @@
 -- The website's Komunidad → Census page: with no census open, the results of
--- the last one closed. Run after 0101_demo_access.sql. Safe to re-run.
+-- the last one closed. Run after 0113_kaabag_schedule.sql. Safe to re-run.
 --
 -- public_census_result(): the most recently closed census, as it stood when it
 -- closed (its census_results snapshot, 0082; worked out from the registry

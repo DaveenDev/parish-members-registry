@@ -4,6 +4,10 @@ build/
 church photos/
 .env
 .env.local
+# Which Supabase project this folder is linked to: each computer's own
+supabase/.temp/
+# Every parish's database connection string, with its password (scripts/release-db.mjs)
+parishes.json
 client/.env.local
 *.log
 .DS_Store
@@ -15,3 +19,6 @@ Needed.txt
 # Sample Downloads made by scripts/sample-downloads.mjs
 supabase/seed/downloads-sample/
 supabase/seed/website-sample/
+
+# The releases page, built by npm run releases:build (published by the releases-site workflow)
+releases/_site/

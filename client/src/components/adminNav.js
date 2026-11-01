@@ -39,7 +39,8 @@ export const NAV_GROUPS = [
     label: 'Data',
     items: [
       { to: '/admin/reports', label: 'Reports', need: 'reports' },
-      { to: '/admin/exports', label: 'Exports', need: 'exports' },
+      // Full access downloads everything; Website & requests staff only the Requests files (lib/access.js).
+      { to: '/admin/exports', label: 'Exports', need: 'exportRequests' },
     ],
   },
   {

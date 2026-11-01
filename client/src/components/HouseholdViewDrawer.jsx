@@ -63,6 +63,24 @@ export default function HouseholdViewDrawer({ household: row, readOnly = false, 
   const address = [h.street, h.barangay, h.city, h.province, h.zip].filter(Boolean).join(', ');
   const helpWays = HELP_WAYS.filter(([key]) => (h.help_ways || []).includes(key)).map(([, label]) => label);
 
+  // "Needs correction" (0108): a note the family sees when it checks its registration on the website.
+  const [asking, setAsking] = useState(false);
+  const [note, setNote] = useState('');
+  async function saveCorrection(text) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.updateHousehold(h.id, { correction_note: text.trim() || null });
+      setAsking(false);
+      load();
+      if (onChanged) onChanged();
+    } catch (e) {
+      setError(/correction_note|column/i.test(e.message || '') ? 'Run the 0108_registration_correction.sql migration in Supabase first.' : e.message || 'Could not save the note');
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function toggleStatus() {
     setBusy(true);
     try {
@@ -93,6 +111,12 @@ export default function HouseholdViewDrawer({ household: row, readOnly = false, 
                 h.updated_at && `Last updated ${fmtDateTime(h.updated_at)}`].filter(Boolean).join(' · ')}
             </p>
             <VerifiedLine household={h} className="text-[12px] text-parish-okText mt-0.5" />
+            {h.status !== 'Verified' && h.correction_note && (
+              <p className="m-0 mt-2 text-[12.5px] text-parish-warn bg-parish-warnTint rounded-lg px-2.5 py-1.5">
+                <b>Needs correction:</b> {h.correction_note}{' '}
+                {canEdit && <button type="button" onClick={() => saveCorrection('')} disabled={busy} className="appearance-none border-none bg-transparent p-0 cursor-pointer font-semibold underline text-parish-warn">Clear</button>}
+              </p>
+            )}
           </div>
           <button onClick={onClose} aria-label="Close" className="appearance-none border-none bg-transparent cursor-pointer text-parish-muted text-2xl leading-none px-1">×</button>
         </header>
@@ -140,10 +164,27 @@ export default function HouseholdViewDrawer({ household: row, readOnly = false, 
           )}
         </div>
 
+        {asking && (
+          <div className="px-5 sm:px-7 py-3 border-t border-parish-line2 bg-parish-card">
+            <label htmlFor={`${titleId}-note`} className="block text-[12.5px] font-semibold text-parish-ink mb-1">What should the family fix? They see this when they check their registration on the website.</label>
+            <textarea
+              id={`${titleId}-note`} value={note} onChange={(e) => setNote(e.target.value)} maxLength={500} rows={3} autoFocus
+              placeholder="e.g. Please add the birthdate of your youngest child, or send us a photo of the baptismal certificate."
+              className="w-full rounded-lg border border-parish-line2 bg-parish-field px-3 py-2 text-[13.5px]"
+            />
+            <div className="flex gap-2 justify-end mt-2">
+              <GhostButton onClick={() => setAsking(false)} className="px-4 py-2 text-[13px]">Cancel</GhostButton>
+              <PrimaryButton onClick={() => saveCorrection(note)} disabled={busy || !note.trim()} className="px-5 py-2 text-[13px] disabled:opacity-60">{busy ? 'Saving…' : 'Save note'}</PrimaryButton>
+            </div>
+          </div>
+        )}
         <footer className="flex items-center gap-2.5 justify-end px-5 sm:px-7 py-3.5 border-t border-parish-line2 bg-parish-card">
           <GhostButton onClick={onClose} className="mr-auto px-5 py-2.5 text-[14px]">Close</GhostButton>
           {canEdit && (
             <>
+              {h.status !== 'Verified' && !asking && (
+                <GhostButton onClick={() => { setNote(h.correction_note || ''); setAsking(true); }} className="px-5 py-2.5 text-[14px]">Needs correction</GhostButton>
+              )}
               <GhostButton onClick={() => onEdit(h)} className="px-5 py-2.5 text-[14px]">Edit</GhostButton>
               {h.status === 'Verified'
                 ? <GhostButton onClick={toggleStatus} disabled={busy} className="px-5 py-2.5 text-[14px] disabled:opacity-60">{busy ? 'Saving…' : 'Mark Pending'}</GhostButton>

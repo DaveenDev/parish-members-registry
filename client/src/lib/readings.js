@@ -26,10 +26,8 @@ export const READING_PARTS = [
   ['Mass_G', 'Gospel'],
 ];
 
-/** Today in the Philippines, as YYYY-MM-DD, wherever the visitor is. */
-export function manilaToday(now = new Date()) {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Manila', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
-}
+// Today in the Philippines, wherever the visitor is (lib/manila.js).
+export { manilaToday } from './manila.js';
 
 /** The JSONP address for one day's readings. */
 export function universalisUrl(iso, callback) {

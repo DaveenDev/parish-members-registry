@@ -2,7 +2,7 @@ import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-import { PREVIEW_BOTS, absoluteImage, escapeHtml, injectMeta, itemPreview, pagePreview, shareTarget } from '../src/lib/share.js';
+import { PREVIEW_BOTS, absoluteImage, escapeHtml, guideDescription, injectMeta, itemPreview, pagePreview, previewPath, shareTarget } from '../src/lib/share.js';
 import { SITEMAP_PAGES, sitemapXml } from '../src/lib/sitemap.js';
 
 const INDEX = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
@@ -38,6 +38,7 @@ describe('previews', () => {
     assert.doesNotMatch(pagePreview('/').title + pagePreview('/kontak').description, /guadalupe/i);
     assert.match(pagePreview('/kontak').title, /^Kontak · /);
     assert.match(pagePreview('/simbahan/pagbasa').title, /^Mga Pagbasa · /);
+    assert.match(pagePreview('/simbahan/kaabag').title, /^Mga Kaabag · /);
     assert.match(pagePreview('/simbahan').description, /Oras sa Misa/);
   });
 
@@ -126,6 +127,30 @@ test('vercel.json sends the same preview robots to api/share as lib/share.js nam
   assert.ok(i < VERCEL.rewrites.findIndex((r) => r.source === '/(.*)'));
 });
 
+describe('sacrament guides', () => {
+  test('shareTarget: /simbahan with ?guide= is that guide; a bad key is the page', () => {
+    assert.deepEqual(shareTarget('/simbahan', 'wedding'), { kind: 'guides', id: 'wedding' });
+    assert.deepEqual(shareTarget('/simbahan/', 'first_communion'), { kind: 'guides', id: 'first_communion' });
+    assert.deepEqual(shareTarget('/simbahan', '<script>'), { kind: 'page' });
+    assert.deepEqual(shareTarget('/pahibalo', 'wedding'), { kind: 'page' });
+  });
+
+  test('itemPreview: the guide\'s title, summary and documents', () => {
+    const p = itemPreview('guides', { key: 'wedding', title: 'Kasal (Wedding)', summary: 'Mga lakang alang sa kasal.', requirements: ['Baptismal certificate', 'CENOMAR', ''] }, 'San Isidro Parish');
+    assert.match(p.title, /^Kasal \(Wedding\) · /);
+    assert.equal(p.description, 'Mga lakang alang sa kasal. · Dad-a: Baptismal certificate, CENOMAR');
+  });
+
+  test('guideDescription: a line even for an empty guide', () => {
+    assert.match(guideDescription({ title: 'Bunyag' }), /Bunyag/);
+  });
+
+  test('previewPath: a guide names its own address', () => {
+    assert.equal(previewPath('/simbahan', { kind: 'guides', id: 'wedding' }), '/simbahan?guide=wedding');
+    assert.equal(previewPath('/kontak', { kind: 'page' }), '/kontak');
+  });
+});
+
 describe('sitemapXml', () => {
   test('the main pages, then each item by its own address', () => {
     const xml = sitemapXml('https://example.org/', {
@@ -142,6 +167,12 @@ describe('sitemapXml', () => {
     assert.match(xml, /<loc>https:\/\/example.org\/komunidad\/artikulo\/2<\/loc><lastmod>2026-09-02<\/lastmod>/);
     assert.match(xml, /<loc>https:\/\/example.org\/downloads\/kanta\/9-amahan-namo<\/loc><priority>/);
     assert.match(xml, /komunidad\/gkk\/GKK%20San%20Isidro%20%26%20Sta\.%20Ana/);
+  });
+
+  test('each published sacrament guide by its ?guide= address', () => {
+    const xml = sitemapXml('https://example.org', { guides: [{ key: 'wedding', updated_at: '2026-10-03T00:00:00Z' }, {}] });
+    assert.equal((xml.match(/<url>/g) || []).length, SITEMAP_PAGES.length + 1);
+    assert.match(xml, /<loc>https:\/\/example.org\/simbahan\?guide=wedding<\/loc><lastmod>2026-10-03<\/lastmod>/);
   });
 
   test('with no database, the main pages alone', () => {

@@ -4,6 +4,7 @@ import { fmtDate } from '../../constants.js';
 import { useLiveRefresh, useUrlState, urlListPage } from '../../hooks.js';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../ConfirmDialog.jsx';
+import { trashNote } from '../../lib/trash.js';
 import { Field, TextInput, Select, Checkbox, Badge } from '../ui.jsx';
 import { SearchInput, FilterSelect, Pagination, EmptyState, LoadingState, ErrorState, NewItemsNote } from '../admin.jsx';
 import { SidePanel, TextArea, RowButton, Panel, TabIntro, AddButton } from '../panels.jsx';
@@ -61,7 +62,7 @@ export default function SacramentsTab({ onCountsChanged }) {
   }
 
   async function remove(r) {
-    const ok = await confirm({ title: `Delete ${r.ref_no}?`, message: "Only for spam or duplicates. This can't be undone.", confirmLabel: 'Delete', tone: 'danger' });
+    const ok = await confirm({ title: `Delete ${r.ref_no}?`, message: `Only for spam or duplicates. ${trashNote()}`, confirmLabel: 'Delete', tone: 'danger' });
     if (!ok) return;
     try { await api.deleteRequest('sacrament_requests', r.id); list.drop(r.id); onCountsChanged(); toast.success('Deleted'); } catch (e) { toast.error(e.message || 'Could not delete'); }
   }

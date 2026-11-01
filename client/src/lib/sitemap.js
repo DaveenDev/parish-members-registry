@@ -6,6 +6,7 @@
 
 import { canonicalUrl } from './seo.js';
 import { songPath } from './downloads.js';
+import { guidePath } from './site.js';
 
 // The main pages, as public/sitemap.xml listed them.
 export const SITEMAP_PAGES = [
@@ -16,11 +17,13 @@ export const SITEMAP_PAGES = [
   ['/komunidad/artikulo', 'weekly', '0.7'],
   ['/komunidad/census', 'weekly', '0.6'],
   ['/komunidad/pag-ampo', 'daily', '0.6'],
+  ['/komunidad/grupo', 'weekly', '0.6'],
   ['/serbisyo', 'monthly', '0.8'],
   ['/downloads', 'weekly', '0.7'],
   ['/kontak', 'monthly', '0.8'],
   ['/simbahan/pagbasa', 'daily', '0.6'],
   ['/simbahan/kasaysayan', 'yearly', '0.6'],
+  ['/simbahan/kaabag', 'weekly', '0.6'],
   ['/serbisyo/dugo', 'weekly', '0.5'],
   ['/register', 'yearly', '0.5'],
 ];
@@ -33,6 +36,7 @@ const ITEM_PATHS = {
   articles: (r) => `/komunidad/artikulo/${r.id}`,
   songs: songPath, // with its title, as the site links it
   gkks: (r) => `/komunidad/gkk/${encodeURIComponent(r.name)}`,
+  guides: (r) => guidePath(r.key), // a sacrament guide on Ang Simbahan
 };
 
 const xml = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
@@ -53,7 +57,7 @@ export function sitemapXml(origin, items = {}) {
   const lines = SITEMAP_PAGES.map(([path, changefreq, priority]) => entry(canonicalUrl(origin, path), { changefreq, priority }));
   for (const [kind, toPath] of Object.entries(ITEM_PATHS)) {
     for (const r of items[kind] || []) {
-      if (kind === 'gkks' ? !r?.name : !r?.id) continue;
+      if (kind === 'gkks' ? !r?.name : kind === 'guides' ? !r?.key : !r?.id) continue;
       lines.push(entry(canonicalUrl(origin, toPath(r)), { mod: lastmod(r), priority: '0.6' }));
     }
   }

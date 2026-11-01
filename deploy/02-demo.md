@@ -281,18 +281,16 @@ on practice data and never on the live registry.
 
 ## Releasing a change: demo site first, then live
 
-1. **New migration?** Run it on the demo database first:
+The whole order, for the demo site and every parish, is in
+[04-releases.md](04-releases.md). In short:
 
-   ```bash
-   npx supabase db push --db-url "<demo-db-url>"
-   ```
-
+1. **New migration?** Run it on the demo database first
+   (`npm run release:db -- demo`).
 2. Try the change against demo data: `npm run dev` (with
    `client/.env.local` on the demo project), or the demo Vercel
    project's preview of the branch.
-3. Push / merge to `main`. Both sites rebuild; with the GitHub integration
-   on, the migration runs on the live database. Without it:
-   `npx supabase db push` (the folder is linked to the live project).
+3. Run it on the live database (`npm run release:db -- muaan`, after its
+   backup), **then** push / merge to `main`. Both sites rebuild.
 4. **Changed an Edge Function?** Deploy it to both:
 
    ```bash

@@ -1,7 +1,7 @@
 import test, { describe, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { handleStaffRequest, validateStaffInput, isDisabled, accessInput, isLiveProject, staffChanges, LIVE_PROJECT_ID } from '../../supabase/functions/manage-staff/handler.js';
+import { handleStaffRequest, validateStaffInput, isDisabled, accessInput, isLiveProject, staffChanges, DEMO_PROJECT_ID } from '../../supabase/functions/manage-staff/handler.js';
 import { LIVE_PROJECT_ID as SITE_LIVE_PROJECT_ID } from '../src/lib/database.js';
 
 /**
@@ -277,8 +277,12 @@ describe('manage-staff: access levels', () => {
     assert.match(accessInput({ access: 'demo' }, { live: true }).error, /demo site only/);
     assert.deepEqual(accessInput({ access: 'full' }, { live: true }), { access: 'full', access_gkk_id: null });
     assert.equal(isLiveProject('https://rmlkowkbonbrtaqocsvo.supabase.co'), true);
+    // Every parish is live, without being named here: the same function goes to all of them.
+    assert.equal(isLiveProject('https://ixfzajjtzuwelkjnssjt.supabase.co'), true);
     assert.equal(isLiveProject('https://qyoyuukpdjrwfhovtrwd.supabase.co'), false);
-    assert.equal(isLiveProject(''), false);
+    assert.equal(isLiveProject(`https://${DEMO_PROJECT_ID.toUpperCase()}.supabase.co`), false);
+    // Unknown means no Demo access.
+    assert.equal(isLiveProject(''), true);
   });
 
   test('the live project refuses to make a demo account', async () => {
@@ -352,7 +356,7 @@ describe('manage-staff: the activity log', () => {
 });
 
 describe('the live project', () => {
-  test('manage-staff and the site agree which project is the live registry', () => {
-    assert.equal(LIVE_PROJECT_ID, SITE_LIVE_PROJECT_ID);
+  test("the site's live registry is one where manage-staff refuses Demo access", () => {
+    assert.equal(isLiveProject(`https://${SITE_LIVE_PROJECT_ID}.supabase.co`), true);
   });
 });

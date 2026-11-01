@@ -2,6 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Icon } from './Icons.jsx';
 import { Chip, TONES, useShare } from './kit.jsx';
+import { api } from '../../api.js';
+import { fmtFileSize } from '../../lib/gkkDocuments.js';
 import { EVENT_TONES, todayIso } from '../../lib/website.js';
 import {
   ANNOUNCEMENT_LABELS, ARTICLE_LABELS, EVENT_ICONS, EVENT_TYPE_LABELS, BIS_MONTHS_SHORT,
@@ -24,14 +26,16 @@ export function ArticleChip({ a }) {
  * always have it. `fill` (Home, stacked beside the event card) shares the
  * column's height with the other card, shows more of the text and pins
  * "Basaha" to the bottom.
+ *
+ * With a photo (0112): across the top of the card, shown whole like an
+ * event's cover (posters keep their text); on Home (`fill`), where two cards
+ * stack beside the next event, a small square beside the title instead.
  */
 export function AnnouncementCard({ a, full = false, fill = false }) {
-  return (
-    <Link
-      to={`/pahibalo/${a.id}`}
-      className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm p-3.5 lg:p-[18px] lg:rounded-[18px] site-lift hover:border-[var(--p-blue-border)] ${a.urgent ? 'border-l-[5px]' : ''} ${fill ? 'flex flex-col flex-1' : 'block'}`}
-      style={a.urgent ? { borderLeftColor: TONES.red.color } : undefined}
-    >
+  const thumb = fill && a.photo_url;
+  const cover = !fill && a.photo_url;
+  const text = (
+    <>
       <AnnouncementMeta a={a} showEnd={false} />
       <div className={`font-serif font-bold leading-[1.2] lg:leading-[1.18] text-parish-navy lg:text-[23px] lg:mb-1.5 ${full ? 'text-[21px] mb-1' : 'text-[20px]'}`}>{a.title}</div>
       {a.body && (
@@ -39,6 +43,26 @@ export function AnnouncementCard({ a, full = false, fill = false }) {
       )}
       {/* The end date under the text, not squeezed into the label row where it wraps on its own. */}
       {a.expires_on && <div className="mt-1.5 text-[13px] lg:text-[13.5px] font-semibold text-[var(--p-eyebrow)]">Hangtod {fmtShort(a.expires_on)}</div>}
+    </>
+  );
+  return (
+    <Link
+      to={`/pahibalo/${a.id}`}
+      className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm lg:rounded-[18px] site-lift hover:border-[var(--p-blue-border)] ${cover ? 'overflow-hidden flex flex-col' : 'p-3.5 lg:p-[18px]'} ${a.urgent ? 'border-l-[5px]' : ''} ${fill ? 'flex flex-col flex-1' : cover ? '' : 'block'}`}
+      style={a.urgent ? { borderLeftColor: TONES.red.color } : undefined}
+    >
+      {cover && (
+        <div className="relative flex-none h-[170px] lg:h-[200px] bg-[#efe6d3] overflow-hidden">
+          <img src={a.photo_url} alt="" aria-hidden loading="lazy" className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-70" />
+          <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-contain" />
+        </div>
+      )}
+      {cover ? <div className="p-3.5 lg:p-[18px]">{text}</div> : thumb ? (
+        <div className="flex gap-3 lg:gap-4 items-start">
+          <div className="flex-1 min-w-0">{text}</div>
+          <img src={a.photo_url} alt="" loading="lazy" className="flex-none w-[72px] h-[72px] lg:w-[96px] lg:h-[96px] rounded-xl object-cover border border-parish-border" />
+        </div>
+      ) : text}
       {fill && <span className="hidden lg:inline-flex mt-auto pt-3 items-center gap-1 font-bold text-[15px] text-parish-blue">Basaha<Icon name="chev" size={16} /></span>}
     </Link>
   );
@@ -60,6 +84,23 @@ export function AnnouncementMeta({ a, className = 'mb-1.5 lg:mb-2', showEnd = tr
       <span className="text-[13px] lg:text-[13.5px] text-parish-text2">{fmtShort(a.publish_on)}</span>
       {showEnd && a.expires_on && <span className="text-[13px] lg:text-[13.5px] font-semibold text-[var(--p-eyebrow)]">· Hangtod {fmtShort(a.expires_on)}</span>}
     </div>
+  );
+}
+
+/**
+ * A bulletin's PDF, when it has one (0110): "I-download ang PDF (1.2 MB)".
+ * The size is there because mobile data is costly; it opens in the browser
+ * (the download attribute isn't relied on, phones differ).
+ */
+export function BulletinPdf({ b, className = '' }) {
+  if (!b?.file_path) return null;
+  return (
+    <a
+      href={api.bulletinFileUrl(b)} target="_blank" rel="noopener noreferrer"
+      className={`inline-flex items-center gap-2 min-h-[44px] px-4 rounded-xl border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14.5px] text-parish-blueDeep hover:bg-[var(--p-blue-tint)] ${className}`}
+    >
+      <Icon name="doc" size={18} />I-download ang PDF{b.size_bytes ? <span className="font-semibold text-parish-text2">({fmtFileSize(b.size_bytes)})</span> : null}
+    </a>
   );
 }
 

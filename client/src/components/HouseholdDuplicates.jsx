@@ -94,7 +94,7 @@ export default function HouseholdDuplicates() {
         match). A family that registered with the wrong Household Head and then again with the right one shows up here. Compare the two. If they're the same house, keep the one with the right Household Head:
         add anyone missing to it, merge the people in both under{' '}
         <Link to="/admin/members?view=duplicates" className="font-semibold text-parish-blue">Members → Possible Duplicates</Link>, then delete the extra
-        household from the Households list (it stays in the Trash for 30 days). If they're different houses, choose <strong>Not the same household</strong>.
+        household from the Households list (it stays in the Trash for 3 months). If they're different houses, choose <strong>Not the same household</strong>.
         {flags.canSend && (
           <> Pairs with a household of another GKK show here too. Only the parish office can delete a household or change another
           GKK's, so choose <strong>Send to the parish office</strong>: the office is alerted, and you're told when it's fixed.</>

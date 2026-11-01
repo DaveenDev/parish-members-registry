@@ -20,6 +20,8 @@ export const FORMS = {
     intro: 'Para sa sertipiko sa Bunyag, Kumpil o Kasal nga nahimo dinhi sa parokya.',
     who: 'Ang kawani sa opisina sa parokya lang ang makakita niini.',
     notes: ['Kinahanglan og ID inig kuha.', 'Mo-text ang opisina kung andam na kuhaon.'],
+    // The office's own line about the processing time and fee (Parish Website → Office), when it set one.
+    officeNote: 'certificate_note',
     steps: [
       { title: 'Unsang sertipiko?', fields: [
         { k: 'certType', type: 'choice', req: true, label: 'Klase sa sertipiko', opts: opts([['baptism', 'Bunyag (Baptismal)'], ['confirmation', 'Kumpil (Confirmation)'], ['matrimony', 'Kasal (Marriage)']]) },
@@ -38,6 +40,8 @@ export const FORMS = {
       { title: 'Para asa ug pila?', fields: [
         { k: 'purpose', type: 'choice', req: true, label: 'Para asa', opts: opts(['Eskwelahan', 'Trabaho', 'Kasal', 'Uban pa']) },
         { k: 'copies', type: 'select', label: 'Pila ka kopya', opts: opts(['1', '2', '3', '4', '5']), def: '1' },
+        // The values the database accepts (0107 submit_certificate_request).
+        { k: 'pickup', type: 'select', label: 'Unsaon pagkuha (opsyonal)', opts: opts(['Ako mismo', 'Ang akong representante', 'Ipadala sa courier']), hint: 'Ang representante magdala og sulat, ID sa nangayo ug ID sa iyang kaugalingon.' },
       ] },
       { title: 'Kinsa ang nangayo?', fields: [
         { k: 'requesterName', type: 'text', req: true, label: 'Imong ngalan' },
@@ -145,6 +149,31 @@ export const FORMS = {
     ],
     doneLink: { to: PRAYER_WALL, label: 'Tan-awa ang Mga Hangyo sa Pag-ampo' },
     submit: (v) => api.submitPrayerRequest(v),
+  },
+
+  // "Interesado ko" on a ministry or organization page (0111 submit_group_interest);
+  // the group comes from the link (?groupName=…&groupKind=…), so there's no form without one.
+  interesado: {
+    title: 'Interesado Ko',
+    short: 'Interesado ko',
+    intro: 'Isulat ang imong ngalan ug numero, ug kontakon ka sa among kawani bahin sa grupo.',
+    who: 'Ang kawani sa opisina sa parokya lang ang makakita niini.',
+    needs: 'groupName',
+    steps: [
+      { title: 'Ikaw ug ang grupo', fields: [
+        { k: 'groupKind', type: 'hidden', prefill: true },
+        { k: 'groupName', type: 'text', req: true, readOnly: true, prefill: true, label: 'Grupo' },
+        { k: 'fullName', type: 'text', req: true, label: 'Imong ngalan' },
+        mobile('mobile'),
+        { k: 'gkk', type: 'select', label: 'Imong GKK (opsyonal)', opts: 'gkks' },
+        { k: 'message', type: 'area', label: 'Mensahe (opsyonal)', ph: 'e.g. Kanus-a ang sunod nga tigom?' },
+        consent,
+      ] },
+    ],
+    next: ['Kontakon ka sa kawani sa parokya sa imong mobile number.', 'Ipahibalo namo kanimo ang sunod nga tigom sa grupo.'],
+    noRef: true,
+    doneLink: { to: '/komunidad/grupo', label: 'Tan-awa ang uban pang grupo' },
+    submit: (v) => api.submitGroupInterest(v),
   },
 
   dugo: {

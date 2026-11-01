@@ -6,7 +6,7 @@
 // before: lib/seo.js sets the same tags once the page loads.
 
 import { canonicalUrl, excerpt, pageDescription } from './seo.js';
-import { BIS_DAYS, eventDays, fmtLong, fmtShort, parseIso } from './site.js';
+import { BIS_DAYS, cleanGuideKey, eventDays, fmtLong, fmtShort, guidePath, parseIso } from './site.js';
 import { songIdFromParam } from './downloads.js';
 import { prayerTitle } from './prayers.js';
 import { parishTitle } from './parishName.js';
@@ -20,10 +20,12 @@ export const PREVIEW_BOTS = ['facebookexternalhit', 'Facebot', 'meta-externalage
 const PAGE_TITLES = [
   ['/simbahan/pagbasa', 'Mga Pagbasa'],
   ['/simbahan/kasaysayan', 'Kasaysayan'],
+  ['/simbahan/kaabag', 'Mga Kaabag'],
   ['/simbahan', 'Ang Simbahan'],
   ['/pahibalo', 'Pahibalo ug Kalihokan'],
   ['/komunidad/artikulo', 'Mga Artikulo'],
   ['/komunidad/pag-ampo', 'Mga Hangyo sa Pag-ampo'],
+  ['/komunidad/grupo', 'Mga Ministry ug Organisasyon'],
   ['/komunidad', 'Komunidad'],
   ['/serbisyo/dugo', 'Blood Donor Call'],
   ['/serbisyo/susiha', 'Susiha ang Rehistro'],
@@ -35,11 +37,13 @@ const PAGE_TITLES = [
 
 /**
  * What a shared address shows: { kind, id } for one item (an event,
- * announcement, bulletin, article, GKK, song or prayer request), else
- * { kind: 'page' }.
+ * announcement, bulletin, article, GKK, song, prayer request or sacrament
+ * guide), else { kind: 'page' }. `guide` is the address's ?guide= (a
+ * sacrament guide on Ang Simbahan, guidePath()).
  */
-export function shareTarget(pathname) {
+export function shareTarget(pathname, guide = '') {
   const p = String(pathname || '/').replace(/\/+$/, '') || '/';
+  if (p === '/simbahan' && cleanGuideKey(guide)) return { kind: 'guides', id: cleanGuideKey(guide) };
   const parts = p.split('/').filter(Boolean).map((s) => { try { return decodeURIComponent(s); } catch { return s; } });
   const id = (s) => (/^\d+$/.test(s || '') ? Number(s) : null);
   const [a, b, c] = parts;
@@ -100,6 +104,9 @@ export function itemPreview(kind, row, parish) {
     // As public_prayer_request() (0100) gives it: never a contact detail, the name only if they chose.
     case 'prayers':
       return { title: fullTitle(`Hangyo sa pag-ampo: ${prayerTitle(row)}`, parish), description: excerpt(row.intention), image: null, type: 'article' };
+    // A sacrament guide, as its card on Ang Simbahan says it (guideDescription).
+    case 'guides':
+      return { title: fullTitle(row.title, parish), description: guideDescription(row), image: null, type: 'article' };
     case 'gkk':
       return {
         title: fullTitle(row.name, parish),
@@ -111,6 +118,19 @@ export function itemPreview(kind, row, parish) {
       return null;
   }
 }
+
+/**
+ * A sacrament guide in a line for search results and link previews: its
+ * summary, then the documents to bring.
+ */
+export function guideDescription(g) {
+  const docs = (g?.requirements || []).filter(Boolean);
+  return excerpt([g?.summary, docs.length && `Dad-a: ${docs.join(', ')}`].filter(Boolean).join(' · '))
+    || `Unsa ang dad-on ug unsa ang mga lakang alang sa ${g?.title || 'sakramento'}.`;
+}
+
+/** The address a preview names as the page's own: a guide's guidePath(), else the path. */
+export const previewPath = (pathname, target) => (target?.kind === 'guides' ? guidePath(target.id) : pathname);
 
 /** Text safe inside an HTML attribute or element. */
 export const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

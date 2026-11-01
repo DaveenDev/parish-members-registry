@@ -6,7 +6,7 @@ import DemoBanner from './components/DemoBanner.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Home from './pages/site/Home.jsx';
 import {
-  Developer, Simbahan, Pagbasa, Kasaysayan, Pahibalo, Komunidad, KomunidadCensus, GkkDetail, ArticlesArchive, PrayerWall, PrayerDetail, Serbisyo, Kontak, Blood,
+  Developer, Simbahan, Pagbasa, Kasaysayan, Kaabag, Pahibalo, Komunidad, KomunidadCensus, GkkDetail, ArticlesArchive, PrayerWall, PrayerDetail, Groups, GroupDetail, Serbisyo, Kontak, Blood,
   CheckStatus, RequestForm, Downloads, SongPage, SiteNotFound, EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail, ArticleRedirect,
 } from './pages/site/lazyPages.js';
 
@@ -99,6 +99,7 @@ export default function App() {
           <Route path="/simbahan" element={<Simbahan />} />
           <Route path="/simbahan/pagbasa" element={<Pagbasa />} />
           <Route path="/simbahan/kasaysayan" element={<Kasaysayan />} />
+          <Route path="/simbahan/kaabag" element={<Kaabag />} />
           {/* The page was Misa ug Sakramento: old links keep their ?view=. */}
           <Route path="/misa" element={<ToSimbahan />} />
           <Route path="/misa/kalihokan/:id" element={<EventDetail />} />
@@ -115,6 +116,8 @@ export default function App() {
           <Route path="/komunidad/gkk/:name" element={<GkkDetail />} />
           <Route path="/komunidad/pag-ampo" element={<PrayerWall />} />
           <Route path="/komunidad/pag-ampo/:id" element={<PrayerDetail />} />
+          <Route path="/komunidad/grupo" element={<Groups />} />
+          <Route path="/komunidad/grupo/:kind/:id" element={<GroupDetail />} />
           <Route path="/serbisyo" element={<Serbisyo />} />
           <Route path="/serbisyo/susiha" element={<CheckStatus />} />
           <Route path="/serbisyo/dugo" element={<Blood />} />
