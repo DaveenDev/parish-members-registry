@@ -1,10 +1,8 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import {
-  firstSunday, groupMonths, groupSundays, isKaabagGroup, massRule, monthChoices, monthName, monthOf, monthTitle, nextAutoRun, nextMonth,
-  openingMonth, peopleLines, placesShort, setMassRule, validServers,
-} from '../src/lib/kaabag.js';
+import { firstSunday, groupMonths, groupSundays, isKaabagGroup, massRule, monthChoices, monthName, monthOf, monthTitle, nextAutoRun, nextMonth,
+  openingMonth, peopleLines, placesShort, setMassRule, validServers, isKaabagChart, unnamedCount } from '../src/lib/kaabag.js';
 import { describeActivity } from '../src/lib/activity.js';
 
 describe('the Kaabag schedule: dates', () => {
@@ -128,5 +126,20 @@ describe('the Kaabag schedule: the activity log', () => {
     const d = describeActivity({ table_name: 'kaabag_roster', action: 'update', changes: { show_publicly: [false, true], consent_on: [null, '2026-11-01'] } });
     assert.equal(d.title, 'Updated the name on the Kaabag list');
     assert.deepEqual(d.lines, ['Show on the website: No → Yes', 'Agreed on: — → 2026-11-01']);
+  });
+});
+
+describe('the directory and the structure chart (0115)', () => {
+  test('counts those on the list who are not named, because they have not agreed', () => {
+    assert.equal(unnamedCount({ total: 12, people: new Array(8).fill({}) }), 4);
+    assert.equal(unnamedCount({ total: 3, people: [{}, {}, {}] }), 0);
+    assert.equal(unnamedCount({ total: 0, people: [] }), 0);
+    assert.equal(unnamedCount(null), 0);
+    assert.equal(unnamedCount(undefined), 0);
+  });
+  test('the Kaabag Structure is known by its slug, whatever it is called', () => {
+    assert.ok(isKaabagChart({ slug: 'kaabag-structure', title: 'Mga Opisyal sa Kaabag' }));
+    assert.ok(!isKaabagChart({ slug: 'church-structure', title: 'Kaabag Structure' }));
+    assert.ok(!isKaabagChart(null));
   });
 });

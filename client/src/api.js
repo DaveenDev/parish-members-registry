@@ -1539,6 +1539,17 @@ export const api = {
     if (error) throw mapError(error);
     return data || [];
   },
+  /**
+   * The Kaabag directory (0115): { total, people: [{ name, photo }] }, the
+   * people who agreed to be shown, A to Z; `total` is everyone on the list.
+   * Empty before the migration is run.
+   */
+  async publicKaabagDirectory() {
+    const { data, error } = await supabase.rpc('public_kaabag_directory');
+    if (error?.code === 'PGRST202') return { total: 0, people: [] };
+    if (error) throw mapError(error);
+    return { total: data?.total || 0, people: data?.people || [] };
+  },
   /** Published sacrament guides (requirements and steps), in the office's order. */
   publicSacramentGuides: () => listPublished('sacrament_guides', (q) => q.order('sort').order('id')),
   /**

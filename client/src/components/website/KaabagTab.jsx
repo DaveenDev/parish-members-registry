@@ -12,7 +12,8 @@ import { fmtTime, todayIso } from '../../lib/website.js';
 import {
   KAABAG_PAGE, MAX_SERVERS, groupSundays, massRule, monthChoices, monthName, monthOf, nextAutoRun, openingMonth, placesShort, setMassRule, validServers,
 } from '../../lib/kaabag.js';
-import { Panel, RowButton, SectionLabel, TabIntro } from './shared.jsx';
+import { HolderAvatar } from '../orgchart/NodePanel.jsx';
+import { FilePick, Panel, RowButton, SectionLabel, TabIntro } from './shared.jsx';
 
 const place = (s) => [s.location, s.language].filter(Boolean).join(' · ');
 const sunday = (iso) => `Sun, ${fmtDate(iso)}`;
@@ -308,7 +309,7 @@ function People({ data, onChanged }) {
       confirmLabel: 'Take off the list',
       tone: 'danger',
     });
-    if (ok) act(() => api.removeKaabagName(r.id));
+    if (ok) act(async () => { await api.removeKaabagName(r.id); if (r.photo_url) api.deleteImage(r.photo_url).catch(() => {}); });
   }
 
   function add(e) {
@@ -325,7 +326,7 @@ function People({ data, onChanged }) {
           Members in the Kaabag ministry come in by themselves from <Link to="/admin/ministries" className="text-parish-blue font-semibold no-underline hover:underline">Ministry rosters</Link>. With nobody registered yet, type the names here and they go into the draw the same way.
         </p>
         <p className="m-0 mt-2 text-[13.5px] text-parish-text2 max-w-[640px]">
-          <strong className="text-parish-navy">Names stay off the website until the person agrees</strong> (Data Privacy Act). Until then the website only counts them. Tick “Show on the website” once they have; the day is noted.
+          <strong className="text-parish-navy">Names stay off the website until the person agrees</strong> (Data Privacy Act). Until then the website only counts them. Tick “Show on the website” once they have; the day is noted. The photo goes with the name, in the directory on the Kaabag page.
         </p>
         <p className="m-0 mt-2 text-[12.5px] text-parish-muted">{roster.length} on the list · {drawn} in the draw · {named} shown by name on the website</p>
         {!viewOnly && (
@@ -338,6 +339,7 @@ function People({ data, onChanged }) {
       {!roster.length ? <EmptyState title="Nobody on the list yet" subtitle="Add members to the Kaabag ministry, or type names above." /> : roster.map((r) => (
         <div key={r.id} className="flex items-center gap-x-4 gap-y-1.5 px-5 py-2.5 flex-wrap border-t border-parish-line">
           <div className="flex-1 min-w-[190px] flex items-center gap-2 flex-wrap">
+            <HolderAvatar photo={r.photo_url} name={r.name} size={36} />
             <span className="font-semibold text-[14.5px] text-parish-navy">{r.name}</span>
             <Badge tone={r.member_id ? 'blue' : 'gray'}>{r.member_id ? 'Registered' : 'Typed name'}</Badge>
           </div>
@@ -349,9 +351,49 @@ function People({ data, onChanged }) {
             <Checkbox checked={r.show_publicly} disabled={viewOnly || busy} onChange={(e) => act(() => api.saveKaabagPerson(r.id, { show_publicly: e.target.checked }))} className="w-4 h-4" />
             Show on the website
           </label>
+          <PhotoButtons person={r} busy={busy} onChanged={onChanged} />
           {!r.member_id && <RowButton tone="red" disabled={busy} onClick={() => remove(r)}>Remove</RowButton>}
         </div>
       ))}
     </Panel>
+  );
+}
+
+/**
+ * A person's photo for the website's directory (0115): upload or replace it,
+ * or take it off. The photo they had is deleted from the photo storage once
+ * the new one is saved, and a new one that can't be saved is deleted again.
+ * It shows on the website only once they're ticked "Show on the website".
+ */
+function PhotoButtons({ person, busy, onChanged }) {
+  const toast = useToast();
+  const viewOnly = useViewOnly();
+  const [working, setWorking] = useState(false);
+  if (viewOnly) return null;
+
+  async function change(file) {
+    setWorking(true);
+    let uploaded = null;
+    try {
+      if (file) {
+        if (!file.type.startsWith('image/')) throw new Error(`${file.name} isn't an image`);
+        uploaded = await api.uploadImage(file, 'org');
+      }
+      await api.saveKaabagPerson(person.id, { photo_url: uploaded });
+      if (person.photo_url) api.deleteImage(person.photo_url).catch(() => {});
+      await onChanged();
+    } catch (e) {
+      if (uploaded) api.deleteImage(uploaded).catch(() => {});
+      toast.error(e.message || 'Could not change the photo');
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  return (
+    <span className="flex items-center gap-2">
+      <FilePick label={person.photo_url ? 'Change photo' : 'Add photo'} onFiles={([f]) => change(f)} busy={working} disabled={busy} />
+      {person.photo_url && !working && <RowButton tone="gray" disabled={busy} onClick={() => change(null)}>Remove photo</RowButton>}
+    </span>
   );
 }

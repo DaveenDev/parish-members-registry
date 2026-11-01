@@ -6,6 +6,9 @@ import { BIS_MONTHS, parseIso } from './site.js';
 import { addDays, todayIso } from './website.js';
 
 export const KAABAG_PAGE = '/simbahan/kaabag';
+/** The built-in Kaabag Structure org chart (0115); it keeps its slug when it's renamed. */
+export const KAABAG_CHART_SLUG = 'kaabag-structure';
+export const isKaabagChart = (chart) => chart?.slug === KAABAG_CHART_SLUG;
 /** The ministry the schedule is for ("Kaabag", or a longer name starting with it, as in kaabag_registered). */
 export const isKaabagGroup = (name) => /^\s*kaabag/i.test(String(name || ''));
 
@@ -130,3 +133,9 @@ export function setMassRule(rules, id, patch) {
 export const MAX_SERVERS = 12;
 /** A whole number of Kaabag a Mass can have. */
 export const validServers = (n) => Number.isInteger(n) && n >= 1 && n <= MAX_SERVERS;
+
+/**
+ * How many on the Kaabag list the directory leaves out, because they haven't
+ * agreed to be shown (public_kaabag_directory: { total, people }).
+ */
+export const unnamedCount = (dir) => Math.max(0, (dir?.total || 0) - (dir?.people?.length || 0));
