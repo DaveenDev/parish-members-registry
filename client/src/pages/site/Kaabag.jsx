@@ -1,23 +1,39 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { BAND_PAD, Band, BigButton, Card, DataState, Eyebrow, PageHeader, Skeletons, WRAP, useShare } from '../../components/site/kit.jsx';
-import { fmtLong, fmtTime12 } from '../../lib/site.js';
+import { BAND_PAD, Band, BigButton, Card, DataState, Eyebrow, PageHeader, Skeleton, Skeletons, WRAP, useShare } from '../../components/site/kit.jsx';
+import { KaabagChart, useKaabagChart } from '../../components/site/OrgCharts.jsx';
+import { fmtLong, fmtTime12, initialsOf } from '../../lib/site.js';
 import { todayIso } from '../../lib/website.js';
-import { KAABAG_PAGE, groupMonths, groupSundays, isKaabagGroup, monthTitle, peopleLines } from '../../lib/kaabag.js';
+import { KAABAG_PAGE, groupMonths, groupSundays, isKaabagGroup, monthTitle, peopleLines, unnamedCount } from '../../lib/kaabag.js';
 import { groupInterestPath, groupPath } from '../../lib/groups.js';
 import { useSiteTitle } from './SiteLayout.jsx';
-import { listState, useGroups, useKaabagSchedule } from './data.js';
+import { listState, useGroups, useKaabagDirectory, useKaabagSchedule } from './data.js';
 
 /**
  * /simbahan/kaabag: who serves at each Sunday Mass. The next Sunday first, in
  * big cards, then the rest of what's scheduled by month. The office makes the
  * schedule (Parish Website → Kaabag Schedule). A person shows by name only
- * once they've agreed; the others are just counted (peopleLines).
+ * once they've agreed; the others are just counted (peopleLines). Then the
+ * directory (names and photos, again only of those who agreed) and the
+ * Kaabag Structure chart, once it's published.
  */
 export default function Kaabag() {
   useSiteTitle('Mga Kaabag');
   const q = listState(useKaabagSchedule());
+  const chart = useKaabagChart();
   const share = useShare();
+
+  // A link to one of the sections (Organization Structure's "View on the
+  // website" opens #estruktura): there once it has loaded, the one time.
+  const { hash } = useLocation();
+  const arrived = useRef(false);
+  useEffect(() => {
+    const id = hash.slice(1);
+    if (arrived.current || !id || q.loading || (id === 'estruktura' && !chart)) return;
+    arrived.current = true;
+    requestAnimationFrame(() => document.getElementById(id)?.scrollIntoView({ block: 'start' }));
+  }, [hash, q.loading, chart]);
   const [next, ...later] = groupSundays(q.rows);
   return (
     <main className="animate-fadeUp">
@@ -56,6 +72,20 @@ export default function Kaabag() {
           ))}
         </DataState>
       </section>
+
+      <Directory />
+
+      {chart && (
+        <section id="estruktura" aria-labelledby="estruktura-title" className="scroll-mt-16 lg:scroll-mt-[76px] py-8 lg:py-14">
+          <div className={WRAP}>
+            <div data-reveal className="mb-3 lg:mb-[22px]">
+              <Eyebrow>Mga opisyal</Eyebrow>
+              <h2 id="estruktura-title" className="m-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Estruktura sa Kaabag</h2>
+            </div>
+            <Card className="p-3.5 lg:p-5 lg:rounded-[20px]"><KaabagChart chart={chart} /></Card>
+          </div>
+        </section>
+      )}
 
       <JoinKaabag />
     </main>
@@ -110,6 +140,45 @@ function People({ names, className = '' }) {
     <div className={`font-semibold leading-snug text-parish-ink ${className}`}>
       {lines.length ? lines.map((line) => <div key={line}>{line}</div>) : <div className="font-normal text-parish-text2">—</div>}
     </div>
+  );
+}
+
+/**
+ * Direktoryo sa Kaabag: a card with the photo and name of each Kaabag who
+ * agreed to be shown (0115). The others are only counted. Nothing at all while
+ * nobody agreed, so the page doesn't open on an empty section.
+ */
+function Directory() {
+  const q = useKaabagDirectory();
+  const people = q.data?.people || [];
+  if (q.error || (!q.loading && !people.length)) return null;
+  const hidden = unnamedCount(q.data);
+  return (
+    <Band as="section" id="direktoryo" aria-labelledby="direktoryo-title" className="scroll-mt-16 lg:scroll-mt-[76px] border-t">
+      <div className={`${WRAP} ${BAND_PAD}`}>
+        <div data-reveal className="mb-3 lg:mb-[22px]">
+          <Eyebrow>Mga sakop</Eyebrow>
+          <h2 id="direktoryo-title" className="m-0 font-serif text-[30px] lg:text-[40px] font-bold text-parish-navy leading-tight">Direktoryo sa Kaabag</h2>
+        </div>
+        {q.loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">{[0, 1, 2, 3, 4].map((i) => <Skeleton key={i} h={190} alt={i % 2 === 1} />)}</div>
+        ) : (
+          <>
+            <ul className="list-none m-0 p-0 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 lg:gap-4">
+              {people.map((p, i) => (
+                <li key={`${p.name}-${i}`} className="bg-parish-card border border-parish-border rounded-2xl shadow-cardSm px-3 pt-4 pb-3.5 lg:px-4 lg:pt-5 flex flex-col items-center text-center">
+                  {p.photo
+                    ? <img src={p.photo} alt="" loading="lazy" className="w-[88px] h-[88px] lg:w-[104px] lg:h-[104px] rounded-full object-cover border-2 border-[var(--p-gold)] bg-[#efe6d3]" />
+                    : <span aria-hidden className="w-[88px] h-[88px] lg:w-[104px] lg:h-[104px] rounded-full flex items-center justify-center font-bold text-white text-[30px] lg:text-[34px] border-2 border-[var(--p-gold)]" style={{ background: 'var(--p-navy)' }}>{initialsOf(p.name)}</span>}
+                  <div className="mt-2.5 font-serif font-bold text-[17px] lg:text-[19px] leading-tight text-parish-navy [overflow-wrap:anywhere]">{p.name}</div>
+                </li>
+              ))}
+            </ul>
+            {hidden > 0 && <p className="m-0 mt-4 text-[14px] text-parish-text2">Dugang {hidden} ka Kaabag nga wala pa mohatag og pagtugot nga ipakita ang ilang ngalan.</p>}
+          </>
+        )}
+      </div>
+    </Band>
   );
 }
 

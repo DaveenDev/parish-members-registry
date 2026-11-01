@@ -67,7 +67,7 @@ const RECORD_FIELD_LABELS = {
     logo: 'Logo', hero_image: 'Home page photo', site_url: 'Website address', census_interval_months: 'Census schedule',
     outgoing_email: 'Parish email', outgoing_name: 'Email sender name',
     servers_per_mass: 'Kaabag at each Mass', mass_rules: 'Rules for each Mass', auto_generate: 'Made automatically',
-    on_rotation: 'In the draw', show_publicly: 'Show on the website', consent_on: 'Agreed on',
+    on_rotation: 'In the draw', photo_url: 'Photo', show_publicly: 'Show on the website', consent_on: 'Agreed on',
 };
 
 /** A requests, census, website, settings or staff entry (0076). */

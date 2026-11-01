@@ -33,7 +33,18 @@ const ROOTS = TABS.map((t) => t.to);
 const DESK_NAV = [
   { to: '/', label: 'Home', match: (p) => p === '/' },
   { to: '/pahibalo', label: 'Pahibalo ug Kalihokan', short: 'Pahibalo', match: (p) => p.startsWith('/pahibalo') },
-  { to: '/simbahan', label: 'Ang Simbahan', short: 'Simbahan', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa') },
+  {
+    to: '/simbahan', label: 'Ang Simbahan', short: 'Simbahan', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa'),
+    // Its submenu: Ang Simbahan itself still opens /simbahan. The Mass schedule and
+    // the sacraments are sections of that page (?view= takes the visitor there);
+    // the History and the Kaabag have pages of their own.
+    sub: [
+      { to: '/simbahan?view=misa', label: 'Iskedyul sa Misa', hint: 'Oras sa Misa matag semana', icon: 'clock', match: (p, q) => p === '/simbahan' && q.get('view') === 'misa' },
+      { to: '/simbahan?view=sakramento', label: 'Mga Sakramento', hint: 'Unsa ang dad-on ug ang mga lakang', icon: 'church', match: (p, q) => p === '/simbahan' && (q.get('view') === 'sakramento' || q.get('tab') === 'sakramento' || q.has('guide')) },
+      { to: '/simbahan/kasaysayan', label: 'Kasaysayan', hint: 'Ang kasaysayan sa parokya', icon: 'cross', match: (p) => p.startsWith('/simbahan/kasaysayan') },
+      { to: '/simbahan/kaabag', label: 'Kaabag', hint: 'Iskedyul, direktoryo ug estruktura', icon: 'people', match: (p) => p.startsWith('/simbahan/kaabag') },
+    ],
+  },
   {
     to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad'),
     // Its submenu: Komunidad itself still opens /komunidad.
@@ -372,6 +383,7 @@ function NavMenu({ item, link, pathname, search }) {
               <li key={s.to}>
                 <Link
                   to={s.to}
+                  state={{ jump: true }}
                   aria-current={on ? 'page' : undefined}
                   onClick={() => setOpen(false)}
                   className={`flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[var(--p-blue-tint)] ${on ? 'bg-[var(--p-blue-tint)]' : ''}`}

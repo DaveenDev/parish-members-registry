@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, Navigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import SacramentIcon from '../../components/SacramentIcon.jsx';
 import { BAND_PAD, Band, BigButton, DataState, EmptyNote, Eyebrow, Segmented, Skeleton, Skeletons, WRAP, useShare } from '../../components/site/kit.jsx';
@@ -9,7 +9,7 @@ import { KALENDARYO_PAGE, cleanGuideKey, guidePath, guideShortTitle, massLocatio
 import { guideDescription } from '../../lib/share.js';
 import { PageMeta } from './SiteLayout.jsx';
 import { HISTORY_PAGE, openingParagraph } from '../../lib/history.js';
-import { listState, useAnnouncements, useHistory, useKaabagSchedule, useMassSchedule, useOrgCharts, useSacramentGuides } from './data.js';
+import { listState, useAnnouncements, useHistory, useKaabagSchedule, useMassSchedule, useParishOrgCharts, useSacramentGuides } from './data.js';
 import { KAABAG_PAGE } from '../../lib/kaabag.js';
 
 // The sections under Mass: the sacrament guides and the org charts, as tabs
@@ -40,6 +40,15 @@ export default function Simbahan() {
   };
   // Arriving for the sacraments or the org charts: go straight to them.
   const [jump] = useState(() => params.get('view') === 'sakramento' || params.has('tab') || !!guide);
+  // The menu's Iskedyul sa Misa and Mga Sakramento (their links carry `jump`):
+  // there, also from this page, where nothing else would scroll. The layout
+  // scrolls a newly opened page to the top first, so this waits a frame.
+  const location = useLocation();
+  useEffect(() => {
+    if (!location.state?.jump) return;
+    const id = { misa: 'misa', sakramento: 'tudlo' }[params.get('view')];
+    if (id) requestAnimationFrame(() => scrollTo(id));
+  }, [location.key]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (params.get('view') === 'kalendaryo') return <Navigate replace to={KALENDARYO_PAGE} />;
   return (
@@ -84,10 +93,10 @@ const scrollTo = (id, behavior = 'smooth') => document.getElementById(id)?.scrol
 /** "On this page": the Mass schedule, the sacraments, the org charts and the history (those that have something to show). */
 function PageJumps({ onTab }) {
   const guides = listState(useSacramentGuides());
-  const charts = listState(useOrgCharts());
+  const charts = listState(useParishOrgCharts());
   const history = useHistory();
   const btn = 'flex-none min-h-[40px] px-3 sm:px-3.5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)]';
-  // On a phone the icons go, so all three fit across without scrolling.
+  // On a phone the icons go, so more fit across before the row scrolls.
   const icon = (name) => <Icon name={name} size={16} className="hidden sm:block" />;
   const open = (t) => { onTab(t); requestAnimationFrame(() => scrollTo('tudlo')); };
   return (
@@ -96,6 +105,7 @@ function PageJumps({ onTab }) {
       {guides.rows.length > 0 && <button type="button" className={btn} onClick={() => open('sakramento')}>{icon('church')}<span className="lg:hidden">Sakramento ↓</span><span className="hidden lg:inline">Mga Sakramento ↓</span></button>}
       {charts.rows.length > 0 && <button type="button" className={btn} onClick={() => open('organisasyon')}>{icon('people')}Organisasyon ↓</button>}
       {history.data?.main && <button type="button" className={btn} onClick={() => scrollTo('kasaysayan')}>{icon('cross')}Kasaysayan ↓</button>}
+      <Link to={KAABAG_PAGE} className={btn}>{icon('people')}Kaabag →</Link>
     </nav>
   );
 }
@@ -123,7 +133,7 @@ function KaabagLink() {
  */
 function TeachingTabs({ tab, onTab, chart, onChart, guide, onGuide, jump }) {
   const guides = listState(useSacramentGuides());
-  const charts = listState(useOrgCharts());
+  const charts = listState(useParishOrgCharts());
   const tabs = TEACH_TABS.filter(([k]) => (k === 'sakramento' ? guides.rows.length : charts.rows.length) > 0);
   const current = tabs.find(([k]) => k === tab) || tabs[0];
   const ready = !guides.loading && !charts.loading && tabs.length > 0;
