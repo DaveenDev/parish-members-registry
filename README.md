@@ -10,6 +10,8 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 
 **Demo admin panel: https://parish-registry-demo.vercel.app/admin** (press **Login to Demo Site**)
 
+**Releases and what's new: https://daveendev.github.io/parish-members-registry/** (copied the repository? Watch → Custom → Releases, or subscribe to its feed, to hear of each update)
+
 > **Free for any parish.** Copy it, set it up for your own parish and change it as you need, at no cost. The one condition: keep the **"Built For Free by DaveenDev"** credit in the app. See [Free for your parish](#free-for-your-parish).
 
 ## Free for your parish

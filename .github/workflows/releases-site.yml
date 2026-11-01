@@ -1,0 +1,101 @@
+# The releases page: builds releases/notes/*.md into a page and an Atom feed
+# (npm run releases:build) and publishes them on GitHub Pages, at
+# https://daveendev.github.io/parish-members-registry/. Then it makes a
+# GitHub Release (and its v<version> tag) for each notes file that doesn't
+# have one yet, so anyone watching the repository's releases gets an email.
+#
+# Setup, once: Settings → Pages → Build and deployment → Source: GitHub
+# Actions. It only runs in DaveenDev/parish-members-registry: a parish's copy
+# of the repository skips it.
+name: Releases page
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - releases/**
+      - scripts/releases-lib.mjs
+      - scripts/build-releases.mjs
+      - .github/workflows/releases-site.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: releases-site
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: github.repository == 'DaveenDev/parish-members-registry'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # No npm install: the build has no dependencies.
+      - name: Build the page
+        run: node scripts/build-releases.mjs build
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: releases/_site
+
+      - name: Keep the release list for the next job
+        uses: actions/upload-artifact@v4
+        with:
+          name: releases-json
+          path: releases/_site/releases.json
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+  github-releases:
+    needs: deploy
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: releases-json
+
+      # Oldest first, so the newest ends up marked "Latest". A release that
+      # already exists is left as it is.
+      - name: Make a GitHub Release for each new version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          count=$(jq length releases.json)
+          for i in $(seq $((count - 1)) -1 0); do
+            version=$(jq -r ".[$i].version" releases.json)
+            if gh release view "v$version" >/dev/null 2>&1; then
+              echo "v$version: already released"
+              continue
+            fi
+            jq -r ".[$i].body" releases.json > notes.md
+            gh release create "v$version" --target "$GITHUB_SHA" \
+              --title "v$version: $(jq -r ".[$i].title" releases.json)" \
+              --notes-file notes.md
+            echo "v$version: released"
+          done

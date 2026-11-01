@@ -19,3 +19,6 @@ Needed.txt
 # Sample Downloads made by scripts/sample-downloads.mjs
 supabase/seed/downloads-sample/
 supabase/seed/website-sample/
+
+# The releases page, built by npm run releases:build (published by the releases-site workflow)
+releases/_site/

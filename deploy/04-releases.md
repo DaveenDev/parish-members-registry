@@ -184,9 +184,10 @@ For each parish the order is always: **database, then Edge Functions,
 then website**. The names below (`demo`, `muaan`, `sjmv`) are examples: use
 the ones in your `parishes.json` (`npm run parish` lists them).
 
-1. **Commit on `main`**, the migration with the code that uses it. Don't
-   push yet. The scripts only send migrations and functions committed on
-   `main`, so another session's unfinished file in the folder stops them.
+1. **Commit on `main`**, the migration with the code that uses it, and the
+   release notes ([below](#release-notes-the-releases-page)). Don't push
+   yet. The scripts only send migrations and functions committed on `main`,
+   so another session's unfinished file in the folder stops them.
 2. **See what each parish still needs** (far more than this release's new
    ones means its history is missing hand-run migrations: fix that first, as
    in [A database whose migrations were run by hand](#a-database-whose-migrations-were-run-by-hand)):
@@ -227,7 +228,9 @@ the ones in your `parishes.json` (`npm run parish` lists them).
    npm run release:functions -- muaan
    ```
 
-5. **Push `main`**: both the live and demo websites rebuild. If GitHub has
+5. **Push `main`**: both the live and demo websites rebuild, and the
+   releases page and its GitHub Release go out, so other parishes hear of
+   it. If GitHub has
    commits this folder doesn't (another session or computer pushed),
    bring them in first:
 
@@ -281,6 +284,57 @@ from `supabase/config.toml`. Deploy a changed function to a parish right
 after its migrations, before pushing its website. The `deploy:demo:*` and
 `deploy:production:*` scripts still work for the demo site and Mua-an with
 this computer's login.
+
+## Release notes: the releases page
+
+Parishes and developers who copied the repository follow its updates on the
+releases page, **https://daveendev.github.io/parish-members-registry/**,
+with an Atom feed (`feed.xml`) for feed readers. Each version is also a
+GitHub Release, so **Watch → Custom → Releases** on the repository emails
+them. Version 1.0.0 lists everything the registry does; each later one lists
+only what changed.
+
+Each release has one file, `releases/notes/<version>.md`. Write it when the
+change is ready, before pushing:
+
+1. **Choose the version**, from the last one on the page:
+   - **patch** (1.0.**1**): fixes only;
+   - **minor** (1.**1**.0): new features or changes, updated with the usual
+     migrations, functions and code;
+   - **major** (**2**.0.0): something a parish must do by hand beyond that
+     (a new account or secret, a setting to change, a step in 03). Say what,
+     at the top of the notes.
+
+   Several commits can go in one release: write it when you push them.
+2. **Start the notes**:
+
+   ```bash
+   npm run releases:new -- 1.1.0
+   ```
+
+   It fills in the date, the last migration, the Edge Functions changed since
+   the last release, and the commits since then (in a comment, to work
+   from).
+3. **Write them** for the parish office and for whoever updates a copy:
+   the title and one-sentence summary, then what's new, changed or fixed,
+   in plain words. Replace every `<…>`; the build refuses to run with one
+   left. Keep the header's `migrations` and `functions` right: the page
+   tells each parish what to run from them.
+4. **Check how it looks**:
+
+   ```bash
+   npm run releases:build
+   ```
+
+   then open `releases/_site/index.html` in a browser.
+5. **Commit it** with the release and push `main`. The *Releases page*
+   workflow (`.github/workflows/releases-site.yml`) publishes the page and
+   makes the GitHub Release with its `v1.1.0` tag. A release already made
+   isn't changed, so fix a mistake with the next one.
+
+The workflow only runs in this repository (`DaveenDev/parish-members-registry`):
+a parish's copy skips it. Once, in this repository: **Settings → Pages →
+Build and deployment → Source: GitHub Actions**.
 
 ## Supabase's GitHub integration: leave it off
 

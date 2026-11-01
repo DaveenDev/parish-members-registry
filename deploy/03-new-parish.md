@@ -192,6 +192,12 @@ name another parish's project.
 
 ## Step 5. Keeping the copy up to date
 
+What's new, and what each update needs run, is on the releases page,
+[daveendev.github.io/parish-members-registry](https://daveendev.github.io/parish-members-registry/).
+To hear of each one: **Watch → Custom → Releases** on
+[the repository](https://github.com/DaveenDev/parish-members-registry), or
+add the page's `feed.xml` to a feed reader.
+
 The copy and this repository have unrelated histories, so Git won't merge
 them. Carry new commits across with `git cherry-pick`, which applies only a
 commit's own changes. Mark the last commit already copied with a tag, and work
