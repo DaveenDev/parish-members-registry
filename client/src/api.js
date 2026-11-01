@@ -1500,6 +1500,16 @@ export const api = {
   publicOrgChart: (slug, gkk) => publicRpc('public_org_chart', { p_slug: slug, p_gkk: gkk || null }),
   /** { open, label, ends_on, pct, gkks: [{ name, pct|null }] } */
   publicCensusProgress: () => publicRpc('public_census_progress'),
+  /**
+   * The last census closed (0102), or null when none has closed yet (also before 0102 is run):
+   * { label, starts_on, ends_on, closed_at, members, confirmed, pct, statuses: { Active: n|null, … }, gkks: [{ name, pct|null }] }
+   */
+  async publicCensusResult() {
+    const { data, error } = await supabase.rpc('public_census_result');
+    if (isMissingFunction(error)) return null;
+    if (error) throw mapError(error);
+    return data || null;
+  },
   publicOfficeDetails: () => publicRpc('public_office_details'),
   /** { ref_no, status, registered_on } (the current number, also when found by an old one), or null if not found. */
   registrationStatus: (refNo) => publicRpc('registration_status', { p_ref: refNo }),

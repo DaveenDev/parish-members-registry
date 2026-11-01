@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Link, Navigate, useParams, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
 import { Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, FOOTER_CREAM, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
@@ -8,7 +8,7 @@ import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkk
 import { todayIso } from '../../lib/website.js';
 import { PageMeta, useParishTitle, useSiteTitle } from './SiteLayout.jsx';
 import { excerpt } from '../../lib/seo.js';
-import { listState, useArticles, useCensusProgress, useGkkDirectory, useGkkPage, usePrayerWall } from './data.js';
+import { listState, useArticles, useCensusProgress, useCensusResult, useGkkDirectory, useGkkPage, usePrayerWall } from './data.js';
 import { GkkOfficers } from '../../components/site/OrgCharts.jsx';
 import { PrayerCard } from '../../components/site/prayers.jsx';
 import { PRAYER_FORM, PRAYER_WALL } from '../../lib/prayers.js';
@@ -57,8 +57,8 @@ function CensusAlertBadges({ label, className = '' }) {
  * (the prayer wall has them all), every GKK as a card, by name, and last the
  * newest articles (every article is on the articles page; Home has the
  * newest too). The header has a one-line census strip.
- * ?view=gkk (the old "Mga GKK" tab's link) scrolls to the GKKs, ?view=census
- * to the census progress.
+ * ?view=gkk (the menu's Komunidad → Mga GKK) scrolls to the GKKs, ?view=census
+ * to the census progress. Komunidad → Census is its own page (KomunidadCensus).
  * The org charts moved to Ang Simbahan; old ?view=organisasyon links go there.
  */
 export default function Komunidad() {
@@ -83,11 +83,13 @@ function KomunidadPage({ params }) {
   const gkksLoading = useGkkDirectory().loading;
   const prayersLoading = usePrayerWall().loading;
   const waiting = q.loading || (target === 'mga-gkk' && (prayersLoading || gkksLoading));
+  // By the location's key too, so the menu's "Mga GKK" jumps there again when already on it.
+  const { key } = useLocation();
   useEffect(() => {
     if (!target || waiting) return undefined;
     const t = setTimeout(() => document.getElementById(target)?.scrollIntoView({ block: 'start' }), 350);
     return () => clearTimeout(t);
-  }, [target, waiting]);
+  }, [target, waiting, key]);
 
   return (
     <main className="animate-fadeUp">
@@ -133,11 +135,13 @@ const NO_SCROLLBAR = '[scrollbar-width:none] [&::-webkit-scrollbar]:hidden';
 
 /**
  * "On this page", as on Ang Simbahan: the census progress (while one is
- * open), the prayer requests, the GKKs and the articles (those last two
+ * open; else the last census's results, on their page), the prayer requests, the GKKs and the articles (those last two
  * once there's something to show).
  */
 function PageJumps({ census, onJump }) {
   const gkks = listState(useGkkDirectory());
+  // With no census open, the last one's results are on their own page.
+  const result = useCensusResult().data;
   const articles = listState(useArticles());
   const btn = 'flex-none min-h-[40px] px-2.5 sm:px-3.5 inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-[var(--p-blue-border)] bg-parish-card font-bold text-[14px] text-parish-blueDeep cursor-pointer appearance-none hover:bg-[var(--p-blue-tint)]';
   // On a phone the icons go and the buttons tighten, so all four fit across.
@@ -145,6 +149,7 @@ function PageJumps({ census, onJump }) {
   return (
     <nav aria-label="Niini nga panid" className={`flex gap-1.5 sm:gap-2 overflow-x-auto ${NO_SCROLLBAR} -mx-3.5 px-3.5 mb-4 lg:mx-0 lg:px-0 lg:mb-0 lg:flex-wrap`}>
       {census && <button type="button" className={btn} onClick={() => onJump('census')}>{icon('idcard')}Census ↓</button>}
+      {!census && result && <Link to="/komunidad/census" className={btn}>{icon('idcard')}Census</Link>}
       <button type="button" className={btn} onClick={() => onJump('pag-ampo')}>{icon('heart')}<span className="lg:hidden">Pag-ampo ↓</span><span className="hidden lg:inline">Mga Hangyo sa Pag-ampo ↓</span></button>
       {gkks.rows.length > 0 && <button type="button" className={btn} onClick={() => onJump('mga-gkk')}>{icon('church')}<span className="lg:hidden">GKK ↓</span><span className="hidden lg:inline">Mga GKK ↓</span></button>}
       {articles.rows.length > 0 && <button type="button" className={btn} onClick={() => onJump('artikulo')}>{icon('doc')}<span className="lg:hidden">Artikulo ↓</span><span className="hidden lg:inline">Mga Artikulo ↓</span></button>}
@@ -488,7 +493,6 @@ function StatTile({ value, small = SMALL, label }) {
 function CensusProgress() {
   const q = useCensusProgress();
   const c = q.data;
-  const [sort, setSort] = useState('pct');
 
   if (q.loading) return <div className="lg:grid lg:grid-cols-[380px_1fr] lg:gap-6"><Skeleton h={200} className="mb-3 lg:h-[420px]" /><Skeleton h={260} alt className="lg:h-[520px]" /></div>;
   if (q.error) return <ErrorNote onRetry={q.reload}>Wala ma-load ang progreso sa census.</ErrorNote>;
@@ -501,13 +505,6 @@ function CensusProgress() {
     );
   }
   if (c.pct == null) return <EmptyNote>Bag-o pa lang giablihan ang census. Wala pay igo nga na-update aron ipakita.</EmptyNote>;
-
-  // "Pinakataas" needs at least two GKKs with a percentage to show; percentages
-  // of GKKs under 5 families are hidden, and those would just come out A–Z.
-  const canRank = (c.gkks || []).filter((r) => r.pct != null).length >= 2;
-  const rows = sortCensusGkks(c.gkks, canRank ? sort : 'name');
-  // Desktop shows two columns; fill them top to bottom so the order reads down each column.
-  const perColumn = Math.ceil(rows.length / 2);
 
   return (
     <div className="lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-6 lg:items-start">
@@ -529,7 +526,25 @@ function CensusProgress() {
           <div className="hidden lg:block text-[13px] text-parish-text2 mt-3">{c.gkks.filter((r) => r.pct === 100).length} ka GKK ang kompleto na</div>
         )}
       </Card>
-      <div>
+      <GkkCensusList gkks={c.gkks} />
+    </div>
+  );
+}
+
+/**
+ * Each GKK's share in a census, as bars: highest first or by name. A GKK
+ * under 5 families shows no percentage. `note` goes under the list.
+ */
+function GkkCensusList({ gkks, note = 'Porsyento lang ang gipakita. Walay ngalan sa pamilya.' }) {
+  const [sort, setSort] = useState('pct');
+  // "Pinakataas" needs at least two GKKs with a percentage to show; percentages
+  // of GKKs under 5 families are hidden, and those would just come out A–Z.
+  const canRank = (gkks || []).filter((r) => r.pct != null).length >= 2;
+  const rows = sortCensusGkks(gkks, canRank ? sort : 'name');
+  // Desktop shows two columns; fill them top to bottom so the order reads down each column.
+  const perColumn = Math.ceil(rows.length / 2);
+  return (
+    <div>
       <div className="flex items-center justify-between gap-2 mb-2.5 lg:mb-3">
         <h3 className="m-0 font-serif text-[21px] lg:text-[26px] font-bold text-parish-navy">Matag GKK</h3>
         {canRank && <Pills options={[['pct', 'Pinakataas'], ['name', 'Ngalan']]} value={sort} onChange={setSort} className="[&>button]:flex-none [&>button]:px-3 [&>button]:min-h-[40px] [&>button]:text-[13.5px]" />}
@@ -557,8 +572,99 @@ function CensusProgress() {
           </div>
         ))}
       </Card>
-      <div className="text-[12.5px] lg:text-[13px] text-parish-text2 mt-2 lg:mt-2.5">Porsyento lang ang gipakita. Walay ngalan sa pamilya.</div>
-      </div>
+      <div className="text-[12.5px] lg:text-[13px] text-parish-text2 mt-2 lg:mt-2.5">{note}</div>
+    </div>
+  );
+}
+
+/**
+ * Komunidad → Census (/komunidad/census), from the Komunidad menu: while a
+ * census is open, its progress (as on Komunidad); with none open, the results
+ * of the last one closed (0102).
+ */
+export function KomunidadCensus() {
+  const q = useCensusProgress();
+  const open = !!q.data?.open;
+  useSiteTitle(q.loading ? 'Census' : open ? 'Progreso sa census' : 'Resulta sa census');
+  return (
+    <main className="animate-fadeUp">
+      <Band as="div">
+        <div className={`${WRAP} pt-4 pb-7 lg:pt-9 lg:pb-12 flow-root`}>
+          <PageHeader eyebrow="Census sa parokya" title={q.loading ? 'Census' : open ? 'Progreso sa census' : 'Resulta sa census'} />
+          {q.loading || open ? <CensusProgress /> : <CensusResult />}
+        </div>
+      </Band>
+    </main>
+  );
+}
+
+// What the family sees on the printed form (MEMBERSHIP_STATUS_LABELS in lib/census.js).
+const STATUS_LABELS = [
+  ['Active', 'Aktibo'],
+  ['Inactive', 'Dili aktibo'],
+  ['Moved away', 'Nibalhin'],
+  ['Deceased', 'Namatay'],
+  ['Left the Church', 'Mibiya sa Simbahan'],
+];
+
+/**
+ * The last census closed: how many of the members counted answered, their
+ * answers parish-wide, and each GKK's share. Nothing yet before the first
+ * census closes.
+ */
+function CensusResult() {
+  const q = useCensusResult();
+  const r = q.data;
+
+  if (q.loading) return <div className="lg:grid lg:grid-cols-[380px_1fr] lg:gap-6"><Skeleton h={200} className="mb-3 lg:h-[420px]" /><Skeleton h={260} alt className="lg:h-[520px]" /></div>;
+  if (q.error) return <ErrorNote onRetry={q.reload}>Wala ma-load ang resulta sa census.</ErrorNote>;
+  if (!r) {
+    return (
+      <Card className="px-[18px] py-[22px] text-center shadow-none lg:max-w-[560px] lg:mx-auto lg:p-[30px] lg:rounded-[18px]">
+        <div className="font-serif text-[23px] lg:text-[28px] font-bold text-parish-navy mb-1.5">Wala pay resulta sa census</div>
+        <p className="m-0 text-[15px] leading-normal text-[#4d4636]">Ipakita diri ang resulta inig human sa unang census sa parokya, ug ang progreso inig abli niini.</p>
+      </Card>
+    );
+  }
+  const statuses = STATUS_LABELS.filter(([k]) => r.statuses?.[k] != null);
+  // The day it closed, on this phone's calendar (closed_at is a timestamp).
+  const closedOn = r.closed_at ? new Date(r.closed_at) : null;
+  const closed = closedOn && !Number.isNaN(closedOn.getTime())
+    ? fmtLong(`${closedOn.getFullYear()}-${String(closedOn.getMonth() + 1).padStart(2, '0')}-${String(closedOn.getDate()).padStart(2, '0')}`)
+    : fmtLong(r.ends_on);
+
+  return (
+    <div className="lg:grid lg:grid-cols-[380px_minmax(0,1fr)] lg:gap-6 lg:items-start">
+      <Card className="px-4 py-[18px] text-center mb-4 shadow-card lg:sticky lg:top-24 lg:mb-0 lg:px-6 lg:py-7 lg:rounded-[20px]">
+        <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 mb-3 lg:mb-4 font-bold text-[13px] text-parish-navy" style={{ background: 'var(--p-gold-light)' }}>
+          <Icon name="check" size={15} />Nahuman{closed ? ` · ${closed}` : ''}
+        </span>
+        {r.pct != null && (
+          <div role="img" aria-label={`${r.pct} porsyento`} className="w-[132px] h-[132px] lg:w-[180px] lg:h-[180px] rounded-full mx-auto mb-3 lg:mb-4 flex items-center justify-center" style={{ background: `conic-gradient(var(--p-blue) 0 ${r.pct}%, #efe6d3 0)` }}>
+            <div className="w-[104px] h-[104px] lg:w-[144px] lg:h-[144px] rounded-full bg-parish-card flex flex-col items-center justify-center">
+              <div className="font-serif text-[40px] lg:text-[54px] font-bold leading-none text-parish-blue">{r.pct}%</div>
+              <div className="text-[12px] lg:text-[13px] text-parish-text2">nakatubag</div>
+            </div>
+          </div>
+        )}
+        <h2 className="font-serif font-semibold text-[24px] lg:text-[28px] leading-[1.15] lg:leading-[1.12] m-0 mb-1.5 lg:mb-2 text-parish-navy">{r.label}</h2>
+        <p className="m-0 text-[15px] lg:text-[15.5px] leading-normal lg:leading-[1.55] text-[#4d4636]">
+          {r.members > 0
+            ? <>{r.confirmed.toLocaleString()} sa {r.members.toLocaleString()} ka miyembro sa parokya ang naapil sa census. Salamat sa tanang GKK ug pamilya!</>
+            : 'Salamat sa tanang GKK ug pamilya nga naapil!'}
+        </p>
+        {statuses.length > 0 && (
+          <dl className="m-0 mt-4 grid grid-cols-2 gap-2 text-left">
+            {statuses.map(([k, label]) => (
+              <div key={k} className="bg-parish-bg border border-parish-border rounded-xl px-3 py-2">
+                <dt className="font-bold text-[11px] tracking-[.1em] uppercase text-parish-text2">{label}</dt>
+                <dd className="m-0 font-serif text-[22px] font-bold text-parish-navy leading-tight">{r.statuses[k].toLocaleString()}</dd>
+              </div>
+            ))}
+          </dl>
+        )}
+      </Card>
+      <GkkCensusList gkks={r.gkks} note="Porsyento sa mga miyembro nga naapil sa census. Walay ngalan sa pamilya." />
     </div>
   );
 }

@@ -31,6 +31,7 @@ export const Kasaysayan = page(loaders.kasaysayan);
 export const Pahibalo = page(loaders.pahibalo);
 export const Komunidad = page(loaders.komunidad);
 export const GkkDetail = page(loaders.komunidad, 'GkkDetail');
+export const KomunidadCensus = page(loaders.komunidad, 'KomunidadCensus');
 export const ArticlesArchive = page(loaders.articles, 'ArticlesArchive');
 export const PrayerWall = page(loaders.prayers);
 export const PrayerDetail = page(loaders.prayers, 'PrayerDetail');
