@@ -56,6 +56,15 @@ export default function Kaabag() {
       </Band>
 
       <section aria-label="Iskedyul sa mga Kaabag" className={`${WRAP} py-3 lg:py-12`}>
+        {/* The header's share button, small, for a phone (the header isn't shown there). */}
+        <div className="flex justify-end mb-2 lg:hidden">
+          <button
+            type="button" onClick={() => share('Mga Kaabag', KAABAG_PAGE)}
+            className="h-8 px-3 inline-flex items-center gap-1 rounded-full border border-[var(--p-blue-border)] bg-parish-card font-bold text-[12.5px] text-parish-blueDeep cursor-pointer hover:bg-[var(--p-blue-tint)]"
+          >
+            <Icon name="share" size={14} />Ipaambit
+          </button>
+        </div>
         <DataState
           state={q}
           skeleton={<Skeletons n={3} h={130} />}
