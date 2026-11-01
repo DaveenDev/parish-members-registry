@@ -339,7 +339,11 @@ function NavMenu({ item, on, pathname, tone, bar, children }) {
   const { key } = useLocation();
   useEffect(() => { setOpen(false); }, [key]);
   useEffect(() => () => clearTimeout(timer.current), []);
-  const show = () => { clearTimeout(timer.current); setOpen(true); };
+  const openedAt = useRef(0);
+  const show = () => { clearTimeout(timer.current); if (!open) openedAt.current = Date.now(); setOpen(true); };
+  // A tap (or a click straight after the pointer arrived) opened it on its
+  // way in: the click that follows keeps it open instead of closing it again.
+  const press = () => setOpen((o) => (o && Date.now() - openedAt.current < 500 ? true : !o));
   // A short wait, so moving the pointer down onto the list doesn't close it.
   const hide = () => { clearTimeout(timer.current); timer.current = setTimeout(() => setOpen(false), 160); };
   const name = item.short || item.label;
@@ -362,7 +366,7 @@ function NavMenu({ item, on, pathname, tone, bar, children }) {
         aria-expanded={open}
         aria-controls={menuId}
         aria-label={`Mga bahin sa ${name}`}
-        onClick={() => setOpen((o) => !o)}
+        onClick={press}
         className={`flex items-center pl-0.5 pr-[8px] xl:pr-[11px] appearance-none bg-transparent border-none cursor-pointer ${tone}`}
       >
         <Icon name="chev" size={15} className={`transition-transform duration-150 ${open ? '-rotate-90' : 'rotate-90'}`} />
