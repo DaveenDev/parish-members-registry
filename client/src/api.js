@@ -1141,7 +1141,7 @@ export const api = {
   saveMassSchedule: (row) => saveWebsiteRow('mass_schedules', row),
   deleteMassSchedule: (id) => deleteWebsiteRow('mass_schedules', id),
 
-  // ---- the Kaabag's Sunday schedule (0113 migration) ------------------
+  // ---- the Kaabag's schedule (0113; other days, 0116) -----------------
   /** The admin tab: { settings, masses, roster, services (each with people), cron }. Brings the list up to date with the registry. */
   async kaabagAdmin() {
     const { data, error } = await supabase.rpc('kaabag_admin');
@@ -1154,8 +1154,10 @@ export const api = {
   },
   /** Makes a month's schedule: { masses, places, filled }. `replace` redoes the Sundays still to come. */
   generateKaabag: (month, replace = false) => publicRpc('kaabag_generate', { p_month: month, p_replace: replace }),
-  async saveKaabagSettings({ servers_per_mass, mass_rules, auto_generate }) {
-    const { error } = await supabase.from('kaabag_settings').update({ servers_per_mass, mass_rules, auto_generate }).eq('id', 1);
+  /** `days`, the other days besides Sunday with Kaabag (0116), is left out on a database before it. */
+  async saveKaabagSettings({ servers_per_mass, mass_rules, auto_generate, days }) {
+    const patch = { servers_per_mass, mass_rules, auto_generate, ...(days ? { days } : {}) };
+    const { error } = await supabase.from('kaabag_settings').update(patch).eq('id', 1);
     if (error) throw mapError(error);
   },
   /** A name the office types in, for a parish with nobody registered as Kaabag yet. */
@@ -1529,7 +1531,7 @@ export const api = {
   // Published items only, even for a signed-in staff member browsing the site.
   publicMassSchedules: () => listPublished('mass_schedules', (q) => q.order('day_of_week').order('start_time')),
   /**
-   * The Kaabag's Sunday schedule, today on (0113): [{ date, time, location,
+   * The Kaabag's schedule, today on (0113; other days, 0116): [{ date, time, location,
    * language, names }], with null in `names` for anyone who hasn't agreed to
    * be shown. Nothing before the migration is run.
    */

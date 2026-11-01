@@ -10,18 +10,22 @@ import { useViewOnly } from '../panels.jsx';
 import { fmtDate, fmtDateTime } from '../../constants.js';
 import { fmtTime, todayIso } from '../../lib/website.js';
 import {
-  KAABAG_PAGE, MAX_SERVERS, groupSundays, massRule, monthChoices, monthName, monthOf, nextAutoRun, openingMonth, placesShort, setMassRule, validServers,
+  DAY_NAMES, KAABAG_PAGE, MAX_SERVERS, groupDays, massDay, massRule, monthChoices, monthName, monthOf, nextAutoRun, openingMonth, placesShort,
+  servedDays, setDay, setMassRule, validServers,
 } from '../../lib/kaabag.js';
+import { parseIso } from '../../lib/site.js';
 import { HolderAvatar } from '../orgchart/NodePanel.jsx';
 import { FilePick, Panel, RowButton, SectionLabel, TabIntro } from './shared.jsx';
 
 const place = (s) => [s.location, s.language].filter(Boolean).join(' · ');
-const sunday = (iso) => `Sun, ${fmtDate(iso)}`;
+const dayLabel = (iso) => `${DAY_NAMES[parseIso(iso).getDay()].slice(0, 3)}, ${fmtDate(iso)}`;
 
 /**
- * The Kaabag's Sunday schedule: the schedule itself, the rules it's made by,
- * and the list of people. The database draws the names (0113) when staff
- * press Generate and, 7 days before each month's first Sunday, by itself.
+ * The Kaabag's schedule: the schedule itself, the rules it's made by, and
+ * the list of people. Sunday Masses always, and those of any other day the
+ * office ticks, such as a Saturday or a Wednesday Mass (0116). The database
+ * draws the names (0113) when staff press Generate and, 7 days before each
+ * month's first Mass day, by itself.
  */
 export default function KaabagTab() {
   const { data, loading, error, reload } = useAsyncData(api.kaabagAdmin, []);
@@ -29,7 +33,7 @@ export default function KaabagTab() {
   if (loading && !data) return <Panel><LoadingState /></Panel>;
   return (
     <>
-      <TabIntro text="Who serves at each Sunday Mass. It's drawn at random from the list below by the rules below, and shared out evenly: nobody serves again until everyone has had a turn.">
+      <TabIntro text="Who serves at each Sunday Mass, and at the Masses of any other day ticked in the rules. It's drawn at random from the list below by the rules below, and shared out evenly: nobody serves again until everyone has had a turn.">
         <a href={KAABAG_PAGE} target="_blank" rel="noreferrer" className="font-semibold text-[13.5px] text-parish-blue no-underline hover:underline">Open the page ↗</a>
       </TabIntro>
       <div className="flex flex-col gap-4">
@@ -55,10 +59,10 @@ function Schedule({ data, onChanged }) {
   const [busy, setBusy] = useState(false);
   const today = todayIso();
   const dates = data.services.map((s) => String(s.service_date));
-  const months = monthChoices(today, dates);
+  const months = monthChoices(today, dates, 3, servedDays(data.masses, data.settings));
   const month = picked || openingMonth(dates, months, today);
   const services = data.services.filter((s) => monthOf(s.service_date) === month);
-  const sundays = groupSundays(services, 'service_date');
+  const days = groupDays(services, 'service_date');
   const short = services.reduce((n, s) => n + placesShort(s), 0);
   const hasUpcoming = services.some((s) => String(s.service_date) >= today);
   const made = services[services.length - 1];
@@ -67,7 +71,7 @@ function Schedule({ data, onChanged }) {
     if (hasUpcoming) {
       const ok = await confirm({
         title: `Redo ${monthName(month)}?`,
-        message: 'Sundays still to come get new names, and any changes made by hand to them are lost. Sundays already past stay as they were.',
+        message: 'Days still to come get new names, and any changes made by hand to them are lost. Days already past stay as they were.',
         confirmLabel: 'Redo the schedule',
         tone: 'danger',
       });
@@ -105,12 +109,12 @@ function Schedule({ data, onChanged }) {
           {' '}Names with a dashed outline aren't shown on the website yet (see The list).
         </p>
       )}
-      {!sundays.length ? (
+      {!days.length ? (
         <EmptyState title={`No schedule for ${monthName(month)} yet`} subtitle={viewOnly ? undefined : 'Check the rules and the list below, then press Generate.'} />
-      ) : sundays.map((s) => (
+      ) : days.map((s) => (
         <div key={s.date} className="border-t border-parish-line">
           <div className="px-5 pt-3 pb-1 font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">
-            {sunday(s.date)}{s.date < today ? ' · past' : ''}
+            {dayLabel(s.date)}{s.date < today ? ' · past' : ''}
           </div>
           {s.masses.map((service) => <ServiceRow key={service.id} service={service} roster={data.roster} onChanged={onChanged} />)}
         </div>
@@ -119,7 +123,7 @@ function Schedule({ data, onChanged }) {
   );
 }
 
-/** One Mass on one Sunday: its time and place, who serves, and swapping someone by hand. */
+/** One Mass on one day: its time and place, who serves, and swapping someone by hand. */
 function ServiceRow({ service, roster, onChanged }) {
   const toast = useToast();
   const viewOnly = useViewOnly();
@@ -188,12 +192,19 @@ function ServiceRow({ service, roster, onChanged }) {
 function Rules({ data, onChanged }) {
   const toast = useToast();
   const viewOnly = useViewOnly();
-  const [form, setForm] = useState(() => ({ ...data.settings, mass_rules: data.settings.mass_rules || {} }));
+  // `days` is there from 0116 on; before it, every Mass is a Sunday's.
+  const hasDays = Array.isArray(data.settings.days);
+  const [form, setForm] = useState(() => ({ ...data.settings, mass_rules: data.settings.mass_rules || {}, days: data.settings.days || [] }));
   const [perMass, setPerMass] = useState(String(data.settings.servers_per_mass));
   const [saving, setSaving] = useState(false);
   const [problem, setProblem] = useState('');
-  const run = nextAutoRun(todayIso(), data.services.map((s) => String(s.service_date)));
+  const run = nextAutoRun(todayIso(), data.services.map((s) => String(s.service_date)), servedDays(data.masses, data.settings));
   const rule = (id, patch) => setForm((f) => ({ ...f, mass_rules: setMassRule(f.mass_rules, id, patch) }));
+  const tickDay = (day, on) => setForm((f) => ({ ...f, days: setDay(f.days, day, on) }));
+  // Sunday first, then the other days with a weekly Mass, Monday to Saturday.
+  const byDay = [0, 1, 2, 3, 4, 5, 6]
+    .map((day) => ({ day, masses: data.masses.filter((m) => massDay(m) === day) }))
+    .filter((d) => d.day === 0 || d.masses.length);
 
   async function save() {
     const servers = Number(perMass);
@@ -202,7 +213,8 @@ function Rules({ data, onChanged }) {
     setSaving(true);
     setProblem('');
     try {
-      await api.saveKaabagSettings({ ...form, servers_per_mass: servers });
+      const { days, ...rest } = form;
+      await api.saveKaabagSettings({ ...rest, servers_per_mass: servers, ...(hasDays ? { days } : {}) });
       await onChanged();
       toast.success('Rules saved. They apply to the next schedule made.');
     } catch (e) {
@@ -223,32 +235,34 @@ function Rules({ data, onChanged }) {
             </Field>
           </div>
 
-          <div>
-            <SectionLabel>Sunday Masses</SectionLabel>
-            {!data.masses.length && <p className="m-0 mt-2 text-[13.5px] text-parish-muted">No published Sunday Masses yet. Add them in the Mass Schedule tab.</p>}
-            {data.masses.map((m) => {
-              const r = massRule(form.mass_rules, m.id);
-              return (
-                <div key={m.id} className="flex items-center gap-3 flex-wrap py-2 border-b border-parish-line last:border-b-0">
-                  <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-[240px]">
-                    <Checkbox checked={!r.skip} onChange={(e) => rule(m.id, { skip: !e.target.checked })} aria-label={`Kaabag serve at the ${fmtTime(m.start_time)} Mass`} />
-                    <span className="font-semibold text-[14px] text-parish-navy">{fmtTime(m.start_time)}</span>
-                    <span className="text-[13px] text-parish-text2">{place(m)}</span>
-                  </label>
-                  {r.skip ? <span className="text-[12.5px] text-parish-muted">No Kaabag at this Mass</span> : (
-                    <label className="flex items-center gap-2 text-[12.5px] text-parish-text2">
-                      Its own number
-                      <TextInput
-                        type="number" min={1} max={MAX_SERVERS} placeholder={perMass} value={r.servers ?? ''} className="!w-[76px] !py-1.5"
-                        aria-label={`Kaabag at the ${fmtTime(m.start_time)} Mass`}
-                        onChange={(e) => rule(m.id, { servers: e.target.value === '' ? undefined : Number(e.target.value) })}
-                      />
+          {byDay.map(({ day, masses }) => {
+            const on = day === 0 || form.days.includes(day);
+            return (
+              <div key={day}>
+                {day === 0 ? <SectionLabel>Sunday Masses</SectionLabel> : (
+                  <div className="flex items-center gap-x-2.5 gap-y-1 mt-1 flex-wrap">
+                    <label className="flex items-center gap-2.5 cursor-pointer">
+                      <Checkbox checked={on} onChange={(e) => tickDay(day, e.target.checked)} aria-label={`Kaabag at the ${DAY_NAMES[day]} Masses`} />
+                      <span className="font-bold text-[11.5px] text-[var(--p-gold-deep)] tracking-[.1em] uppercase">{DAY_NAMES[day]} Masses</span>
                     </label>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+                    {!on && (
+                      <span className="text-[12.5px] text-parish-muted">
+                        {masses.map((m) => fmtTime(m.start_time)).join(', ')} · tick if the Kaabag serve on {DAY_NAMES[day]}s
+                      </span>
+                    )}
+                    <span className="flex-1 min-w-[24px] h-px bg-parish-track" />
+                  </div>
+                )}
+                {day === 0 && !masses.length && <p className="m-0 mt-2 text-[13.5px] text-parish-muted">No published Sunday Masses yet. Add them in the Mass Schedule tab.</p>}
+                {on && masses.map((m) => <MassRule key={m.id} mass={m} rule={massRule(form.mass_rules, m.id)} perMass={perMass} onChange={(patch) => rule(m.id, patch)} />)}
+              </div>
+            );
+          })}
+          {hasDays && byDay.length === 1 && (
+            <p className="m-0 -mt-2 text-[12.5px] text-parish-muted">
+              A Saturday or weekday Mass that needs Kaabag (an Anticipated or Daily Mass) shows here to tick once it's published in the Mass Schedule tab.
+            </p>
+          )}
 
           <label className="flex items-start gap-3 px-4 py-3 rounded-xl border border-parish-border bg-parish-field cursor-pointer">
             <input
@@ -258,7 +272,7 @@ function Rules({ data, onChanged }) {
             <span>
               <span className="block font-semibold text-[14px] text-parish-navy">Make the schedule automatically</span>
               <span className="block text-[12.5px] text-parish-muted">
-                7 days before each month's first Sunday, unless that month already has one.
+                7 days before each month's first Mass day, unless that month already has one.
                 {form.auto_generate && data.cron && run ? ` Next: ${fmtDate(run.on)}, for ${monthName(run.month)}.` : ''}
               </span>
             </span>
@@ -275,6 +289,30 @@ function Rules({ data, onChanged }) {
         </div>
       </fieldset>
     </Panel>
+  );
+}
+
+/** One Mass in the rules: whether the Kaabag serve at it, and its own number. */
+function MassRule({ mass: m, rule: r, perMass, onChange }) {
+  const name = `${DAY_NAMES[massDay(m)]} ${fmtTime(m.start_time)}`;
+  return (
+    <div className="flex items-center gap-3 flex-wrap py-2 border-b border-parish-line last:border-b-0">
+      <label className="flex items-center gap-2.5 cursor-pointer flex-1 min-w-[240px]">
+        <Checkbox checked={!r.skip} onChange={(e) => onChange({ skip: !e.target.checked })} aria-label={`Kaabag serve at the ${name} Mass`} />
+        <span className="font-semibold text-[14px] text-parish-navy">{fmtTime(m.start_time)}</span>
+        <span className="text-[13px] text-parish-text2">{[place(m), massDay(m) && m.kind].filter(Boolean).join(' · ')}</span>
+      </label>
+      {r.skip ? <span className="text-[12.5px] text-parish-muted">No Kaabag at this Mass</span> : (
+        <label className="flex items-center gap-2 text-[12.5px] text-parish-text2">
+          Its own number
+          <TextInput
+            type="number" min={1} max={MAX_SERVERS} placeholder={perMass} value={r.servers ?? ''} className="!w-[76px] !py-1.5"
+            aria-label={`Kaabag at the ${name} Mass`}
+            onChange={(e) => onChange({ servers: e.target.value === '' ? undefined : Number(e.target.value) })}
+          />
+        </label>
+      )}
+    </div>
   );
 }
 

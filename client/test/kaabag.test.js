@@ -1,8 +1,9 @@
 import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 
-import { firstSunday, groupMonths, groupSundays, isKaabagGroup, massRule, monthChoices, monthName, monthOf, monthTitle, nextAutoRun, nextMonth,
-  openingMonth, peopleLines, placesShort, setMassRule, validServers, isKaabagChart, unnamedCount } from '../src/lib/kaabag.js';
+import { allSundays, firstMassDay, firstSunday, groupDays, groupMonths, isKaabagGroup, massDay, massDaysIn, massRule, monthChoices, monthName, monthOf,
+  monthTitle, nextAutoRun, nextMonth, openingMonth, peopleLines, placesShort, servedDays, setDay, setMassRule, validServers, isKaabagChart,
+  unnamedCount } from '../src/lib/kaabag.js';
 import { describeActivity } from '../src/lib/activity.js';
 
 describe('the Kaabag schedule: dates', () => {
@@ -63,14 +64,21 @@ describe('the Kaabag schedule: laying it out', () => {
     { date: '2026-12-06', time: '06:00' }, { date: '2026-12-13', time: '06:00' },
   ];
 
-  test('groups Masses by Sunday and Sundays by month, in order', () => {
-    const sundays = groupSundays(rows);
-    assert.deepEqual(sundays.map((s) => [s.date, s.masses.length]), [['2026-11-29', 2], ['2026-12-06', 1], ['2026-12-13', 1]]);
-    assert.deepEqual(groupMonths(sundays).map((m) => [m.month, m.sundays.length]), [['2026-11-01', 1], ['2026-12-01', 2]]);
+  test('groups Masses by day and days by month, in order', () => {
+    const days = groupDays(rows);
+    assert.deepEqual(days.map((s) => [s.date, s.masses.length]), [['2026-11-29', 2], ['2026-12-06', 1], ['2026-12-13', 1]]);
+    assert.deepEqual(groupMonths(days).map((m) => [m.month, m.days.length]), [['2026-11-01', 1], ['2026-12-01', 2]]);
   });
 
   test('the admin rows group by their own date field', () => {
-    assert.equal(groupSundays([{ service_date: '2026-12-06' }, { service_date: '2026-12-06' }], 'service_date').length, 1);
+    assert.equal(groupDays([{ service_date: '2026-12-06' }, { service_date: '2026-12-06' }], 'service_date').length, 1);
+  });
+
+  test('a Saturday is a day of its own, and the website stops saying "sa Domingo"', () => {
+    const days = groupDays([{ date: '2026-12-05', time: '17:00' }, { date: '2026-12-06', time: '06:00' }]);
+    assert.deepEqual(days.map((d) => d.date), ['2026-12-05', '2026-12-06']);
+    assert.ok(!allSundays(days));
+    assert.ok(allSundays(groupDays(rows)));
   });
 
   test('anyone who has not agreed is only counted, never named', () => {
@@ -90,6 +98,63 @@ describe('the Kaabag schedule: laying it out', () => {
     assert.ok(isKaabagGroup(' kaabag sa Pari'));
     assert.ok(!isKaabagGroup('Choir'));
     assert.ok(!isKaabagGroup(null));
+  });
+});
+
+describe('the Kaabag schedule: Saturday and weekday Masses (0116)', () => {
+  const masses = [
+    { id: 1, day_of_week: 0, start_time: '06:00' }, { id: 2, day_of_week: 0, start_time: '08:00' },
+    { id: 3, day_of_week: 6, start_time: '17:00' }, { id: 4, day_of_week: 3, start_time: '06:00' },
+  ];
+
+  test('Sundays only until another day is ticked', () => {
+    assert.deepEqual(servedDays(masses, { days: [] }), [0]);
+    assert.deepEqual(servedDays(masses, {}), [0], 'a database before 0116');
+    assert.deepEqual(servedDays(masses, { days: [6, 3] }), [0, 3, 6]);
+  });
+
+  test('a day whose only Mass is left out has no Kaabag', () => {
+    assert.deepEqual(servedDays(masses, { days: [3, 6], mass_rules: { 4: { skip: true } } }), [0, 6]);
+    assert.deepEqual(servedDays(masses, { days: [3], mass_rules: { 1: { skip: true }, 2: { skip: true } } }), [3]);
+  });
+
+  test('a day ticked with no Mass on it adds nothing', () => {
+    assert.deepEqual(servedDays(masses, { days: [1] }), [0]);
+  });
+
+  test('a Mass from before 0116 is a Sunday\'s', () => {
+    assert.equal(massDay({ id: 1 }), 0);
+    assert.equal(massDay({ day_of_week: 6 }), 6);
+  });
+
+  test('ticks a day on and off, in order', () => {
+    assert.deepEqual(setDay([], 6, true), [6]);
+    assert.deepEqual(setDay([6], 3, true), [3, 6]);
+    assert.deepEqual(setDay([3, 6], 6, false), [3]);
+    assert.deepEqual(setDay([3], 3, true), [3]);
+  });
+
+  test('the dates of a month on the days served', () => {
+    assert.deepEqual(massDaysIn('2026-12-01', [0]), ['2026-12-06', '2026-12-13', '2026-12-20', '2026-12-27']);
+    assert.deepEqual(massDaysIn('2026-12-01', [3]).slice(0, 2), ['2026-12-02', '2026-12-09']);
+    assert.equal(massDaysIn('2026-12-01', [0, 3, 6]).length, 4 + 5 + 4);
+    assert.deepEqual(massDaysIn('2026-12-01', []), massDaysIn('2026-12-01', [0]), 'none means Sundays');
+  });
+
+  test('the first Mass day can come before the first Sunday', () => {
+    assert.equal(firstMassDay('2026-12-01'), '2026-12-06');
+    assert.equal(firstMassDay('2026-12-01', [0, 6]), '2026-12-05');
+    assert.equal(firstMassDay('2027-01-01', [0, 6]), '2027-01-02');
+  });
+
+  test('the automatic run is 7 days before it, as the database has it', () => {
+    assert.deepEqual(nextAutoRun('2026-12-01', ['2026-12-05'], [0, 6]), { on: '2026-12-26', month: '2027-01-01' });
+    assert.deepEqual(nextAutoRun('2026-12-01', ['2026-12-06'], [0]), { on: '2026-12-27', month: '2027-01-01' });
+  });
+
+  test('a month with only a Wednesday left is still a choice', () => {
+    assert.deepEqual(monthChoices('2026-12-28', [], 2, [0]), ['2027-01-01', '2027-02-01']);
+    assert.deepEqual(monthChoices('2026-12-28', [], 2, [0, 3]), ['2026-12-01', '2027-01-01'], 'Wednesday 30 December');
   });
 });
 
@@ -120,6 +185,11 @@ describe('the Kaabag schedule: the activity log', () => {
       title: 'Made the Kaabag schedule', lines: ['22 of 24 places filled at 12 Masses'],
     });
     assert.equal(describeActivity({ table_name: 'kaabag_services', action: 'update', changes: summary }).title, 'Redid the Kaabag schedule');
+  });
+
+  test('names the other days ticked, not their numbers', () => {
+    const d = describeActivity({ table_name: 'kaabag_settings', action: 'update', changes: { days: [[], [3, 6]] } });
+    assert.deepEqual(d.lines, ['Other days with Kaabag: — → Wednesday, Saturday']);
   });
 
   test('says when someone agreed to be shown', () => {
