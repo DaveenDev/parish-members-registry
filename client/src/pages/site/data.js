@@ -50,6 +50,8 @@ export function useParishTitle() {
 export const useDownloads = () => usePublicData('downloads', api.publicDownloads);
 /** The open census, or { open: false } (also before 0013 is run). */
 export const useCensusProgress = () => usePublicData('census', () => api.publicCensusProgress().catch(() => ({ open: false })));
+/** The last census closed (0114), or null. */
+export const useCensusResult = () => usePublicData('census-result', api.publicCensusResult);
 /** Whether the census family portal is open (0008), for the "update your record" buttons. */
 export const usePortalStatus = () => usePublicData('portal', () => api.portalStatus().catch(() => ({ open: false })));
 

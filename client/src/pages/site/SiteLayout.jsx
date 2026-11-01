@@ -34,7 +34,15 @@ const DESK_NAV = [
   { to: '/', label: 'Home', match: (p) => p === '/' },
   { to: '/pahibalo', label: 'Pahibalo ug Kalihokan', short: 'Pahibalo', match: (p) => p.startsWith('/pahibalo') },
   { to: '/simbahan', label: 'Ang Simbahan', short: 'Simbahan', match: (p) => p.startsWith('/simbahan') || p.startsWith('/misa') },
-  { to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad') },
+  {
+    to: '/komunidad', label: 'Komunidad', match: (p) => p.startsWith('/komunidad'),
+    // Its submenu: Komunidad itself still opens /komunidad.
+    sub: [
+      { to: '/komunidad/census', label: 'Census', hint: 'Progreso o resulta sa census', icon: 'idcard', match: (p) => p === '/komunidad/census' },
+      { to: '/komunidad?view=gkk', label: 'Mga GKK', hint: 'Direktoryo sa mga GKK', icon: 'church', match: (p, q) => p.startsWith('/komunidad/gkk/') || (p === '/komunidad' && q.get('view') === 'gkk') },
+      { to: '/komunidad/artikulo', label: 'Artikulo', hint: 'Tanang artikulo ug balita', icon: 'doc', match: (p) => p.startsWith('/komunidad/artikulo') },
+    ],
+  },
   { to: '/serbisyo', label: 'Mga Serbisyo', short: 'Serbisyo', match: (p) => p.startsWith('/serbisyo') },
   { to: '/downloads', label: 'Downloads', match: (p) => p.startsWith('/downloads') },
   { to: '/kontak', label: 'Kontak', match: (p) => p.startsWith('/kontak') },
@@ -283,6 +291,7 @@ function CensusTicker() {
 }
 
 function DesktopHeader({ pathname, logo, parish }) {
+  const { search } = useLocation();
   return (
     <header className="hidden lg:block sticky top-0 z-20 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.96)' }}>
       <div className="max-w-[1240px] mx-auto px-6 h-[76px] flex items-center gap-4 xl:gap-7">
@@ -296,21 +305,89 @@ function DesktopHeader({ pathname, logo, parish }) {
         <nav aria-label="Main" className="flex items-stretch gap-0.5 ml-auto h-full">
           {DESK_NAV.map((t) => {
             const on = t.match(pathname);
-            return (
+            const link = (
               <NavLink
                 key={t.to}
                 to={t.to}
                 aria-current={on ? 'page' : undefined}
-                className={`relative flex items-center px-[10px] xl:px-[13px] text-[15.5px] whitespace-nowrap hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`}
+                className={`relative flex items-center ${t.sub ? 'pl-[10px] pr-1 xl:pl-[13px]' : 'px-[10px] xl:px-[13px]'} text-[15.5px] whitespace-nowrap hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`}
               >
                 {t.short ? <><span className="xl:hidden">{t.short}</span><span className="hidden xl:inline">{t.label}</span></> : t.label}
-                <span className="absolute left-[10px] right-[10px] xl:left-[13px] xl:right-[13px] -bottom-px h-[3px] rounded-t-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
+                <span className={`absolute left-[10px] xl:left-[13px] ${t.sub ? 'right-1' : 'right-[10px] xl:right-[13px]'} -bottom-px h-[3px] rounded-t-[3px]`} style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
               </NavLink>
             );
+            return t.sub ? <NavMenu key={t.to} item={t} link={link} pathname={pathname} search={search} /> : link;
           })}
         </nav>
       </div>
     </header>
+  );
+}
+
+/**
+ * A main menu item with a submenu (Komunidad): the item itself still opens its
+ * page; the submenu opens under it on hover or keyboard focus, and with the
+ * arrow button beside it (for touch screens). A choice, Escape, or
+ * leaving it closes it.
+ */
+function NavMenu({ item, link, pathname, search }) {
+  const [open, setOpen] = useState(false);
+  const box = useRef(null);
+  const params = new URLSearchParams(search);
+  const id = `menu-${item.to.replace(/\W/g, '')}`;
+  // Closed again on every page change.
+  useEffect(() => { setOpen(false); }, [pathname, search]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const away = (e) => { if (!box.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [open]);
+  return (
+    <div
+      ref={box}
+      className="relative flex items-stretch"
+      onMouseEnter={() => setOpen(true)}
+      onMouseLeave={() => setOpen(false)}
+      onFocus={() => setOpen(true)}
+      onBlur={(e) => { if (!box.current?.contains(e.relatedTarget)) setOpen(false); }}
+      onKeyDown={(e) => { if (e.key === 'Escape' && open) { setOpen(false); box.current?.querySelector('a')?.focus(); } }}
+    >
+      {link}
+      <button
+        type="button"
+        aria-label={`${item.label}: mga panid`}
+        aria-expanded={open}
+        aria-controls={id}
+        onClick={() => setOpen((v) => !v)}
+        className="self-center w-7 h-8 mr-[6px] xl:mr-[9px] flex items-center justify-center rounded-lg border-0 bg-transparent cursor-pointer text-[#3f3b2f] hover:text-parish-blueDeep hover:bg-[var(--p-blue-tint)]"
+      >
+        <Icon name="chev" size={15} className={`transition-transform ${open ? '-rotate-90' : 'rotate-90'}`} />
+      </button>
+      <div id={id} className={`absolute left-0 top-full pt-1.5 z-30 ${open ? 'block' : 'hidden'}`}>
+        <ul className="list-none m-0 p-1.5 min-w-[250px] bg-parish-card border border-parish-border rounded-2xl shadow-card animate-fadeUp">
+          {item.sub.map((s) => {
+            const on = s.match(pathname, params);
+            return (
+              <li key={s.to}>
+                <Link
+                  to={s.to}
+                  aria-current={on ? 'page' : undefined}
+                  onClick={() => setOpen(false)}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-[var(--p-blue-tint)] ${on ? 'bg-[var(--p-blue-tint)]' : ''}`}
+                >
+                  <span className="w-9 h-9 flex-none rounded-lg flex items-center justify-center text-parish-blue" style={{ background: 'var(--p-blue-tint)' }}><Icon name={s.icon} size={18} /></span>
+                  <span className="min-w-0">
+                    <span className={`block text-[15px] text-parish-navy ${on ? 'font-bold' : 'font-semibold'}`}>{s.label}</span>
+                    <span className="block text-[13px] text-parish-text2 whitespace-nowrap">{s.hint}</span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
   );
 }
 

@@ -6,7 +6,7 @@ import DemoBanner from './components/DemoBanner.jsx';
 import SiteLayout from './pages/site/SiteLayout.jsx';
 import Home from './pages/site/Home.jsx';
 import {
-  Developer, Simbahan, Pagbasa, Kasaysayan, Kaabag, Pahibalo, Komunidad, GkkDetail, ArticlesArchive, PrayerWall, PrayerDetail, Groups, GroupDetail, Serbisyo, Kontak, Blood,
+  Developer, Simbahan, Pagbasa, Kasaysayan, Kaabag, Pahibalo, Komunidad, KomunidadCensus, GkkDetail, ArticlesArchive, PrayerWall, PrayerDetail, Groups, GroupDetail, Serbisyo, Kontak, Blood,
   CheckStatus, RequestForm, Downloads, SongPage, SiteNotFound, EventDetail, AnnouncementDetail, BulletinDetail, ArticleDetail, ArticleRedirect,
 } from './pages/site/lazyPages.js';
 
@@ -109,6 +109,7 @@ export default function App() {
           <Route path="/pahibalo/artikulo/:id" element={<ArticleRedirect />} />
           <Route path="/pahibalo/:id" element={<AnnouncementDetail />} />
           <Route path="/komunidad" element={<Komunidad />} />
+          <Route path="/komunidad/census" element={<KomunidadCensus />} />
           <Route path="/komunidad/artikulo" element={<ArticlesArchive />} />
           <Route path="/komunidad/artikulo/:id" element={<ArticleDetail />} />
           <Route path="/komunidad/balita/:id" element={<ArticleRedirect />} />

@@ -21,6 +21,7 @@ const DESCRIPTIONS = [
   ['/simbahan', (p) => `Oras sa Misa, mga sakramento ug unsaon pagpangandam alang niini sa ${sa(p)}.`],
   ['/misa', (p) => `Oras sa Misa ug mga kalihokan sa ${sa(p)}.`],
   ['/pahibalo', (p) => `Mga pahibalo, bulletin ug kalihokan sa ${sa(p)}.`],
+  ['/komunidad/census', (p) => `Ang census sa ${sa(p)}: ang progreso matag GKK samtang abli, ug ang resulta sa katapusang census.`],
   ['/komunidad/artikulo', (p) => `Mga artikulo ug balita gikan sa ${sa(p)}.`],
   ['/komunidad/pag-ampo', (p) => `Mga hangyo sa pag-ampo gikan sa mga parokyano sa ${sa(p)}: mag-ampo kita alang sa usag usa.`],
   ['/komunidad/grupo', (p) => `Mga ministry ug organisasyon sa ${sa(p)}: unsa ang ilang buhat ug unsaon pag-apil.`],
