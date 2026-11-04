@@ -40,10 +40,10 @@ the live one, and switching back and forth is how migrations end up on the
 wrong database. Use the connection string instead:
 
 ```bash
-npx supabase db push --db-url "<demo-db-url>"
+npx supabase db push --remote="<demo-db-url>"
 ```
 
-Check: `npx supabase migration list --db-url "<demo-db-url>"`.
+Check: `npx supabase migration list --remote="<demo-db-url>"`.
 
 ## Step 4. Edge Functions
 
@@ -235,7 +235,7 @@ It removes only the marked records. Then the seed can be run again.
 From the command line instead (needs the demo database password):
 
 ```bash
-npx supabase db query --db-url "<demo-db-url>" -f supabase/seed/load-test.sql
+npx supabase db query --remote="<demo-db-url>" -f supabase/seed/load-test.sql
 ```
 
 ### A first census with last year's list (after the load test)

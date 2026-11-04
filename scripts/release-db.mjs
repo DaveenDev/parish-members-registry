@@ -1,8 +1,8 @@
 // Run new migrations on each parish's database, one parish at a time.
 //
 // Every parish (and the demo site) has its own Supabase project, often on
-// its own Supabase account. `supabase db push --db-url` reaches each one by
-// its connection string, and each database's own migration history decides
+// its own Supabase account. `supabase db push --remote=<url>` reaches each one
+// by its connection string, and each database's own migration history decides
 // what still has to run, so a parish that is behind gets every migration it
 // missed. The connection strings hold the database passwords: they live in
 // the root `parishes.json`, which git ignores (`npm run parish -- add`).
@@ -33,9 +33,14 @@ import { checkSql, lastDone, migrationMarkers, verdicts, versionOf } from './mig
 
 const MIGRATIONS_DIR = join(ROOT, 'supabase', 'migrations');
 
+// Supabase CLI v3 deprecated --db-url (removed in v4) for --remote. The value
+// must be joined with "=": --remote takes an optional value, so a separate
+// argument would be read as the linked project and the URL as something else.
+const remote = (parish) => `--remote=${parish.dbUrl}`;
+
 // What `db push` would run there, without running it.
 function pending(parish, parishes) {
-  const result = npx(['supabase', 'db', 'push', '--dry-run', '--skip-vault', '--db-url', parish.dbUrl], { encoding: 'utf8' });
+  const result = npx(['supabase', 'db', 'push', '--dry-run', '--skip-vault', remote(parish)], { encoding: 'utf8' });
   const output = hidePasswords(`${result.stdout || ''}${result.stderr || ''}`, parishes).trim();
   const files = [...output.matchAll(/\b(\d{4,5}_[\w-]+\.sql)\b/g)].map((m) => m[1]);
   return {
@@ -135,7 +140,7 @@ async function release(parishes, target) {
       const typed = (await rl.question(`Type "${parish.name}" to run these on ${parish.label}: `)).trim();
       if (typed !== parish.name) fail(`Stopped at ${parish.label}. Nothing was run there.`);
 
-      const result = npx(['supabase', 'db', 'push', '--skip-vault', '--yes', '--db-url', parish.dbUrl], { encoding: 'utf8' });
+      const result = npx(['supabase', 'db', 'push', '--skip-vault', '--yes', remote(parish)], { encoding: 'utf8' });
       const output = hidePasswords(`${result.stdout || ''}${result.stderr || ''}`, parishes).trim();
       if (output) console.log(indent(output));
       if (result.status !== 0) {
@@ -167,7 +172,7 @@ function checkPending(parish, parishes) {
     writeFileSync(file, checkSql(entries));
     // --read-only: the check only reads, and CLI v3 refuses a hosted query
     // without it (or --yes) when it can't prompt, as with json output.
-    const result = npx(['supabase', 'db', 'query', '--read-only', '--db-url', parish.dbUrl, '--output-format', 'json', '--file', file], { encoding: 'utf8' });
+    const result = npx(['supabase', 'db', 'query', '--read-only', remote(parish), '--output-format', 'json', '--file', file], { encoding: 'utf8' });
     if (result.status !== 0) fail(`Couldn't check ${parish.label}:\n${indent(hidePasswords(`${result.stdout || ''}${result.stderr || ''}`, parishes).trim())}`);
     let rows;
     try {
@@ -252,7 +257,7 @@ async function mark(parishes, target, versions) {
     rl.close();
   }
   // --yes: the typed parish name above is the confirmation; the CLI can't prompt here.
-  const result = npx(['supabase', 'migration', 'repair', '--status', 'applied', '--yes', '--db-url', parish.dbUrl, ...marking.map((c) => c.version)], { encoding: 'utf8' });
+  const result = npx(['supabase', 'migration', 'repair', '--status', 'applied', '--yes', remote(parish), ...marking.map((c) => c.version)], { encoding: 'utf8' });
   const output = hidePasswords(`${result.stdout || ''}${result.stderr || ''}`, parishes).trim();
   if (result.status !== 0) fail(`Couldn't record them:\n${indent(output)}`);
   console.log(`Recorded. Now:\n${indent(describe(parish, pending(parish, parishes)))}`);
