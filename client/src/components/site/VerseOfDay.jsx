@@ -60,7 +60,7 @@ export default function VerseOfDay({ onLoad }) {
             <footer className="mt-2.5 lg:mt-3.5 font-bold text-[15px] lg:text-[17px] text-[var(--p-gold-deep)]">— {v.ref}</footer>
           </blockquote>
 
-          <section aria-labelledby="tudlo-title" className="mt-5 lg:mt-7 pt-4 lg:pt-6 border-t border-[#f0e8d6] lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-8">
+          <section aria-labelledby="tudlo-title" className="mt-5 lg:mt-7 pt-4 lg:pt-6 border-t border-parish-line2 lg:grid lg:grid-cols-[280px_minmax(0,1fr)] lg:gap-8">
             {/* Icon and label side by side at every width: the icon keeps its size, the label takes the rest and wraps. */}
             <div data-section-id="verse-cathecism-left" className="flex items-center gap-3 mb-3 lg:mb-0 lg:items-start">
               <span className="w-9 h-9 lg:w-11 lg:h-11 flex-none rounded-xl flex items-center justify-center text-parish-blue" style={{ background: 'var(--p-blue-tint)' }}>

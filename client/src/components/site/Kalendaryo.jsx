@@ -151,9 +151,9 @@ function MonthCalendar({ month, events, masses, today, liturgy }) {
   const cells = monthCells(month);
   return (
     <div className="hidden lg:block">
-      <div className="bg-[#e7dcc4] border border-parish-borderSoft rounded-[18px] overflow-hidden grid grid-cols-7 gap-px">
+      <div className="bg-parish-borderStrong border border-parish-borderSoft rounded-[18px] overflow-hidden grid grid-cols-7 gap-px">
         {BIS_DAYS_SHORT.map((d) => (
-          <div key={d} className="bg-[#fbf7ef] p-2.5 font-bold text-[12px] tracking-[.1em] uppercase text-[#4d4636]">{d}</div>
+          <div key={d} className="bg-parish-tint p-2.5 font-bold text-[12px] tracking-[.1em] uppercase text-[#4d4636]">{d}</div>
         ))}
         {cells.map((c) => {
           const isToday = c.iso === today;
@@ -162,7 +162,7 @@ function MonthCalendar({ month, events, masses, today, liturgy }) {
               key={c.iso}
               className="min-h-[108px] py-2"
               style={{
-                background: isToday ? 'var(--p-blue-tint)' : c.inMonth ? '#fffdf8' : '#f7f2e8',
+                background: isToday ? 'var(--p-blue-tint)' : c.inMonth ? 'rgb(var(--c-card))' : 'rgb(var(--c-bg))',
                 boxShadow: `inset 0 3px 0 ${c.inMonth ? dayColor(c.iso, liturgy) : 'transparent'}`,
               }}
             >

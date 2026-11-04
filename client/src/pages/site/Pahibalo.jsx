@@ -133,11 +133,11 @@ function JumpLinks({ links }) {
 
   return (
     <>
-      <div ref={sentinel} aria-hidden className="h-px -mb-px" style={{ background: 'var(--p-blue-tint)' }} />
+      <div ref={sentinel} aria-hidden className="h-px -mb-px" style={{ background: 'rgb(var(--c-bg))' }} />
       <nav
         aria-label="Adto sa"
-        className={`sticky top-[58px] z-10 lg:static border-b transition-shadow ${stuck ? 'border-[var(--p-blue-border)] shadow-cardSm' : 'border-transparent'} lg:border-transparent lg:shadow-none`}
-        style={{ background: 'var(--p-blue-tint)' }}
+        className={`sticky top-[58px] z-10 lg:static border-b transition-shadow ${stuck ? 'border-parish-border shadow-cardSm' : 'border-transparent'} lg:border-transparent lg:shadow-none`}
+        style={{ background: 'rgb(var(--c-bg))' }}
       >
         <div className={`${WRAP} flex items-center gap-2 py-2 lg:pt-0 lg:pb-3 overflow-x-auto`}>
           {links.map(([id, label]) => (
@@ -230,7 +230,7 @@ function PinnedStrip({ rows }) {
       </div>
       <ul className="list-none m-0 p-0">
         {rows.map((a) => (
-          <li key={a.id} className="border-t border-[#f0e8d6] first:border-t-0">
+          <li key={a.id} className="border-t border-parish-line2 first:border-t-0">
             <Link to={`/pahibalo/${a.id}`} className="flex items-center gap-3 px-3.5 lg:px-[18px] py-2.5 min-h-[48px] hover:bg-[var(--p-blue-tint)]">
               <span className="flex-1 min-w-0 font-serif font-bold text-[18px] lg:text-[20px] leading-tight text-parish-navy line-clamp-2">{a.title}</span>
               <span className="flex-none text-[13px] lg:text-[13.5px] text-parish-text2 whitespace-nowrap">{fmtShort(a.publish_on)}</span>
@@ -346,7 +346,7 @@ function Bulletins() {
           </p>
           <div className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] overflow-hidden lg:max-w-[820px]">
             {earlier.map((b) => (
-              <Link key={b.id} to={`/pahibalo/bulletin/${b.id}`} className="flex items-center gap-3 py-3 pr-3 pl-3.5 lg:py-3.5 lg:px-[18px] border-b border-[#f0e8d6] last:border-b-0 hover:bg-[var(--p-blue-tint)]">
+              <Link key={b.id} to={`/pahibalo/bulletin/${b.id}`} className="flex items-center gap-3 py-3 pr-3 pl-3.5 lg:py-3.5 lg:px-[18px] border-b border-parish-line2 last:border-b-0 hover:bg-[var(--p-blue-tint)]">
                 <span className="flex-1 min-w-0 lg:flex lg:items-baseline lg:gap-4">
                   <span className="block font-serif text-[19px] lg:text-[21px] font-bold text-parish-navy leading-tight">{b.title}</span>
                   <span className="block text-[13.5px] lg:text-[15px] text-parish-text2">{fmtLong(b.week_of)}</span>

@@ -67,16 +67,16 @@ export default function Home() {
         </div>
       )}
 
-      <section className="relative overflow-hidden lg:border-b lg:border-parish-border" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
+      <section className="relative overflow-hidden lg:border-b lg:border-parish-border" style={{ background: 'var(--site-hero-bg)' }}>
         {hero && (
           <>
-            {/* Desktop: the photo behind the hero, faded to cream on the left so the text stays readable. */}
+            {/* Desktop: the photo behind the hero, faded to the theme's background on the left so the text stays readable. */}
             <img src={hero} alt="" aria-hidden="true" className="site-hero-photo hidden lg:block absolute inset-0 w-full h-full object-cover" />
-            <div aria-hidden="true" className="hidden lg:block absolute inset-0" style={{ background: 'linear-gradient(90deg, rgba(247,242,232,.97) 0%, rgba(247,242,232,.9) 34%, rgba(247,242,232,.35) 56%, rgba(247,242,232,0) 72%)' }} />
+            <div aria-hidden="true" className="hidden lg:block absolute inset-0" style={{ background: 'linear-gradient(90deg, rgb(var(--c-bg) / .97) 0%, rgb(var(--c-bg) / .9) 34%, rgb(var(--c-bg) / .35) 56%, rgb(var(--c-bg) / 0) 72%)' }} />
             {/* Phones: the photo as a banner, fading into the hero below it. */}
             <div className="lg:hidden relative h-[210px] overflow-hidden">
               <img src={hero} alt={parish.full} className="site-hero-photo absolute inset-0 w-full h-full object-cover" />
-              <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-20" style={{ background: 'linear-gradient(180deg, rgba(247,242,232,0) 0%, #f7f2e8 100%)' }} />
+              <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-20" style={{ background: 'linear-gradient(180deg, rgb(var(--c-bg) / 0) 0%, rgb(var(--c-bg)) 100%)' }} />
             </div>
           </>
         )}
@@ -117,8 +117,8 @@ export default function Home() {
       <CensusNotice />
       <PrayerTicker />
 
-      {/* A full-width navy band under the census notice (the hero when none is open), for the news and today's Masses. */}
-      <div className="pb-7 bg-parish-navy lg:py-12">
+      {/* The news and the next Masses, on the theme's page background under the census notice (the hero when none is open). */}
+      <div className="pb-7 lg:py-12">
       {/* Desktop: announcements and events half and half, in one grid
           (lg:contents) so both sides share a height: up to two announcement
           cards stacked on the left, the next event's card on the right with
@@ -129,11 +129,11 @@ export default function Home() {
       {showAnn && (
       <section className="px-3.5 pt-7 lg:p-0 lg:contents">
         <div className="lg:col-start-1 lg:row-start-1">
-          <SectionHead dark title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
+          <SectionHead title="Bag-ong pahibalo" to="/pahibalo" action="Tanan" actionLg="Tanang pahibalo →" />
         </div>
         <div className="lg:col-start-1 lg:row-start-2">
           {ann.loading ? <Skeletons n={2} h={104} /> : ann.error ? (
-            <p className="m-0 text-[#ffb4a8] text-[15px]">Wala ma-load ang mga pahibalo.</p>
+            <p className="m-0 text-parish-error text-[15px]">Wala ma-load ang mga pahibalo.</p>
           ) : (
             <div className="flex flex-col gap-2.5 lg:gap-4 lg:h-full">
               {latest.map((a) => <AnnouncementCard key={a.id} a={a} fill />)}
@@ -146,11 +146,11 @@ export default function Home() {
       {showEvents && (
       <section className="px-3.5 pt-7 lg:p-0 lg:contents">
         <div className={`${eventsCol} lg:row-start-1`}>
-          <SectionHead dark title="Umaabot nga kalihokan" to={KALENDARYO_PAGE} action="Kalendaryo" actionLg="Kalendaryo →" />
+          <SectionHead title="Umaabot nga kalihokan" to={KALENDARYO_PAGE} action="Kalendaryo" actionLg="Kalendaryo →" />
         </div>
         <div className={`${eventsCol} lg:row-start-2`}>
           {events.loading ? <Skeleton h={150} /> : events.error ? (
-            <p className="m-0 text-[#ffb4a8] text-[15px]">Wala ma-load ang kalendaryo.</p>
+            <p className="m-0 text-parish-error text-[15px]">Wala ma-load ang kalendaryo.</p>
           ) : (
             <EventCard e={events.rows[0]} showDate fill />
           )}
@@ -199,7 +199,7 @@ export default function Home() {
 
 /**
  * Important notice right under the hero while a census is open: a full-width
- * row a shade deeper than the navy band below it, with a gold top line, the
+ * row in a deep shade of the accent, with a gold top line, the
  * way in for families and the parish-wide progress. Hidden while loading and
  * when no census is open.
  */
@@ -264,7 +264,7 @@ function CensusNotice() {
 }
 
 /**
- * The next three days with Masses, in the navy news band under a white
+ * The next three days with Masses, under the news with the same kind of
  * heading like the news above it: today first while a Mass is still to
  * come, then "Ugma" and the days after (nextMassDays). Each Mass is one
  * slim line. Phones: one card, the day at the left of its first Mass.
@@ -277,7 +277,7 @@ function UpcomingMasses({ mass }) {
   const dayMonth = (iso) => fmtShort(iso).replace(/ \d{4}$/, '');
   return (
     <>
-      <SectionHead dark title="Upcoming Mass Scheduled" to="/simbahan" action="Iskedyul" actionLg="Tibuok iskedyul sa semana →" />
+      <SectionHead title="Upcoming Mass Scheduled" to="/simbahan" action="Iskedyul" actionLg="Tibuok iskedyul sa semana →" />
       {mass.loading ? <div className="grid gap-2.5 lg:grid-cols-3 lg:gap-4"><Skeleton h={120} /><Skeleton h={120} className="hidden lg:block" /><Skeleton h={120} className="hidden lg:block" /></div> : mass.error ? (
         <ErrorNote onRetry={mass.reload}>Wala ma-load ang iskedyul.</ErrorNote>
       ) : !days.length ? (
@@ -324,7 +324,7 @@ function SlimMass({ m, day = null }) {
   const where = [title !== m.location && m.location, m.language].filter(Boolean).join(' · ');
   return (
     <li
-      className={`flex items-center gap-2.5 px-3.5 py-[7px] lg:gap-3 lg:px-[18px] lg:py-2 border-t first:border-t-0 ${day?.newDay ? 'border-parish-border' : 'border-[#f4eddd]'} ${m.next ? 'bg-[var(--p-blue-tint)]' : ''}`}
+      className={`flex items-center gap-2.5 px-3.5 py-[7px] lg:gap-3 lg:px-[18px] lg:py-2 border-t first:border-t-0 ${day?.newDay ? 'border-parish-border' : 'border-parish-sunk'} ${m.next ? 'bg-[var(--p-blue-tint)]' : ''}`}
       title={[day?.full, title, where, m.notes].filter(Boolean).join(' · ')}
     >
       {day && (
@@ -501,7 +501,7 @@ function ArticleRow({ a, flip }) {
         to={path}
         className="grid bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden transition-colors hover:border-[var(--p-blue-border)] lg:grid-cols-2"
       >
-        <div className={`relative aspect-[16/9] lg:aspect-auto lg:min-h-[260px] bg-[#efe6d3] flex items-center justify-center text-[var(--p-gold-deep)] ${flip ? 'lg:order-2' : ''}`}>
+        <div className={`relative aspect-[16/9] lg:aspect-auto lg:min-h-[260px] bg-parish-edge flex items-center justify-center text-[var(--p-gold-deep)] ${flip ? 'lg:order-2' : ''}`}>
           {a.photo_url ? <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : <Icon name="church" size={44} />}
         </div>
         <div className="p-4 lg:p-8 flex flex-col justify-center min-w-0">

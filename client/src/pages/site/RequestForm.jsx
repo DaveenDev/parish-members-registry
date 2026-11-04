@@ -205,7 +205,7 @@ function FormFlow({ F, embedded = false, onAgain }) {
   return (
     <Shell ref={top} className={embedded ? 'scroll-mt-20' : 'px-4 pt-4 pb-7 lg:max-w-[680px] lg:mx-auto lg:px-6 lg:pt-[18px] lg:pb-0'}>
       <div className="font-bold text-[12px] tracking-[.1em] uppercase text-[#4d4636] mb-1.5">Lakang {step + 1} sa {total}</div>
-      <div className="h-[5px] bg-[#eaddc2] rounded-full overflow-hidden mb-4">
+      <div className="h-[5px] bg-parish-borderStrong rounded-full overflow-hidden mb-4">
         <div className="h-full rounded-full transition-[width] duration-300" style={{ width: pct, background: 'linear-gradient(90deg,var(--p-blue),var(--p-gold))' }} />
       </div>
       <Title className={`font-serif font-semibold leading-[1.1] m-0 mb-1 text-parish-navy ${embedded ? 'text-[26px] lg:text-[32px]' : 'text-[30px] lg:text-[40px] lg:leading-[1.08]'}`}>{F.title}</Title>
@@ -227,7 +227,7 @@ function FormFlow({ F, embedded = false, onAgain }) {
             {fields.map((f) => <FieldView key={f.k} f={f} value={values[f.k]} error={errors[f.k]} onChange={(v) => set(f.k, v)} gkks={gkks} />)}
           </div>
           {F.notes && step === F.steps.length - 1 && (
-            <div className="mt-5 bg-[#f1ead9] rounded-xl px-3.5 py-3 flex flex-col gap-1.5">
+            <div className="mt-5 bg-parish-cream rounded-xl px-3.5 py-3 flex flex-col gap-1.5">
               {[...F.notes, ...(F.officeNote && office?.[F.officeNote] ? [office[F.officeNote]] : [])].map((n) => <div key={n} className="flex gap-2 text-[14px] leading-[1.4] text-[#3f3b2f]"><Icon name="idcard" size={16} className="mt-0.5 text-parish-blue" />{n}</div>)}
             </div>
           )}
@@ -246,7 +246,7 @@ function FormFlow({ F, embedded = false, onAgain }) {
           )}
           <div className="bg-parish-card border border-parish-border rounded-2xl px-3.5 py-1">
             {reviewRows(F, values, gkks).map((r) => (
-              <div key={r.k} className="flex gap-2.5 items-start py-[11px] border-b border-[#f4eddd] last:border-b-0">
+              <div key={r.k} className="flex gap-2.5 items-start py-[11px] border-b border-parish-sunk last:border-b-0">
                 <div className="flex-1 min-w-0">
                   <div className="text-[13px] text-parish-text2">{r.label}</div>
                   <div className="font-semibold text-[15.5px] leading-[1.4] break-words whitespace-pre-line">{r.value}</div>
@@ -327,9 +327,9 @@ function FieldView({ f, value, error, onChange, gkks }) {
                 onKeyDown={(e) => rovingKey(e, i, f.opts.length, (n) => onChange(f.opts[n][0]))}
                 onClick={() => onChange(v)}
                 className={`min-h-[52px] flex items-center gap-2.5 px-3 rounded-xl border-[1.5px] text-left font-semibold text-[15.5px] ${f.grid ? 'justify-center' : ''}`}
-                style={{ borderColor: on ? 'var(--p-blue)' : error ? '#a13d29' : '#e0d6c1', background: on ? 'var(--p-blue-tint)' : error ? '#fbeeea' : '#fffdf8' }}
+                style={{ borderColor: on ? 'var(--p-blue)' : error ? '#a13d29' : 'rgb(var(--c-border-soft))', background: on ? 'var(--p-blue-tint)' : error ? '#fbeeea' : 'rgb(var(--c-card))' }}
               >
-                <span className="w-5 h-5 flex-none rounded-full border-2 flex items-center justify-center" style={{ borderColor: on ? 'var(--p-blue)' : '#cfc4ab' }}>
+                <span className="w-5 h-5 flex-none rounded-full border-2 flex items-center justify-center" style={{ borderColor: on ? 'var(--p-blue)' : 'rgb(var(--c-faint))' }}>
                   {on && <span className="w-2.5 h-2.5 rounded-full bg-parish-blue" />}
                 </span>
                 {l}
@@ -350,7 +350,7 @@ function FieldView({ f, value, error, onChange, gkks }) {
     const type = f.type === 'number' ? 'text' : f.type;
     const inputMode = f.type === 'tel' ? 'tel' : f.type === 'email' ? 'email' : f.im || 'text';
     const range = f.type === 'date' ? { min: now(f.min), max: now(f.max) } : {};
-    control = <>{label}<input id={id} type={type} inputMode={inputMode} {...range} value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={f.ph} readOnly={!!f.readOnly} aria-invalid={!!error} aria-describedby={describedBy} className={`${INPUT} ${border} ${f.readOnly ? 'bg-[#f1ead9] font-semibold' : ''}`} /></>;
+    control = <>{label}<input id={id} type={type} inputMode={inputMode} {...range} value={value || ''} onChange={(e) => onChange(e.target.value)} placeholder={f.ph} readOnly={!!f.readOnly} aria-invalid={!!error} aria-describedby={describedBy} className={`${INPUT} ${border} ${f.readOnly ? 'bg-parish-cream font-semibold' : ''}`} /></>;
   }
 
   return (

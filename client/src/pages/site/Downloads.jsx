@@ -78,7 +78,7 @@ export default function Downloads() {
           <FileList files={files} q={q} />
         </section>
 
-        <section id={SONGS_ID} aria-labelledby={`${SONGS_ID}-title`} className={`${SECTION} border-t border-parish-border`} style={{ background: '#f1ead9' }}>
+        <section id={SONGS_ID} aria-labelledby={`${SONGS_ID}-title`} className={`${SECTION} border-t border-parish-border`}>
           <div className={`${WRAP} pt-7 pb-8 lg:pt-11 lg:pb-12`}>
             <h2 id={`${SONGS_ID}-title`} className={`${SECTION_TITLE} mb-1.5`}>Song Lyrics</h2>
             <p className="m-0 mb-4 lg:mb-5 text-[15px] lg:text-[16.5px] leading-normal text-[#4d4636] max-w-[720px]">
@@ -179,11 +179,11 @@ function FileList({ files, q }) {
         const listId = `files-${slugify(g.category)}`;
         return (
           <Card as="section" key={g.category} aria-label={g.category} className="overflow-hidden lg:break-inside-avoid lg:mb-6">
-            <h3 className="m-0 px-4 py-3 flex items-baseline justify-between gap-3 border-b border-parish-border bg-[#faf6ec]">
+            <h3 className="m-0 px-4 py-3 flex items-baseline justify-between gap-3 border-b border-parish-border bg-parish-tint">
               <span className="font-serif font-semibold text-[21px] lg:text-[23px] leading-tight text-parish-navy">{g.category}</span>
               <span className="flex-none text-[12.5px] font-semibold text-parish-text2">{g.files.length} {g.files.length === 1 ? 'file' : 'files'}</span>
             </h3>
-            <ul id={listId} className="m-0 p-0 list-none divide-y divide-[#f0e8d6]">
+            <ul id={listId} className="m-0 p-0 list-none divide-y divide-parish-line2">
               {(all ? g.files : g.files.slice(0, FILES_SHOWN)).map((f) => <li key={f.id}><FileRow f={f} /></li>)}
             </ul>
             {!q.trim() && hidden > 0 && (
@@ -192,7 +192,7 @@ function FileList({ files, q }) {
                 aria-expanded={open.has(g.category)}
                 aria-controls={listId}
                 onClick={() => toggle(g.category)}
-                className="w-full min-h-[46px] flex items-center justify-center gap-1.5 border-t border-parish-border bg-[#faf6ec] font-bold text-[14.5px] text-parish-blue hover:text-parish-blueDeep"
+                className="w-full min-h-[46px] flex items-center justify-center gap-1.5 border-t border-parish-border bg-parish-tint font-bold text-[14.5px] text-parish-blue hover:text-parish-blueDeep"
               >
                 {open.has(g.category) ? 'Show fewer' : `Show ${hidden} more`}
                 <Icon name="down" size={16} className={open.has(g.category) ? 'rotate-180' : ''} />

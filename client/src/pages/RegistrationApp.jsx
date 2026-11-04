@@ -615,7 +615,7 @@ function Confirmation({ refNo, accessCode, householdName, joined = false, onRest
     }
   }
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 py-12" style={{ background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' }}>
+    <div className="min-h-screen flex flex-col items-center justify-center text-center px-4 sm:px-6 py-12" style={{ background: 'var(--site-hero-bg)' }}>
       <ConfirmationPrintSheet refNo={refNo} accessCode={code} householdName={householdName} parish={parish} />
       <div className="max-w-[520px] animate-fadeUp">
         <div className="w-[82px] h-[82px] rounded-full bg-[#eaf4ee] flex items-center justify-center mx-auto mb-[22px] text-[#3a8a5e]">
@@ -721,7 +721,7 @@ function Wizard(props) {
             <span className="text-parish-muted font-medium">Lakang {step} sa {STEPS.length} · </span>{STEPS[step - 1]}
           </div>
           <div className="hidden sm:block"><StepDots step={step} /></div>
-          <div className="h-[5px] bg-[#eaddc2] rounded-full mt-2.5 sm:mt-3.5 mx-auto max-w-[520px] overflow-hidden">
+          <div className="h-[5px] bg-parish-borderStrong rounded-full mt-2.5 sm:mt-3.5 mx-auto max-w-[520px] overflow-hidden">
             <div className="h-full rounded-full transition-all duration-500" style={{ width: `${progressPct}%`, background: 'linear-gradient(90deg,var(--p-blue),var(--p-gold))' }} />
           </div>
         </div>
@@ -797,7 +797,7 @@ function HouseholdNameField({ value, error, status, suggestion, autoFrom, onChan
           aria-readonly={!editing}
           onChange={(e) => onChange(e.target.value)}
           onKeyDown={(e) => { if (editing && e.key === 'Enter') toggle(); }}
-          className={`flex-1 ${editing ? '' : '!bg-[#f4efe3] !text-parish-text2 cursor-default'}`}
+          className={`flex-1 ${editing ? '' : '!bg-parish-sunk !text-parish-text2 cursor-default'}`}
         />
         <GhostButton type="button" onClick={toggle} className="px-4 text-[14px] flex-none !border-[#cdd7e8] !text-parish-blue bg-white">
           {editing ? 'Human na' : 'Usba'}
@@ -836,7 +836,7 @@ function ModeChooser({ mode, onMode }) {
           <label
             key={value}
             className="cursor-pointer select-none rounded-2xl border-[1.5px] px-4 py-3.5 transition focus-within:ring-2 focus-within:ring-parish-blue/30"
-            style={{ borderColor: checked ? 'var(--p-blue)' : '#e0d6c1', background: checked ? 'var(--p-blue-tint)' : '#fff' }}
+            style={{ borderColor: checked ? 'var(--p-blue)' : 'rgb(var(--c-border-soft))', background: checked ? 'var(--p-blue-tint)' : '#fff' }}
           >
             <input type="radio" name="registration-mode" value={value} checked={checked} onChange={() => onMode(value)} className="sr-only" />
             <span className="block font-semibold text-[15.5px] text-parish-navy">{checked ? '● ' : '○ '}{title}</span>
@@ -1002,7 +1002,7 @@ function FamilyHeading({ group, className = 'mb-3' }) {
   return (
     <div className={`flex items-center gap-2.5 ${className}`}>
       <span className="font-bold text-[12px] text-[var(--p-gold-deep)] tracking-[.12em] uppercase">Pamilya ni {name}</span>
-      <span className="flex-1 h-px bg-[#e7dcc4]" />
+      <span className="flex-1 h-px bg-parish-borderStrong" />
     </div>
   );
 }
@@ -1128,7 +1128,7 @@ function StepMembers({ memberViews, onMemberField, onAddMember, onRemoveMember, 
         })}
       </div>
       {mode === 'new' && groups.length < MAX_FAMILIES && (
-        <div className="mt-7 pt-5 border-t border-[#e7dcc4]">
+        <div className="mt-7 pt-5 border-t border-parish-borderStrong">
           <p className="text-[14px] text-parish-text2 mb-3">
             Aduna bay <strong>laing pamilya</strong> nga nagpuyo sa samang balay (pananglitan, minyo nga anak uban sa iyang asawa ug mga anak)? Idugang sila isip laing pamilya uban sa ilang kaugalingong ulo.
           </p>
@@ -1151,7 +1151,7 @@ function StepSacraments({ memberViews, onMemberField }) {
         memberViews={memberViews}
         render={(mv, i) => (
           <Card key={i} className="p-[clamp(18px,4vw,28px)]">
-            <div className="flex items-center gap-2.5 mb-4 pb-3.5 border-b border-[#f0e8d6]">
+            <div className="flex items-center gap-2.5 mb-4 pb-3.5 border-b border-parish-line2">
               <div className="w-8 h-8 flex-none rounded-full bg-[var(--p-blue-tint)] text-parish-blue flex items-center justify-center font-bold text-[14px]">{i + 1}</div>
               <NameWithFamily mv={mv} className="font-serif text-[21px] font-semibold text-parish-navy" />
             </div>
@@ -1257,7 +1257,7 @@ function StepEngagement({ household, onParticipation, onToggleHelpWay, memberVie
                 </Select>
               </Field>
             </div>
-            <label className="flex items-start gap-3 cursor-pointer p-4 border border-[#eee3ce] rounded-xl bg-[#fdfbf6] mb-3.5">
+            <label className="flex items-start gap-3 cursor-pointer p-4 border border-parish-edge rounded-xl bg-parish-field mb-3.5">
               <Checkbox checked={notifyOptin} onChange={(e) => setNotifyOptin(e.target.checked)} className="mt-0.5" />
               <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">Ilakip kami sa email list sa parokya para sa iskedyul sa Misa, mga pista, ug mga pahibalo.</span>
             </label>
@@ -1266,7 +1266,7 @@ function StepEngagement({ household, onParticipation, onToggleHelpWay, memberVie
         {/* Red when it's what stops "Padayon"; aria-invalid lets the wizard scroll to it. */}
         <label
           className={`flex items-start gap-3 cursor-pointer p-4 rounded-xl border-[1.5px] transition ${consentMissing ? 'ring-4 ring-parish-error/20' : ''}`}
-          style={{ borderColor: consent ? '#9db9e0' : consentMissing ? '#a13d29' : '#e0d6c1', background: consent ? 'var(--p-blue-tint)' : consentMissing ? '#fbeeea' : '#fdfbf6' }}
+          style={{ borderColor: consent ? '#9db9e0' : consentMissing ? '#a13d29' : 'rgb(var(--c-border-soft))', background: consent ? 'var(--p-blue-tint)' : consentMissing ? '#fbeeea' : '#fdfbf6' }}
         >
           <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} aria-invalid={consentMissing ? true : undefined} className="mt-0.5" />
           <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">
@@ -1347,7 +1347,7 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
       <ReviewCard title={`Mga Miyembro (${memberViews.length})`} onEdit={() => onGoStep(2)}>
         <div className="mt-3">
           <ByFamily memberViews={memberViews} gap="gap-4" render={(m, i) => (
-            <div key={i} className="border border-[#f0e8d6] rounded-2xl px-[18px] py-4 bg-[#fdfbf6]">
+            <div key={i} className="border border-parish-line2 rounded-2xl px-[18px] py-4 bg-parish-field">
               <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{fullName(m) || m.displayName}</div>
               <div className="text-[13.5px] text-parish-muted mb-3">{[bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), bis(CIVIL_STATUS_LABELS, m.civilStatus), m.dob && `natawo ${fmtDate(m.dob)}`, m.tribe && `Tribu: ${m.tribe}`, m.bloodType && `Dugo: ${m.bloodType}`, askedForAge(m.dob).roles && m.gkkRole && `GKK: ${m.gkkRole}`, askedForAge(m.dob).roles && m.parishRole && `Parish: ${m.parishRole}`].filter(Boolean).join('  ·  ') || '—'}</div>
               {!!(m.organizations || []).length && (
@@ -1396,7 +1396,7 @@ function ReviewCard({ title, onEdit, children }) {
 function ReviewRow({ label, value }) {
   return (
     // Phones: label above the value so long addresses and survey answers get the full width.
-    <div className="flex flex-col sm:flex-row gap-0.5 sm:gap-3.5 text-[15px] border-b border-[#f4eddd] pb-2.5">
+    <div className="flex flex-col sm:flex-row gap-0.5 sm:gap-3.5 text-[15px] border-b border-parish-sunk pb-2.5">
       <span className="sm:flex-none sm:w-[130px] text-parish-muted font-semibold text-[13px] sm:text-[15px]">{label}</span>
       <div className="text-parish-ink break-words min-w-0">{value}</div>
     </div>
@@ -1438,9 +1438,9 @@ function ConfirmModal({ memberViews, onCancel, onAddMore, onSubmit }) {
         <p className="text-[15px] leading-relaxed text-parish-text2 mb-[18px]">
           Magrehistro kamo og <strong className="text-parish-blue">{memberViews.length}</strong> ka miyembro sa pamilya. Palihug siguroha nga apil ang tanan una mahuman — mahimo pa kamong mobalik ug modugang.
         </p>
-        <div className="bg-[#fdfbf6] border border-[#eee3ce] rounded-xl px-3.5 mb-[22px]">
+        <div className="bg-parish-field border border-parish-edge rounded-xl px-3.5 mb-[22px]">
           {memberViews.map((m, i) => (
-            <div key={i} className="flex items-center justify-between gap-3 py-2.5 border-b border-[#f4eddd] last:border-b-0">
+            <div key={i} className="flex items-center justify-between gap-3 py-2.5 border-b border-parish-sunk last:border-b-0">
               <span className="font-semibold text-[15px] text-parish-navy">{m.displayName}</span>
               <span className="font-medium text-[13px] text-parish-muted">{bis(RELATIONSHIP_LABELS, m.relationship) || '—'}</span>
             </div>

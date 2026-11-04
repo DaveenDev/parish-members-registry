@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { Icon } from '../../components/site/Icons.jsx';
-import { Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, FOOTER_CREAM, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
+import { Band, BigButton, Card, DataState, EmptyNote, ErrorNote, Eyebrow, INNER, PageHeader, Pills, Skeleton, Skeletons, WRAP } from '../../components/site/kit.jsx';
 import ArticlesSection from './Articles.jsx';
 import { Body, Gallery, Lightbox } from './Details.jsx';
 import { censusCountdown, filterGkks, fmtLong, fmtShort, gkkParts, sortCensusGkks } from '../../lib/site.js';
@@ -119,7 +119,7 @@ function KomunidadPage({ params }) {
       <PrayerSection />
       <GroupsPointer />
       {/* On the darker cream, between the prayer requests and the articles on the page's own. */}
-      <section id="mga-gkk" aria-labelledby="gkk-title" className="scroll-mt-20 py-7 lg:py-12 border-y" style={FOOTER_CREAM}>
+      <section id="mga-gkk" aria-labelledby="gkk-title" className="scroll-mt-20 py-7 lg:py-12 border-y border-parish-borderStrong">
         <div className={WRAP}>
           <div data-reveal>
             <Eyebrow>Gagmay nga Kristohanong Katilingban</Eyebrow>
@@ -280,7 +280,7 @@ function GkkDirectory() {
       >
         {q && <div aria-live="polite" className="font-semibold text-[14px] lg:text-[15px] text-[#4d4636] mb-2.5 lg:mb-3">{count} ka GKK ang nakit-an</div>}
         {!count ? (
-          <div className="bg-parish-card border border-dashed border-[#d9cdb4] rounded-2xl p-[18px] text-center lg:max-w-[560px] lg:mx-auto lg:p-[26px] lg:rounded-[18px]">
+          <div className="bg-parish-card border border-dashed border-parish-borderSoft rounded-2xl p-[18px] text-center lg:max-w-[560px] lg:mx-auto lg:p-[26px] lg:rounded-[18px]">
             <div className="font-serif text-[21px] lg:text-[24px] font-bold text-parish-navy mb-1">Walay GKK nga nakit-an para sa “{q}”</div>
             <p className="m-0 mb-3 text-[15px] text-[#4d4636]">Sulayi ang ngalan sa barangay, o pangutan-a ang opisina.</p>
             <BigButton variant="secondary" to="/kontak" className="!w-auto inline-flex px-4">Kontaka ang opisina</BigButton>
@@ -306,7 +306,7 @@ function GkkCard({ g }) {
   return (
     <Card className="flex flex-col h-full overflow-hidden lg:rounded-[18px] hover:border-[var(--p-blue-border)]">
       <Link to={gkkPath(g.name)} className="flex flex-col flex-1 text-left">
-        <div className="relative aspect-[16/9] bg-[#efe6d3] flex items-center justify-center text-[var(--p-gold-deep)]">
+        <div className="relative aspect-[16/9] bg-parish-edge flex items-center justify-center text-[var(--p-gold-deep)]">
           {g.photo_url
             ? <img src={g.photo_url} alt={`Kapilya sa ${g.patron}`} loading="lazy" decoding="async" className="absolute inset-0 w-full h-full object-cover" />
             : <Icon name="church" size={44} />}
@@ -388,7 +388,7 @@ export function GkkDetail() {
       {(g.meeting_schedule || g.meeting_place) && (
         <Card className="px-3.5 py-1 mb-3.5 shadow-none lg:hidden">
           {g.meeting_schedule && (
-            <div className={`flex gap-3 py-3 ${g.meeting_place ? 'border-b border-[#f0e8d6]' : ''}`}>
+            <div className={`flex gap-3 py-3 ${g.meeting_place ? 'border-b border-parish-line2' : ''}`}>
               <Icon name="clock" className="text-parish-blue" />
               <div><div className="text-[13px] text-parish-text2">Bible-sharing</div><div className="font-semibold text-[15.5px]">{g.meeting_schedule}</div></div>
             </div>
@@ -441,7 +441,7 @@ function GkkHistory({ text, photos }) {
           {main && (
             <figure className="float-right m-0 ml-3.5 mb-3 mt-1 w-[46%] sm:w-[40%] max-w-[340px] lg:ml-6">
               <button type="button" onClick={() => setOpen(0)} aria-label="Tan-awa ang litrato" className="block w-full p-0 border-0 bg-transparent cursor-zoom-in">
-                <img src={main.url} alt={main.caption || 'Litrato sa kasaysayan'} loading="lazy" decoding="async" className="w-full aspect-[4/3] object-cover rounded-xl lg:rounded-[14px] bg-[#efe6d3]" />
+                <img src={main.url} alt={main.caption || 'Litrato sa kasaysayan'} loading="lazy" decoding="async" className="w-full aspect-[4/3] object-cover rounded-xl lg:rounded-[14px] bg-parish-edge" />
               </button>
               {main.caption && <figcaption className="mt-1.5 text-[13px] leading-snug text-parish-text2">{main.caption}</figcaption>}
             </figure>
@@ -469,7 +469,7 @@ function GkkPhotos({ page, patron }) {
     ...(page?.photos || []).filter((p) => p?.url),
   ];
   const shown = all[Math.min(sel, all.length - 1)];
-  const box = 'relative w-full aspect-[16/10] lg:aspect-[16/8] rounded-[14px] lg:rounded-[18px] overflow-hidden bg-[#efe6d3]';
+  const box = 'relative w-full aspect-[16/10] lg:aspect-[16/8] rounded-[14px] lg:rounded-[18px] overflow-hidden bg-parish-edge';
 
   if (!shown) {
     return (
@@ -491,7 +491,7 @@ function GkkPhotos({ page, patron }) {
             <li key={p.url} className="flex-none">
               <button
                 type="button" onClick={() => setSel(i)} aria-label={p.caption || `Litrato ${i + 1}`} aria-current={i === sel ? 'true' : undefined}
-                className={`block p-0 border-0 cursor-pointer rounded-lg overflow-hidden w-[76px] h-[56px] lg:w-[104px] lg:h-[72px] bg-[#efe6d3] ${i === sel ? 'ring-[3px] ring-[var(--p-blue)] ring-offset-2 ring-offset-parish-bg' : 'opacity-80 hover:opacity-100'}`}
+                className={`block p-0 border-0 cursor-pointer rounded-lg overflow-hidden w-[76px] h-[56px] lg:w-[104px] lg:h-[72px] bg-parish-edge ${i === sel ? 'ring-[3px] ring-[var(--p-blue)] ring-offset-2 ring-offset-parish-bg' : 'opacity-80 hover:opacity-100'}`}
               >
                 <img src={p.url} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover" />
               </button>
@@ -592,7 +592,7 @@ function GkkCensusList({ gkks, note = 'Porsyento lang ang gipakita. Walay ngalan
         style={{ '--rows': perColumn }}
       >
         {rows.map((r, i) => (
-          <div key={r.name} className={`py-[11px] lg:py-3 border-b border-[#f4eddd] last:border-b-0 ${i === perColumn - 1 ? 'lg:border-b-0' : ''}`}>
+          <div key={r.name} className={`py-[11px] lg:py-3 border-b border-parish-sunk last:border-b-0 ${i === perColumn - 1 ? 'lg:border-b-0' : ''}`}>
             <div className="flex items-baseline gap-2 mb-1.5">
               <div className="flex-1 min-w-0 font-semibold text-[14.5px] leading-[1.25]">{r.name}</div>
               {r.pct === 100 && (
@@ -603,7 +603,7 @@ function GkkCensusList({ gkks, note = 'Porsyento lang ang gipakita. Walay ngalan
               <span className="font-bold text-[14.5px] text-parish-blueDeep min-w-[38px] text-right">{r.pct != null ? `${r.pct}%` : '—'}</span>
             </div>
             {r.pct != null ? (
-              <div className="h-2 rounded-full bg-[#efe6d3] overflow-hidden"><div className="h-full rounded-full" style={{ width: `${r.pct}%`, background: 'var(--p-blue-light)' }} /></div>
+              <div className="h-2 rounded-full bg-parish-edge overflow-hidden"><div className="h-full rounded-full" style={{ width: `${r.pct}%`, background: 'var(--p-blue-light)' }} /></div>
             ) : (
               <div className="text-[12.5px] text-parish-text2">Ubos sa 5 ka pamilya. Dili ipakita ang porsyento.</div>
             )}

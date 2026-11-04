@@ -177,7 +177,7 @@ function HistoryFeature() {
         <Eyebrow className="mb-2.5 lg:mb-3.5">Kasaysayan sa Parokya</Eyebrow>
         <div className={`bg-parish-card border border-parish-border rounded-[20px] lg:rounded-[26px] shadow-card overflow-hidden ${main.photo_url ? 'lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]' : ''}`}>
           {main.photo_url && (
-            <Link to={HISTORY_PAGE} tabIndex={-1} aria-hidden className="block bg-[#efe6d3]">
+            <Link to={HISTORY_PAGE} tabIndex={-1} aria-hidden className="block bg-parish-edge">
               <img src={main.photo_url} alt="" loading="lazy" className="w-full h-full aspect-[16/10] lg:aspect-auto lg:min-h-[460px] object-cover" />
             </Link>
           )}
@@ -270,7 +270,7 @@ function GuideCard({ g }) {
   const share = useShare();
   return (
     <article className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
-      <header className="flex gap-3 items-start px-4 py-3.5 lg:gap-4 lg:px-6 lg:py-5 bg-[#fbf7ef] border-b border-[#f0e8d6]">
+      <header className="flex gap-3 items-start px-4 py-3.5 lg:gap-4 lg:px-6 lg:py-5 bg-parish-tint border-b border-parish-line2">
         <span className="hidden sm:flex w-12 h-12 lg:w-14 lg:h-14 flex-none rounded-2xl items-center justify-center text-parish-blue" style={{ background: 'var(--p-blue-tint)' }}>
           <SacramentIcon sacrament={g.key} size={28} />
         </span>
@@ -301,9 +301,9 @@ function GuideCard({ g }) {
           )}
           {docs.length > 0 && <DocChecklist guideKey={g.key} docs={docs} />}
         </div>
-        <aside className={`flex flex-col gap-2.5 px-4 pb-4 ${side ? 'lg:p-6 lg:border-l lg:border-[#f0e8d6] lg:bg-[#fdfaf4]' : 'lg:px-6 lg:pb-6'}`}>
+        <aside className={`flex flex-col gap-2.5 px-4 pb-4 ${side ? 'lg:p-6 lg:border-l lg:border-parish-line2 lg:bg-parish-field' : 'lg:px-6 lg:pb-6'}`}>
           {extras.map(([label, value, icon]) => (
-            <div key={label} className="flex gap-2.5 items-start rounded-xl px-3.5 py-3 border border-[#eee3ce] bg-parish-bg">
+            <div key={label} className="flex gap-2.5 items-start rounded-xl px-3.5 py-3 border border-parish-edge bg-parish-bg">
               <Icon name={icon} size={18} className="text-[var(--p-gold-deep)] mt-px flex-none" />
               <div className="text-[14.5px] leading-normal text-[#3f3b2f]"><strong className="block text-parish-navy">{label}</strong>{value}</div>
             </div>
@@ -439,7 +439,7 @@ function MassSchedule() {
           <div className={`flex flex-col gap-3.5 lg:grid lg:items-stretch ${SECTION_COLS[Math.min(sections.length, 4)]}`}>
             {sections.map((s) => (
               <section key={s.key} className="bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden">
-                <div className="flex items-center gap-2 flex-wrap px-3.5 py-2.5 lg:px-4 lg:py-3 bg-[#fbf7ef] lg:border-b lg:border-[#f0e8d6]">
+                <div className="flex items-center gap-2 flex-wrap px-3.5 py-2.5 lg:px-4 lg:py-3 bg-parish-tint lg:border-b lg:border-parish-line2">
                   <h3 className="m-0 font-serif text-[21px] lg:text-[23px] font-bold text-parish-navy">{s.title}</h3>
                   {s.today && <MassTag tone="blue">Karong adlawa</MassTag>}
                 </div>
@@ -447,7 +447,7 @@ function MassSchedule() {
                 {s.key === 'daily' && s.rows.map((m) => <MassRow key={m.id} m={m} heading={m.when} />)}
                 {s.key === 'other' && s.rows.map((m) => <MassRow key={m.id} m={m} when={m.when} />)}
                 {s.key === 'special' && s.blocks.map((b) => (
-                  <div key={b.key} className="border-t border-[#f4eddd] first:border-t-0">
+                  <div key={b.key} className="border-t border-parish-sunk first:border-t-0">
                     <div className="px-3.5 pt-3 lg:px-4">
                       <div className="font-serif text-[18px] lg:text-[19px] font-bold text-parish-navy leading-tight">{b.occasion}</div>
                       <div className="flex items-center gap-2 flex-wrap mt-1">

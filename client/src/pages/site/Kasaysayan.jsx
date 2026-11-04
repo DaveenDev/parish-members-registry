@@ -123,7 +123,7 @@ function MainArticle({ main }) {
       {photo && (
         <figure className={`m-0 mb-4 lg:mb-5 ${paras.length > at ? 'sm:float-right sm:w-[46%] sm:ml-6 sm:mt-1.5 sm:mb-3 lg:ml-8' : ''}`}>
           <button type="button" onClick={() => setOpen(true)} className="block w-full appearance-none border-none bg-transparent p-0 cursor-zoom-in" aria-label={photo.caption || 'Ablihi ang litrato'}>
-            <img src={photo.url} alt={photo.caption || ''} loading="lazy" className="block w-full rounded-[14px] lg:rounded-[16px] bg-[#efe6d3]" />
+            <img src={photo.url} alt={photo.caption || ''} loading="lazy" className="block w-full rounded-[14px] lg:rounded-[16px] bg-parish-edge" />
           </button>
           {photo.caption && <figcaption className="mt-2 text-[13.5px] lg:text-[14px] leading-snug italic text-parish-text2">{photo.caption}</figcaption>}
         </figure>
@@ -144,7 +144,7 @@ function Hero({ main }) {
   const [open, setOpen] = useState(null);
   const side = photos.slice(1, 5);
   const more = photos.length - 5;
-  const tile = 'relative block w-full h-full overflow-hidden appearance-none border-none p-0 cursor-zoom-in bg-[#efe6d3]';
+  const tile = 'relative block w-full h-full overflow-hidden appearance-none border-none p-0 cursor-zoom-in bg-parish-edge';
 
   return (
     <Band aria-labelledby="kasaysayan-title">
@@ -221,10 +221,10 @@ function useCurrentEntry(entries) {
 function Chapter({ c, last }) {
   const when = historyWhen(c);
   return (
-    <article id={chapterAnchor(c)} aria-labelledby={`${chapterAnchor(c)}-title`} className={`${CHAPTER_MT} ${last ? '' : 'pb-8 mb-8 lg:pb-12 lg:mb-12 border-b border-[#e7dcc4]'}`}>
+    <article id={chapterAnchor(c)} aria-labelledby={`${chapterAnchor(c)}-title`} className={`${CHAPTER_MT} ${last ? '' : 'pb-8 mb-8 lg:pb-12 lg:mb-12 border-b border-parish-borderStrong'}`}>
       <div className="flex items-center gap-3 mb-1.5">
         <span className="font-serif font-bold text-[26px] lg:text-[34px] leading-none text-[var(--p-gold-deep)]">{when}</span>
-        <span className="flex-1 h-px bg-[#e7dcc4]" aria-hidden />
+        <span className="flex-1 h-px bg-parish-borderStrong" aria-hidden />
       </div>
       <h3 id={`${chapterAnchor(c)}-title`} className="m-0 mb-2 font-serif font-semibold text-[25px] lg:text-[32px] leading-tight text-parish-navy">{c.title}</h3>
       {c.author && <div className="mb-3.5 text-[14.5px] text-parish-text2">Sinulat ni <span className="font-semibold text-parish-ink">{c.author}</span></div>}
@@ -281,7 +281,7 @@ function YearBar({ entries, current, onPick }) {
   }, [current]);
   return (
     // Across the whole screen, out of the page's side padding.
-    <nav aria-label="Mga tuig" className="lg:hidden sticky top-[58px] z-10 -mx-3.5 border-b backdrop-blur-md" style={{ background: 'rgba(247,242,232,.95)', borderColor: 'var(--p-blue-border)' }}>
+    <nav aria-label="Mga tuig" className="lg:hidden sticky top-[58px] z-10 -mx-3.5 border-b backdrop-blur-md" style={{ background: 'rgb(var(--c-bg) / .95)', borderColor: 'var(--p-blue-border)' }}>
       <div ref={row} className={`flex gap-2 overflow-x-auto px-3.5 py-2.5 ${NO_SCROLLBAR}`}>
         {entries.map((x) => {
           const on = x.anchor === current;

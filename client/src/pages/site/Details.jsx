@@ -39,7 +39,7 @@ export function Body({ text, className = READ_TEXT }) {
   return paragraphs(text).map((p, i) => <p key={i} className={`m-0 mb-3.5 lg:mb-4 whitespace-pre-line ${className}`}><LinkedText text={p} /></p>);
 }
 
-const PHOTO_BOX = 'rounded-[14px] lg:rounded-[18px] mb-4 lg:mb-6 bg-[#efe6d3] h-[var(--h)] lg:h-[var(--h-lg)]';
+const PHOTO_BOX = 'rounded-[14px] lg:rounded-[18px] mb-4 lg:mb-6 bg-parish-edge h-[var(--h)] lg:h-[var(--h-lg)]';
 
 /**
  * A cover photo across the full content width at a fixed height (article and
@@ -212,7 +212,7 @@ export function Gallery({ photos, title = 'Mga litrato', id = 'gallery-title', c
         {list.map((p, i) => (
           <li key={p.url}>
             <button type="button" onClick={() => setOpen(i)} className="block w-full text-left appearance-none border-none bg-transparent p-0 cursor-zoom-in">
-              <img src={p.url} alt={p.caption || `Litrato ${i + 1}`} loading="lazy" className="w-full aspect-[4/3] object-cover rounded-xl bg-[#efe6d3]" />
+              <img src={p.url} alt={p.caption || `Litrato ${i + 1}`} loading="lazy" className="w-full aspect-[4/3] object-cover rounded-xl bg-parish-edge" />
               {p.caption && <span className="block mt-1 text-[13px] leading-snug text-parish-text2 line-clamp-2">{p.caption}</span>}
             </button>
           </li>

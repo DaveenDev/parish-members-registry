@@ -2,12 +2,14 @@
 @tailwind components;
 @tailwind utilities;
 
-/* ===== Theme variants =====
-   Each theme sets the brand accent colors; warm parchment neutrals and
-   semantic status colors (verified/pending/error) stay constant so the
-   app reads consistently no matter which theme is active. */
+/* ===== Accents =====
+   The accent (data-accent on <html>, set by ThemeContext.jsx) sets the
+   brand colors: buttons, links, active states, headings, the admin sidebar
+   and the website navbar. The background theme (data-theme, further down)
+   sets the surfaces. Status colors (verified/pending/error) stay the same
+   whatever is chosen. */
 :root,
-[data-theme='classic'] {
+[data-accent='navy'] {
   --p-blue: #34589c;
   --p-blue-deep: #26436f;
   --p-blue-light: #4a71b8;
@@ -18,7 +20,7 @@
   --p-sidebar-a: #20406b;
   --p-sidebar-b: #152c4c;
 }
-[data-theme='emerald'] {
+[data-accent='emerald'] {
   --p-blue: #1f6d4c;
   --p-blue-deep: #155038;
   --p-blue-light: #3f9c74;
@@ -29,7 +31,7 @@
   --p-sidebar-a: #12432f;
   --p-sidebar-b: #0c2e20;
 }
-[data-theme='ocean'] {
+[data-accent='ocean'] {
   --p-blue: #14707a;
   --p-blue-deep: #0d525a;
   --p-blue-light: #3f97a1;
@@ -40,8 +42,8 @@
   --p-sidebar-a: #0d525a;
   --p-sidebar-b: #083a40;
 }
-[data-theme='terracotta'] {
-  --p-blue: #b0563a;
+[data-accent='terracotta'] {
+  --p-blue: #a65034;
   --p-blue-deep: #8a3f28;
   --p-blue-light: #cd7a5d;
   --p-navy: #5c2c1c;
@@ -57,8 +59,13 @@
   --p-blue-tint-strong: color-mix(in srgb, var(--p-blue) 16%, white);
   --p-blue-border: color-mix(in srgb, var(--p-blue) 40%, white);
   --p-gold-tint: color-mix(in srgb, var(--p-gold) 14%, white);
-  /* Gold eyebrow text darkened enough for AA contrast on parchment. */
-  --p-eyebrow: color-mix(in srgb, var(--p-gold-deep) 78%, black);
+  /* Gold eyebrow text darkened enough for AA contrast on every theme. */
+  --p-eyebrow: color-mix(in srgb, var(--p-gold-deep) 74%, black);
+  /* The website navbar (header, phone tab bar): the accent, white text,
+     the accent's light gold for the page you're on. */
+  --p-nav: var(--p-sidebar-a);
+  --p-nav-line: var(--p-sidebar-b);
+  --p-nav-mark: var(--p-gold-light);
 }
 
 /* ===== Chart series colours =====
@@ -101,7 +108,7 @@
   --c-ink: 23 38 63;
   --c-text3: 63 59 47;
   --c-text2: 107 101 82;
-  --c-muted: 138 131 111;
+  --c-muted: 115 108 90;
   --c-faint: 196 187 164;
   --c-icon: 154 146 127;
   --c-scrim: 26 43 74;
@@ -123,7 +130,92 @@
   --c-ok-bg: 234 244 238;
   --c-ok-tint: 243 250 246;
   --c-ok-border: 191 224 204;
+  /* Website surfaces: a card's header strip, the cream bands (footer, the
+     GKK and songs sections, the hero's lower edge) and the hero's glow. */
+  --c-tint: 251 247 239;
+  --c-cream: 241 234 217;
+  --c-glow: 254 252 247;
 }
+
+/* ===== Background themes =====
+   data-theme on <html> (ThemeContext.jsx): the page and its cards, panels,
+   fields and lines. Parchment is the :root palette above. Text stays dark
+   enough on each for AA contrast; dark mode (admin panel only) overrides
+   all of them further down. */
+:root[data-theme='white'] {
+  --c-bg: 245 246 248;
+  --c-card: 255 255 255;
+  --c-surface: 255 255 255;
+  --c-field: 255 255 255;
+  --c-sunk: 239 241 244;
+  --c-hover: 241 243 246;
+  --c-track: 229 232 237;
+  --c-line: 233 236 240;
+  --c-line2: 232 235 239;
+  --c-edge: 225 229 234;
+  --c-border: 224 228 233;
+  --c-border-soft: 206 212 220;
+  --c-border-strong: 216 221 228;
+  --c-text3: 52 57 68;
+  --c-text2: 86 94 108;
+  --c-muted: 102 110 124;
+  --c-faint: 178 185 196;
+  --c-icon: 134 142 156;
+  --c-tint: 248 249 251;
+  --c-cream: 236 239 243;
+  --c-glow: 255 255 255;
+}
+:root[data-theme='champagne'] {
+  --c-bg: 249 238 220;
+  --c-card: 255 250 242;
+  --c-surface: 255 253 249;
+  --c-field: 255 251 244;
+  --c-sunk: 243 231 210;
+  --c-hover: 246 234 215;
+  --c-track: 236 221 194;
+  --c-line: 238 224 199;
+  --c-line2: 236 222 197;
+  --c-edge: 231 214 185;
+  --c-border: 230 214 187;
+  --c-border-soft: 216 197 165;
+  --c-border-strong: 224 206 176;
+  --c-text3: 60 53 40;
+  --c-text2: 98 88 67;
+  --c-muted: 118 107 84;
+  --c-faint: 196 180 150;
+  --c-icon: 146 133 108;
+  --c-tint: 251 243 229;
+  --c-cream: 238 222 194;
+  --c-glow: 255 250 240;
+}
+:root[data-theme='sage'] {
+  --c-bg: 236 241 231;
+  --c-card: 250 252 247;
+  --c-surface: 255 255 255;
+  --c-field: 247 250 244;
+  --c-sunk: 227 234 221;
+  --c-hover: 230 236 225;
+  --c-track: 213 223 204;
+  --c-line: 219 227 211;
+  --c-line2: 217 226 209;
+  --c-edge: 209 220 200;
+  --c-border: 207 218 198;
+  --c-border-soft: 186 200 175;
+  --c-border-strong: 198 211 187;
+  --c-text3: 50 59 47;
+  --c-text2: 80 93 77;
+  --c-muted: 98 111 94;
+  --c-faint: 168 181 162;
+  --c-icon: 124 137 118;
+  --c-tint: 241 246 237;
+  --c-cream: 217 227 208;
+  --c-glow: 246 250 242;
+}
+:root {
+  /* Home's hero behind its text; HeroGlory and the photo fade sit on it. */
+  --site-hero-bg: radial-gradient(120% 90% at 50% -10%, rgb(var(--c-glow)) 0%, rgb(var(--c-bg)) 55%, rgb(var(--c-cream)) 100%);
+}
+
 :root[data-mode='dark'] {
   --c-bg: 17 21 27;
   --c-card: 24 29 37;
@@ -163,6 +255,9 @@
   --c-ok-bg: 23 48 34;
   --c-ok-tint: 21 38 28;
   --c-ok-border: 43 90 61;
+  --c-tint: 28 34 43;
+  --c-cream: 35 42 53;
+  --c-glow: 30 36 46;
   color-scheme: dark;
   /* Headings and accents brighten so they read on dark cards. */
   --p-navy: #eef1f7;
@@ -326,7 +421,7 @@ select {
 .max-h-dialog { max-height: 90vh; max-height: min(90vh, calc(100svh - 2rem)); }
 
 ::-webkit-scrollbar { height: 10px; width: 10px; }
-::-webkit-scrollbar-thumb { background: #d9cdb4; border-radius: 8px; border: 2px solid #f7f2e8; }
+::-webkit-scrollbar-thumb { background: rgb(var(--c-border-soft)); border-radius: 8px; border: 2px solid rgb(var(--c-bg)); }
 
 /* The household record sheet is rendered off-screen and only revealed for
    printing. Screen readers skip it via aria-hidden on the element itself. */

@@ -35,8 +35,8 @@ function ServiceLink({ to, icon, title, sub, red = false }) {
   );
 }
 
-// The pale gold of Home's "Prayer Requests" line, so the two read as one thing.
-const PRAYER_BAND = { background: 'var(--p-gold-tint)', borderColor: 'color-mix(in srgb, var(--p-gold) 45%, white)' };
+// On the theme's page background, like every section of the public site.
+const PRAYER_BAND = { background: 'rgb(var(--c-bg))', borderColor: 'rgb(var(--c-border-strong))' };
 
 /** Down to the prayer form, which on a phone starts a couple of screens below; a jump, not a glide, with reduced motion. */
 function toPrayerForm(e) {
@@ -167,7 +167,7 @@ function ContactRow({ href, icon, label, children, external = false }) {
       {href && <Icon name="chev" size={16} className="text-parish-muted" />}
     </>
   );
-  const cls = 'flex items-center gap-3 py-3 border-t border-[#f0e8d6] first:border-t-0';
+  const cls = 'flex items-center gap-3 py-3 border-t border-parish-line2 first:border-t-0';
   if (!href) return <div className={cls}>{body}</div>;
   return (
     <a href={href} className={`${cls} rounded-lg -mx-2 px-2 hover:bg-[var(--p-blue-tint)]`} {...(external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}>
@@ -271,7 +271,7 @@ export function Kontak() {
                 {rows.map((r) => (
                   <div
                     key={r.label}
-                    className={`flex justify-between gap-3 py-2.5 text-[15px] ${r.today ? 'px-3 -mx-3 rounded-xl' : 'border-t border-[#f4eddd] first:border-t-0'}`}
+                    className={`flex justify-between gap-3 py-2.5 text-[15px] ${r.today ? 'px-3 -mx-3 rounded-xl' : 'border-t border-parish-sunk first:border-t-0'}`}
                     style={r.today ? { background: 'var(--p-blue-tint)' } : undefined}
                   >
                     <span className={`min-w-0 ${r.today ? 'font-bold text-parish-navy' : 'text-parish-ink'}`}>

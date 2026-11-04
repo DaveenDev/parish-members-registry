@@ -10,7 +10,7 @@ import { ownSettingsOnly } from '../../components/adminNav.js';
 import { Field, TextInput, PrimaryButton, GhostButton, Badge, Spinner } from '../../components/ui.jsx';
 import { PhotoSizeHint, UploadOverlay } from '../../components/website/shared.jsx';
 import { ThemePickerGrid, ModeSwitch } from '../../components/ThemePicker.jsx';
-import { useTheme, THEMES } from '../../ThemeContext.jsx';
+import { useTheme, lookLabel, DEFAULT_LOOK } from '../../ThemeContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import ChangePasswordForm, { MIN_PASSWORD_LENGTH } from '../../components/ChangePasswordForm.jsx';
 import { resizeLogo, resizePhoto } from '../../lib/images.js';
@@ -1125,8 +1125,8 @@ function PersonalTab({ withPrivacy }) {
           <div className="font-serif text-[22px] font-semibold text-parish-navy mb-1">Appearance</div>
           <div className="text-[13.5px] text-parish-muted mb-4">
             {canEdit
-              ? 'Choose the parish color theme. The public website, the registration form and the admin panel all use it.'
-              : 'Choose a color theme for the admin panel on this device. The public website keeps the parish theme the parish office chose.'}
+              ? 'Choose the parish theme and accent. The public website, the registration form and the admin panel all use them.'
+              : 'Choose a theme and accent for the admin panel on this device. The public website keeps the ones the parish office chose.'}
           </div>
           <ThemePickerGrid />
           <ParishThemeRow canEdit={canEdit} onSaved={(saved) => layout?.setParish?.(saved)} />
@@ -1167,7 +1167,7 @@ function ParishThemeRow({ canEdit, onSaved }) {
   const toast = useToast();
   const { theme, deviceTheme, parishTheme, setParishTheme, followParishTheme } = useTheme();
   const [busy, setBusy] = useState(false);
-  const label = (id) => THEMES.find((t) => t.id === id)?.label || 'Gold & Navy';
+  const label = lookLabel;
 
   async function makeDefault() {
     setBusy(true);
@@ -1188,7 +1188,7 @@ function ParishThemeRow({ canEdit, onSaved }) {
   return (
     <div className="mt-4 flex items-center gap-3 flex-wrap text-[13px] text-parish-text2">
       <span>Parish theme (public website): <strong className="text-parish-navy">{label(parishTheme)}</strong>{deviceTheme ? ' · this device uses its own choice' : ''}</span>
-      {canEdit && theme !== (parishTheme || 'classic') && (
+      {canEdit && theme !== (parishTheme || DEFAULT_LOOK) && (
         <button type="button" onClick={makeDefault} disabled={busy} className="appearance-none border-none cursor-pointer px-3 py-1.5 rounded-lg bg-[var(--p-blue-tint)] font-semibold text-[12.5px] text-parish-blue disabled:opacity-60">
           {busy ? 'Saving…' : `Make ${label(theme)} the parish theme`}
         </button>

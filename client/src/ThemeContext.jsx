@@ -1,19 +1,60 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { api } from './api.js';
 
-// Kept to the colors of the parish logo. A device or parish default saved with a
-// theme that was taken out falls back to the parish default, then Gold & Navy.
+/*
+ * The look is two separate choices, saved together as "theme/accent"
+ * (e.g. "sage/terracotta") in parish_settings.theme (0014) and on the device:
+ * - the theme: the background colours of the page and of its cards, panels
+ *   and sections (the --c-* surface tokens in index.css, data-theme on <html>);
+ * - the accent: buttons, links, active states, headings and the website's
+ *   navbar (the --p-* tokens, data-accent on <html>), kept to the colours of
+ *   the parish logo.
+ */
 export const THEMES = [
-  { id: 'classic', label: 'Gold & Navy', swatch: ['#34589c', '#c39b4e'] },
-  { id: 'emerald', label: 'Emerald & Champagne', swatch: ['#1f6d4c', '#c2a45a'] },
-  { id: 'ocean', label: 'Ocean Teal & Sand', swatch: ['#14707a', '#c79a5a'] },
-  { id: 'terracotta', label: 'Terracotta & Sage', swatch: ['#b0563a', '#8a9a5b'] },
+  { id: 'parchment', label: 'Parchment', swatch: ['#f7f2e8', '#fffdf8'] },
+  { id: 'white', label: 'White', swatch: ['#f6f7f8', '#ffffff'] },
+  { id: 'champagne', label: 'Champagne', swatch: ['#f6e8d0', '#fff9ef'] },
+  { id: 'sage', label: 'Sage', swatch: ['#e4ebdc', '#f9fbf6'] },
+];
+export const ACCENTS = [
+  { id: 'navy', label: 'Navy', swatch: ['#20406b', '#c39b4e'] },
+  { id: 'emerald', label: 'Emerald', swatch: ['#12432f', '#c2a45a'] },
+  { id: 'ocean', label: 'Ocean', swatch: ['#0d525a', '#c79a5a'] },
+  { id: 'terracotta', label: 'Terracotta', swatch: ['#8a3f28', '#8a9a5b'] },
 ];
 
-const DEFAULT_THEME = 'classic';
+export const DEFAULT_LOOK = 'parchment/navy';
+// Saved before the theme and the accent were separate choices. Every one of
+// them had the parchment background, so they keep looking the same.
+const LEGACY = {
+  classic: 'parchment/navy',
+  emerald: 'parchment/emerald',
+  ocean: 'parchment/ocean',
+  terracotta: 'parchment/terracotta',
+};
+
+/** "theme/accent" (or an old single theme id) as { theme, accent }, else null. */
+export function parseLook(value) {
+  if (!value) return null;
+  const [theme, accent] = (LEGACY[value] || String(value)).split('/');
+  if (!THEMES.some((t) => t.id === theme) || !ACCENTS.some((a) => a.id === accent)) return null;
+  return { theme, accent };
+}
+const normalize = (value) => {
+  const look = parseLook(value);
+  return look ? `${look.theme}/${look.accent}` : null;
+};
+export const joinLook = (theme, accent) => `${theme}/${accent}`;
+
+/** "Sage · Terracotta" for a saved look. */
+export function lookLabel(value) {
+  const { theme, accent } = parseLook(value) || parseLook(DEFAULT_LOOK);
+  return `${THEMES.find((t) => t.id === theme).label} · ${ACCENTS.find((a) => a.id === accent).label}`;
+}
+
 const STORAGE_KEY = 'pmr_theme';
-// The parish theme as last loaded, so a page opens in it instead of
-// flashing Gold & Navy while it loads again.
+// The parish look as last loaded, so a page opens in it instead of
+// flashing the default while it loads again.
 const PARISH_KEY = 'pmr_parish_theme';
 const MODE_KEY = 'pmr_mode';
 export const MODES = [['light', 'Light'], ['dark', 'Dark'], ['system', 'Auto']];
@@ -23,16 +64,17 @@ const ThemeContext = createContext(null);
 // Storage can be blocked (private windows, strict settings); fall back to defaults.
 const read = (key) => { try { return localStorage.getItem(key); } catch { return null; } };
 const write = (key, value) => { try { value === null ? localStorage.removeItem(key) : localStorage.setItem(key, value); } catch { /* not saved */ } };
-const isTheme = (id) => THEMES.some((t) => t.id === id);
-const saved = (key) => (isTheme(read(key)) ? read(key) : null);
+const saved = (key) => normalize(read(key));
 
 /**
- * Color theme and light/dark mode. The public website, the registration
- * form and the census portal always show the parish theme (Parish Config,
+ * Theme, accent and light/dark mode. The public website, the registration
+ * form and the census portal always show the parish look (Parish Config,
  * 0014 migration): the one the parish secretary (full access) picked, else
- * Gold & Navy. Inside the admin panel, which calls useAdminTheme(), another
- * staff member may pick their own theme for this device. Dark mode only
- * applies inside the admin panel too (useAdminColorMode()).
+ * Parchment · Navy. Inside the admin panel, which calls useAdminTheme(),
+ * another staff member may pick their own look for this device. Dark mode
+ * only applies inside the admin panel too (useAdminColorMode()).
+ *
+ * `theme`, `deviceTheme` and `parishTheme` hold whole looks ("theme/accent").
  */
 export function ThemeProvider({ children }) {
   const [deviceTheme, setDeviceTheme] = useState(() => saved(STORAGE_KEY));
@@ -40,11 +82,11 @@ export function ThemeProvider({ children }) {
   const [inAdmin, setInAdmin] = useState(false);
   const [mode, setModeState] = useState(() => (MODES.some(([k]) => k === read(MODE_KEY)) ? read(MODE_KEY) : 'light'));
   // What this account sees in the admin panel (and the pickers show as chosen).
-  const theme = deviceTheme || parishTheme || DEFAULT_THEME;
-  const shown = inAdmin ? theme : parishTheme || DEFAULT_THEME;
+  const theme = deviceTheme || parishTheme || DEFAULT_LOOK;
+  const shown = inAdmin ? theme : parishTheme || DEFAULT_LOOK;
 
-  function setParishTheme(id) {
-    const next = isTheme(id) ? id : null;
+  function setParishTheme(value) {
+    const next = normalize(value);
     write(PARISH_KEY, next);
     setParishThemeState(next);
   }
@@ -54,15 +96,21 @@ export function ThemeProvider({ children }) {
   }, []);
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', shown);
+    const look = parseLook(shown);
+    document.documentElement.setAttribute('data-theme', look.theme);
+    document.documentElement.setAttribute('data-accent', look.accent);
+    // The phone's browser bar matches the navbar.
+    const nav = getComputedStyle(document.documentElement).getPropertyValue('--p-nav').trim();
+    if (nav) document.querySelector('meta[name="theme-color"]')?.setAttribute('content', nav);
   }, [shown]);
 
-  function setTheme(id) {
-    if (!isTheme(id)) return;
-    write(STORAGE_KEY, id);
-    setDeviceTheme(id);
+  function setTheme(value) {
+    const next = normalize(value);
+    if (!next) return;
+    write(STORAGE_KEY, next);
+    setDeviceTheme(next);
   }
-  /** Forget this device's choice and follow the parish theme again. */
+  /** Forget this device's choice and follow the parish look again. */
   function followParishTheme() {
     write(STORAGE_KEY, null);
     setDeviceTheme(null);
@@ -73,7 +121,7 @@ export function ThemeProvider({ children }) {
   }
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme, themes: THEMES, deviceTheme, parishTheme, setParishTheme, followParishTheme, setInAdmin, mode, setMode }}>
+    <ThemeContext.Provider value={{ theme, setTheme, deviceTheme, parishTheme, setParishTheme, followParishTheme, setInAdmin, mode, setMode }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -83,7 +131,7 @@ export function useTheme() {
   return useContext(ThemeContext);
 }
 
-/** Show this device's own theme, if it picked one, while the calling component (the admin layout) is mounted. */
+/** Show this device's own look, if it picked one, while the calling component (the admin layout) is mounted. */
 export function useAdminTheme() {
   const { setInAdmin } = useTheme();
   useEffect(() => {

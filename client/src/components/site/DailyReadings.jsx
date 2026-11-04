@@ -167,7 +167,7 @@ export default function DailyReadings({ onLoad }) {
         )}
 
         {state.status === 'error' && (
-          <div role="alert" className="rounded-xl border border-parish-border bg-[#fbf7ef] p-4 text-[15px] text-parish-ink">
+          <div role="alert" className="rounded-xl border border-parish-border bg-parish-tint p-4 text-[15px] text-parish-ink">
             The readings couldn’t be loaded right now.{' '}
             <button type="button" className="font-bold underline text-parish-blueDeep" onClick={() => setRetry(retry + 1)}>Try again</button>
             {' '}or{' '}
@@ -269,7 +269,7 @@ export default function DailyReadings({ onLoad }) {
         )}
       </div>
 
-      <div className="px-4 py-3 lg:px-10 border-t border-[#f0e8d6]">
+      <div className="px-4 py-3 lg:px-10 border-t border-parish-line2">
         <p className="m-0 text-[12.5px] leading-snug text-parish-text2">
           Readings from{' '}
           <a href={UNIVERSALIS_PAGE} target="_blank" rel="noopener noreferrer" className="font-bold underline text-parish-blueDeep">Universalis</a>

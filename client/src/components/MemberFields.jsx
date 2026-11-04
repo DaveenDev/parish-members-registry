@@ -99,7 +99,7 @@ function SacramentBlock({ mv, field, dateField, churchField, label, extra, onFie
   const checked = mv[field];
   const set = (f) => (e) => onField(mv.mi, f, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
   return (
-    <div className="border border-[#eee3ce] rounded-xl px-4 py-1.5 bg-[#fdfbf6]">
+    <div className="border border-parish-edge rounded-xl px-4 py-1.5 bg-parish-field">
       {/* The whole row is the tap target, not just the small checkbox. */}
       <label className="flex items-center gap-2.5 cursor-pointer min-h-[44px]">
         <Checkbox checked={checked} onChange={set(field)} />
@@ -131,7 +131,7 @@ function WeddingBlock({ mv, sharedWith, onField }) {
   }
   const catholic = mv.matType === 'Catholic Marriage';
   return (
-    <div className="border border-[#eee3ce] rounded-xl px-4 py-3.5 bg-[#fdfbf6]">
+    <div className="border border-parish-edge rounded-xl px-4 py-3.5 bg-parish-field">
       <div className="font-semibold text-[15px] text-parish-navy">Kasal (Matrimony)</div>
       <div className="text-[13px] text-parish-muted mb-3">Unsang klase sa kasal?</div>
       {sharedWith && (
@@ -209,7 +209,7 @@ export function OrganizationChecks({ options, selected = [], onToggle }) {
       {options.map((name) => {
         const checked = selected.includes(name);
         return (
-          <label key={name} className="flex items-center gap-2.5 cursor-pointer border-[1.5px] rounded-xl px-3 py-2.5" style={{ borderColor: checked ? '#9db9e0' : '#e0d6c1', background: checked ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
+          <label key={name} className="flex items-center gap-2.5 cursor-pointer border-[1.5px] rounded-xl px-3 py-2.5" style={{ borderColor: checked ? '#9db9e0' : 'rgb(var(--c-border-soft))', background: checked ? 'var(--p-blue-tint)' : '#fdfbf6' }}>
             <Checkbox checked={checked} onChange={() => onToggle(name)} className="flex-none" />
             <span className="text-[14px] text-parish-ink">{name}</span>
           </label>

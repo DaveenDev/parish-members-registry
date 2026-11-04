@@ -125,7 +125,7 @@ function NextDay({ day }) {
           <Card key={i} className="p-5 rounded-[18px]">
             <div className="font-serif text-[32px] font-bold leading-none text-parish-blue">{fmtTime12(m.time)}</div>
             <div className="mt-1 text-[14.5px] text-parish-text2">{massPlace(m)}</div>
-            <People names={m.names} className="mt-3 pt-3 border-t border-[#f0e8d6] text-[16.5px]" />
+            <People names={m.names} className="mt-3 pt-3 border-t border-parish-line2 text-[16.5px]" />
           </Card>
         ))}
       </div>
@@ -137,10 +137,17 @@ function NextDay({ day }) {
 function DayCard({ day }) {
   return (
     <Card className="overflow-hidden rounded-[18px]">
+<<<<<<< HEAD
       <h3 className="m-0 px-4 py-3 bg-[#fbf7ef] border-b border-[#f0e8d6] font-serif text-[22px] font-bold text-parish-navy">{dayTitle(day.date)}</h3>
       <ul className="list-none m-0 p-0">
         {day.masses.map((m, i) => (
           <li key={i} className="flex gap-3 px-4 py-3 border-t border-[#f4eddd] first:border-t-0">
+=======
+      <h3 className="m-0 px-4 py-3 bg-parish-tint border-b border-parish-line2 font-serif text-[22px] font-bold text-parish-navy">{fmtLong(sunday.date)}</h3>
+      <ul className="list-none m-0 p-0">
+        {sunday.masses.map((m, i) => (
+          <li key={i} className="flex gap-3 px-4 py-3 border-t border-parish-sunk first:border-t-0">
+>>>>>>> Theme and accent: two separate choices for the site's look
             <div className="w-[92px] flex-none">
               <div className="font-serif text-[20px] font-bold leading-tight text-parish-blue">{fmtTime12(m.time)}</div>
               <div className="text-[13px] leading-snug text-parish-text2">{massPlace(m)}</div>
@@ -160,8 +167,13 @@ function DayCard({ day }) {
  * month is in the table's own heading, so the screenshot says what it is.
  * The first day shown (today's, or the next) is marked.
  */
+<<<<<<< HEAD
 function MonthTable({ month, days, next }) {
   const cell = 'px-2 py-1 align-top border-t border-[#efe5cf]';
+=======
+function MonthTable({ month, sundays, next }) {
+  const cell = 'px-2 py-1 align-top border-t border-parish-line';
+>>>>>>> Theme and accent: two separate choices for the site's look
   return (
     <Card className="overflow-hidden rounded-xl">
       <table className="w-full border-collapse text-left">
@@ -170,7 +182,7 @@ function MonthTable({ month, days, next }) {
           <span className="ml-2 text-[10.5px] font-bold tracking-[.12em] uppercase text-[var(--p-gold)]">Iskedyul sa mga Kaabag</span>
         </caption>
         <thead>
-          <tr className="bg-[#fbf7ef] text-[10px] font-bold tracking-[.08em] uppercase text-parish-text2">
+          <tr className="bg-parish-tint text-[10px] font-bold tracking-[.08em] uppercase text-parish-text2">
             <th scope="col" className="px-2 py-1 w-[46px]">Adlaw</th>
             <th scope="col" className="px-2 py-1 w-[112px]">Misa</th>
             <th scope="col" className="px-2 py-1">Mga Kaabag</th>
@@ -180,9 +192,9 @@ function MonthTable({ month, days, next }) {
           {days.map((s) => {
             const isNext = s.date === next;
             return s.masses.map((m, i) => (
-              <tr key={`${s.date}-${i}`} className={`${isNext ? 'bg-[var(--p-blue-tint)]' : ''} ${i === 0 ? '[&>*]:border-t-2 [&>*]:border-t-[#e2d4b4]' : ''}`}>
+              <tr key={`${s.date}-${i}`} className={`${isNext ? 'bg-[var(--p-blue-tint)]' : ''} ${i === 0 ? '[&>*]:border-t-2 [&>*]:border-t-parish-borderSoft' : ''}`}>
                 {i === 0 && (
-                  <th scope="rowgroup" rowSpan={s.masses.length} className={`${cell} border-r text-center ${isNext ? '' : 'bg-[#fdfaf3]'}`}>
+                  <th scope="rowgroup" rowSpan={s.masses.length} className={`${cell} border-r text-center ${isNext ? '' : 'bg-parish-field'}`}>
                     <span className="block font-serif text-[20px] font-bold leading-none text-parish-navy">{parseIso(s.date).getDate()}</span>
                     <span className="block text-[11px] font-semibold text-parish-text2">{BIS_MONTHS_SHORT[parseIso(s.date).getMonth()]}</span>
                     <span className="block text-[9.5px] font-bold tracking-[.06em] uppercase text-[var(--p-gold-deep)]">{BIS_DAYS_SHORT[parseIso(s.date).getDay()]}</span>
@@ -240,7 +252,7 @@ function Directory() {
               {people.map((p, i) => (
                 <li key={`${p.name}-${i}`} className="bg-parish-card border border-parish-border rounded-2xl shadow-cardSm px-3 pt-4 pb-3.5 lg:px-4 lg:pt-5 flex flex-col items-center text-center">
                   {p.photo
-                    ? <img src={p.photo} alt="" loading="lazy" className="w-[88px] h-[88px] lg:w-[104px] lg:h-[104px] rounded-full object-cover border-2 border-[var(--p-gold)] bg-[#efe6d3]" />
+                    ? <img src={p.photo} alt="" loading="lazy" className="w-[88px] h-[88px] lg:w-[104px] lg:h-[104px] rounded-full object-cover border-2 border-[var(--p-gold)] bg-parish-edge" />
                     : <span aria-hidden className="w-[88px] h-[88px] lg:w-[104px] lg:h-[104px] rounded-full flex items-center justify-center font-bold text-white text-[30px] lg:text-[34px] border-2 border-[var(--p-gold)]" style={{ background: 'var(--p-navy)' }}>{initialsOf(p.name)}</span>}
                   <div className="mt-2.5 font-serif font-bold text-[17px] lg:text-[19px] leading-tight text-parish-navy [overflow-wrap:anywhere]">{p.name}</div>
                 </li>

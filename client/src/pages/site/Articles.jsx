@@ -134,7 +134,7 @@ export function ArticlesArchive() {
                 {filters && <Pills scroll options={filters} value={tag} onChange={(v) => go({ tag: v === 'all' ? '' : v })} />}
               </div>
               {!list.length ? (
-                <div className="bg-parish-card border border-dashed border-[#d9cdb4] rounded-2xl p-6 text-center text-[15px] text-[#4d4636]">Walay artikulo niini nga pili.</div>
+                <div className="bg-parish-card border border-dashed border-parish-borderSoft rounded-2xl p-6 text-center text-[15px] text-[#4d4636]">Walay artikulo niini nga pili.</div>
               ) : (
                 <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 sm:gap-4 sm:items-start">
                   {shown.map((a) => <ArticleCard key={a.id} a={a} />)}

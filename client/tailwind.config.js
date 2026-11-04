@@ -47,12 +47,18 @@ export default {
           focusLine: tok('focus-line'),
           blueSoft: tok('blue-soft'),
           chip: tok('chip'),
+          tint: tok('tint'),
+          cream: tok('cream'),
           navy: 'var(--p-navy)',
           blue: 'var(--p-blue)',
           // Solid accent behind white text (buttons, active chips).
           fill: 'var(--p-fill)',
           blueDeep: 'var(--p-blue-deep)',
           blueDark: 'var(--p-sidebar-b)',
+          // The website navbar's background, its bottom line and its "you are here" mark.
+          nav: 'var(--p-nav)',
+          navLine: 'var(--p-nav-line)',
+          navMark: 'var(--p-nav-mark)',
           gold: 'var(--p-gold)',
           goldLight: 'var(--p-gold-light)',
           error: tok('error'),

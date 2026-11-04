@@ -89,9 +89,17 @@ export function useParishLogo() {
   return usePublicData('logo', () => api.publicParishLogo().catch(() => null)).data || null;
 }
 
-export function ParishMark({ size = 28, logo }) {
+/** The logo, else a gold cross. On the navbar (`onNav`) a logo sits on a light tile, as in the admin sidebar, so a dark logo still shows. */
+export function ParishMark({ size = 28, logo, onNav = false }) {
+  if (logo && onNav) {
+    return (
+      <span className="flex-none flex items-center justify-center rounded-lg bg-white p-[3px]" style={{ width: size + 6, height: size + 6 }}>
+        <img src={logo} alt="" className="object-contain" style={{ width: size, height: size }} />
+      </span>
+    );
+  }
   if (logo) return <img src={logo} alt="" className="object-contain" style={{ width: size, height: size }} />;
-  return <Icon name="cross" size={size} className="text-parish-gold" />;
+  return <Icon name="cross" size={size} className={onNav ? 'text-parish-navMark' : 'text-parish-gold'} />;
 }
 
 /**
@@ -172,21 +180,21 @@ export default function SiteLayout() {
         <a href="#sulod" className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:bg-parish-navy focus:text-white focus:font-semibold focus:px-4 focus:py-2.5 focus:rounded-xl">Adto sa sulod</a>
         <div className="min-h-screen bg-parish-bg font-sans text-parish-ink max-w-[560px] mx-auto relative pb-[64px] lg:max-w-none lg:pb-0 lg:flex lg:flex-col">
           <DesktopHeader pathname={pathname} logo={logo} parish={parish} />
-          <header className="lg:hidden sticky top-0 z-20 h-[58px] flex items-center gap-2 pl-1.5 pr-2.5 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.95)' }}>
+          <header className="lg:hidden sticky top-0 z-20 h-[58px] flex items-center gap-2 pl-1.5 pr-2.5 border-b border-parish-navLine bg-parish-nav text-white">
             {isRoot ? (
               <Link to="/" className="flex items-center gap-2 flex-1 min-w-0 pl-2">
-                <ParishMark logo={logo} />
+                <ParishMark logo={logo} onNav />
                 <div className="leading-[1.05] min-w-0">
-                  <div className="font-serif text-[18px] font-bold text-parish-navy truncate">{parish.name}</div>
-                  {parish.sub && <div className="font-semibold text-[11px] text-parish-text2 tracking-[.04em]">{parish.sub}</div>}
+                  <div className="font-serif text-[18px] font-bold text-white truncate">{parish.name}</div>
+                  {parish.sub && <div className="font-semibold text-[11px] text-white/75 tracking-[.04em]">{parish.sub}</div>}
                 </div>
               </Link>
             ) : (
               <>
-                <button type="button" aria-label="Balik" onClick={back} className="w-11 h-11 flex items-center justify-center text-parish-navy rounded-xl">
+                <button type="button" aria-label="Balik" onClick={back} className="w-11 h-11 flex items-center justify-center text-white rounded-xl hover:bg-white/10">
                   <Icon name="back" size={22} />
                 </button>
-                <div className="flex-1 min-w-0 font-serif text-[21px] font-semibold text-parish-navy truncate">{title}</div>
+                <div className="flex-1 min-w-0 font-serif text-[21px] font-semibold text-white truncate">{title}</div>
               </>
             )}
           </header>
@@ -215,7 +223,7 @@ export default function SiteLayout() {
 
         <ToTop />
 
-        <nav aria-label="Main" className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-parish-card border-t border-parish-border">
+        <nav aria-label="Main" className="lg:hidden fixed bottom-0 inset-x-0 z-30 bg-parish-nav border-t border-parish-navLine">
           <div className="max-w-[560px] mx-auto h-16 grid grid-cols-6">
             {TABS.map((t) => {
               const on = t.match(pathname);
@@ -224,9 +232,9 @@ export default function SiteLayout() {
                   key={t.to}
                   to={t.to}
                   aria-current={on ? 'page' : undefined}
-                  className={`relative min-w-0 flex flex-col items-center justify-center gap-[3px] text-[10.5px] min-[360px]:text-[11px] min-[380px]:text-[11.5px] tracking-[-.01em] ${on ? 'text-parish-blue font-bold' : 'text-parish-text2 font-semibold'}`}
+                  className={`relative min-w-0 flex flex-col items-center justify-center gap-[3px] text-[10.5px] min-[360px]:text-[11px] min-[380px]:text-[11.5px] tracking-[-.01em] ${on ? 'text-white font-bold' : 'text-white/75 font-semibold'}`}
                 >
-                  <span className="absolute top-0 left-[26%] right-[26%] h-[3px] rounded-b-[3px]" style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
+                  <span className="absolute top-0 left-[26%] right-[26%] h-[3px] rounded-b-[3px]" style={{ background: on ? 'var(--p-nav-mark)' : 'transparent' }} />
                   <Icon name={t.icon} size={23} />
                   <span>{t.label}</span>
                 </NavLink>
@@ -304,13 +312,13 @@ function CensusTicker() {
 function DesktopHeader({ pathname, logo, parish }) {
   const { search } = useLocation();
   return (
-    <header className="hidden lg:block sticky top-0 z-20 border-b border-parish-border backdrop-blur-md" style={{ background: 'rgba(247,242,232,.96)' }}>
+    <header className="hidden lg:block sticky top-0 z-20 border-b border-parish-navLine bg-parish-nav text-white">
       <div className="max-w-[1240px] mx-auto px-6 h-[76px] flex items-center gap-4 xl:gap-7">
         <Link to="/" className="flex items-center gap-2.5 flex-none">
-          <ParishMark size={36} logo={logo} />
+          <ParishMark size={36} logo={logo} onNav />
           <span className="leading-[1.05]">
-            <span className="block font-serif text-[22px] font-bold text-parish-navy">{parish.name}</span>
-            {parish.sub && <span className="block font-semibold text-[12.5px] text-parish-text2 tracking-[.04em]">{parish.sub}</span>}
+            <span className="block font-serif text-[22px] font-bold text-white">{parish.name}</span>
+            {parish.sub && <span className="block font-semibold text-[12.5px] text-white/75 tracking-[.04em]">{parish.sub}</span>}
           </span>
         </Link>
         <nav aria-label="Main" className="flex items-stretch gap-0.5 ml-auto h-full">
@@ -321,10 +329,10 @@ function DesktopHeader({ pathname, logo, parish }) {
                 key={t.to}
                 to={t.to}
                 aria-current={on ? 'page' : undefined}
-                className={`relative flex items-center ${t.sub ? 'pl-[10px] pr-1 xl:pl-[13px]' : 'px-[10px] xl:px-[13px]'} text-[15.5px] whitespace-nowrap hover:text-parish-blueDeep ${on ? 'font-bold text-parish-blueDeep' : 'font-semibold text-[#3f3b2f]'}`}
+                className={`relative flex items-center ${t.sub ? 'pl-[10px] pr-1 xl:pl-[13px]' : 'px-[10px] xl:px-[13px]'} text-[15.5px] whitespace-nowrap hover:text-white ${on ? 'font-bold text-white' : 'font-semibold text-white/80'}`}
               >
                 {t.short ? <><span className="xl:hidden">{t.short}</span><span className="hidden xl:inline">{t.label}</span></> : t.label}
-                <span className={`absolute left-[10px] xl:left-[13px] ${t.sub ? 'right-1' : 'right-[10px] xl:right-[13px]'} -bottom-px h-[3px] rounded-t-[3px]`} style={{ background: on ? 'var(--p-blue)' : 'transparent' }} />
+                <span className={`absolute left-[10px] xl:left-[13px] ${t.sub ? 'right-1' : 'right-[10px] xl:right-[13px]'} -bottom-px h-[3px] rounded-t-[3px]`} style={{ background: on ? 'var(--p-nav-mark)' : 'transparent' }} />
               </NavLink>
             );
             return t.sub ? <NavMenu key={t.to} item={t} link={link} pathname={pathname} search={search} /> : link;
@@ -371,7 +379,7 @@ function NavMenu({ item, link, pathname, search }) {
         aria-expanded={open}
         aria-controls={id}
         onClick={() => setOpen((v) => !v)}
-        className="self-center w-7 h-8 mr-[6px] xl:mr-[9px] flex items-center justify-center rounded-lg border-0 bg-transparent cursor-pointer text-[#3f3b2f] hover:text-parish-blueDeep hover:bg-[var(--p-blue-tint)]"
+        className="self-center w-7 h-8 mr-[6px] xl:mr-[9px] flex items-center justify-center rounded-lg border-0 bg-transparent cursor-pointer text-white/80 hover:text-white hover:bg-white/10"
       >
         <Icon name="chev" size={15} className={`transition-transform ${open ? '-rotate-90' : 'rotate-90'}`} />
       </button>
@@ -409,7 +417,7 @@ function DesktopFooter() {
   // The Kontak page already shows the hours, phone and Message Me, so the footer leaves them out there.
   const { pathname } = useLocation();
   const onKontak = pathname.startsWith('/kontak');
-  // Komunidad's articles and the Downloads page's song lyrics sit on the cream, so the footer follows them with no gap.
+  // Komunidad and the Downloads page end with a full-width section and its line, so the footer follows it with no gap.
   const onKomunidad = pathname.startsWith('/komunidad') || pathname === '/downloads';
   const open = officeHourRows(o.office_hours).filter((r) => r.hours).slice(0, 2);
   const phone = o.mobile || o.contact;
@@ -462,7 +470,7 @@ function DesktopFooter() {
 /** Phone footer for the main pages: address and the staff sign-in link. */
 export function SiteFooter({ address }) {
   return (
-    <footer className="lg:hidden mt-8 px-[18px] pt-[22px] pb-2 border-t border-[#e7dcc4] text-center">
+    <footer className="lg:hidden mt-8 px-[18px] pt-[22px] pb-2 border-t border-parish-borderStrong text-center">
       {address && <div className="text-[14px] text-[#4d4636] leading-normal">{address}</div>}
       <Link to="/admin/login" className="inline-flex items-center min-h-[44px] mt-1.5 font-bold text-[14.5px] text-parish-blue">Kawani sa parokya? Mag-sign in</Link>
     </footer>

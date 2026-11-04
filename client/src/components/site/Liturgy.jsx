@@ -154,7 +154,7 @@ export function ChurchYear({ today }) {
       <div className="grid gap-3.5 sm:grid-cols-2 xl:grid-cols-4 items-start">
         {shown.map((m) => (
           <div key={m.key} className="bg-parish-card border border-parish-border rounded-2xl shadow-cardSm overflow-hidden">
-            <div className="px-3.5 py-2 bg-[#fbf7ef] border-b border-[#f0e8d6] font-bold text-[12.5px] tracking-[.12em] uppercase text-[#4d4636]">
+            <div className="px-3.5 py-2 bg-parish-tint border-b border-parish-line2 font-bold text-[12.5px] tracking-[.12em] uppercase text-[#4d4636]">
               {BIS_MONTHS[Number(m.key.slice(5)) - 1]} {m.key.slice(0, 4)}
             </div>
             <ul className="list-none m-0 p-0">
@@ -162,7 +162,7 @@ export function ChurchYear({ today }) {
                 const d = parseIso(c.date);
                 const end = c.of ? parseIso(addDays(c.date, c.of - c.day)) : null;
                 return (
-                  <li key={`${c.date}-${c.name}`} className="flex gap-3 items-start px-3.5 py-2.5 border-t border-[#f4eddd] first:border-t-0" title={c.en}>
+                  <li key={`${c.date}-${c.name}`} className="flex gap-3 items-start px-3.5 py-2.5 border-t border-parish-sunk first:border-t-0" title={c.en}>
                     <div className="w-[52px] flex-none text-center">
                       <div className="font-serif font-bold text-[22px] leading-none" style={{ color: liturgyHex(c.color) }}>{d.getDate()}{end ? `–${end.getDate()}` : ''}</div>
                       <div className="text-[11px] font-semibold text-parish-text2 mt-0.5">{BIS_DAYS[d.getDay()]}</div>

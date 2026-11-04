@@ -15,7 +15,7 @@ import {
   formatAccessCode, codeFromHash, cleanParticipation, registrationAnswers, censusCardPatch,
 } from '../lib/census.js';
 
-const BG = { background: 'radial-gradient(120% 90% at 50% -10%,#fefcf7 0%,#f7f2e8 55%,#f1ead9 100%)' };
+const BG = { background: 'var(--site-hero-bg)' };
 const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(min(180px,100%),1fr))' };
 const SACRAMENTS_SHORT = [['has_baptism', 'Bunyag'], ['has_communion', 'Komunyon'], ['has_confirmation', 'Kumpirma'], ['has_matrimony', 'Kasal']];
 const NEW_SACRAMENTS_SHORT = [['hasBaptism', 'Bunyag'], ['hasCommunion', 'Komunyon'], ['hasConfirmation', 'Kumpirma'], ['hasMatrimony', 'Kasal']];
@@ -445,7 +445,7 @@ export default function CensusPortal() {
             maxLength={1000}
             rows={3}
             onChange={(e) => setForm((f) => ({ ...f, message: e.target.value }))}
-            className="w-full px-3.5 py-3 text-[16px] text-parish-ink bg-[#fdfbf6] border-[1.5px] border-parish-borderSoft rounded-xl outline-none focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15"
+            className="w-full px-3.5 py-3 text-[16px] text-parish-ink bg-parish-field border-[1.5px] border-parish-borderSoft rounded-xl outline-none focus:border-parish-blue focus:ring-4 focus:ring-parish-blue/15"
             aria-label="Mensahe sa parokya"
           />
         </Section>
@@ -503,7 +503,7 @@ function MemberCard({ member: m, showStatusError = false, onChange }) {
     : { status, statusPicked: true, participation: {} });
 
   return (
-    <div className="border border-[#eee3ce] rounded-xl bg-[#fdfbf6] p-4">
+    <div className="border border-parish-edge rounded-xl bg-parish-field p-4">
       <div className="flex items-start gap-3 mb-3">
         <div className="min-w-0 flex-1">
           <div className="font-semibold text-[16px] text-parish-navy">{name}</div>
@@ -525,16 +525,16 @@ function MemberCard({ member: m, showStatusError = false, onChange }) {
       </div>
 
       {child && m.status === 'Active' ? (
-        <div className="mt-4 px-3.5 py-3 rounded-xl bg-white border border-[#eee3ce] text-[13.5px] text-parish-text2">
+        <div className="mt-4 px-3.5 py-3 rounded-xl bg-white border border-parish-edge text-[13.5px] text-parish-text2">
           <strong className="text-parish-navy">Aktibo</strong> — bata pa ({YOUNG_CHILD_MAX_AGE} anyos o ubos), busa dili na kinahanglan tubagon ang mga pangutana.
         </div>
       ) : noSurvey ? (
         // Hidden rather than greyed out, so phones don't scroll past questions nobody answers.
-        <div className="mt-4 px-3.5 py-3 rounded-xl bg-white border border-[#eee3ce] text-[13.5px] text-parish-text2">
+        <div className="mt-4 px-3.5 py-3 rounded-xl bg-white border border-parish-edge text-[13.5px] text-parish-text2">
           Dili na kinahanglan tubagon ang mga pangutana kay <strong className="text-parish-navy">{MEMBERSHIP_STATUS_LABELS[m.status]}</strong> ang napili.
         </div>
       ) : (
-      <div className="mt-4 flex flex-col divide-y divide-[#f0e8d6] border border-[#eee3ce] rounded-xl bg-white">
+      <div className="mt-4 flex flex-col divide-y divide-parish-line2 border border-parish-edge rounded-xl bg-white">
         {PARTICIPATION_ITEMS.map(([key, label]) => (
           <div key={key} role="radiogroup" aria-label={`${name}: ${label}`} className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5">
             <span className="font-medium text-[14px] text-parish-ink">{label}</span>
@@ -684,7 +684,7 @@ function NewMemberCard({ member: m, index, others, families, orgOptions, parishR
       ['Census', MEMBERSHIP_STATUS_LABELS[censusStatus] || '—'],
     ].filter(Boolean);
     return (
-      <div ref={ref} data-new-member={m.key} className="scroll-mt-4 border border-[#eee3ce] rounded-xl bg-[#fdfbf6] p-4">
+      <div ref={ref} data-new-member={m.key} className="scroll-mt-4 border border-parish-edge rounded-xl bg-parish-field p-4">
         <div className="flex items-start gap-3">
           <div className="min-w-0 flex-1">
             <div className="font-semibold text-[16px] text-parish-navy">{name}</div>
@@ -779,7 +779,7 @@ function NewMemberCard({ member: m, index, others, families, orgOptions, parishR
   }
 
   return (
-    <div ref={ref} data-new-member={m.key} className="scroll-mt-4 border-[1.5px] border-[#d4e0f2] rounded-xl bg-[#fdfbf6] p-4">
+    <div ref={ref} data-new-member={m.key} className="scroll-mt-4 border-[1.5px] border-[#d4e0f2] rounded-xl bg-parish-field p-4">
       <div className="flex items-start gap-3 mb-3">
         <div className="min-w-0 flex-1">
           <div className="font-semibold text-[16px] text-parish-navy">{mv.displayName}</div>

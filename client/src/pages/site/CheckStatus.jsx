@@ -36,8 +36,8 @@ function Stages({ stages, at, date }) {
             <div
               className="w-8 h-8 flex-none rounded-full border-2 flex items-center justify-center font-bold text-[14px]"
               style={{
-                background: done ? '#2f6b48' : now ? 'var(--p-blue)' : '#fffdf8',
-                borderColor: done ? '#2f6b48' : now ? 'var(--p-blue)' : '#e0d6c1',
+                background: done ? '#2f6b48' : now ? 'var(--p-blue)' : 'rgb(var(--c-card))',
+                borderColor: done ? '#2f6b48' : now ? 'var(--p-blue)' : 'rgb(var(--c-border-soft))',
                 color: done || now ? '#fff' : '#6b6552',
               }}
             >
@@ -152,8 +152,8 @@ export default function CheckStatus() {
 
       <div aria-hidden="true" className="bg-white border border-parish-borderSoft rounded-xl px-3.5 py-3 mb-4 -rotate-1" style={{ boxShadow: '0 8px 18px -14px rgba(23,38,63,.4)' }}>
         <div className="flex items-center gap-1.5 text-parish-gold mb-1.5"><Icon name="cross" size={16} /><span className="font-semibold text-[11px] text-parish-text2">Confirmation slip</span></div>
-        <div className="h-1.5 w-[70%] bg-[#efe6d3] rounded mb-[5px]" />
-        <div className="h-1.5 w-1/2 bg-[#efe6d3] rounded mb-2.5" />
+        <div className="h-1.5 w-[70%] bg-parish-edge rounded mb-[5px]" />
+        <div className="h-1.5 w-1/2 bg-parish-edge rounded mb-2.5" />
         <div className="font-semibold text-[10px] tracking-[.14em] uppercase text-parish-text2">Inyong reference number</div>
         <div className="inline-block mt-0.5 px-1.5 py-0.5 border-2 border-dashed border-parish-gold rounded-md font-serif text-[20px] font-bold tracking-[.06em] text-parish-blue">MEO-2026-0001</div>
         <div className="text-[12.5px] text-[#4d4636] mt-1.5">Makita kini sa inyong confirmation slip. Ang unang tulo ka letra gikan sa barangay sa inyong GKK. Ang hangyo sa sertipiko nagsugod sa CR-, ang OCIA ug Pagdihog sa SR-.</div>
@@ -219,7 +219,7 @@ function Result({ r, censusOpen }) {
       return <SacramentStatus r={r} />;
     case 'notfound':
       return (
-        <div className="bg-parish-card border border-dashed border-[#d9cdb4] rounded-2xl p-4">
+        <div className="bg-parish-card border border-dashed border-parish-borderSoft rounded-2xl p-4">
           <div className="font-serif text-[22px] font-bold text-parish-navy mb-1 break-words">Wala namo makit-i ang {r.ref}</div>
           <p className="m-0 mb-3 text-[15px] leading-normal text-[#4d4636]">
             Susiha kung sakto ang mga letra ug numero. Kung bag-o pa lang kamo nagparehistro, sulayi pag-usab ugma. Kung wala gihapon, tawagi ang opisina.

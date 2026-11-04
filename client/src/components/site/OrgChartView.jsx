@@ -171,11 +171,11 @@ export default function OrgChartView({ nodes, showHolders = true, height = 520, 
         <button type="button" className={BTN} onClick={() => chart.current?.fit()}>Ihaum sa screen</button>
         <button type="button" className={BTN} onClick={() => chart.current?.expandAll().fit()}>Ablihi tanan</button>
         <button type="button" className={BTN} onClick={() => chart.current?.collapseAll().fit()}>Tikopa</button>
-        <button type="button" className={BTN} onClick={() => chart.current?.exportImg({ full: true, save: true, backgroundColor: '#fffdf8', imageName: fileName })}>I-download (PNG)</button>
+        <button type="button" className={BTN} onClick={() => chart.current?.exportImg({ full: true, save: true, backgroundColor: 'rgb(var(--c-card))', imageName: fileName })}>I-download (PNG)</button>
       </div>
       <div
         ref={box} aria-hidden="true"
-        className={`w-full rounded-2xl border border-parish-border bg-[#fbf7ef] overflow-hidden ${full ? 'flex-1 min-h-0' : ''}`}
+        className={`w-full rounded-2xl border border-parish-border bg-parish-tint overflow-hidden ${full ? 'flex-1 min-h-0' : ''}`}
         style={full ? undefined : { height: `min(${height}px, 70vh)` }}
       />
       <p className="m-0 mt-2 text-[12.5px] text-parish-text2">I-drag aron molihok, i-pinch o i-scroll aron mo-zoom. I-tap ang button sa ubos sa usa ka katungdanan aron ablihan o tikopon.</p>

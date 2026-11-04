@@ -52,7 +52,7 @@ export function AnnouncementCard({ a, full = false, fill = false }) {
       style={a.urgent ? { borderLeftColor: TONES.red.color } : undefined}
     >
       {cover && (
-        <div className="relative flex-none h-[170px] lg:h-[200px] bg-[#efe6d3] overflow-hidden">
+        <div className="relative flex-none h-[170px] lg:h-[200px] bg-parish-edge overflow-hidden">
           <img src={a.photo_url} alt="" aria-hidden loading="lazy" className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-70" />
           <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-contain" />
         </div>
@@ -135,7 +135,7 @@ export function ArticleCard({ a, wide = false }) {
     <div data-reveal className="relative site-lift-group">
       <CardShare title={a.title} path={path} />
       <Link to={path} className="block bg-parish-card border border-parish-border rounded-2xl lg:rounded-[18px] shadow-cardSm overflow-hidden transition-colors hover:border-[var(--p-blue-border)]">
-        <div className={`relative bg-[#efe6d3] ${wide ? 'aspect-[16/9] lg:aspect-[21/9]' : 'aspect-[16/9]'} flex items-center justify-center text-[var(--p-gold-deep)]`}>
+        <div className={`relative bg-parish-edge ${wide ? 'aspect-[16/9] lg:aspect-[21/9]' : 'aspect-[16/9]'} flex items-center justify-center text-[var(--p-gold-deep)]`}>
           {a.photo_url ? <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : <Icon name="church" size={40} />}
           {count > 0 && (
             <span className="absolute right-2.5 bottom-2.5 rounded-full bg-black/60 text-white font-bold text-[12px] px-2.5 py-1">{count} ka litrato</span>
@@ -190,7 +190,7 @@ export function ArticleFeature({ a }) {
     <div data-reveal className="relative site-lift-group">
       <CardShare title={a.title} path={path} />
       <Link to={path} className="grid lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] bg-parish-card border border-parish-border rounded-2xl lg:rounded-[20px] shadow-card overflow-hidden transition-colors hover:border-[var(--p-blue-border)]">
-        <div className="relative aspect-[16/10] lg:aspect-auto lg:min-h-[360px] bg-[#efe6d3] flex items-center justify-center text-[var(--p-gold-deep)]">
+        <div className="relative aspect-[16/10] lg:aspect-auto lg:min-h-[360px] bg-parish-edge flex items-center justify-center text-[var(--p-gold-deep)]">
           {a.photo_url ? <img src={a.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" /> : <Icon name="church" size={48} />}
           {count > 0 && <span className="absolute left-2.5 bottom-2.5 rounded-full bg-black/60 text-white font-bold text-[12px] px-2.5 py-1">{count} ka litrato</span>}
         </div>
@@ -252,7 +252,7 @@ export function EventCard({ e, showDate = false, fill = false, spotlight = false
           {/* The whole cover (posters keep their text) over a blurred copy that
               fills the sides. With `fill` it grows to take the card's spare height;
               in the spotlight it's the event page's size (Photo h 260, hLg 560). */}
-          <div className={`relative bg-[#efe6d3] overflow-hidden ${spotlight ? 'flex-none h-[260px] lg:h-[560px]' : fill ? 'flex-1 min-h-[190px] lg:min-h-[260px]' : 'h-[170px] lg:h-[200px]'}`}>
+          <div className={`relative bg-parish-edge overflow-hidden ${spotlight ? 'flex-none h-[260px] lg:h-[560px]' : fill ? 'flex-1 min-h-[190px] lg:min-h-[260px]' : 'h-[170px] lg:h-[200px]'}`}>
             <img src={e.photo_url} alt="" aria-hidden loading="lazy" className="absolute inset-0 w-full h-full object-cover scale-110 blur-xl opacity-70" />
             <img src={e.photo_url} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-contain" />
             <span className="absolute left-2.5 top-2.5 w-12 rounded-xl overflow-hidden text-center bg-parish-card shadow-cardSm" aria-label={fmtShort(e.start_date)}>
@@ -298,7 +298,7 @@ export function MassRow({ m, compact = false, heading, when = '' }) {
     <div
       className={compact
         ? 'flex items-center gap-3 lg:gap-4 p-2.5 lg:px-3.5 lg:py-3 rounded-xl lg:rounded-[14px] border-[1.5px]'
-        : 'flex items-center gap-3 px-3.5 py-[11px] border-t border-[#f4eddd] lg:grid lg:grid-cols-[1fr_auto] lg:gap-x-2 lg:gap-y-0 lg:px-4'}
+        : 'flex items-center gap-3 px-3.5 py-[11px] border-t border-parish-sunk lg:grid lg:grid-cols-[1fr_auto] lg:gap-x-2 lg:gap-y-0 lg:px-4'}
       style={m.next ? { background: 'var(--p-blue-tint)', borderColor: compact ? 'var(--p-blue-border)' : undefined } : { borderColor: compact ? 'transparent' : undefined }}
     >
       <div className={`font-serif font-bold text-parish-blue ${compact ? 'text-[24px] min-w-[86px] lg:text-[30px] lg:min-w-[112px]' : 'text-[22px] min-w-[82px] lg:text-[23px] lg:min-w-0'}`}>{fmtTime12(m.start_time)}</div>

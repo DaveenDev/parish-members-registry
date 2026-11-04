@@ -30,7 +30,7 @@ export const TONES = {
   gold: { color: 'var(--p-eyebrow)', background: 'var(--p-gold-tint)', borderColor: 'color-mix(in srgb, var(--p-gold) 45%, white)' },
   green: { color: '#2f6b48', background: '#eaf4ee', borderColor: '#bfe0cc' },
   red: { color: '#a13d29', background: '#fbeeea', borderColor: '#f0cec3' },
-  gray: { color: '#4d4636', background: '#f1ead9', borderColor: '#e0d6c1' },
+  gray: { color: '#4d4636', background: 'rgb(var(--c-cream))', borderColor: 'rgb(var(--c-border-soft))' },
 };
 
 export function Chip({ tone = 'blue', children }) {
@@ -50,20 +50,21 @@ export const PAGE = 'px-3.5 pt-4 pb-7 animate-fadeUp lg:max-w-[1240px] lg:mx-aut
 export const INNER = 'px-4 pt-[18px] pb-7 animate-fadeUp lg:mx-auto lg:px-6 lg:pb-0';
 /** Page content width without padding top/bottom, for content inside a full-width band. */
 // The footer's cream (a shade darker than the page's own).
-export const FOOTER_CREAM = { background: '#f1ead9', borderColor: '#e7dcc4' };
+export const FOOTER_CREAM = { background: 'rgb(var(--c-cream))', borderColor: 'rgb(var(--c-border-strong))' };
 
 export const WRAP = 'px-3.5 lg:max-w-[1240px] lg:mx-auto lg:px-6';
 /** Top/bottom padding for a page's first section when it sits on a Band. */
 export const BAND_PAD = 'pt-4 pb-7 lg:pt-9 lg:pb-12';
 
 /**
- * A full-width light-blue band that sets a page's first section apart from
- * what follows (Ang Simbahan, Pahibalo ug Kalihokan, Komunidad). Put a
+ * A page's first section, set apart from what follows by a line (Ang
+ * Simbahan, Pahibalo ug Kalihokan, Komunidad). It keeps the theme's page
+ * background, like the rest of the public site. Put a
  * WRAP inside it so the content keeps the page width.
  */
 export function Band({ as: Tag = 'section', className = '', style, children, ...rest }) {
   return (
-    <Tag className={`border-b ${className}`} style={{ background: 'var(--p-blue-tint)', borderColor: 'var(--p-blue-border)', ...style }} {...rest}>
+    <Tag className={`border-b ${className}`} style={{ background: 'rgb(var(--c-bg))', borderColor: 'rgb(var(--c-border))', ...style }} {...rest}>
       {children}
     </Tag>
   );
@@ -155,7 +156,7 @@ export function rovingKey(e, index, count, onMove) {
  */
 export function Segmented({ options, value, onChange, label }) {
   return (
-    <div role="tablist" aria-label={label} className="grid gap-1 p-1 bg-[#efe7d6] rounded-[14px] mb-4 lg:mb-0 lg:flex lg:flex-none" style={{ gridTemplateColumns: `repeat(${options.length},1fr)` }}>
+    <div role="tablist" aria-label={label} className="grid gap-1 p-1 bg-parish-line rounded-[14px] mb-4 lg:mb-0 lg:flex lg:flex-none" style={{ gridTemplateColumns: `repeat(${options.length},1fr)` }}>
       {options.map(([v, l], i) => {
         const on = v === value;
         return (
@@ -201,7 +202,7 @@ export function Pills({ options, value, onChange, scroll = false, dark = false, 
 }
 
 export function Skeleton({ h = 100, className = '', alt = false }) {
-  return <div aria-hidden="true" className={`rounded-2xl ${alt ? 'bg-[#f3ecdd]' : 'bg-[#efe6d3]'} animate-pulse ${className}`} style={{ height: h }} />;
+  return <div aria-hidden="true" className={`rounded-2xl ${alt ? 'bg-parish-sunk' : 'bg-parish-edge'} animate-pulse ${className}`} style={{ height: h }} />;
 }
 
 export function Skeletons({ n = 2, h = 100 }) {
@@ -250,7 +251,7 @@ export function BigButton({ to, href, variant = 'primary', className = '', child
 /** Icon + small label + value line inside a detail card. */
 export function InfoRow({ icon, label, children, last = false }) {
   return (
-    <div className={`flex gap-3 py-3 ${last ? '' : 'border-b border-[#f0e8d6]'}`}>
+    <div className={`flex gap-3 py-3 ${last ? '' : 'border-b border-parish-line2'}`}>
       <Icon name={icon} className="text-parish-blue" />
       <div className="min-w-0">
         {label && <div className="text-[13px] text-parish-text2">{label}</div>}
