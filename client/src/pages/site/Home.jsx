@@ -80,7 +80,7 @@ export default function Home() {
             </div>
           </>
         )}
-        {/* A 3D gold cross in Our Lady of Guadalupe's rays, behind the text. */}
+        {/* A 3D gold crucifix in Our Lady of Guadalupe's rays, behind the text. */}
         <HeroGlory anchorRef={heroTextRef} underBanner={!!hero} />
         <div className="relative lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-16 lg:pb-[60px] lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-14 lg:items-center lg:min-h-[480px]">
           <div ref={heroTextRef} className={`site-stagger text-center px-[22px] pb-7 lg:text-left lg:p-0 ${hero ? 'pt-2' : 'pt-[30px]'}`}>

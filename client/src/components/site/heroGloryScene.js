@@ -1,16 +1,17 @@
 /**
- * The 3D scene behind Home's hero: a gold Latin cross inside the rays of Our
- * Lady of Guadalupe's mandorla (straight rays between wavy ones), with small
- * stars like the ones on her mantle and a little drifting light.
+ * The 3D scene behind Home's hero: a gold crucifix (Christ on the cross, as
+ * simple rounded shapes) inside the rays of Our Lady of Guadalupe's mandorla
+ * (straight rays between wavy ones), with small stars like the ones on her
+ * mantle and a little drifting light.
  *
  * Loaded on its own (HeroGlory imports it once the page is idle), so three.js
  * is a separate download that never holds up the page.
  */
 import {
-  ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BufferAttribute, BufferGeometry,
-  CanvasTexture, DirectionalLight, ExtrudeGeometry, Group, Mesh, MeshBasicMaterial,
-  MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator, Points,
-  PointsMaterial, Scene, Shape, SRGBColorSpace, TorusGeometry, WebGLRenderer,
+  ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BoxGeometry, BufferAttribute, BufferGeometry,
+  CanvasTexture, CapsuleGeometry, CylinderGeometry, DirectionalLight, ExtrudeGeometry, Group, LatheGeometry,
+  Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, PMREMGenerator, Points,
+  PointsMaterial, Scene, Shape, SphereGeometry, SRGBColorSpace, TorusGeometry, Vector2, Vector3, WebGLRenderer,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 
@@ -101,6 +102,103 @@ function starGeometry() {
   return geometry;
 }
 
+/** The INRI plate over Christ's head. */
+function titulusTexture() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 256;
+  canvas.height = 64;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#e9cf86';
+  ctx.fillRect(0, 0, 256, 64);
+  ctx.fillStyle = '#6b4f17';
+  ctx.font = 'bold 44px Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('INRI', 128, 35);
+  const texture = new CanvasTexture(canvas);
+  texture.colorSpace = SRGBColorSpace;
+  return texture;
+}
+
+/**
+ * Christ on the cross, kept simple and abstract: rounded shapes for the
+ * head (bowed toward His right shoulder, with a halo), the body, the arms
+ * reaching to the ends of the crossbeam, the loincloth and the legs. In the
+ * cross's own units (crossGeometry, centred): the crossbeam runs along
+ * y ≈ 0.36–0.61 and the cross's front face is at z = 0.135.
+ */
+function corpus(body, plate, keep) {
+  const group = new Group();
+  const front = 0.135;
+  const up = new Vector3(0, 1, 0);
+
+  // A rounded limb from point a to point b.
+  function limb(a, b, radius) {
+    const from = new Vector3(...a);
+    const to = new Vector3(...b);
+    const dir = to.clone().sub(from);
+    const length = dir.length();
+    const mesh = new Mesh(keep(new CapsuleGeometry(radius, Math.max(0.001, length - radius * 2), 4, 10)), body);
+    mesh.position.copy(from).add(to).multiplyScalar(0.5);
+    mesh.quaternion.setFromUnitVectors(up, dir.normalize());
+    group.add(mesh);
+    return mesh;
+  }
+
+  // A smooth turned shape from a side profile of [radius, y] points,
+  // flattened front to back so it lies against the cross.
+  function turned(profile, depth, z) {
+    const mesh = new Mesh(keep(new LatheGeometry(profile.map(([r, y]) => new Vector2(r, y)), 24)), body);
+    mesh.scale.set(1, 1, depth);
+    mesh.position.z = z;
+    group.add(mesh);
+    return mesh;
+  }
+
+  // Arms, rising a little from the shoulders to the hands on the crossbeam.
+  limb([-0.07, 0.375, front + 0.035], [-0.44, 0.49, front + 0.03], 0.027);
+  limb([0.07, 0.375, front + 0.035], [0.44, 0.49, front + 0.03], 0.027);
+
+  // The body, from the waist up to rounded shoulders.
+  turned([
+    [0, 0], [0.062, 0], [0.06, 0.06], [0.07, 0.16], [0.085, 0.28], [0.088, 0.33],
+    [0.082, 0.37], [0.06, 0.395], [0.03, 0.405], [0, 0.408],
+  ], 0.5, front + 0.04);
+
+  // The neck and the head, bowed toward His right shoulder, with a halo.
+  limb([0.005, 0.39, front + 0.045], [0.022, 0.45, front + 0.055], 0.028);
+  const head = new Mesh(keep(new SphereGeometry(0.066, 18, 14)), body);
+  head.position.set(0.035, 0.49, front + 0.06);
+  head.scale.set(0.9, 1.05, 0.95);
+  group.add(head);
+  const halo = new Mesh(keep(new TorusGeometry(0.105, 0.011, 8, 40)), body);
+  halo.position.set(0.032, 0.5, front + 0.012);
+  group.add(halo);
+
+  // The legs together in one piece, narrowing to the ankles.
+  const legs = turned([
+    [0, -0.71], [0.022, -0.7], [0.028, -0.64], [0.037, -0.52], [0.044, -0.42],
+    [0.041, -0.35], [0.05, -0.24], [0.057, -0.13], [0.04, -0.1], [0, -0.095],
+  ], 0.8, front + 0.04);
+  legs.rotation.z = 0.025;
+  // The feet, one over the other, nailed to the cross.
+  limb([-0.012, -0.69, front + 0.045], [0.03, -0.75, front + 0.035], 0.02);
+
+  // The loincloth, wider at the hem, over the hips.
+  const cloth = new Mesh(keep(new CylinderGeometry(0.066, 0.098, 0.19, 18)), body);
+  cloth.position.set(0, -0.055, front + 0.045);
+  cloth.scale.set(1, 1, 0.6);
+  cloth.rotation.z = -0.06;
+  group.add(cloth);
+
+  // The INRI plate above the head.
+  const titulus = new Mesh(keep(new BoxGeometry(0.21, 0.07, 0.02)), [body, body, body, body, plate, body]);
+  titulus.position.set(0, 0.73, front + 0.012);
+  group.add(titulus);
+
+  return group;
+}
+
 /** A soft round spot, for the glow behind the cross and the drifting light. */
 function glowTexture(inner, outer) {
   const size = 128;
@@ -155,6 +253,9 @@ export function startGlory(canvas, { place, observe = [], still = false, onReady
 
   const gold = new MeshStandardMaterial({ color: 0xd4a640, metalness: 0.92, roughness: 0.28, envMapIntensity: 1.15 });
   const paleGold = new MeshStandardMaterial({ color: 0xe2bd62, metalness: 0.75, roughness: 0.38 });
+  const corpusGold = new MeshStandardMaterial({ color: 0xf3dfa6, metalness: 0.62, roughness: 0.34, envMapIntensity: 1.1 });
+  const plateTexture = titulusTexture();
+  const plateMaterial = new MeshStandardMaterial({ map: plateTexture, metalness: 0.3, roughness: 0.5 });
   const halo = glowTexture('rgba(255,238,196,0.95)', 'rgba(255,238,196,0)');
   const mote = glowTexture('rgba(255,226,150,1)', 'rgba(255,226,150,0)');
   const glowMaterial = new MeshBasicMaterial({ map: halo, transparent: true, depthWrite: false });
@@ -178,8 +279,13 @@ export function startGlory(canvas, { place, observe = [], still = false, onReady
   ring.scale.set(0.84, 1, 1);
   glory.add(ring);
 
-  const cross = new Mesh(keep(crossGeometry()), gold);
+  // The crucifix: the gold cross with Christ on it, a shade paler so the
+  // figure reads against the wood. `cross` sways as one piece.
+  const cross = new Group();
   cross.position.z = 0.25;
+  cross.scale.setScalar(1.1);
+  cross.add(new Mesh(keep(crossGeometry()), gold));
+  cross.add(corpus(corpusGold, plateMaterial, keep));
   glory.add(cross);
 
   // Stars around the rays, at different depths.
@@ -325,8 +431,8 @@ export function startGlory(canvas, { place, observe = [], still = false, onReady
     window.removeEventListener('pointermove', onPointer);
     canvas.removeEventListener('webglcontextlost', onLost);
     geometries.forEach((g) => g.dispose());
-    [gold, paleGold, glowMaterial, moteMaterial].forEach((m) => m.dispose());
-    [halo, mote, envMap].forEach((t) => t.dispose());
+    [gold, paleGold, corpusGold, plateMaterial, glowMaterial, moteMaterial].forEach((m) => m.dispose());
+    [halo, mote, plateTexture, envMap].forEach((t) => t.dispose());
     // No forceContextLoss(): React may start the scene again on this same
     // canvas (a remount), and a lost context can't be used again.
     renderer.dispose();

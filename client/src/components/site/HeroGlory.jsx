@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 /**
- * Home's hero background: a slowly moving 3D gold cross in Our Lady of
+ * Home's hero background: a slowly moving 3D gold crucifix in Our Lady of
  * Guadalupe's rays (heroGloryScene.js), behind the hero's text.
  *
  * It loads once the page is idle, so it never slows the hero down, and fades
