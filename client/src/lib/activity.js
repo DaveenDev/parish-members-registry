@@ -1,7 +1,7 @@
 // Plain-language lines for activity_log entries (0014 migration). Pure, so
 // it can be unit tested.
 import { SACRAMENTS } from '../constants.js';
-import { heroSymbolLabel } from './heroSymbols.js';
+import { heroPositionLabel, heroSymbolLabel } from './heroSymbols.js';
 
 const FIELD_LABELS = {
   household_name: 'Household name', street: 'Street', barangay: 'Barangay', city: 'City', province: 'Province', zip: 'ZIP',
@@ -65,7 +65,7 @@ const RECORD_FIELD_LABELS = {
     released_at: 'Released', public_note: 'Note to requester', scheduled_on: 'Scheduled on', urgent: 'Urgent', title: 'Title', body: 'Text', published: 'Published',
     label: 'Name', starts_on: 'Starts on', ends_on: 'Target end', closed_at: 'Closed', name: 'Name', role: 'Role', is_admin: 'Staff admin', access: 'Access',
     access_gkk: 'GKK', disabled: 'Disabled', email: 'Email', theme: 'Parish theme', maintenance_mode: 'Maintenance mode', maintenance_message: 'Maintenance note',
-    logo: 'Logo', hero_image: 'Home page photo', hero_symbol: 'Home page 3D object', site_url: 'Website address', census_interval_months: 'Census schedule',
+    logo: 'Logo', hero_image: 'Home page photo', hero_symbol: 'Home page 3D object', hero_position: 'Home page 3D position',site_url: 'Website address', census_interval_months: 'Census schedule',
     outgoing_email: 'Parish email', outgoing_name: 'Email sender name',
     servers_per_mass: 'Kaabag at each Mass', mass_rules: 'Rules for each Mass', auto_generate: 'Made automatically', days: 'Other days with Kaabag',
     on_rotation: 'In the draw', photo_url: 'Photo', show_publicly: 'Show on the website', consent_on: 'Agreed on',
@@ -75,6 +75,7 @@ const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 // A value shown other than as it's stored: the Kaabag's other days (0116) are numbers, 6 for Saturday.
 const RECORD_FIELD_FORMAT = {
   'parish_settings.hero_symbol': (v) => heroSymbolLabel(v),
+  'parish_settings.hero_position': (v) => heroPositionLabel(v),
   'kaabag_settings.days': (v) => (Array.isArray(v) && v.length ? v.map((d) => WEEKDAYS[d] || d).join(', ') : '—'),
 };
 

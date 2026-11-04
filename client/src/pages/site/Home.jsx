@@ -7,7 +7,7 @@ import CreditFooter from '../../components/CreditFooter.jsx';
 import VerseOfDay from '../../components/site/VerseOfDay.jsx';
 import PrayerTicker from '../../components/site/PrayerTicker.jsx';
 import HeroGlory from '../../components/site/HeroGlory.jsx';
-import { HERO_SYMBOL_OFF, heroSymbolOf } from '../../lib/heroSymbols.js';
+import { HERO_SYMBOL_OFF, heroPositionOf, heroSymbolOf } from '../../lib/heroSymbols.js';
 import { ARTICLES_PAGE, BIS_DAYS, KALENDARYO_PAGE, articlePath, censusCountdown, excerpt, fmtDayMonth, fmtLong, fmtShort, fmtTime12, massKindLabel, milestoneItems, nextMassDays, parseIso } from '../../lib/site.js';
 import { massType, todayIso } from '../../lib/website.js';
 import { manilaNow } from '../../lib/manila.js';
@@ -34,7 +34,10 @@ export default function Home() {
   const hero = usePublicData('heroImage', api.publicParishHeroImage).data || null;
   // The parish's 3D object (Parish Website → Home page 3D), once known.
   const symbolState = usePublicData('heroSymbol', api.publicParishHeroSymbol);
-  const symbol = symbolState.loading ? null : heroSymbolOf(symbolState.data);
+  // Where it sits on computers; both are known before it starts, so it never jumps.
+  const positionState = usePublicData('heroPosition', api.publicParishHeroPosition);
+  const symbol = symbolState.loading || positionState.loading ? null : heroSymbolOf(symbolState.data);
+  const position = heroPositionOf(positionState.data);
   const parish = useParishTitle();
   const heroTextRef = useRef(null);
 
@@ -85,7 +88,7 @@ export default function Home() {
           </>
         )}
         {/* The parish's 3D object (the crucifix unless it chose another) in Our Lady of Guadalupe's rays, behind the text. */}
-        {symbol && symbol !== HERO_SYMBOL_OFF && <HeroGlory anchorRef={heroTextRef} symbol={symbol} underBanner={!!hero} />}
+        {symbol && symbol !== HERO_SYMBOL_OFF && <HeroGlory anchorRef={heroTextRef} symbol={symbol} position={position} underBanner={!!hero} />}
         <div className="relative lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-16 lg:pb-[60px] lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-14 lg:items-center lg:min-h-[480px]">
           <div ref={heroTextRef} className={`site-stagger text-center px-[22px] pb-7 lg:text-left lg:p-0 ${hero ? 'pt-2' : 'pt-[30px]'}`}>
             <div className="font-bold text-[11.5px] lg:text-[12.5px] tracking-[.2em] lg:tracking-[.22em] uppercase text-[var(--p-eyebrow)] mb-2.5 lg:mb-3">Rehistro sa mga Miyembro sa Parokya</div>

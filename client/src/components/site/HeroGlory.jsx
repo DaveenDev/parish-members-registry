@@ -8,9 +8,10 @@ import React, { useEffect, useRef, useState } from 'react';
  * It loads once the page is idle, so it never slows the hero down, and fades
  * in after its first frame. Left out on Data Saver and very low-memory
  * phones, and held still for "reduce motion". `anchorRef` is the hero's text
- * column, which the glory is centred on.
+ * column, which the glory is placed against; `position` ('left', 'center' or
+ * 'right', the parish's choice) says where on computers.
  */
-export default function HeroGlory({ anchorRef, symbol = 'crucifix', underBanner = false }) {
+export default function HeroGlory({ anchorRef, symbol = 'crucifix', position = 'left', underBanner = false }) {
   const canvasRef = useRef(null);
   const [shown, setShown] = useState(false);
 
@@ -29,7 +30,7 @@ export default function HeroGlory({ anchorRef, symbol = 'crucifix', underBanner 
           stop = startGlory(canvas, {
             symbol,
             still,
-            place: placeGlory(anchorRef),
+            place: placeGlory(anchorRef, position),
             observe: [anchorRef.current],
             onReady: () => setShown(true),
           });
@@ -46,28 +47,37 @@ export default function HeroGlory({ anchorRef, symbol = 'crucifix', underBanner 
       else window.clearTimeout(idle);
       stop?.();
     };
-  }, [anchorRef, symbol]);
+  }, [anchorRef, symbol, position]);
 
   return <canvas ref={canvasRef} aria-hidden="true" className={`site-hero-glory${underBanner ? ' site-hero-glory--banner' : ''}${shown ? ' is-shown' : ''}`} />;
 }
 
 /**
- * Where the glory sits, in the canvas's pixels. On computers it is centred
- * on the text column, toward its right side so the photo's edge frames it;
- * on phones it is centred behind the text (`underBanner` fades it out
- * toward the photo banner above).
+ * Where the glory sits, in the canvas's pixels. On computers, by `position`:
+ * left is on the text column, toward its right side so the photo's edge
+ * frames it; center is the middle of the hero; right is the middle of the
+ * empty column beside the text, over the photo. On phones it is always
+ * centred behind the text (`underBanner` fades it out toward the photo
+ * banner above).
  */
-function placeGlory(anchorRef) {
+function placeGlory(anchorRef, position = 'left') {
   return (rect) => {
-    const anchor = anchorRef.current?.getBoundingClientRect();
+    const el = anchorRef.current;
+    const anchor = el?.getBoundingClientRect();
     if (!anchor) return { x: rect.width / 2, y: rect.height / 2, radius: Math.min(rect.width, rect.height) * 0.45 };
     const y = anchor.top + anchor.height / 2 - rect.top;
     if (window.matchMedia('(min-width: 1024px)').matches) {
-      return {
-        x: anchor.left + anchor.width * 0.7 - rect.left,
-        y,
-        radius: Math.min(rect.height * 0.45, 300),
-      };
+      const radius = Math.min(rect.height * 0.45, 300);
+      if (position === 'center') return { x: rect.width / 2, y, radius };
+      if (position === 'right' && el.parentElement) {
+        // The hero's grid: the text column, a gap, then the empty column up to the padding.
+        const grid = el.parentElement;
+        const style = window.getComputedStyle(grid);
+        const start = anchor.right + (parseFloat(style.columnGap) || 0);
+        const end = grid.getBoundingClientRect().right - (parseFloat(style.paddingRight) || 0);
+        return { x: (start + end) / 2 - rect.left, y, radius };
+      }
+      return { x: anchor.left + anchor.width * 0.7 - rect.left, y, radius };
     }
     return { x: rect.width / 2, y, radius: Math.min(rect.width * 0.62, 260) };
   };

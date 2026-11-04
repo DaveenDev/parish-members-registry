@@ -228,6 +228,13 @@ export const api = {
     return data || null;
   },
 
+  /** Where Home's 3D object sits on computers ('left', 'center', 'right'), or null for the default. Needs 0118. */
+  async publicParishHeroPosition() {
+    const { data, error } = await supabase.rpc('public_parish_hero_position');
+    if (error) return null;
+    return data || null;
+  },
+
   /** The parish's default color theme (Parish Config → Appearance), or null. Needs 0014. */
   async publicParishTheme() {
     const { data, error } = await supabase.rpc('public_parish_theme');
@@ -1073,6 +1080,8 @@ export const api = {
     if ('theme' in patch) cleaned.theme = patch.theme || null;
     // The 3D object behind the home page hero, or 'off' (0117 migration).
     if ('hero_symbol' in patch) cleaned.hero_symbol = patch.hero_symbol || null;
+    // Where it sits on computers: 'left', 'center' or 'right' (0118 migration).
+    if ('hero_position' in patch) cleaned.hero_position = patch.hero_position || null;
     // Whether the census uses last year's household list (0048 migration).
     if ('last_year_list_enabled' in patch) cleaned.last_year_list_enabled = !!patch.last_year_list_enabled;
     // Whether an open census shows CENSUS under Main in the sidebar (0088 migration).
@@ -1092,6 +1101,7 @@ export const api = {
     const { data, error } = await supabase.from('parish_settings').update(cleaned).eq('id', 1).select().single();
     if ('hero_image' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0020_parish_hero_image.sql migration in Supabase to save the parish photo');
     if ('hero_symbol' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0117_hero_symbol.sql migration in Supabase to choose the home page 3D object');
+    if ('hero_position' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0118_hero_position.sql migration in Supabase to move the home page 3D object');
     if ('site_url' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0042_public_site_url.sql migration in Supabase to save the website address');
     if (('maintenance_mode' in cleaned || 'maintenance_message' in cleaned) && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0049_maintenance_mode.sql migration in Supabase to use maintenance mode');
     if ('census_in_main_menu' in cleaned && (error?.code === '42703' || error?.code === 'PGRST204')) throw new Error('Run the 0088_census_main_menu.sql migration in Supabase to hide CENSUS from the menu');

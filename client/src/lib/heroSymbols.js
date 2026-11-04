@@ -38,3 +38,28 @@ export function heroSymbolLabel(value) {
   if (key === HERO_SYMBOL_OFF) return 'Off';
   return HERO_SYMBOLS.find((s) => s.key === key).label;
 }
+
+// Where the object sits across the hero on computers (parish_settings
+// .hero_position, 0118). On phones it is always centred behind the text.
+export const DEFAULT_HERO_POSITION = 'left';
+
+/** In the order the admin shows them. */
+export const HERO_POSITIONS = [
+  { key: 'left', label: 'Left', note: 'Behind the welcome text.' },
+  { key: 'center', label: 'Center', note: 'In the middle of the page.' },
+  { key: 'right', label: 'Right', note: 'Beside the text, over the photo.' },
+];
+
+const POSITION_KEYS = new Set(HERO_POSITIONS.map((p) => p.key));
+
+/** Nothing saved (or a database before 0118, or a value from a newer version) is left, as before there was a choice. */
+export function heroPositionOf(value) {
+  const v = typeof value === 'string' ? value.trim().toLowerCase() : '';
+  return POSITION_KEYS.has(v) ? v : DEFAULT_HERO_POSITION;
+}
+
+/** Its name, for the admin and the activity log. */
+export function heroPositionLabel(value) {
+  const key = heroPositionOf(value);
+  return HERO_POSITIONS.find((p) => p.key === key).label;
+}
