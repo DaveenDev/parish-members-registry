@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader, PageBody, Tabs, ViewOnlyNote } from '../../components/admin.jsx';
 import { useAuth } from '../../AuthContext.jsx';
@@ -14,6 +14,7 @@ import EventsTab from '../../components/website/EventsTab.jsx';
 import OfficeTab from '../../components/website/OfficeTab.jsx';
 import HistoryTab from '../../components/website/HistoryTab.jsx';
 import DownloadsTab from '../../components/website/DownloadsTab.jsx';
+import HeroSymbolDialog from '../../components/website/HeroSymbolDialog.jsx';
 
 // Ordered by how often the secretary updates each: weekly items first, the
 // office details (which almost never change) last. The first tab is also the
@@ -39,10 +40,23 @@ export default function Website() {
   const setTab = (k) => setParams(k === TABS[0][0] ? {} : { tab: k }, { replace: true });
   const Tab = current[2];
   const { user } = useAuth();
+  const [symbolOpen, setSymbolOpen] = useState(false);
 
   return (
     <>
       <PageHeader title="Parish Website" subtitle="Schedules, guides, news, downloads and contact details for parishioners">
+        {/* The 3D object behind the home page's welcome (0117), or none. */}
+        <button
+          type="button"
+          onClick={() => setSymbolOpen(true)}
+          className="appearance-none cursor-pointer inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-parish-card border-[1.5px] border-[var(--p-blue-border)] text-parish-blue font-bold text-[14px] transition hover:-translate-y-px"
+        >
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M12 3v18M7.5 8.5h9" />
+            <path d="M3.5 12a8.5 8.5 0 0 1 17 0M2.8 16h3M18.2 16h3" opacity=".55" />
+          </svg>
+          Home page 3D
+        </button>
         {/* The website is this same site, so this opens the one being edited (the demo site's on the demo site). */}
         <a
           href={current[3]}
@@ -60,6 +74,7 @@ export default function Website() {
           <Tab key={current[0]} />
         </ViewOnlyProvider>
       </PageBody>
+      {symbolOpen && <HeroSymbolDialog onClose={() => setSymbolOpen(false)} viewOnly={!can(user, 'editWebsite')} />}
     </>
   );
 }

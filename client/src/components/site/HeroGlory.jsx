@@ -1,15 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 /**
- * Home's hero background: a slowly moving 3D gold crucifix in Our Lady of
- * Guadalupe's rays (heroGloryScene.js), behind the hero's text.
+ * Home's hero background: a slowly moving 3D gold object (`symbol`, a
+ * lib/heroSymbols.js key: the crucifix unless the parish chose another) in
+ * Our Lady of Guadalupe's rays (heroGloryScene.js), behind the hero's text.
  *
  * It loads once the page is idle, so it never slows the hero down, and fades
  * in after its first frame. Left out on Data Saver and very low-memory
  * phones, and held still for "reduce motion". `anchorRef` is the hero's text
  * column, which the glory is centred on.
  */
-export default function HeroGlory({ anchorRef, underBanner = false }) {
+export default function HeroGlory({ anchorRef, symbol = 'crucifix', underBanner = false }) {
   const canvasRef = useRef(null);
   const [shown, setShown] = useState(false);
 
@@ -26,6 +27,7 @@ export default function HeroGlory({ anchorRef, underBanner = false }) {
           const canvas = canvasRef.current;
           if (cancelled || !canvas) return;
           stop = startGlory(canvas, {
+            symbol,
             still,
             place: placeGlory(anchorRef),
             observe: [anchorRef.current],
@@ -44,7 +46,7 @@ export default function HeroGlory({ anchorRef, underBanner = false }) {
       else window.clearTimeout(idle);
       stop?.();
     };
-  }, [anchorRef]);
+  }, [anchorRef, symbol]);
 
   return <canvas ref={canvasRef} aria-hidden="true" className={`site-hero-glory${underBanner ? ' site-hero-glory--banner' : ''}${shown ? ' is-shown' : ''}`} />;
 }
