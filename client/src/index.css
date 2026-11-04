@@ -349,7 +349,7 @@
   to { opacity: 1; transform: none; }
 }
 
-/* Home's 3D crucifix and rays (HeroGlory): faint, behind the hero's text, and
+/* Home's 3D object and rays (HeroGlory): faint, behind the hero's text, and
    faded in once drawn. On phones it fades out toward the photo banner. */
 .site-hero-glory {
   position: absolute;
@@ -362,7 +362,7 @@
 }
 .site-hero-glory.is-shown { opacity: .45; }
 @media (max-width: 1023.98px) {
-  /* The text sits right over the crucifix on phones. */
+  /* The text sits right over the object on phones. */
   .site-hero-glory.is-shown { opacity: .38; }
   .site-hero-glory--banner {
     -webkit-mask-image: linear-gradient(180deg, transparent 0, transparent 150px, #000 260px);
