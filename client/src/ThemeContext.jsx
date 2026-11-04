@@ -17,10 +17,10 @@ export const THEMES = [
   { id: 'sage', label: 'Sage', swatch: ['#e4ebdc', '#f9fbf6'] },
 ];
 export const ACCENTS = [
-  { id: 'navy', label: 'Navy', swatch: ['#20406b', '#c39b4e'] },
-  { id: 'emerald', label: 'Emerald', swatch: ['#12432f', '#c2a45a'] },
-  { id: 'ocean', label: 'Ocean', swatch: ['#0d525a', '#c79a5a'] },
-  { id: 'terracotta', label: 'Terracotta', swatch: ['#8a3f28', '#8a9a5b'] },
+  { id: 'navy', label: 'Navy', swatch: ['#34589c'] },
+  { id: 'emerald', label: 'Emerald', swatch: ['#1f6d4c'] },
+  { id: 'ocean', label: 'Ocean', swatch: ['#14707a'] },
+  { id: 'terracotta', label: 'Terracotta', swatch: ['#a65034'] },
 ];
 
 export const DEFAULT_LOOK = 'parchment/navy';

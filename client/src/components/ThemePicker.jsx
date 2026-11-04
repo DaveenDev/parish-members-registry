@@ -66,11 +66,11 @@ export function ModeSwitch() {
   );
 }
 
-/** A two-colour dot: a theme's page and card, or an accent's colour and its gold. */
+/** A dot: a theme's page and card (split), or an accent's full colour (solid). */
 function Swatch({ colors, size = 24 }) {
   return (
     <span className="rounded-full flex-none overflow-hidden border border-black/15" style={{ width: size, height: size }}>
-      <span className="block w-full h-full" style={{ background: `linear-gradient(135deg, ${colors[0]} 50%, ${colors[1]} 50%)` }} />
+      <span className="block w-full h-full" style={{ background: `linear-gradient(135deg, ${colors[0]} 50%, ${colors[1] || colors[0]} 50%)` }} />
     </span>
   );
 }
