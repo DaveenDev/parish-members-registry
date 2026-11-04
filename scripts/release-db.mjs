@@ -165,7 +165,9 @@ function checkPending(parish, parishes) {
   try {
     const file = join(dir, 'check.sql');
     writeFileSync(file, checkSql(entries));
-    const result = npx(['supabase', 'db', 'query', '--db-url', parish.dbUrl, '--output-format', 'json', '--file', file], { encoding: 'utf8' });
+    // --read-only: the check only reads, and CLI v3 refuses a hosted query
+    // without it (or --yes) when it can't prompt, as with json output.
+    const result = npx(['supabase', 'db', 'query', '--read-only', '--db-url', parish.dbUrl, '--output-format', 'json', '--file', file], { encoding: 'utf8' });
     if (result.status !== 0) fail(`Couldn't check ${parish.label}:\n${indent(hidePasswords(`${result.stdout || ''}${result.stderr || ''}`, parishes).trim())}`);
     let rows;
     try {
@@ -249,7 +251,8 @@ async function mark(parishes, target, versions) {
   } finally {
     rl.close();
   }
-  const result = npx(['supabase', 'migration', 'repair', '--status', 'applied', '--db-url', parish.dbUrl, ...marking.map((c) => c.version)], { encoding: 'utf8' });
+  // --yes: the typed parish name above is the confirmation; the CLI can't prompt here.
+  const result = npx(['supabase', 'migration', 'repair', '--status', 'applied', '--yes', '--db-url', parish.dbUrl, ...marking.map((c) => c.version)], { encoding: 'utf8' });
   const output = hidePasswords(`${result.stdout || ''}${result.stderr || ''}`, parishes).trim();
   if (result.status !== 0) fail(`Couldn't record them:\n${indent(output)}`);
   console.log(`Recorded. Now:\n${indent(describe(parish, pending(parish, parishes)))}`);
