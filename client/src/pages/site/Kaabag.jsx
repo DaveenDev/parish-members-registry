@@ -137,17 +137,10 @@ function NextDay({ day }) {
 function DayCard({ day }) {
   return (
     <Card className="overflow-hidden rounded-[18px]">
-<<<<<<< HEAD
-      <h3 className="m-0 px-4 py-3 bg-[#fbf7ef] border-b border-[#f0e8d6] font-serif text-[22px] font-bold text-parish-navy">{dayTitle(day.date)}</h3>
+      <h3 className="m-0 px-4 py-3 bg-parish-tint border-b border-parish-line2 font-serif text-[22px] font-bold text-parish-navy">{dayTitle(day.date)}</h3>
       <ul className="list-none m-0 p-0">
         {day.masses.map((m, i) => (
-          <li key={i} className="flex gap-3 px-4 py-3 border-t border-[#f4eddd] first:border-t-0">
-=======
-      <h3 className="m-0 px-4 py-3 bg-parish-tint border-b border-parish-line2 font-serif text-[22px] font-bold text-parish-navy">{fmtLong(sunday.date)}</h3>
-      <ul className="list-none m-0 p-0">
-        {sunday.masses.map((m, i) => (
           <li key={i} className="flex gap-3 px-4 py-3 border-t border-parish-sunk first:border-t-0">
->>>>>>> Theme and accent: two separate choices for the site's look
             <div className="w-[92px] flex-none">
               <div className="font-serif text-[20px] font-bold leading-tight text-parish-blue">{fmtTime12(m.time)}</div>
               <div className="text-[13px] leading-snug text-parish-text2">{massPlace(m)}</div>
@@ -167,13 +160,8 @@ function DayCard({ day }) {
  * month is in the table's own heading, so the screenshot says what it is.
  * The first day shown (today's, or the next) is marked.
  */
-<<<<<<< HEAD
 function MonthTable({ month, days, next }) {
-  const cell = 'px-2 py-1 align-top border-t border-[#efe5cf]';
-=======
-function MonthTable({ month, sundays, next }) {
   const cell = 'px-2 py-1 align-top border-t border-parish-line';
->>>>>>> Theme and accent: two separate choices for the site's look
   return (
     <Card className="overflow-hidden rounded-xl">
       <table className="w-full border-collapse text-left">
