@@ -254,6 +254,27 @@
   to { opacity: 1; transform: none; }
 }
 
+/* Home's 3D cross and rays (HeroGlory): faint, behind the hero's text, and
+   faded in once drawn. On phones it fades out toward the photo banner. */
+.site-hero-glory {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 1.8s ease;
+}
+.site-hero-glory.is-shown { opacity: .45; }
+@media (max-width: 1023.98px) {
+  /* The text sits right over the cross on phones. */
+  .site-hero-glory.is-shown { opacity: .38; }
+  .site-hero-glory--banner {
+    -webkit-mask-image: linear-gradient(180deg, transparent 0, transparent 150px, #000 260px);
+    mask-image: linear-gradient(180deg, transparent 0, transparent 150px, #000 260px);
+  }
+}
+
 /* Home's parish photo settles in from slightly closer. */
 .site-hero-photo { animation: site-hero-photo 1.8s cubic-bezier(.2, .7, .2, 1) both; }
 @keyframes site-hero-photo {
