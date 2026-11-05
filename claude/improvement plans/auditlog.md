@@ -1,10 +1,11 @@
 # Improvement plan: GKK-level audit log
 
-> **Status:** proposed 2026-11-05, not started.
+> **Status:** proposed 2026-11-05, not started. Decided the same day: GKK
+> leaders also see their own GKK's trail (phase 4 is in the build).
 > **Goal:** when something goes wrong in a GKK (a household vanished, a
 > phone number changed, a member was added twice), the secretary opens one
 > screen, picks the GKK, and sees **who added, edited or deleted whom, and
-> when**.
+> when**. The GKK's leader sees the same for their own GKK.
 > **Migration:** `0119_activity_gkk.sql` (next free number at build time;
 > check `origin/main` first, other sessions add migrations).
 > **Edge Functions:** none changed, nothing to redeploy.
@@ -76,8 +77,12 @@ What it already does:
 - **Entries with no GKK stay visible**, labelled "Parish-wide" (website,
   settings, requests) or "No GKK yet" (households not yet assigned, which
   GKK leaders may pick up).
-- **Same access as today** for the secretary: Full and Read only see all;
-  Clergy don't. The leader view (phase 4) is the one real decision.
+- **Who sees what.** Full and Read only see every entry, as today. **GKK
+  leaders see only their own GKK's entries**, through a redacting function
+  (phase 4), never the table. Clergy and Website & requests see none.
+- **Tell leaders they are recorded.** Their My GKK page says that changes to
+  their GKK's records are kept with their name and seen by the parish
+  office. It's fair to them, and it's the point of the log.
 - **Keep one account per person.** The log is only as good as the names in
   it. A shared login (the secretary's laptop, the Demo login) makes "who"
   mean "someone at the office". Say so on the staff accounts page; no code.
@@ -145,30 +150,49 @@ On **Settings → Activity log** (`pages/admin/ActivityLog.jsx`,
   neither (`client/test/`, reading the migrations as `hero-symbols.test.js`
   does).
 
-## Phase 4 (decision needed): GKK leaders see their own GKK's trail
+## Phase 4: GKK leaders see their own GKK's trail
 
 Why: leaders are accountable for their GKK's records, and the secretary
-wouldn't need to be asked "who changed this?" for every question.
+wouldn't be asked "who changed this?" for every question. Leaders can
+already see and edit these households, so the log shows them nothing about
+a household they couldn't open, as long as the rules below hold.
 
-How, if wanted:
+- **Access:** new area `gkkActivity` in `lib/access.js` for `full`,
+  `read_only` and `gkk_leader`. Update the GKK leader line in
+  `ACCESS_LEVELS`, the README's access table and the Data Privacy notice.
+- **Through a function, never the table.** `list_gkk_activity(...)`
+  (security definer, same filters and paging as the page) returns rows
+  where `gkk_id` or `gkk_from_id` is the leader's own GKK id
+  (`profiles.access_gkk_id`, 0063; a small `staff_gkk_id()` helper). The RLS
+  on `activity_log` stays Full and Read only, so a leader's direct query on
+  the table is still refused. For Full and Read only the same function takes
+  any `p_gkk_id`, so the page has one code path.
+- **What a leader never gets:**
+  - **Parish-wide entries:** requests, website, settings, staff accounts,
+    the census cycle. Only entries with a GKK, and only theirs.
+  - **Households with no GKK yet.** A leader may pick one up, but until it
+    is theirs its history isn't. Once moved in, the move is shown ("No GKK →
+    Meohao") and what follows.
+  - **Blood types:** `blood_type` is dropped from `changes` (0050 keeps
+    them from leaders).
+  - **What happened to a household after it left their GKK.** The entry that
+    moved it out is theirs, but it shows only the move (the `gkk` field,
+    from and to), not the other fields changed in the same save; later
+    entries on that household belong to its new GKK.
+- **What they do get:** who (staff names, including the secretary's: they
+  work together), when, what changed with old and new values, and
+  deletions and restores. There's no link to the Trash: it stays full
+  access, so a leader asks the office to restore something.
+- **Where it shows.** A new **Activity** tab in **My GKK** (Settings → My
+  GKK, `ParishConfig.jsx`), the same list as the secretary's with the GKK
+  filter hidden. "History" in the household and member windows also opens
+  for a leader's own households, through the same function.
+- **Their own edits in it.** Entries made by the leader are marked "You".
 
-- New area `gkk_activity` in `lib/access.js` for `full`, `read_only`,
-  `gkk_leader`; the page shows only that GKK, and no GKK filter.
-- A **view or RPC, not the table**: `list_gkk_activity()` returns rows where
-  `gkk_id` or `gkk_from_id` equals the leader's own GKK id (from
-  `profiles.access_gkk_id`, 0063; a small `staff_gkk_id()` helper), so the RLS on
-  `activity_log` itself stays full/read-only.
-- **Redact what leaders can't see anywhere else:** drop `blood_type` from
-  `changes` (0050 keeps blood types from leaders), and show a household
-  moved out as "moved to another GKK" only if wanted.
-- Leaders see staff names in their GKK's entries. They already know who
-  works in their GKK; the secretary's name appearing is fine.
-
-Why not: a wider audience for a log that holds old and new phone numbers,
-addresses and census answers. Those entries are of households the leader
-already sees, so the exposure is small, but it is a real decision for the
-parish office and the Data Privacy Act notice. **Default: build phases 1–3
-first and decide this after the secretary has used them.**
+Cost of this choice, accepted: a wider audience for old and new phone
+numbers, addresses and census answers. They are the leader's own
+households, and the redaction above keeps blood types and other GKKs out.
+The redaction is what must be tested hardest (see below).
 
 ## Out of scope
 
@@ -201,25 +225,53 @@ first and decide this after the secretary has used them.**
   - delete it → "trash" entry carries the GKK, which is still there after
     the household is gone;
   - purge it from the Trash → a "purge" entry.
-- Browser: the GKK filter, the person filter, the at-a-glance panel, in
-  light and dark, on a phone.
+- **Leader redaction (phase 4), on demo with a real leader account and a
+  second GKK's leader.** Each must hold:
+  - the leader sees their GKK's entries and none of another GKK's;
+  - a direct `select` on `activity_log` is refused, and only
+    `list_gkk_activity` answers;
+  - a member's `blood_type` change shows the other fields but not the blood
+    type;
+  - no request, website, settings or staff-account entry appears;
+  - a household moved out of their GKK: the move shows, the other fields of
+    that save don't, and later edits don't;
+  - an unassigned household's edits don't appear until it is moved in;
+  - Clergy and Website & requests accounts get nothing;
+  - Full and Read only see exactly what they saw before.
+  Also a unit test over the function's SQL text in `client/test/`, as for
+  the migrations above, so a later migration that rewrites it can't
+  silently drop the redaction.
+- Browser: the GKK filter, the person filter, the at-a-glance panel, the My
+  GKK Activity tab as a leader, in light and dark, on a phone.
 
 ## Release
 
 A minor release (new feature, usual migration, no function), with a note on
-the releases page (`npm run releases:new`). Run `0119` on demo first, then
-each parish: `npm run release:db -- demo`, then `npm run release:db -- all`.
+the releases page (`npm run releases:new`): say that GKK leaders now see
+their GKK's trail. Run `0119` on demo first, then each parish:
+`npm run release:db -- demo`, then `npm run release:db -- all`.
+
+The migration holds phases 1, 3 and 4's database side, so it should be
+tried on demo with a leader account before any parish gets it. Ship phase 4
+in the same release only if its redaction checks all pass; otherwise ship
+phases 1 to 3, with the leader access switched off, and phase 4 right after.
 
 ## Order of work
 
 1. Phase 1 migration, with backfill and the fallback. *(small)*
 2. Phase 2 page: filters, chip, at-a-glance panel, export. *(medium)*
 3. Phase 3: purge entries and the coverage audit. *(small to medium)*
-4. Decide phase 4 with the secretary, then build or drop it. *(small)*
+4. Phase 4: `list_gkk_activity`, the My GKK Activity tab, the access
+   rules, then the redaction checks on demo. *(medium)* It needs phase 1's
+   GKK stamping and reuses phase 2's list.
 
 ## Open questions
 
-- **Phase 4:** should GKK leaders see their own GKK's trail?
+- **Unassigned households:** leaders won't see their history until they
+  move them in (the default above). Is that right, or should a leader see
+  "No GKK yet" entries too, since they can already open those households?
+- **Leaders and the secretary's name:** leaders see staff names in their
+  GKK's trail. Fine, or show "Parish office" for Full access accounts?
 - **Shared logins:** does anyone at the office or in a GKK share an account?
   If so, one per person comes before this plan is worth much.
 - **Date range default:** last 30 days, or everything newest first as now?
