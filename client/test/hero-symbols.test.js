@@ -7,11 +7,11 @@ import {
 } from '../src/lib/heroSymbols.js';
 import { describeActivity } from '../src/lib/activity.js';
 
-test('nine objects to choose from, the crucifix first and the default', () => {
-  assert.equal(HERO_SYMBOLS.length, 9);
+test('eleven objects to choose from, the crucifix first and the default', () => {
+  assert.equal(HERO_SYMBOLS.length, 11);
   assert.equal(HERO_SYMBOLS[0].key, 'crucifix');
   assert.equal(DEFAULT_HERO_SYMBOL, 'crucifix');
-  assert.equal(new Set(HERO_SYMBOLS.map((s) => s.key)).size, 9);
+  assert.equal(new Set(HERO_SYMBOLS.map((s) => s.key)).size, 11);
 });
 
 test('nothing saved, or something unknown, shows the crucifix; off stays off', () => {
@@ -23,6 +23,9 @@ test('nothing saved, or something unknown, shows the crucifix; off stays off', (
   assert.equal(heroSymbolLabel('off'), 'Off');
   assert.equal(heroSymbolLabel('sacred-heart'), 'Sacred Heart');
   assert.equal(heroSymbolOf('our-lady'), 'our-lady');
+  assert.equal(heroSymbolOf('saint-male'), 'saint-male');
+  assert.equal(heroSymbolLabel('saint-male'), 'Male Saint');
+  assert.equal(heroSymbolLabel('saint-female'), 'Female Saint');
 });
 
 test('every object has a builder in the scene, and fits the database check', () => {

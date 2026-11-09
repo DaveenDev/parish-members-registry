@@ -15,6 +15,8 @@ export const HERO_SYMBOLS = [
   { key: 'monstrance', label: 'Monstrance', note: 'The Blessed Sacrament in its sunburst, for adoration.' },
   { key: 'sacred-heart', label: 'Sacred Heart', note: 'The heart of Jesus: thorns, flames and a cross.' },
   { key: 'our-lady', label: 'Our Lady, Queen of Heaven', note: 'Mary crowned with twelve stars, on the moon: for Guadalupe, Mediatrix or any title of Our Lady.' },
+  { key: 'saint-male', label: 'Male Saint', note: 'A saint in a green tunic and crimson mantle, blessing, with the Gospel book and a halo: for a parish whose patron is a man saint.' },
+  { key: 'saint-female', label: 'Female Saint', note: 'A saint in an ivory gown, white veil and brown mantle, holding a lily, with a halo: for a parish whose patron is a woman saint.' },
   { key: 'immaculate-heart', label: 'Immaculate Heart', note: 'The heart of Mary: roses, a sword and flames.' },
   { key: 'dove', label: 'Holy Spirit', note: 'The dove with its wings spread.' },
   { key: 'rosary', label: 'Rosary', note: 'Five decades of beads and the crucifix.' },
