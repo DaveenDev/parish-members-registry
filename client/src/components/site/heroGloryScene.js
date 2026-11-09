@@ -4,17 +4,17 @@
  * like the ones on her mantle and a little drifting light. The object is the
  * parish's choice (lib/heroSymbols.js): the crucifix (Christ on the cross, as
  * simple rounded shapes), a plain cross, the chalice, the monstrance, the
- * Sacred Heart, the Immaculate Heart, the dove of the Holy Spirit or the
- * rosary.
+ * Sacred Heart, Our Lady (Queen of Heaven, crowned with twelve stars), the
+ * Immaculate Heart, the dove of the Holy Spirit or the rosary.
  *
  * Loaded on its own (HeroGlory imports it once the page is idle), so three.js
  * is a separate download that never holds up the page.
  */
 import {
-  ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BoxGeometry, BufferAttribute, BufferGeometry,
+  ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BackSide, BoxGeometry, BufferAttribute, BufferGeometry,
   CanvasTexture, CapsuleGeometry, CatmullRomCurve3, ConeGeometry, CylinderGeometry, DirectionalLight, ExtrudeGeometry,
-  Group, LatheGeometry, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry,
-  PMREMGenerator, Points, PointsMaterial, Scene, Shape, SphereGeometry, SRGBColorSpace, TorusGeometry, TubeGeometry,
+  FrontSide, Group, LatheGeometry, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry,
+  PMREMGenerator, Points, PointsMaterial, Quaternion, Scene, Shape, SphereGeometry, SRGBColorSpace, TorusGeometry, TubeGeometry,
   Vector2, Vector3, WebGLRenderer,
 } from 'three';
 import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
@@ -652,12 +652,278 @@ function buildRosary(m, keep) {
   };
 }
 
+/**
+ * A cloth hanging round the figure and open at the front, like a mantle or a
+ * veil. `rows` go from the bottom up as [radius, y, open], `open` being how
+ * far round from the front (in radians) each side of the opening is; they are
+ * smoothed into `steps` rings. `depth` flattens it front to back, `folds` and
+ * `fold` ripple it into folds that deepen toward the bottom. Also returns
+ * at(t, phi): a point on it and the way it faces, t from 0 (bottom) to 1 (top).
+ */
+function drape(rows, { depth = 1, folds = 0, fold = 0, steps = 40, segments = 48 } = {}) {
+  const curve = new CatmullRomCurve3(rows.map(([r, y, open]) => new Vector3(r, y, open)));
+  const rings = curve.getPoints(steps);
+  const radiusAt = (ring, phi, t) => ring.x * (1 + fold * (1 - t) * Math.sin(phi * folds));
+  const positions = [];
+  const index = [];
+  rings.forEach((ring, i) => {
+    const t = i / steps;
+    for (let j = 0; j <= segments; j++) {
+      const phi = ring.z + ((Math.PI * 2 - ring.z * 2) * j) / segments;
+      const r = radiusAt(ring, phi, t);
+      positions.push(r * Math.sin(phi), ring.y, r * Math.cos(phi) * depth);
+    }
+  });
+  const row = segments + 1;
+  for (let i = 0; i < steps; i++) {
+    for (let j = 0; j < segments; j++) {
+      const a = i * row + j;
+      index.push(a, a + 1, a + row, a + 1, a + row + 1, a + row);
+    }
+  }
+  const geometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
+  geometry.setIndex(index);
+  geometry.computeVertexNormals();
+  function at(t, phi) {
+    const ring = curve.getPoint(t);
+    const r = radiusAt(ring, phi, t);
+    return {
+      position: new Vector3(r * Math.sin(phi), ring.y, r * Math.cos(phi) * depth),
+      normal: new Vector3(Math.sin(phi), 0, Math.cos(phi) / depth).normalize(),
+      open: ring.z,
+    };
+  }
+  /** The two front edges, bottom to top, for a trim along them. */
+  function edges(lift = 1.01) {
+    return [1, -1].map((side) => rings.map((ring, i) => {
+      const phi = side > 0 ? ring.z : Math.PI * 2 - ring.z;
+      const r = radiusAt(ring, phi, i / steps) * lift;
+      return new Vector3(r * Math.sin(phi), ring.y, r * Math.cos(phi) * depth);
+    }));
+  }
+  return { geometry, at, edges };
+}
+
+/** A gold cord along `points`. */
+function trim(m, keep, points, radius = 0.009) {
+  return new Mesh(keep(new TubeGeometry(new CatmullRomCurve3(points), points.length * 2, radius, 5, false)), m.gold);
+}
+
+/** Two hands joined in prayer, fingertips up: a pointed shape, about 0.075 wide and 0.15 tall. */
+function prayingHandsGeometry() {
+  const shape = new Shape();
+  shape.moveTo(-0.034, -0.07);
+  shape.quadraticCurveTo(-0.042, 0.01, -0.02, 0.055);
+  shape.quadraticCurveTo(-0.008, 0.078, 0, 0.082);
+  shape.quadraticCurveTo(0.008, 0.078, 0.02, 0.055);
+  shape.quadraticCurveTo(0.042, 0.01, 0.034, -0.07);
+  shape.closePath();
+  const geometry = new ExtrudeGeometry(shape, {
+    depth: 0.03, bevelEnabled: true, bevelThickness: 0.014, bevelSize: 0.01, bevelSegments: 3, curveSegments: 10,
+  });
+  geometry.translate(0, 0, -0.015);
+  return geometry;
+}
+
+/** The crescent moon under her feet, horns up, `radius` across each way from the middle. */
+function crescentGeometry(radius) {
+  const points = [];
+  const steps = 32;
+  for (let i = 0; i <= steps; i++) {
+    const a = Math.PI + (i / steps) * Math.PI;
+    points.push([Math.cos(a) * radius, Math.sin(a) * radius * 0.62]);
+  }
+  for (let i = steps - 1; i > 0; i--) {
+    const a = Math.PI + (i / steps) * Math.PI;
+    points.push([Math.cos(a) * radius * 0.97, Math.sin(a) * radius * 0.26]);
+  }
+  const geometry = new ExtrudeGeometry(shapeOf(points), {
+    depth: 0.2, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.03, bevelSegments: 4, curveSegments: 4,
+  });
+  geometry.translate(0, 0, -0.1);
+  return geometry;
+}
+
+/**
+ * Our Lady, Queen of Heaven, for a parish of any of her titles (Guadalupe,
+ * Mediatrix, the Immaculate Conception and others): Mary standing on the
+ * moon, her head bowed a little to her right, hands joined in prayer, in a
+ * rose gown and a blue-green mantle edged in gold and strewn with stars, a
+ * small crown on her veil and twelve stars round her head (Revelation 12:1).
+ * As simple rounded shapes, the face without features, like the crucifix.
+ */
+function buildOurLady(m, keep) {
+  const group = new Group();
+  group.scale.setScalar(1.18);
+  group.position.y = 0.03;
+  const figure = new Group();
+  group.add(figure);
+  const depth = 0.74;
+
+  // The gown, from the hem up to the neck, falling in soft folds.
+  const gownGeometry = keep(new LatheGeometry(profile([
+    [0, -0.84], [0.29, -0.84], [0.305, -0.81], [0.285, -0.62], [0.25, -0.38], [0.215, -0.14], [0.185, 0.03],
+    [0.18, 0.12], [0.195, 0.25], [0.205, 0.36], [0.19, 0.44], [0.13, 0.5], [0.06, 0.53], [0, 0.535],
+  ]), 56));
+  const pos = gownGeometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const lower = Math.max(0, Math.min(1, (0.1 - y) / 0.9));
+    const k = 1 + 0.035 * lower * Math.sin(Math.atan2(x, z) * 11);
+    pos.setXYZ(i, x * k, y, z * k);
+  }
+  gownGeometry.computeVertexNormals();
+  const gown = new Mesh(gownGeometry, m.gown);
+  gown.scale.z = depth;
+  figure.add(gown);
+  // A gold sash at the waist.
+  const sash = new Mesh(keep(new TorusGeometry(0.184, 0.012, 8, 56)), m.gold);
+  sash.rotation.x = Math.PI / 2;
+  sash.scale.set(1, depth, 1);
+  sash.position.y = 0.06;
+  figure.add(sash);
+
+  // The mantle, over the shoulders and down to the feet, open in front.
+  const mantle = drape([
+    [0.355, -0.8, 1.2], [0.315, -0.52, 1.08], [0.275, -0.22, 0.96], [0.245, 0.04, 0.86],
+    [0.245, 0.24, 0.78], [0.24, 0.39, 0.66], [0.2, 0.47, 0.6], [0.12, 0.525, 0.58],
+  ], { depth: depth + 0.04, folds: 9, fold: 0.05 });
+  figure.add(new Mesh(keep(mantle.geometry), m.mantle));
+  figure.add(new Mesh(mantle.geometry, m.lining));
+  mantle.edges().forEach((edge) => figure.add(trim(m, keep, edge)));
+  // Its hem, edged in gold too.
+  const hem = [];
+  for (let j = 0; j <= 40; j++) {
+    const open = mantle.at(0, 0).open;
+    hem.push(mantle.at(0, open + ((Math.PI * 2 - open * 2) * j) / 40).position.multiplyScalar(1.01));
+  }
+  figure.add(trim(m, keep, hem));
+  // Gold stars on the mantle, on the sides that show.
+  const star = keep(starGeometry());
+  const front = new Vector3(0, 0, 1);
+  const rand = seeded(1212);
+  for (let i = 0; i < 26; i++) {
+    const t = 0.06 + rand() * 0.82;
+    const side = i % 2 ? 1 : -1;
+    const { open } = mantle.at(t, 0);
+    const phi = side > 0 ? open + 0.12 + rand() * 1.5 : Math.PI * 2 - open - 0.12 - rand() * 1.5;
+    const { position, normal } = mantle.at(t, phi);
+    const s = new Mesh(star, m.gold);
+    s.position.copy(position).addScaledVector(normal, 0.008);
+    s.quaternion.setFromUnitVectors(front, normal);
+    s.rotateZ(rand() * Math.PI);
+    s.scale.setScalar(0.28 + rand() * 0.08);
+    figure.add(s);
+  }
+
+  // The arms in the gown's sleeves, the hands joined in prayer.
+  const up = new Vector3(0, 1, 0);
+  const sleeve = keep(new CapsuleGeometry(0.036, 0.13, 4, 10));
+  for (const side of [-1, 1]) {
+    const from = new Vector3(side * 0.165, 0.17, 0.05);
+    const to = new Vector3(side * 0.035, 0.27, 0.165);
+    const arm = new Mesh(sleeve, m.gown);
+    arm.position.copy(from).add(to).multiplyScalar(0.5);
+    arm.quaternion.setFromUnitVectors(up, to.clone().sub(from).normalize());
+    figure.add(arm);
+    const cuff = new Mesh(keep(new TorusGeometry(0.035, 0.008, 6, 20)), m.gold);
+    cuff.position.copy(to);
+    cuff.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), to.clone().sub(from).normalize());
+    figure.add(cuff);
+  }
+  const hands = new Mesh(keep(prayingHandsGeometry()), m.skin);
+  hands.position.set(0, 0.33, 0.19);
+  hands.rotation.x = 0.28;
+  figure.add(hands);
+
+  // The head, bowed a little to her right (our left), in its veil.
+  const head = new Group();
+  head.position.set(0, 0.5, 0.02);
+  head.rotation.set(0.12, 0, 0.13);
+  figure.add(head);
+  const neck = new Mesh(keep(new CylinderGeometry(0.04, 0.048, 0.1, 14)), m.skin);
+  neck.position.y = 0.05;
+  head.add(neck);
+  const face = new Mesh(keep(new SphereGeometry(0.09, 24, 18)), m.skin);
+  face.position.set(0, 0.165, 0.025);
+  face.scale.set(0.86, 1.08, 0.92);
+  head.add(face);
+  const veil = drape([
+    [0.21, -0.02, 0.62], [0.16, 0.06, 0.66], [0.128, 0.14, 0.74], [0.124, 0.2, 0.8],
+    [0.108, 0.25, 0.86], [0.07, 0.29, 0.9], [0.012, 0.31, 0.9],
+  ], { depth: 0.95, folds: 7, fold: 0.04, steps: 24, segments: 40 });
+  head.add(new Mesh(keep(veil.geometry), m.mantle));
+  head.add(new Mesh(veil.geometry, m.lining));
+  head.add(trim(m, keep, [...veil.edges()[0], ...veil.edges()[1].reverse()], 0.008));
+
+  // A small crown on the veil: a band, five points with pearls on them.
+  const crown = new Group();
+  crown.position.set(0, 0.29, -0.005);
+  crown.rotation.x = -0.18;
+  const band = new Mesh(keep(new CylinderGeometry(0.068, 0.06, 0.035, 32, 1, true)), m.gold);
+  crown.add(band);
+  const point = keep(new ConeGeometry(0.014, 0.05, 6));
+  const pearl = keep(new SphereGeometry(0.009, 8, 6));
+  for (let i = 0; i < 5; i++) {
+    const a = ((i - 2) / 5) * Math.PI * 1.15;
+    const p = new Mesh(point, m.gold);
+    p.position.set(Math.sin(a) * 0.066, 0.04, Math.cos(a) * 0.066);
+    crown.add(p);
+    const b = new Mesh(pearl, m.pearl);
+    b.position.set(Math.sin(a) * 0.066, 0.07, Math.cos(a) * 0.066);
+    crown.add(b);
+  }
+  head.add(crown);
+
+  // The crown of twelve stars, a ring floating over her head and slowly
+  // turning, each star kept facing us.
+  const circlet = new Group();
+  circlet.position.set(0, 0.4, -0.01);
+  circlet.rotation.x = 0.38;
+  const spin = new Group();
+  circlet.add(spin);
+  const twelve = [];
+  for (let i = 0; i < 12; i++) {
+    const a = (i / 12) * Math.PI * 2;
+    const s = new Mesh(star, m.gold);
+    s.position.set(Math.sin(a) * 0.22, 0, Math.cos(a) * 0.22);
+    s.userData.phase = i * 0.9;
+    spin.add(s);
+    twelve.push(s);
+  }
+  head.add(circlet);
+  const facing = new Quaternion();
+
+  // The crescent moon under her feet.
+  const moon = new Mesh(keep(crescentGeometry(0.46)), m.moon);
+  moon.position.set(0, -0.6, 0.0);
+  figure.add(moon);
+
+  return {
+    group,
+    move: (t) => {
+      group.rotation.y = 0.4 * Math.sin(t * 0.38);
+      figure.position.y = 0.02 * Math.sin(t * 0.6);
+      spin.rotation.y = t * 0.3;
+      spin.getWorldQuaternion(facing).invert();
+      for (const s of twelve) {
+        s.quaternion.copy(facing);
+        s.scale.setScalar(0.5 * (0.88 + 0.12 * Math.sin(t * 1.3 + s.userData.phase)));
+      }
+    },
+  };
+}
+
 const BUILDERS = {
   crucifix: buildCrucifix,
   cross: buildCross,
   chalice: buildChalice,
   monstrance: buildMonstrance,
   'sacred-heart': buildSacredHeart,
+  'our-lady': buildOurLady,
   'immaculate-heart': buildImmaculateHeart,
   dove: buildDove,
   rosary: buildRosary,
@@ -737,6 +1003,13 @@ export function startGlory(canvas, { symbol = 'crucifix', place, observe = [], s
     roseDeep: new MeshStandardMaterial({ color: 0xc9677d, metalness: 0.05, roughness: 0.5 }),
     leaf: new MeshStandardMaterial({ color: 0x5f8a3e, metalness: 0.2, roughness: 0.5 }),
     wood: new MeshStandardMaterial({ color: 0x6e3f1e, metalness: 0.15, roughness: 0.4, envMapIntensity: 1.1 }),
+    // Our Lady: her mantle (its outside; the lining is gold), gown, skin, crown's pearls, the moon.
+    mantle: new MeshStandardMaterial({ color: 0x24687a, metalness: 0.18, roughness: 0.5, envMapIntensity: 1.1, side: FrontSide }),
+    lining: new MeshStandardMaterial({ color: 0xc99a3e, metalness: 0.7, roughness: 0.4, side: BackSide }),
+    gown: new MeshStandardMaterial({ color: 0xe0a69c, metalness: 0.08, roughness: 0.52 }),
+    skin: new MeshStandardMaterial({ color: 0xc89878, metalness: 0.05, roughness: 0.55 }),
+    pearl: new MeshStandardMaterial({ color: 0xfaf4e6, metalness: 0.2, roughness: 0.25 }),
+    moon: new MeshStandardMaterial({ color: 0xe6e2d6, metalness: 0.6, roughness: 0.3, envMapIntensity: 1.2 }),
   };
   const halo = glowTexture('rgba(255,238,196,0.95)', 'rgba(255,238,196,0)');
   const mote = glowTexture('rgba(255,226,150,1)', 'rgba(255,226,150,0)');

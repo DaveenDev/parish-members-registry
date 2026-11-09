@@ -14,6 +14,7 @@ export const HERO_SYMBOLS = [
   { key: 'chalice', label: 'Chalice & Host', note: 'The Eucharist: the cup with the Host above it.' },
   { key: 'monstrance', label: 'Monstrance', note: 'The Blessed Sacrament in its sunburst, for adoration.' },
   { key: 'sacred-heart', label: 'Sacred Heart', note: 'The heart of Jesus: thorns, flames and a cross.' },
+  { key: 'our-lady', label: 'Our Lady, Queen of Heaven', note: 'Mary crowned with twelve stars, on the moon: for Guadalupe, Mediatrix or any title of Our Lady.' },
   { key: 'immaculate-heart', label: 'Immaculate Heart', note: 'The heart of Mary: roses, a sword and flames.' },
   { key: 'dove', label: 'Holy Spirit', note: 'The dove with its wings spread.' },
   { key: 'rosary', label: 'Rosary', note: 'Five decades of beads and the crucifix.' },
