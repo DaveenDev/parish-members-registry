@@ -22,3 +22,7 @@ supabase/seed/website-sample/
 
 # The releases page, built by npm run releases:build (published by the releases-site workflow)
 releases/_site/
+
+# Private: PRO plans and pricing, and the parish tracker (payments, parish details)
+PRO-PLANS/
+docs/parish-tracker.xlsx
