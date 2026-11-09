@@ -4,15 +4,16 @@
  * like the ones on her mantle and a little drifting light. The object is the
  * parish's choice (lib/heroSymbols.js): the crucifix (Christ on the cross, as
  * simple rounded shapes), a plain cross, the chalice, the monstrance, the
- * Sacred Heart, Our Lady (Queen of Heaven, crowned with twelve stars), the
- * Immaculate Heart, the dove of the Holy Spirit or the rosary.
+ * Sacred Heart, Our Lady (Queen of Heaven, crowned with twelve stars), a man
+ * or a woman saint (for a parish whose patron is a saint), the Immaculate
+ * Heart, the dove of the Holy Spirit or the rosary.
  *
  * Loaded on its own (HeroGlory imports it once the page is idle), so three.js
  * is a separate download that never holds up the page.
  */
 import {
   ACESFilmicToneMapping, AdditiveBlending, AmbientLight, BackSide, BoxGeometry, BufferAttribute, BufferGeometry,
-  CanvasTexture, CapsuleGeometry, CatmullRomCurve3, ConeGeometry, CylinderGeometry, DirectionalLight, ExtrudeGeometry,
+  CanvasTexture, CapsuleGeometry, CatmullRomCurve3, ConeGeometry, CylinderGeometry, DirectionalLight, DoubleSide, ExtrudeGeometry,
   FrontSide, Group, LatheGeometry, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry,
   PMREMGenerator, Points, PointsMaterial, Quaternion, Scene, Shape, SphereGeometry, SRGBColorSpace, TorusGeometry, TubeGeometry,
   Vector2, Vector3, WebGLRenderer,
@@ -746,6 +747,26 @@ function crescentGeometry(radius) {
 }
 
 /**
+ * A gown or tunic turned from a side profile of [radius, y] points, rippled
+ * into `folds` soft folds that start at y = `waist` and are fully deep `fall`
+ * below it.
+ */
+function robeGeometry(points, { folds = 11, amount = 0.035, waist = 0.1, fall = 0.9 } = {}) {
+  const geometry = new LatheGeometry(profile(points), 56);
+  const pos = geometry.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const z = pos.getZ(i);
+    const lower = Math.max(0, Math.min(1, (waist - y) / fall));
+    const k = 1 + amount * lower * Math.sin(Math.atan2(x, z) * folds);
+    pos.setXYZ(i, x * k, y, z * k);
+  }
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+/**
  * Our Lady, Queen of Heaven, for a parish of any of her titles (Guadalupe,
  * Mediatrix, the Immaculate Conception and others): Mary standing on the
  * moon, her head bowed a little to her right, hands joined in prayer, in a
@@ -762,20 +783,10 @@ function buildOurLady(m, keep) {
   const depth = 0.74;
 
   // The gown, from the hem up to the neck, falling in soft folds.
-  const gownGeometry = keep(new LatheGeometry(profile([
+  const gownGeometry = keep(robeGeometry([
     [0, -0.84], [0.29, -0.84], [0.305, -0.81], [0.285, -0.62], [0.25, -0.38], [0.215, -0.14], [0.185, 0.03],
     [0.18, 0.12], [0.195, 0.25], [0.205, 0.36], [0.19, 0.44], [0.13, 0.5], [0.06, 0.53], [0, 0.535],
-  ]), 56));
-  const pos = gownGeometry.attributes.position;
-  for (let i = 0; i < pos.count; i++) {
-    const x = pos.getX(i);
-    const y = pos.getY(i);
-    const z = pos.getZ(i);
-    const lower = Math.max(0, Math.min(1, (0.1 - y) / 0.9));
-    const k = 1 + 0.035 * lower * Math.sin(Math.atan2(x, z) * 11);
-    pos.setXYZ(i, x * k, y, z * k);
-  }
-  gownGeometry.computeVertexNormals();
+  ]));
   const gown = new Mesh(gownGeometry, m.gown);
   gown.scale.z = depth;
   figure.add(gown);
@@ -917,6 +928,273 @@ function buildOurLady(m, keep) {
   };
 }
 
+// ---- the saints --------------------------------------------------------
+// A man and a woman saint, for a parish whose patron is a saint: standing
+// like a church statue on a gold pedestal, a halo of rays behind the head,
+// as simple rounded shapes with no facial features, like Our Lady.
+
+/** A rounded limb (or sleeve) from point a to point b. */
+function limbBetween(keep, material, a, b, radius) {
+  const from = new Vector3(...a);
+  const to = new Vector3(...b);
+  const dir = to.clone().sub(from);
+  const mesh = new Mesh(keep(new CapsuleGeometry(radius, Math.max(0.001, dir.length() - radius * 2), 4, 10)), material);
+  mesh.position.copy(from).add(to).multiplyScalar(0.5);
+  mesh.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir.normalize());
+  return mesh;
+}
+
+/** The gold pedestal the saint stands on, its top at y = -0.82. */
+function pedestal(m, keep, depth) {
+  const base = new Mesh(keep(new LatheGeometry(profile([
+    [0, -1.0], [0.36, -1.0], [0.375, -0.985], [0.37, -0.965], [0.335, -0.95], [0.32, -0.93],
+    [0.32, -0.87], [0.335, -0.855], [0.35, -0.84], [0.345, -0.825], [0.3, -0.82], [0, -0.82],
+  ]), 56)), m.gold);
+  base.scale.z = depth + 0.1;
+  return base;
+}
+
+/**
+ * The halo behind the head: a pale gold disc, rimmed, in a ring of small
+ * rays like the glory's. Its `rays` turn slowly.
+ */
+function nimbus(m, keep) {
+  const group = new Group();
+  const disc = new Mesh(keep(new CylinderGeometry(0.135, 0.135, 0.012, 48)), m.paleGold);
+  disc.rotation.x = Math.PI / 2;
+  group.add(disc);
+  group.add(new Mesh(keep(new TorusGeometry(0.135, 0.009, 8, 56)), m.gold));
+  const rays = new Mesh(keep(raysGeometry({ count: 32, inner: 0.14, straight: 0.235, wavy: 0.2, width: 0.012, sway: 0.01, depth: 0.012, oval: 1 })), m.gold);
+  group.add(rays);
+  return { group, rays };
+}
+
+/** The face, without features, on a neck; returns the head group, its origin at the base of the neck. */
+function saintHead(m, keep) {
+  const head = new Group();
+  const neck = new Mesh(keep(new CylinderGeometry(0.042, 0.05, 0.1, 14)), m.skin);
+  neck.position.y = 0.05;
+  head.add(neck);
+  const face = new Mesh(keep(new SphereGeometry(0.09, 24, 18)), m.skin);
+  face.position.set(0, 0.165, 0.025);
+  face.scale.set(0.86, 1.08, 0.92);
+  head.add(face);
+  return head;
+}
+
+/** The book a saint holds: red covers, cream pages, a small gold cross on the front. */
+function book(m, keep) {
+  const group = new Group();
+  const cover = new Mesh(keep(new BoxGeometry(0.15, 0.2, 0.045)), [m.pages, m.bookCover, m.pages, m.pages, m.bookCover, m.bookCover]);
+  group.add(cover);
+  const cross = smallCross(m, keep, 0.055, 0, 0.027);
+  cross.scale.z = 0.12;
+  group.add(cross);
+  return group;
+}
+
+/** A white lily on its stem, from `from` up to `to`, the flowers at the top. */
+function lily(m, keep, from, to) {
+  const group = new Group();
+  const a = new Vector3(...from);
+  const b = new Vector3(...to);
+  const dir = b.clone().sub(a).normalize();
+  const side = new Vector3(dir.y, -dir.x, 0).normalize();
+  const bend = a.clone().lerp(b, 0.5).addScaledVector(side, 0.015);
+  group.add(new Mesh(keep(new TubeGeometry(new CatmullRomCurve3([a, bend, b]), 16, 0.0065, 6, false)), m.leaf));
+  // Leaves along the stem.
+  const leaf = keep(new SphereGeometry(0.03, 10, 6));
+  [[0.32, 1], [0.5, -1], [0.66, 1]].forEach(([t, s]) => {
+    const l = new Mesh(leaf, m.leaf);
+    l.position.copy(a).lerp(b, t).addScaledVector(side, 0.03 * s);
+    l.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir.clone().addScaledVector(side, 0.9 * s).normalize());
+    l.scale.set(0.35, 1.5, 0.25);
+    group.add(l);
+  });
+  // Three trumpet flowers opening outward near the top, and a bud at the tip.
+  const trumpet = keep(new LatheGeometry(profile([
+    [0.003, 0], [0.008, 0.02], [0.015, 0.045], [0.03, 0.07], [0.052, 0.088], [0.058, 0.084],
+  ]), 18));
+  [[0.86, 1.1], [0.9, -1.0], [0.97, 0.05]].forEach(([t, s]) => {
+    const f = new Mesh(trumpet, m.lily);
+    f.position.copy(a).lerp(b, t);
+    f.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir.clone().addScaledVector(side, s).add(new Vector3(0, 0, 0.35)).normalize());
+    group.add(f);
+  });
+  const bud = new Mesh(keep(new CapsuleGeometry(0.012, 0.035, 4, 8)), m.lily);
+  bud.position.copy(b).addScaledVector(dir, 0.02);
+  bud.quaternion.setFromUnitVectors(new Vector3(0, 1, 0), dir);
+  group.add(bud);
+  return group;
+}
+
+/** How a saint moves: a gentle sway and rise, the halo's rays slowly turning. */
+function saintMove(group, figure, rays) {
+  return (t) => {
+    group.rotation.y = 0.4 * Math.sin(t * 0.38);
+    figure.position.y = 0.012 * Math.sin(t * 0.6);
+    rays.rotation.z = t * 0.12;
+  };
+}
+
+/**
+ * A man saint, for a parish whose patron is a saint (an apostle, a bishop, a
+ * confessor or any other): in a green tunic with a gold cord and a crimson
+ * mantle lined in gold, his right hand raised in blessing and the Gospel
+ * book held in his left, with short hair, a beard and a halo.
+ */
+function buildMaleSaint(m, keep) {
+  const group = new Group();
+  group.scale.setScalar(1.12);
+  group.position.y = 0.06;
+  const depth = 0.74;
+  group.add(pedestal(m, keep, depth));
+  const figure = new Group();
+  group.add(figure);
+
+  // The tunic, broad at the shoulders, falling straight to the feet.
+  const tunic = new Mesh(keep(robeGeometry([
+    [0, -0.82], [0.27, -0.82], [0.282, -0.79], [0.262, -0.58], [0.238, -0.32], [0.22, -0.08], [0.212, 0.08],
+    [0.225, 0.24], [0.24, 0.36], [0.228, 0.44], [0.17, 0.5], [0.075, 0.54], [0, 0.545],
+  ], { folds: 9, amount: 0.03 })), m.tunic);
+  tunic.scale.z = depth;
+  figure.add(tunic);
+  // A gold cord at the waist, its ends hanging down in front.
+  const cord = new Mesh(keep(new TorusGeometry(0.215, 0.01, 8, 56)), m.gold);
+  cord.rotation.x = Math.PI / 2;
+  cord.scale.set(1, depth, 1);
+  cord.position.y = 0.04;
+  figure.add(cord);
+  [-0.035, 0.03].forEach((x, i) => {
+    figure.add(limbBetween(keep, m.gold, [x, 0.035, 0.162], [x + (i ? 0.012 : -0.01), -0.2 - i * 0.04, 0.165 + i * 0.006], 0.009));
+  });
+
+  // The mantle over the shoulders, open in front and falling behind.
+  const mantle = drape([
+    [0.34, -0.78, 1.45], [0.31, -0.5, 1.32], [0.285, -0.2, 1.18], [0.265, 0.06, 1.02],
+    [0.262, 0.26, 0.86], [0.255, 0.4, 0.72], [0.21, 0.48, 0.66], [0.13, 0.53, 0.64],
+  ], { depth: depth + 0.05, folds: 8, fold: 0.05 });
+  figure.add(new Mesh(keep(mantle.geometry), m.cloak));
+  figure.add(new Mesh(mantle.geometry, m.lining));
+  mantle.edges().forEach((edge) => figure.add(trim(m, keep, edge)));
+
+  // His right arm (our left) raised in blessing, the hand open, palm forward.
+  const sleeve = m.tunic;
+  figure.add(limbBetween(keep, sleeve, [-0.2, 0.39, 0.02], [-0.25, 0.17, 0.1], 0.04));
+  figure.add(limbBetween(keep, sleeve, [-0.25, 0.17, 0.1], [-0.21, 0.36, 0.2], 0.036));
+  const cuffR = new Mesh(keep(new TorusGeometry(0.035, 0.008, 6, 20)), m.gold);
+  cuffR.position.set(-0.214, 0.345, 0.195);
+  cuffR.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), new Vector3(0.04, 0.19, 0.1).normalize());
+  figure.add(cuffR);
+  const blessing = new Mesh(keep(prayingHandsGeometry()), m.skin);
+  blessing.position.set(-0.207, 0.41, 0.21);
+  blessing.scale.set(0.78, 0.8, 0.7);
+  blessing.rotation.set(-0.15, 0.25, 0.12);
+  figure.add(blessing);
+
+  // His left arm (our right) bent, holding the book against his chest.
+  figure.add(limbBetween(keep, sleeve, [0.2, 0.39, 0.02], [0.23, 0.13, 0.08], 0.04));
+  figure.add(limbBetween(keep, sleeve, [0.23, 0.13, 0.08], [0.1, 0.17, 0.19], 0.036));
+  const hand = new Mesh(keep(new SphereGeometry(0.032, 14, 10)), m.skin);
+  hand.position.set(0.085, 0.18, 0.205);
+  hand.scale.set(1, 0.8, 0.8);
+  figure.add(hand);
+  const gospel = book(m, keep);
+  gospel.position.set(0.075, 0.27, 0.215);
+  gospel.rotation.set(-0.2, -0.18, -0.2);
+  figure.add(gospel);
+
+  // The head, with short hair and a beard, and the halo behind it.
+  const head = saintHead(m, keep);
+  head.position.set(0, 0.5, 0.02);
+  head.rotation.set(0.06, 0, 0.04);
+  figure.add(head);
+  const hair = new Mesh(keep(new SphereGeometry(0.097, 22, 14, 0, Math.PI * 2, 0, 1.75)), m.hair);
+  hair.position.set(0, 0.172, 0.016);
+  hair.scale.set(0.88, 1.08, 0.95);
+  hair.rotation.x = -0.75;
+  head.add(hair);
+  const beard = new Mesh(keep(new SphereGeometry(0.072, 18, 12)), m.hair);
+  beard.position.set(0, 0.1, 0.045);
+  beard.scale.set(0.86, 0.78, 0.7);
+  head.add(beard);
+  const halo = nimbus(m, keep);
+  halo.group.position.set(0, 0.19, -0.075);
+  head.add(halo.group);
+
+  return { group, move: saintMove(group, figure, halo.rays) };
+}
+
+/**
+ * A woman saint, for a parish whose patron is a saint (a virgin, a martyr, a
+ * holy woman, a foundress or any other): in an ivory gown with a gold sash,
+ * a white veil and a brown mantle lined in gold, holding a white lily in her
+ * joined hands, with a halo.
+ */
+function buildFemaleSaint(m, keep) {
+  const group = new Group();
+  group.scale.setScalar(1.14);
+  group.position.y = 0.06;
+  const depth = 0.72;
+  group.add(pedestal(m, keep, depth));
+  const figure = new Group();
+  group.add(figure);
+
+  // The gown, slender, its folds pooling a little at the feet.
+  const gown = new Mesh(keep(robeGeometry([
+    [0, -0.82], [0.275, -0.82], [0.29, -0.79], [0.27, -0.6], [0.24, -0.36], [0.205, -0.12], [0.178, 0.04],
+    [0.174, 0.13], [0.19, 0.26], [0.198, 0.36], [0.185, 0.44], [0.125, 0.5], [0.058, 0.53], [0, 0.535],
+  ], { folds: 12 })), m.ivory);
+  gown.scale.z = depth;
+  figure.add(gown);
+  const sash = new Mesh(keep(new TorusGeometry(0.177, 0.011, 8, 56)), m.gold);
+  sash.rotation.x = Math.PI / 2;
+  sash.scale.set(1, depth, 1);
+  sash.position.y = 0.07;
+  figure.add(sash);
+
+  // The mantle, from the shoulders to the hem, open in front.
+  const mantle = drape([
+    [0.345, -0.79, 1.3], [0.305, -0.52, 1.16], [0.268, -0.22, 1.02], [0.238, 0.04, 0.92],
+    [0.238, 0.24, 0.84], [0.234, 0.38, 0.74], [0.196, 0.46, 0.68], [0.12, 0.515, 0.66],
+  ], { depth: depth + 0.04, folds: 9, fold: 0.05 });
+  figure.add(new Mesh(keep(mantle.geometry), m.habit));
+  figure.add(new Mesh(mantle.geometry, m.lining));
+  mantle.edges().forEach((edge) => figure.add(trim(m, keep, edge)));
+
+  // The arms in the gown's sleeves, the hands joined at her breast round the lily's stem.
+  for (const side of [-1, 1]) {
+    const from = new Vector3(side * 0.165, 0.14, 0.05);
+    const to = new Vector3(side * 0.035, 0.22, 0.165);
+    figure.add(limbBetween(keep, m.ivory, from.toArray(), to.toArray(), 0.036));
+    const cuff = new Mesh(keep(new TorusGeometry(0.035, 0.008, 6, 20)), m.gold);
+    cuff.position.copy(to);
+    cuff.quaternion.setFromUnitVectors(new Vector3(0, 0, 1), to.clone().sub(from).normalize());
+    figure.add(cuff);
+  }
+  figure.add(lily(m, keep, [-0.035, -0.02, 0.2], [0.17, 0.68, 0.17]));
+  const hands = new Mesh(keep(prayingHandsGeometry()), m.skin);
+  hands.position.set(0, 0.27, 0.195);
+  hands.rotation.x = 0.22;
+  figure.add(hands);
+
+  // The head, bowed a little, in a white veil, and the halo behind it.
+  const head = saintHead(m, keep);
+  head.position.set(0, 0.5, 0.02);
+  head.rotation.set(0.12, 0, -0.08);
+  figure.add(head);
+  const veil = drape([
+    [0.205, -0.02, 0.66], [0.158, 0.06, 0.7], [0.127, 0.14, 0.76], [0.122, 0.2, 0.82],
+    [0.106, 0.25, 0.88], [0.068, 0.29, 0.9], [0.012, 0.31, 0.9],
+  ], { depth: 0.95, folds: 7, fold: 0.035, steps: 24, segments: 40 });
+  head.add(new Mesh(keep(veil.geometry), m.veil));
+  const halo = nimbus(m, keep);
+  halo.group.position.set(0, 0.19, -0.11);
+  head.add(halo.group);
+
+  return { group, move: saintMove(group, figure, halo.rays) };
+}
+
 const BUILDERS = {
   crucifix: buildCrucifix,
   cross: buildCross,
@@ -924,6 +1202,8 @@ const BUILDERS = {
   monstrance: buildMonstrance,
   'sacred-heart': buildSacredHeart,
   'our-lady': buildOurLady,
+  'saint-male': buildMaleSaint,
+  'saint-female': buildFemaleSaint,
   'immaculate-heart': buildImmaculateHeart,
   dove: buildDove,
   rosary: buildRosary,
@@ -1010,6 +1290,16 @@ export function startGlory(canvas, { symbol = 'crucifix', place, observe = [], s
     skin: new MeshStandardMaterial({ color: 0xc89878, metalness: 0.05, roughness: 0.55 }),
     pearl: new MeshStandardMaterial({ color: 0xfaf4e6, metalness: 0.2, roughness: 0.25 }),
     moon: new MeshStandardMaterial({ color: 0xe6e2d6, metalness: 0.6, roughness: 0.3, envMapIntensity: 1.2 }),
+    // The saints: his tunic, mantle and hair, the book; her gown, mantle and veil, the lily.
+    tunic: new MeshStandardMaterial({ color: 0x5d7a5f, metalness: 0.08, roughness: 0.55 }),
+    cloak: new MeshStandardMaterial({ color: 0x8f2630, metalness: 0.18, roughness: 0.5, envMapIntensity: 1.1, side: FrontSide }),
+    hair: new MeshStandardMaterial({ color: 0x4a3324, metalness: 0.05, roughness: 0.7 }),
+    bookCover: new MeshStandardMaterial({ color: 0x7a1d22, metalness: 0.25, roughness: 0.45 }),
+    pages: new MeshStandardMaterial({ color: 0xf1e6cc, metalness: 0.02, roughness: 0.7 }),
+    ivory: new MeshStandardMaterial({ color: 0xeee2c8, metalness: 0.06, roughness: 0.55 }),
+    habit: new MeshStandardMaterial({ color: 0x6b4630, metalness: 0.12, roughness: 0.55, envMapIntensity: 1.1, side: FrontSide }),
+    veil: new MeshStandardMaterial({ color: 0xf7f3ea, metalness: 0.04, roughness: 0.5, side: DoubleSide }),
+    lily: new MeshStandardMaterial({ color: 0xfbf8f0, metalness: 0.03, roughness: 0.45, side: DoubleSide }),
   };
   const halo = glowTexture('rgba(255,238,196,0.95)', 'rgba(255,238,196,0)');
   const mote = glowTexture('rgba(255,226,150,1)', 'rgba(255,226,150,0)');
