@@ -12,6 +12,7 @@ import NotificationBell, { useStaffNotifications } from '../../components/Notifi
 import { NAV_GROUPS, censusMenuShown, navAllowed, navCollapsible, navItemFor, navBadges, navLabel } from '../../components/adminNav.js';
 import { accessLabel } from '../../lib/access.js';
 import { keepServiceWorker } from '../../lib/push.js';
+import { APP_VERSION, PRO_VERSION } from '../../lib/appVersion.js';
 import ChurchEmblem from '../../components/ChurchEmblem.jsx';
 import NavIcon from '../../components/NavIcon.jsx';
 import { SetupChecklistPopup } from '../../components/SetupChecklist.jsx';
@@ -50,6 +51,23 @@ function useNotificationTaps(navigate) {
     navigator.serviceWorker.addEventListener('message', onMessage);
     return () => navigator.serviceWorker.removeEventListener('message', onMessage);
   }, [navigate]);
+}
+
+// Beside the Theme button: the release this build is ("v1.2.0"), and in a PRO
+// build a gold "PRO 1.0.0" with it, so a support call starts with the version.
+function VersionChip() {
+  if (!APP_VERSION && !PRO_VERSION) return null;
+  const title = [APP_VERSION && `Version ${APP_VERSION}`, PRO_VERSION && `PRO ${PRO_VERSION}`].filter(Boolean).join(' · ');
+  return (
+    <div className="ml-auto flex flex-col items-end gap-1 text-[10px] leading-none whitespace-nowrap" title={title}>
+      {PRO_VERSION && (
+        <span className="font-bold tracking-[.06em] rounded-full px-1.5 py-[3px] bg-[var(--p-gold-light)] text-parish-navy tabular-nums">
+          PRO {PRO_VERSION}
+        </span>
+      )}
+      {APP_VERSION && <span className="font-medium text-white/50 tabular-nums">v{APP_VERSION}</span>}
+    </div>
+  );
 }
 
 function NavItem({ to, end, label, count, badgeLabel, onNavigate }) {
@@ -293,8 +311,9 @@ export default function AdminLayout() {
         })}
       </nav>
 
-      <div className="px-4 py-2.5">
+      <div className="px-3 py-2 flex items-center gap-2">
         <ThemePickerPopover align="left" placement="up" dark showMode />
+        <VersionChip />
       </div>
 
       <div className="px-4 py-3.5 border-t border-white/10 flex items-center gap-2.5">
@@ -314,7 +333,7 @@ export default function AdminLayout() {
         to="/developer"
         className="px-4 py-2 text-center text-[10.5px] font-medium text-white/40 hover:text-white/70 transition"
       >
-        Built For Free by DaveenDev
+        {PRO_VERSION ? 'Built by DaveenDev' : 'Built For Free by DaveenDev'}
       </Link>
     </>
   );

@@ -1,8 +1,27 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { readdirSync } from 'node:fs';
+
+// The release this build is: the newest notes file in releases/notes (the
+// releases page reads the same files). Empty if the folder isn't there.
+function appVersion() {
+  try {
+    const versions = readdirSync(new URL('../releases/notes/', import.meta.url))
+      .map((f) => /^(\d+)\.(\d+)\.(\d+)\.md$/.exec(f))
+      .filter(Boolean)
+      .map((m) => m.slice(1, 4).map(Number));
+    versions.sort((a, b) => b[0] - a[0] || b[1] - a[1] || b[2] - a[2]);
+    return versions[0] ? versions[0].join('.') : '';
+  } catch {
+    return '';
+  }
+}
 
 export default defineConfig({
   plugins: [react()],
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion()),
+  },
   server: {
     port: Number(process.env.PORT) || 5173,
   },
