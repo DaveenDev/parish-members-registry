@@ -50,12 +50,28 @@ export const OFW_MIN_AGE = 18;
 // Occupation groups (members.occupation_group, 0121), so occupations can be
 // counted: short, in words a family uses, adapted from the PSA's groups but
 // not a census code. Keep in step with occupation_groups() in
-// 0121_member_ofw.sql. Bisaya labels: OCCUPATION_GROUP_LABELS in lib/bisaya.js.
+// 0123_ofw_occupation_groups.sql. Bisaya labels: OCCUPATION_GROUP_LABELS in lib/bisaya.js.
 export const OCCUPATION_GROUPS = [
   'Farming or fishing', 'Business or vendor', 'Driver or transport', 'Construction or skilled trade',
   'Factory or labourer', 'Office or sales staff', 'Teacher', 'Health worker', 'Government, police or military',
-  'Seafarer', 'Household service or caregiver', 'Professional', 'Student', 'Homemaker', 'Retired',
-  'Looking for work', 'Other',
+  'Seafarer', 'Household service or caregiver', 'Hotel, restaurant or cleaning', 'Professional', 'Student', 'Homemaker',
+  'Retired', 'Looking for work', 'Other',
+];
+// The groups the public forms offer, by the OFW answer (0123): someone abroad
+// now or a former OFW picks the kind of work OFWs do; everyone else ("Dili",
+// or not asked) the common kinds of work at home. Both are taken from
+// OCCUPATION_GROUPS, so the reports count them together. Staff pages offer
+// every group. Labels: OFW_GROUP_LABELS and LOCAL_GROUP_LABELS in lib/bisaya.js.
+export const OFW_OCCUPATION_GROUPS = [
+  'Household service or caregiver', 'Seafarer', 'Construction or skilled trade', 'Factory or labourer',
+  'Hotel, restaurant or cleaning', 'Health worker', 'Driver or transport', 'Office or sales staff', 'Professional',
+  'Teacher', 'Other',
+];
+export const LOCAL_OCCUPATION_GROUPS = [
+  'Farming or fishing', 'Business or vendor', 'Driver or transport', 'Construction or skilled trade',
+  'Factory or labourer', 'Household service or caregiver', 'Hotel, restaurant or cleaning', 'Office or sales staff',
+  'Teacher', 'Health worker', 'Government, police or military', 'Seafarer', 'Professional', 'Student', 'Homemaker',
+  'Retired', 'Looking for work', 'Other',
 ];
 // The one sea-based group; every other OFW is land-based.
 export const SEA_BASED_GROUP = 'Seafarer';

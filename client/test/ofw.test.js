@@ -2,11 +2,15 @@ import test, { describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { blankMember, OCCUPATION_GROUPS, OFW_STATUSES, SEA_BASED_GROUP } from '../src/constants.js';
-import { OCCUPATION_GROUP_LABELS, OFW_STATUS_BIS_LABELS } from '../src/lib/bisaya.js';
+import { readdirSync } from 'node:fs';
+import {
+  blankMember, OCCUPATION_GROUPS, OFW_STATUSES, SEA_BASED_GROUP, OFW_OCCUPATION_GROUPS, LOCAL_OCCUPATION_GROUPS,
+} from '../src/constants.js';
+import { OCCUPATION_GROUP_LABELS, OFW_STATUS_BIS_LABELS, OFW_GROUP_LABELS, LOCAL_GROUP_LABELS } from '../src/lib/bisaya.js';
 import { clearForAge, clearOfwForAnswer, toPayloadMember } from '../src/lib/household.js';
 import {
   ofwLine, ofwLineBis, ofwOf, ofwPatch, ofwYearErrors, ofwBase, occupationGroupLabel, suggestOccupationGroup, unsortedOccupations, ofwFromForm,
+  occupationGroupsFor, occupationGroupBisFor,
 } from '../src/lib/ofw.js';
 import {
   occupationRows, ofwHouseholdsByGkkRows, ofwByWorkRows, familiesWithParentAbroad, returnedOfwRows, ofwToCheck,
@@ -28,8 +32,11 @@ describe('the lists', () => {
   });
 
   test('the occupation groups are the database list, each with a Bisaya label', () => {
-    const sql = readFileSync(new URL('../../supabase/migrations/0121_member_ofw.sql', import.meta.url), 'utf8');
-    const list = sql.slice(sql.indexOf('function public.occupation_groups()'));
+    // The latest migration that makes occupation_groups().
+    const dir = new URL('../../supabase/migrations/', import.meta.url);
+    const latest = readdirSync(dir).filter((f) => f.endsWith('.sql')).sort()
+      .map((f) => readFileSync(new URL(f, dir), 'utf8')).filter((t) => t.includes('function public.occupation_groups()')).pop();
+    const list = latest.slice(latest.indexOf('function public.occupation_groups()'));
     const inSql = [...list.slice(0, list.indexOf('$$;', list.indexOf('$$') + 2)).matchAll(/'([^']+)'/g)].map((x) => x[1]);
     assert.deepEqual(inSql, OCCUPATION_GROUPS);
     for (const g of OCCUPATION_GROUPS) {
@@ -38,6 +45,28 @@ describe('the lists', () => {
     }
     assert.ok(OCCUPATION_GROUPS.includes(SEA_BASED_GROUP));
     for (const s of OFW_STATUSES) assert.ok(OFW_STATUS_BIS_LABELS[s], s);
+  });
+
+  test('the public Category list follows the OFW answer, each group with a label', () => {
+    for (const [list, labels] of [[OFW_OCCUPATION_GROUPS, OFW_GROUP_LABELS], [LOCAL_OCCUPATION_GROUPS, LOCAL_GROUP_LABELS]]) {
+      assert.equal(new Set(list).size, list.length, 'no group twice');
+      for (const g of list) {
+        assert.ok(OCCUPATION_GROUPS.includes(g), `"${g}" is a stored group`);
+        assert.ok(labels[g]?.trim(), `"${g}" has a label`);
+      }
+      assert.ok(list.includes('Other'));
+    }
+    assert.ok(OCCUPATION_GROUPS.every((g) => OFW_OCCUPATION_GROUPS.includes(g) || LOCAL_OCCUPATION_GROUPS.includes(g)), 'every group on a list');
+    assert.equal(occupationGroupsFor('Abroad'), OFW_OCCUPATION_GROUPS);
+    assert.equal(occupationGroupsFor('Returned'), OFW_OCCUPATION_GROUPS);
+    assert.equal(occupationGroupsFor(''), LOCAL_OCCUPATION_GROUPS);
+    assert.equal(occupationGroupsFor(undefined), LOCAL_OCCUPATION_GROUPS);
+    for (const g of ['Student', 'Homemaker', 'Farming or fishing', 'Government, police or military']) {
+      assert.ok(!OFW_OCCUPATION_GROUPS.includes(g), `"${g}" isn't OFW work`);
+    }
+    assert.equal(occupationGroupBisFor('Household service or caregiver', 'Abroad'), OFW_GROUP_LABELS['Household service or caregiver']);
+    assert.equal(occupationGroupBisFor('Household service or caregiver', ''), LOCAL_GROUP_LABELS['Household service or caregiver']);
+    assert.equal(occupationGroupBisFor('Student', 'Abroad'), OCCUPATION_GROUP_LABELS.Student, 'a group given before keeps a label');
   });
 });
 
@@ -117,6 +146,8 @@ describe('Sort occupations', () => {
     assert.equal(suggestOccupationGroup('Tindera sa merkado'), 'Business or vendor');
     assert.equal(suggestOccupationGroup('housewife'), 'Homemaker');
     assert.equal(suggestOccupationGroup('Estudyante'), 'Student');
+    assert.equal(suggestOccupationGroup('Waiter sa Dubai'), 'Hotel, restaurant or cleaning');
+    assert.equal(suggestOccupationGroup('Cook sa cruise ship'), 'Seafarer');
     assert.equal(suggestOccupationGroup('xyz'), null);
     assert.equal(suggestOccupationGroup(''), null);
   });

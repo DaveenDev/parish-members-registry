@@ -7,7 +7,7 @@ import {
 import {
   HEADS, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES, OCCUPATION_GROUPS, OFW_STATUSES, OFW_STATUS_LABELS, ageFromDob,
 } from '../constants.js';
-import { lastOfwYear, occupationGroupBis, occupationGroupLabel, ofwYearErrors, FIRST_OFW_YEAR } from '../lib/ofw.js';
+import { lastOfwYear, occupationGroupBisFor, occupationGroupLabel, occupationGroupsFor, ofwYearErrors, FIRST_OFW_YEAR } from '../lib/ofw.js';
 import { Field, TextInput, Select, Checkbox, TribeSelect } from './ui.jsx';
 
 // A member's questions as the public registration wizard asks them (Bisaya),
@@ -117,7 +117,9 @@ const WORK_TEXT = {
     title: 'Trabaho',
     question: 'Nagtrabaho ba siya sa gawas sa nasud (OFW)?', no: OFW_NO_LABEL, status: (s) => OFW_STATUS_BIS_LABELS[s],
     since: 'Kanus-a nagsugod ang kontrata? (tuig)', optional: 'opsyonal',
-    group: 'Klase sa trabaho (Category)', groupNone: 'Pili… (opsyonal)', groupLabel: occupationGroupBis,
+    group: 'Klase sa trabaho (Category)', groupNone: 'Pili… (opsyonal)', groupLabel: occupationGroupBisFor,
+    // The Category list follows the OFW answer (0123).
+    groups: occupationGroupsFor,
     occupation: 'Trabaho (Occupation)',
     note: 'Ang OFW nga naa sa gawas sa nasud kabahin gihapon sa pamilya.',
   },
@@ -126,6 +128,7 @@ const WORK_TEXT = {
     question: 'Works abroad (OFW)?', no: 'No', status: (s) => OFW_STATUS_LABELS[s],
     since: 'Contract started (year)', optional: 'optional',
     group: 'Occupation group (Category)', groupNone: 'Not sorted', groupLabel: occupationGroupLabel,
+    groups: () => OCCUPATION_GROUPS,
     occupation: 'Occupation',
     note: 'An OFW abroad is still a current member of the household: don’t mark them “Moved away”.',
   },
@@ -134,7 +137,10 @@ const WORK_TEXT = {
 /**
  * The work questions, a whole row of the grid in a box of their own
  * (`boxed={false}` for a plain grid). "Dili" (the default) asks no year;
- * any answer but "abroad now" clears it.
+ * any answer but "abroad now" clears it. On the public forms the Category
+ * list follows the OFW answer: OFW work for abroad now or a former OFW,
+ * common work at home otherwise; changing the answer clears a group the new
+ * list hasn't got. A group given before stays on the list.
  */
 export function WorkFields({ dob, value, onChange, lang = 'bis', boxed = true }) {
   const t = WORK_TEXT[lang];
@@ -142,9 +148,13 @@ export function WorkFields({ dob, value, onChange, lang = 'bis', boxed = true })
   const asked = askedForAge(dob);
   const abroad = asked.ofw && v.status === 'Abroad';
   const err = ofwYearErrors(v, { lang });
+  const ofwAnswer = asked.ofw ? v.status : '';
+  const groups = t.groups(ofwAnswer);
+  const groupOptions = v.group && !groups.includes(v.group) ? [v.group, ...groups] : groups;
   function chooseStatus(status) {
     onChange('status', status);
     if (status !== 'Abroad') onChange('since', '');
+    if (v.group && !t.groups(status).includes(v.group)) onChange('group', '');
   }
   // Two rows: the OFW question with its year, then the kind of work and the occupation.
   const fields = (
@@ -170,7 +180,7 @@ export function WorkFields({ dob, value, onChange, lang = 'bis', boxed = true })
           <Field label={t.group}>
             <Select value={v.group || ''} onChange={(e) => onChange('group', e.target.value)}>
               <option value="">{t.groupNone}</option>
-              {OCCUPATION_GROUPS.map((g) => <option key={g} value={g}>{t.groupLabel(g)}</option>)}
+              {groupOptions.map((g) => <option key={g} value={g}>{t.groupLabel(g, ofwAnswer)}</option>)}
             </Select>
           </Field>
         )}

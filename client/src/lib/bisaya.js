@@ -64,11 +64,49 @@ export const OCCUPATION_GROUP_LABELS = {
   'Government, police or military': 'Gobyerno, pulis o militar',
   Seafarer: 'Seaman',
   'Household service or caregiver': 'Katabang sa balay o caregiver',
+  'Hotel, restaurant or cleaning': 'Hotel, restawran o cleaner',
   Professional: 'Propesyonal (doktor, inhenyero, abogado…)',
   Student: 'Estudyante',
   Homemaker: 'Naa sa balay',
   Retired: 'Retirado',
   'Looking for work': 'Nangita og trabaho',
+  Other: 'Uban pa',
+};
+
+// The same groups as the public forms' Category list names them (0123), with
+// the work a family would recognise: for an OFW (abroad now or before)…
+export const OFW_GROUP_LABELS = {
+  'Household service or caregiver': 'Domestic helper (DH), yaya o caregiver',
+  Seafarer: 'Seaman (barko o cruise ship)',
+  'Construction or skilled trade': 'Construction, welder, electrician o mekaniko',
+  'Factory or labourer': 'Factory worker o production',
+  'Hotel, restaurant or cleaning': 'Hotel, restawran, cook o cleaner',
+  'Health worker': 'Nurse, caregiver sa ospital o health worker',
+  'Driver or transport': 'Drayber (truck, bus, heavy equipment)',
+  'Office or sales staff': 'Opisina, sales, cashier o retail',
+  Professional: 'Engineer, IT, accountant o uban pang propesyonal',
+  Teacher: 'Magtutudlo',
+  Other: 'Uban pa',
+};
+// …and for everyone else, the common kinds of work at home.
+export const LOCAL_GROUP_LABELS = {
+  'Farming or fishing': 'Mag-uuma o mangingisda',
+  'Business or vendor': 'Negosyo, sari-sari store o tindera',
+  'Driver or transport': 'Drayber (tricycle, habal-habal, jeep)',
+  'Construction or skilled trade': 'Construction, karpintero o mekaniko',
+  'Factory or labourer': 'Pabrika o trabahante',
+  'Household service or caregiver': 'Kasambahay, yaya o caregiver',
+  'Hotel, restaurant or cleaning': 'Hotel, resort, restawran o janitor',
+  'Office or sales staff': 'Opisina, sales, BPO o call center',
+  Teacher: 'Magtutudlo',
+  'Health worker': 'Nurse, midwife o BHW',
+  'Government, police or military': 'Gobyerno, barangay, pulis o militar',
+  Seafarer: 'Seaman (barko sulod sa nasud)',
+  Professional: 'Propesyonal (doktor, inhenyero, abogado…)',
+  Student: 'Estudyante',
+  Homemaker: 'Naa sa balay (housewife)',
+  Retired: 'Retirado o pensiyonado',
+  'Looking for work': 'Walay trabaho / nangita og trabaho',
   Other: 'Uban pa',
 };
 
