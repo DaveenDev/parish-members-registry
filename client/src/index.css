@@ -370,6 +370,17 @@
   }
 }
 
+/* Home's mouse glow (HeroGlowCursor): over the photo and the glory, under
+   the text, and never in the way of a click. */
+.site-hero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+@media print {
+  .site-hero-glow { display: none; }
+}
+
 /* Home's parish photo settles in from slightly closer. */
 .site-hero-photo { animation: site-hero-photo 1.8s cubic-bezier(.2, .7, .2, 1) both; }
 @keyframes site-hero-photo {
