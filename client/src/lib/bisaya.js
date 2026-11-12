@@ -78,7 +78,6 @@ export const OFW_STATUS_BIS_LABELS = {
   Abroad: 'Oo, naa pa sa gawas sa nasud karon',
   Returned: 'Kaniadto, nakauli na',
 };
-export const OFW_COUNTRY_LABELS = { 'At sea (seafarer)': 'Sa dagat (seaman)', Other: 'Uban pa…' };
 
 // Dropdown choices with no stored value of their own: "no blood type on file"
 // and the Tribe list's free-text option.

@@ -404,10 +404,9 @@ export default function RegistrationApp() {
     if (!head) req.push(['relationship', 'Pilia ang relasyon sa ulo sa pamilya']);
     req.forEach(([k, msg]) => { if (!String(m[k] || '').trim()) fe[k] = msg; });
     if (m.email && !/.+@.+\..+/.test(m.email)) fe.email = 'Isulat ang saktong email';
-    // The OFW years (0121): shown under the fields themselves.
-    const ofwErr = ofwYearErrors({ status: m.ofwStatus, since: m.ofwSince, returned: m.ofwReturned }, { lang: 'bis' });
+    // The OFW contract year (0121): shown under the field itself.
+    const ofwErr = ofwYearErrors({ status: m.ofwStatus, since: m.ofwSince }, { lang: 'bis' });
     if (ofwErr.since) fe.ofwSince = ofwErr.since;
-    if (ofwErr.returned) fe.ofwReturned = ofwErr.returned;
     return fe;
   }
 
@@ -1275,7 +1274,7 @@ function StepEngagement({ household, onParticipation, onToggleHelpWay, memberVie
         >
           <Checkbox checked={consent} onChange={(e) => setConsent(e.target.checked)} aria-invalid={consentMissing ? true : undefined} className="mt-0.5" />
           <span className="text-[14.5px] leading-relaxed text-[#3f3b2f]">
-            <strong className="text-parish-navy">Pagtugot sa Data Privacy <span className="text-parish-gold">*</span></strong> — Nagtugot ko nga kolektahon ug tipigan sa parokya kini nga impormasyon, lakip ang tipo sa dugo ug, kon adunay nagtrabaho sa gawas sa nasud (OFW), ang nasud ug sukad kanus-a. Pribado kini ug makita lamang sa awtorisadong kawani sa parokya, subay sa Data Privacy Act.
+            <strong className="text-parish-navy">Pagtugot sa Data Privacy <span className="text-parish-gold">*</span></strong> — Nagtugot ko nga kolektahon ug tipigan sa parokya kini nga impormasyon, lakip ang tipo sa dugo ug, kon adunay nagtrabaho sa gawas sa nasud (OFW), sukad kanus-a ang kontrata. Pribado kini ug makita lamang sa awtorisadong kawani sa parokya, subay sa Data Privacy Act.
           </span>
         </label>
       </Card>
@@ -1355,8 +1354,8 @@ function StepReview({ household, memberViews, volunteer, notifyOptin, consent, o
             <div key={i} className="border border-parish-line2 rounded-2xl px-[18px] py-4 bg-parish-field">
               <div className="font-serif text-[20px] font-semibold text-parish-navy mb-1">{fullName(m) || m.displayName}</div>
               <div className="text-[13.5px] text-parish-muted mb-3">{[bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), bis(CIVIL_STATUS_LABELS, m.civilStatus), m.dob && `natawo ${fmtDate(m.dob)}`, m.tribe && `Tribu: ${m.tribe}`, m.bloodType && `Dugo: ${m.bloodType}`, askedForAge(m.dob).roles && m.gkkRole && `GKK: ${m.gkkRole}`, askedForAge(m.dob).roles && m.parishRole && `Parish: ${m.parishRole}`,
-                m.occupation && `Trabaho: ${m.occupation}`, toPayloadMember(m).occupationGroup && occupationGroupBis(m.occupationGroup),
-                ofwLineBis(ofwFromForm(toPayloadMember(m)))].filter(Boolean).join('  ·  ') || '—'}</div>
+                ofwLineBis(ofwFromForm(toPayloadMember(m))), toPayloadMember(m).occupationGroup && occupationGroupBis(m.occupationGroup),
+                m.occupation && `Trabaho: ${m.occupation}`].filter(Boolean).join('  ·  ') || '—'}</div>
               {!!(m.organizations || []).length && (
                 <div className="text-[13.5px] mb-3"><span className="text-parish-blue font-semibold">Mga Organisasyon</span> <span className="text-parish-text2">{m.organizations.join(' · ')}</span></div>
               )}

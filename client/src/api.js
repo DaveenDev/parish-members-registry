@@ -16,7 +16,7 @@ import {
   candidatesByGkk, churchWeddingCandidates, unbaptizedChildren, sacramentsByYear, AGE_GROUPS, inAgeGroup, ageSexRows, breakdownRows, celebrationsInMonth, statusChanges,
   waitingForVerification, helpWayLabel, volunteerPool, verificationsByStaff, groupMakeupRows, busyMembers, gkkOfficerRows, parishRoleRows,
   requestOutcomeRows, feesByMonth, byGkk, peso, missingDetails, dataQualityByGkk, householdProblems, censusComparisonRows,
-  occupationRows, ofwHouseholdsByGkkRows, ofwByCountryRows, ofwByWorkRows, familiesWithParentAbroad, returnedOfwRows, ofwToCheck,
+  occupationRows, ofwHouseholdsByGkkRows, ofwByWorkRows, familiesWithParentAbroad, returnedOfwRows, ofwToCheck,
 } from './lib/reports.js';
 import { occupationGroupLabel } from './lib/ofw.js';
 import { certTypeLabel, sacramentRequestLabel, SACRAMENT_REQUEST_OPEN, BLOOD_OPEN } from './lib/requests.js';
@@ -2318,7 +2318,7 @@ export const api = {
     const memberCols = 'id, household_id, family_no, first_name, middle_name, last_name, suffix, relationship, dob, civil_status, '
       + 'has_baptism, has_communion, has_confirmation, has_matrimony';
     // 0121: occupation and the OFW answer, printed for the family to check.
-    const ofwCols = ', occupation, occupation_group, ofw_status, ofw_country, ofw_since, ofw_returned';
+    const ofwCols = ', occupation, occupation_group, ofw_status, ofw_since';
     const scope = (q, idCol, gkkCol) => {
       if (householdIds) return q.in(idCol, householdIds);
       return gkk === 'None' ? q.is(gkkCol, null) : q.eq(gkkCol, gkk);
@@ -2680,12 +2680,6 @@ export const api = {
       }
       const list = await members();
       const ofwCells = (m) => [personName(m), m.household_name, m.household_gkk || '—', m.age ?? '—'];
-      if (type === 'OFW members by country') {
-        const rows = ofwByCountryRows(list);
-        const abroad = rows.reduce((n, r) => n + r.abroad, 0);
-        return table('OFW members by country', `${abroad} abroad now, ${rows.reduce((n, r) => n + r.returned, 0)} back home${where}`,
-          ['Country', 'Abroad now', 'Back home'], rows.map((r) => [r.country, r.abroad, r.returned]));
-      }
       if (type === 'OFWs by kind of work') {
         const { rows, total, seaBased } = ofwByWorkRows(list);
         return table('OFWs by kind of work', `${total} abroad now: ${seaBased} sea-based, ${total - seaBased} land-based${where}`,
@@ -2699,8 +2693,8 @@ export const api = {
       if (type === 'Returned OFWs') {
         const rows = returnedOfwRows(list);
         return table('Former OFWs back home', `${rows.length} member(s)${where}`,
-          ['Name', 'Household', 'GKK', 'Age', 'Last country', 'Last contract', 'Came home', 'Occupation', 'Contact'],
-          rows.map((m) => [...ofwCells(m), m.ofw_country || '—', m.ofw_since || '—', m.ofw_returned || '—',
+          ['Name', 'Household', 'GKK', 'Age', 'Occupation', 'Contact'],
+          rows.map((m) => [...ofwCells(m),
             [m.occupation, m.occupation_group && `(${occupationGroupLabel(m.occupation_group)})`].filter(Boolean).join(' ') || '—', m.contact || '—']));
       }
       if (type === 'OFW details to check') {
@@ -3133,8 +3127,8 @@ function applyMemberFilters(q, params = {}) {
 
   if (search && search.trim()) {
     const s = `%${search.trim()}%`;
-    // Also the occupation and the OFW country (0121).
-    q = q.or(`full_name.ilike.${s},household_name.ilike.${s},contact.ilike.${s},occupation.ilike.${s},ofw_country.ilike.${s}`);
+    // Also the occupation (0121).
+    q = q.or(`full_name.ilike.${s},household_name.ilike.${s},contact.ilike.${s},occupation.ilike.${s}`);
   }
   return q;
 }
@@ -3245,9 +3239,7 @@ const MEMBER_CSV_COLUMNS = [
   { label: 'Occupation', value: 'occupation' },
   { label: 'Occupation Group', value: 'occupation_group' },
   { label: 'OFW', value: (r) => (r.ofw_status ? OFW_STATUS_LABELS[r.ofw_status] : '') },
-  { label: 'OFW Country', value: 'ofw_country' },
   { label: 'OFW Since', value: (r) => r.ofw_since ?? '' },
-  { label: 'OFW Returned', value: (r) => r.ofw_returned ?? '' },
   { label: 'Blood Type', value: 'blood_type' },
   { label: 'GKK', value: 'household_gkk' },
   { label: 'Baptism', value: (r) => (r.has_baptism ? 'Yes' : 'No') },
@@ -3391,7 +3383,7 @@ const SMALL_GROUP = 5;
 // The member columns the reports read (not select('*'), which works out
 // every member's Practicing Catholic score).
 // Occupation and the OFW answer (0121), left out again before that migration.
-const REPORT_OFW_COLUMNS = ', occupation, occupation_group, ofw_status, ofw_country, ofw_since, ofw_returned, ofw_updated_at';
+const REPORT_OFW_COLUMNS = ', occupation, occupation_group, ofw_status, ofw_since, ofw_updated_at';
 const REPORT_MEMBER_COLUMNS = 'id, household_id, family_no, first_name, last_name, suffix, relationship, sex, dob, age, civil_status, contact, religion, tribe, '
   + 'blood_type, has_baptism, baptism_date, has_communion, communion_date, has_confirmation, conf_date, has_matrimony, mat_date, mat_type, '
   + 'ministries, organizations, gkk_role, parish_role, membership_status, status_updated_at, is_current, household_name, household_gkk'

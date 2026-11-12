@@ -159,7 +159,6 @@ const REPORTS = {
   OFW: {
     types: {
       'OFW households by GKK': R(['gkk']),
-      'OFW members by country': R(['gkk']),
       'OFWs by kind of work': R(['gkk']),
       'Families with a parent abroad': R(['gkk']),
       'Returned OFWs': R(['gkk']),
@@ -416,7 +415,7 @@ export default function Reports() {
                     </div>
                   </div>
                   <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>
-                    Households with a current member working abroad now (OFW), per GKK, and the countries where they work. {stats.ofw.householdsReturned} more household(s) have only former OFWs back home. Never shown on the website.
+                    Households with a current member working abroad now (OFW), per GKK, and the kinds of work they do (from their occupation group). {stats.ofw.householdsReturned} more household(s) have only former OFWs back home. Never shown on the website.
                   </p>
                   {stats.ofw.membersAbroad || stats.ofw.membersReturned ? (
                     <TwoColumns>
@@ -429,11 +428,11 @@ export default function Reports() {
                       })()}
                     </TwoColumns>
                   ) : <div className="text-[13.5px] text-parish-muted">No OFW recorded yet. Families answer the OFW question on the registration form and the census; staff in the member window.</div>}
-                  {stats.ofw.byCountry.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-4">
-                      {stats.ofw.byCountry.slice(0, 5).map((c) => (
-                        <span key={c.country} className="font-semibold text-[12.5px] bg-[var(--p-blue-tint)] text-parish-blue px-3.5 py-1.5 rounded-full">
-                          {c.country} · {c.abroad}{c.returned ? ` (+${c.returned} back home)` : ''}
+                  {stats.ofw.byWork.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-4" aria-label="Members abroad by kind of work">
+                      {stats.ofw.byWork.slice(0, 5).map((w) => (
+                        <span key={w.label} className="font-semibold text-[12.5px] bg-[var(--p-blue-tint)] text-parish-blue px-3.5 py-1.5 rounded-full">
+                          {w.label} · {w.members}
                         </span>
                       ))}
                     </div>

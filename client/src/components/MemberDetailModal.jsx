@@ -19,12 +19,8 @@ import { can } from '../lib/access.js';
 import ActivityList from './ActivityList.jsx';
 import { certTypeLabel, sacramentRequestLabel, STATUS_TONES as REQUEST_TONES } from '../lib/requests.js';
 import ServiceHistory from './ServiceHistory.jsx';
-import { OccupationGroupField, OfwFields } from './MemberFields.jsx';
+import { WorkFields, WORK_COLUMNS, storedWork } from './MemberFields.jsx';
 import { ofwPatch, ofwYearErrors } from '../lib/ofw.js';
-
-// The OFW question's keys (OfwFields) as the member's stored columns (0121).
-const OFW_COLUMNS = { status: 'ofw_status', country: 'ofw_country', since: 'ofw_since', returned: 'ofw_returned' };
-const storedOfw = (m) => Object.fromEntries(Object.entries(OFW_COLUMNS).map(([k, c]) => [k, m[c] == null ? '' : String(m[c])]));
 
 // Stored columns for the wedding a family head and a married Spouse share.
 const WEDDING_COLUMNS = ['has_matrimony', 'mat_date', 'mat_church', 'mat_type'];
@@ -145,8 +141,8 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
   async function save() {
     if (member.relationship === HEAD && memberFamily !== 1) { setError('The Household Head belongs to the first family.'); return; }
     if (member.relationship === FAMILY_HEAD && memberFamily === 1) { setError('The first family’s head is the Household Head; choose another family for a Head of Family.'); return; }
-    const ofwErr = ofwYearErrors(storedOfw(member));
-    if (ofwErr.since || ofwErr.returned) { setError(`OFW: ${ofwErr.since || ofwErr.returned}.`); return; }
+    const ofwErr = ofwYearErrors(storedWork(member));
+    if (ofwErr.since) { setError(`OFW contract year: ${ofwErr.since}.`); return; }
     setSaving(true);
     setError('');
     try {
@@ -263,8 +259,8 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               </Field>
               <Field label="Contact"><TextInput value={member.contact || ''} onChange={(e) => set('contact', e.target.value)} /></Field>
               <Field label="Email"><TextInput value={member.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
-              <Field label="Occupation"><TextInput value={member.occupation || ''} onChange={(e) => set('occupation', e.target.value)} /></Field>
-              {'ofw_status' in member && <OccupationGroupField lang="en" dob={member.dob} value={member.occupation_group} onChange={(v) => set('occupation_group', v)} />}
+              {/* Before 0121 the occupation stands alone; after, it's with the other work questions below. */}
+              {!('ofw_status' in member) && <Field label="Occupation"><TextInput value={member.occupation || ''} onChange={(e) => set('occupation', e.target.value)} /></Field>}
               {/* Not for clergy, who can't read blood types (0087). */}
               {can(user, 'bloodTypes') && (
                 <Field label="Blood type">
@@ -275,7 +271,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               )}
               <Field label="Responsibility in GKK"><ComboInput placeholder="Pick or type a role" options={GKK_ROLES} value={member.gkk_role} onChange={(v) => set('gkk_role', v)} /></Field>
               <Field label="Responsibility in Parish"><OptionSelect placeholder="None" options={parishRoleList} value={member.parish_role} onChange={(v) => set('parish_role', v)} /></Field>
-              {'ofw_status' in member && <OfwFields key={member.id} lang="en" dob={member.dob} value={storedOfw(member)} onChange={(k, v) => set(OFW_COLUMNS[k], v)} />}
+              {'ofw_status' in member && <WorkFields lang="en" dob={member.dob} value={storedWork(member)} onChange={(k, v) => set(WORK_COLUMNS[k], v)} />}
             </div>
 
             <SectionLabel>Sacraments received</SectionLabel>

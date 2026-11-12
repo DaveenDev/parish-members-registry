@@ -154,17 +154,17 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
                 <tr key={m.id}>
                   <td style={{ ...cell, fontWeight: 600 }}>{[m.first_name, m.last_name].join(' ')}</td>
                   <td style={{ ...cell, fontSize: 9.5 }}>
-                    {[m.occupation, m.occupation_group && occupationGroupBis(m.occupation_group)].filter(Boolean).join(' · ') || '—'}
                     {ofwLineBis(m) && <div>{ofwLineBis(m)}</div>}
+                    {[m.occupation_group && occupationGroupBis(m.occupation_group), m.occupation].filter(Boolean).join(' · ') || (!ofwLineBis(m) && '—')}
                   </td>
                   <td style={{ ...cell, fontSize: 9.5, lineHeight: 1.7 }}>
-                    <div>Trabaho: <span style={blankLine} /></div>
                     {askedForAge(m.dob).ofw && (
                       <div>
                         OFW? <span style={tick} />Dili <span style={tick} />Naa sa gawas karon <span style={tick} />Nakauli na
-                        {' · '}Nasud: <span style={shortBlank} /> · Kontrata sukad: <span style={{ ...shortBlank, minWidth: 40 }} /> · Nakauli: <span style={{ ...shortBlank, minWidth: 40 }} />
+                        {' · '}Kontrata sukad (tuig): <span style={{ ...shortBlank, minWidth: 50 }} />
                       </div>
                     )}
+                    <div>Trabaho: <span style={blankLine} /></div>
                   </td>
                 </tr>
               ))}
@@ -211,8 +211,8 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
                 <th style={head}>Civil status</th>
                 <th style={head}>Nabunyagan?</th>
                 <th style={head}>Tipo sa dugo</th>
+                <th style={head}>OFW?</th>
                 <th style={head}>Trabaho</th>
-                <th style={head}>OFW? Asa nga nasud?</th>
               </tr>
             </thead>
             <tbody>
@@ -230,7 +230,7 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
 
           <footer style={{ marginTop: 12, paddingTop: 6, borderTop: '1px solid #ddd', fontSize: 9, color: '#555' }}>
             Confidential — for the family and authorized parish staff only. Handle in accordance with the Data Privacy Act of 2012.
-            {' '}Lakip niini ang tipo sa dugo sa bag-ong miyembro ug, kon adunay OFW, ang nasud ug sukad kanus-a. Personal data: keep this form safe.
+            {' '}Lakip niini ang tipo sa dugo sa bag-ong miyembro ug, kon adunay OFW, sukad kanus-a ang kontrata. Personal data: keep this form safe.
           </footer>
         </section>
       ))}

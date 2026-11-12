@@ -686,7 +686,7 @@ export const PORTAL_MEMBER_FIELDS = [
   ['contact', 'Contact no.'],
   // 0121: occupation (before, only a new member's), its group and the OFW answer.
   ['occupation', 'Occupation'], ['occupation_group', 'Occupation group'],
-  ['ofw_status', 'OFW'], ['ofw_country', 'OFW country'], ['ofw_since', 'OFW since'], ['ofw_returned', 'OFW returned'],
+  ['ofw_status', 'OFW'], ['ofw_since', 'OFW contract since'],
 ];
 
 // What a new member also brings in (0090), asked as at registration. The

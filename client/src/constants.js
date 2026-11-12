@@ -63,16 +63,10 @@ export const SEA_BASED_GROUP = 'Seafarer';
 export const OCCUPATION_GROUP_HINTS = { Professional: 'Professional (doctor, engineer, lawyer…)' };
 
 // members.ofw_status (0121): 'Abroad' = abroad now, 'Returned' = a former OFW
-// back home; null = not an OFW (or not asked).
+// back home; null = not an OFW (or not asked). Abroad now also has the year
+// the contract started (ofw_since, optional). No country is asked.
 export const OFW_STATUSES = ['Abroad', 'Returned'];
 export const OFW_STATUS_LABELS = { Abroad: 'Abroad now', Returned: 'Former OFW (back home)' };
-// The usual destinations, then "Other" (a typed name). "At sea" is for seafarers.
-export const OFW_OTHER_COUNTRY = 'Other';
-export const OFW_COUNTRIES = [
-  'Saudi Arabia', 'United Arab Emirates', 'Qatar', 'Kuwait', 'Hong Kong', 'Singapore', 'Taiwan', 'Japan',
-  'South Korea', 'Malaysia', 'United States', 'Canada', 'Italy', 'United Kingdom', 'Australia', 'At sea (seafarer)',
-  OFW_OTHER_COUNTRY,
-];
 
 // Sacraments and the member columns that hold each claim. `key` is what
 // sacrament_verifications.sacrament stores (0005 migration).
@@ -134,7 +128,7 @@ export function blankMember() {
   return {
     familyNo: 1, firstName: '', middleName: '', lastName: '', suffix: '', relationship: '', sex: '', dob: '', placeOfBirth: '', tribe: '',
     civilStatus: '', contact: '', email: '', occupation: '', religion: 'Roman Catholic', bloodType: '', gkkRole: '', parishRole: '',
-    occupationGroup: '', ofwStatus: '', ofwCountry: '', ofwSince: '', ofwReturned: '',
+    occupationGroup: '', ofwStatus: '', ofwSince: '',
     hasBaptism: false, baptismDate: '', baptismChurch: '',
     hasCommunion: false, communionDate: '', communionChurch: '',
     hasConfirmation: false, confDate: '', confChurch: '', confName: '', confSponsor: '',

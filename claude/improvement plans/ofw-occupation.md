@@ -1,5 +1,13 @@
 # Improvement plan: OFW and occupation
 
+> **Changed after review (Dave, 2026-11-12):** the public form groups the
+> work questions in one box, in this order: the OFW question, then (abroad
+> now only, optional) "Kanus-a nagsugod ang kontrata? (tuig)", then "Klase sa
+> trabaho (Category)" and "Trabaho (Occupation)". **No country and no year
+> home are asked**, so `ofw_country` and `ofw_returned` are gone from the
+> database (migration `0122_ofw_work_fields.sql`, after 0121) and every
+> page; the staff forms use the same group and order. The sections below
+> are updated to match.
 > **Status:** built 2026-11-12 on branch `claude/elegant-gauss-xzcg8i`
 > (one PR for Step 0 and all four phases), waiting for Dave to try it on the
 > demo site. What changed from this plan while building: "Built" near the end. Dave answered the open questions the same day (folded into the
@@ -51,9 +59,7 @@ Columns on `members` (not a separate table, see Privacy below for why):
 | `occupation` | text (exists) | As now: their own words, e.g. "Nurse at Davao Doctors". Kept free text. |
 | `occupation_group` | text, null | **New.** One of a short fixed list (below), so it can be counted. |
 | `ofw_status` | text, null | **New.** `null` = not an OFW (or not asked); `'Abroad'` = **abroad now**; `'Returned'` = **former OFW, back home** (decided: former OFWs are recorded). |
-| `ofw_country` | text, null | **New.** Where they work now, or for a former OFW where they last worked. A list of the common destinations plus "Other" with a typed name. |
-| `ofw_since` | smallint, null | **New.** Year the **current contract** started (decided). For a former OFW: the year their last contract started, kept from when they were abroad, so "Qatar, 2019–2023" reads as the last stint. |
-| `ofw_returned` | smallint, null | **New.** Year they came home, for `'Returned'` only. |
+| `ofw_since` | smallint, null | **New.** Year the **current contract** started (decided), optional, for `'Abroad'` only. |
 | `ofw_updated_at` | date, null | **New.** When the OFW answer was last given (set by the forms and the census), so a list can show "as of the 2026 census". |
 
 - **"Kind of work" abroad is their occupation.** An OFW's job abroad *is*
@@ -67,17 +73,15 @@ Columns on `members` (not a separate table, see Privacy below for why):
   "Moved away" (the membership status, which drops them from the counts).
   Say so next to the question, since staff may reach for "Moved away".
 - **Checks** (in the migration): `ofw_status in ('Abroad','Returned')`;
-  `ofw_country` and `occupation_group` up to 60 characters; years between
-  1950 and next year; `ofw_returned >= ofw_since` when both are set;
-  `ofw_returned` only with `'Returned'`. When `ofw_status` is cleared, the
-  forms clear the other OFW fields too.
+  `occupation_group` up to 60 characters and on the list; `ofw_since`
+  between 1950 and next year, and only with `'Abroad'` (any other answer
+  clears it, in the forms and in the database).
 - **Contracts change, so the answer moves with them:**
   - a new contract while still abroad → `ofw_since` becomes its start year
     (the census asks each year, and shows last year's answer to confirm);
-  - coming home → `'Returned'`, `ofw_returned` set, `ofw_since` and the
-    country kept as the last stint;
-  - leaving again → back to `'Abroad'`, new country and `ofw_since`,
-    `ofw_returned` cleared. The activity log keeps the earlier stints (every
+  - coming home → `'Returned'` (the contract year is cleared);
+  - leaving again → back to `'Abroad'`, a new `ofw_since`.
+    The activity log keeps the earlier answers (every
     change is logged with old and new values), so no history table is
     needed.
 
@@ -184,15 +188,15 @@ children with a parent away. It must never leave the registry.
   the member, like the other details. No extra tick box. A short line in the print footer is enough of a reminder:
   "Personal data: keep this list safe" (if the footer doesn't say so
   already).
-- **Data Privacy notice:** add "if a member works abroad (OFW): the
-  country and since when" to what is collected, in the registration form
+- **Data Privacy notice:** add "if a member works abroad (OFW): since when
+  their contract started" to what is collected, in the registration form
   (`RegistrationApp.jsx`), the census portal (`CensusPortal.jsx`), the
   paper census form (`CensusPrintSheet.jsx`) and the note in Parish Config.
 - **Activity log:** nothing to build for the log itself. `log_activity()`
   (0062) diffs every column of `members`, so the new columns are logged on
   insert, update and delete, with old and new values and who did it, from
   every form. Add their labels to `FIELD_LABELS` in `lib/activity.js`
-  ("Occupation group", "OFW", "OFW country", "OFW since", "OFW returned")
+  ("Occupation group", "OFW", "OFW contract since")
   and show the group and status as words, not codes. The census review
   labels in `lib/census.js` (~line 689) get the same.
 
@@ -341,8 +345,8 @@ lower free number).
 - **Reports' numbers:** `admin_report_stats()` (body last written in 0120, from 0070;
   0093 adds its `application_name` setting, which must be re-applied after
   `create or replace`) adds `ofw` = `{ households_abroad, members_abroad,
-  members_returned, by_gkk: [{ gkk, households, members }], by_country:
-  [{ country, members }] }`, scoped for a GKK leader as the rest of that
+  members_returned, by_gkk: [{ gkk, households, members }], by_work:
+  [{ group, members }] }` (members abroad by kind of work), scoped for a GKK leader as the rest of that
   function is, and `occupation_groups: [{ group, members }]`. Step 0 also
   rewrites this function: whichever migration runs second starts from the
   other's text.
@@ -354,49 +358,44 @@ lower free number).
 
 ## Phase 2: the forms
 
-Shared: `OCCUPATION_GROUPS`, `OFW_STATUSES`, `OFW_COUNTRIES` (Saudi Arabia,
-United Arab Emirates, Qatar, Kuwait, Hong Kong, Singapore, Taiwan, Japan,
-South Korea, Malaysia, United States, Canada, Italy, United Kingdom,
-Australia, At sea (seafarer), Other) in `constants.js`; `blankMember()`
-(`constants.js` ~line 105) gets the new fields. One component,
-`OfwFields` in `components/MemberFields.jsx`, used by all four forms, so the
-question reads the same everywhere:
+Shared: `OCCUPATION_GROUPS`, `OFW_STATUSES` in `constants.js`; `blankMember()`
+gets `occupationGroup`, `ofwStatus`, `ofwSince`. One component, `WorkFields`
+in `components/MemberFields.jsx`, used by all four forms, so the questions
+read the same everywhere. They sit together in a box of their own ("Trabaho"),
+after the other personal details, in this order (Dave, after review):
 
-- **"Trabaho"** stays the text box; beside it a **"Klase sa trabaho"**
-  select (the groups), optional. **Decided: hidden for members under 15**
-  (by birthday, as `askedForAge` in `lib/household.js` does for other
-  questions); they don't count in the occupation report either (it's
-  members 15 and over).
-- **"Nagtrabaho ba siya sa gawas sa nasud (OFW)?"** Dili / Oo, naa pa sa
-  gawas sa nasud karon (abroad now) / Kaniadto, nakauli na (former OFW).
-  Only for members 18 and over.
-  - Abroad: **"Asa nga nasud?"** (list, with Other → text) and
-    **"Kanus-a nagsugod ang karon nga kontrata? (tuig)"** (start of the
-    current contract).
-  - Former OFW: **"Asa nga nasud ang katapusan?"**, **"Kanus-a nagsugod ang
-    katapusan nga kontrata? (tuig)"**, **"Kanus-a nakauli? (tuig)"**.
-  - A line under it: "Ang OFW nga naa sa gawas sa nasud kabahin gihapon sa
-    pamilya." (an OFW abroad is still part of the family).
+1. **"Nagtrabaho ba siya sa gawas sa nasud (OFW)?"** Dili / Oo, naa pa sa
+   gawas sa nasud karon (abroad now) / Kaniadto, nakauli na (former OFW).
+   Only for members 18 and over.
+   - Abroad now only: **"Kanus-a nagsugod ang kontrata? (tuig)"**,
+     optional. Nothing more for a former OFW. **No country is asked.**
+   - A line under it, abroad now: "Ang OFW nga naa sa gawas sa nasud kabahin
+     gihapon sa pamilya." (an OFW abroad is still part of the family).
+2. **"Klase sa trabaho (Category)"**: the groups, optional. **Decided: hidden
+   for members under 15**; they don't count in the occupation report either.
+3. **"Trabaho (Occupation)"**: the free-text box, for every age.
+
+On wide screens they go two to a row (the OFW question with its year, then
+the category with the occupation); on phones one under the other.
 
 Where it goes:
 
 1. **Public registration** ("Irehistro ang Inyong Pamilya",
    `pages/RegistrationApp.jsx`, through `MemberFieldsGrid`): the members
-   step, under occupation. The review step lists it. The payload gets the
+   step, in the "Trabaho" box. The review step lists it. The payload gets the
    new keys.
 2. **Census portal** (`/census`, `pages/CensusPortal.jsx` and
    `components/MemberCensusCards.jsx`): for **each existing member**, the
-   card shows the current occupation and OFW answer with "Change" (new:
+   card shows the current OFW answer, category and occupation with "Usba" (new:
    today they can't change occupation), and new members get the same
    fields. The submission drawer (`CensusSubmissionDrawer.jsx`) shows the
    changes as old → new for the reviewer, as for other fields.
 3. **Staff New Household** (`components/NewHouseholdDrawer.jsx`): English
-   labels, as the rest of that drawer ("Occupation group", "Works abroad
-   (OFW)?" with "Abroad now" / "Former OFW (back home)", "Country",
-   "Current contract since (year)" or "Last contract from (year)", "Came
-   home (year)").
-4. **The member window** (`components/MemberDetailModal.jsx`): the same, in
-   the details section, and on its save payload (~line 148). Read-only for
+   labels, as the rest of that drawer, in the same box and order ("Works
+   abroad (OFW)?" with "Abroad now" / "Former OFW (back home)", "Contract
+   started (year)", "Occupation group (Category)", "Occupation").
+4. **The member window** (`components/MemberDetailModal.jsx`): the same box,
+   at the end of the details section (the occupation moves into it), and on its save payload (~line 148). Read-only for
    Read only, Clergy and Website & requests, as the other fields.
 5. **Paper census form** (`components/CensusPrintSheet.jsx`): a line per
    member, "OFW? ☐ Dili ☐ Naa sa gawas karon ☐ Nakauli na · Nasud: ____ ·
@@ -420,10 +419,9 @@ Where it goes:
   **"OFW: Any / Abroad now / Former OFW / In an OFW household"** and
   **"Occupation: Any / each group / Not sorted yet"**, added to
   `DEFAULT_FILTERS` and `URL_ALLOWED`, applied in `applyMemberFilters`
-  (`api.js`). The search box also matches `occupation` and `ofw_country`
+  (`api.js`). The search box also matches `occupation`
   (today it searches name, household and contact). The members CSV
-  (`MEMBER_CSV_COLUMNS`) gets "Occupation group", "OFW", "OFW country",
-  "OFW since", "OFW returned".
+  (`MEMBER_CSV_COLUMNS`) gets "Occupation group", "OFW", "OFW since".
 - **Dashboard:** no new tile in this plan (the dashboard is already full);
   the OFW household count shows on Report Stats.
 
@@ -440,20 +438,18 @@ In `pages/admin/Reports.jsx` (`REPORTS`), with the row builders in
   source):
   - **"OFW households by GKK"**: per GKK, households, OFW households, the
     share, OFW members abroad. The GKK leader sees their GKK's row.
-  - **"OFW members by country"**: countries, members abroad, then
-    returned.
   - **"OFWs by kind of work"**: occupation groups of OFWs abroad, land- or
     sea-based.
   - **"Families with a parent abroad"**: households where a Head, Spouse,
     Father or Mother is abroad and there are children under 18, with the
     children's count. The pastoral list GKK leaders asked for; names shown
     to staff only, as the other Generate Report lists.
-  - **"Returned OFWs"**: members back home, with when; for livelihood or
+  - **"Returned OFWs"**: members back home, with their occupation; for livelihood or
     reintegration programs.
-  - **"OFW details to check"**: abroad with no country, or "since" over 15
-    years ago and no census answer in the last 2 years (likely back home).
+  - **"OFW details to check"**: abroad with no answer in the last 2 years
+    (likely back home), longest abroad first.
 - **Report Stats tab:** a panel **"OFW households"** (households with a
-  member abroad, members abroad, top 5 countries, per GKK) and **"Occupation
+  member abroad, members abroad, the top kinds of work, per GKK) and **"Occupation
   groups"**, from the new `admin_report_stats()` keys; in the printable and
   CSV versions too (`statsSections`).
 - **Census:** **"Results by GKK"** gets an OFW households column, from the
@@ -479,7 +475,7 @@ In `pages/admin/Reports.jsx` (`REPORTS`), with the row builders in
 
 ## Tests and checks
 
-- `client/test/ofw.test.js`: the report row builders (by GKK, by country,
+- `client/test/ofw.test.js`: the report row builders (by GKK,
   by kind of work, families with a parent abroad, by occupation with "Not
   sorted yet"); the household flag counts only **current** members
   **abroad**; the forms' payload clears the OFW fields when the answer is
@@ -567,9 +563,9 @@ covers them.
   `application_name` setting back.
 - **Step 0 also rewrites `create_household_base`** (0062 dropped a blood type
   a leader typed in New Household). 0121 starts from 0120's text.
-- **A trigger keeps the OFW answer whole** (`members_ofw_tidy`, 0121): no
-  answer clears the country and years, abroad clears the year home, a year
-  after next year or a year home before the contract is refused, and a
+- **A trigger keeps the OFW answer whole** (`members_ofw_tidy`, 0121): any
+  answer but "abroad now" clears the contract year, a year after next year
+  is refused, and a
   changed answer sets `ofw_updated_at`, whichever form saves it. The forms
   do the same first (`clearOfwForAnswer`, `ofwPatch`). The census portal
   sends `ofw_asked` with each member; an answer confirmed unchanged is dated
@@ -581,22 +577,30 @@ covers them.
   works out the OFW numbers itself when a census closes (new column
   `census_results.ofw`), so the Census page sends nothing new.
 - **The paper census form** has a "Trabaho ug OFW" table (what's on record,
-  then a blank for the occupation and the OFW tick boxes, 18 and over) and
-  occupation and OFW columns for new members.
+  then the OFW tick boxes with the contract year, 18 and over, and a blank
+  for the occupation) and OFW and occupation columns for new members.
 - **Bisaya drafts beyond the plan's wording** (for Dave to check):
-  "Propesyonal (doktor, inhenyero, abogado…)" for Professional, "Sa dagat
-  (seaman)" for At sea, "Uban pa…" / "Isulat ang nasud" for another country,
-  "Kanhi OFW (Qatar, 2015–2022)" and "OFW · Qatar sukad 2019" for the
-  lines, "Dili OFW" on the portal card, the year message "Isulat ang tuig,
+  "Propesyonal (doktor, inhenyero, abogado…)" for Professional, "Kanhi OFW"
+  and "OFW · sukad 2019" for the lines, "Klase sa trabaho (Category)" and
+  "Trabaho (Occupation)" (Dave's labels), "Dili OFW" on the portal card, the year message "Isulat ang tuig,
   1950 hangtod 2027", and the privacy sentences on the registration form,
   the portal and the paper form.
 - **The activity log** shows a member's insert as "Added the member" (it
   never lists fields), so on demo the OFW fields show on update entries.
 - **Release order matters:** run the migrations before the app goes live.
   The member window, printed census forms and reports fall back without
-  0121's columns, but the Members list search (occupation, OFW country)
+  0121's columns, but the Members list search (occupation)
   and the OFW filters need them, and a GKK leader can't save a blood type
   before 0120.
+
+- **After review (Dave):** the work questions are one box in the order OFW,
+  contract year (abroad now, optional), category, occupation; no country
+  and no year home. 0121 had already been merged, so a new migration,
+  `0122_ofw_work_fields.sql`, drops `ofw_country` and `ofw_returned` (and
+  makes `members_with_household` again), clears a former OFW's contract
+  year (logged), and rewrites the functions that used them. "OFW members by
+  country" is gone; Report Stats shows members abroad by kind of work
+  instead of countries.
 
 ## Open questions
 
