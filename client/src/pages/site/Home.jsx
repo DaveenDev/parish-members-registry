@@ -41,6 +41,7 @@ export default function Home() {
   const position = heroPositionOf(positionState.data);
   const parish = useParishTitle();
   const heroTextRef = useRef(null);
+  const heroBannerRef = useRef(null);
 
   const urgent = ann.rows.find((a) => a.urgent && !dismissed.includes(a.id));
   // The two newest by start date, urgent and pinned ones included.
@@ -82,14 +83,14 @@ export default function Home() {
             <img src={hero} alt="" aria-hidden="true" className="site-hero-photo hidden lg:block absolute inset-0 w-full h-full object-cover" />
             <div aria-hidden="true" className="hidden lg:block absolute inset-0" style={{ background: 'linear-gradient(90deg, rgb(var(--c-bg) / .97) 0%, rgb(var(--c-bg) / .9) 34%, rgb(var(--c-bg) / .35) 56%, rgb(var(--c-bg) / 0) 72%)' }} />
             {/* Phones: the photo as a banner, fading into the hero below it. */}
-            <div className="lg:hidden relative h-[210px] overflow-hidden">
+            <div ref={heroBannerRef} className="lg:hidden relative h-[210px] overflow-hidden">
               <img src={hero} alt={parish.full} className="site-hero-photo absolute inset-0 w-full h-full object-cover" />
               <div aria-hidden="true" className="absolute inset-x-0 bottom-0 h-20" style={{ background: 'linear-gradient(180deg, rgb(var(--c-bg) / 0) 0%, rgb(var(--c-bg)) 100%)' }} />
             </div>
           </>
         )}
-        {/* The parish's 3D object (the crucifix unless it chose another) in Our Lady of Guadalupe's rays, behind the text. */}
-        {symbol && symbol !== HERO_SYMBOL_OFF && <HeroGlory anchorRef={heroTextRef} symbol={symbol} position={position} underBanner={!!hero} />}
+        {/* The parish's 3D object (the crucifix unless it chose another) in Our Lady of Guadalupe's rays: behind the text, or on phones in front of the photo banner. */}
+        {symbol && symbol !== HERO_SYMBOL_OFF && <HeroGlory anchorRef={heroTextRef} bannerRef={heroBannerRef} symbol={symbol} position={position} underBanner={!!hero} />}
         {/* On computers, warm white light that follows the mouse, under the text. */}
         <HeroGlowCursor />
         <div className="relative lg:max-w-[1240px] lg:mx-auto lg:px-6 lg:pt-16 lg:pb-[60px] lg:grid lg:grid-cols-[minmax(0,1.25fr)_minmax(0,1fr)] lg:gap-14 lg:items-center lg:min-h-[480px]">

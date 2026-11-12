@@ -350,7 +350,8 @@
 }
 
 /* Home's 3D object and rays (HeroGlory): faint, behind the hero's text, and
-   faded in once drawn. On phones it fades out toward the photo banner. */
+   faded in once drawn. On phones with a photo it sits in front of the photo
+   banner instead, fading out below it so the text stays clear. */
 .site-hero-glory {
   position: absolute;
   inset: 0;
@@ -364,9 +365,11 @@
 @media (max-width: 1023.98px) {
   /* The text sits right over the object on phones. */
   .site-hero-glory.is-shown { opacity: .38; }
+  /* In front of the photo banner (210px tall): stronger, and gone below it. */
+  .site-hero-glory--banner.is-shown { opacity: .9; }
   .site-hero-glory--banner {
-    -webkit-mask-image: linear-gradient(180deg, transparent 0, transparent 150px, #000 260px);
-    mask-image: linear-gradient(180deg, transparent 0, transparent 150px, #000 260px);
+    -webkit-mask-image: linear-gradient(180deg, #000 0, #000 185px, transparent 235px);
+    mask-image: linear-gradient(180deg, #000 0, #000 185px, transparent 235px);
   }
 }
 
