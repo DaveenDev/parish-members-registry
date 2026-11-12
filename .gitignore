@@ -8,7 +8,7 @@ church photos/
 supabase/.temp/
 # Every parish's database connection string, with its password (scripts/release-db.mjs)
 parishes.json
-client/.env.local
+
 *.log
 .DS_Store
 # Database export: contains member data and secrets
