@@ -1,27 +1,31 @@
 import React, { useEffect, useState } from 'react';
 
 /**
- * Home hero's glow: soft gold ink that follows the mouse across the hero and
- * cools to the theme's blue as it fades (React Bits' Glow Cursor, in
- * GlowCursor.jsx). It sits over the photo and the 3D glory, under the text,
- * and never takes a click: the light is drawn from window pointer events.
+ * Home hero's glow: warm white light that follows the mouse across the hero
+ * and cools to gold as it fades, like candlelight or a halo (React Bits' Glow
+ * Cursor, in GlowCursor.jsx). It sits over the photo and the 3D glory, under
+ * the text, and never takes a click: the light is drawn from window pointer
+ * events.
+ *
+ * It is drawn as light (screen blend), not ink, so it brightens what is
+ * under it: strongest over the photo, a faint warmth over the pale side.
+ * The colours are fixed rather than the theme's, so it is the same light
+ * whichever theme the parish chose.
  *
  * Only on computers with a mouse, from the desktop width up. On phones there
  * is no pointer to follow. Left out on Data Saver, on low-memory devices and
  * for "reduce motion", and loaded once the page is idle so it never slows
  * the hero. It stops drawing by itself when the hero is scrolled away, the
  * tab is hidden or the light has faded.
- *
- * `toneRef` is an element inside the parish's theme, read once for its gold
- * and blue so the light matches whichever theme the parish chose.
  */
 const WANTED = '(min-width: 1024px) and (hover: hover) and (pointer: fine)';
 const STILL = '(prefers-reduced-motion: reduce)';
+const FRESH = '#fff8e1'; // warm white where it is drawn
+const COOL = '#ffc93c'; // gold as it fades
 
-export default function HeroGlowCursor({ toneRef }) {
+export default function HeroGlowCursor() {
   const [fits, setFits] = useState(false);
   const [Glow, setGlow] = useState(null);
-  const [tones, setTones] = useState(null);
 
   // Whether this device should have it, followed as the window resizes.
   useEffect(() => {
@@ -45,13 +49,7 @@ export default function HeroGlowCursor({ toneRef }) {
     let cancelled = false;
     function load() {
       import('./GlowCursor.jsx')
-        .then((mod) => {
-          if (cancelled) return;
-          const style = window.getComputedStyle(toneRef?.current || document.documentElement);
-          const read = (name, fallback) => style.getPropertyValue(name).trim() || fallback;
-          setTones({ fresh: read('--p-gold-light', '#e4c06a'), cool: read('--p-blue', '#34589c') });
-          setGlow(() => mod.default);
-        })
+        .then((mod) => { if (!cancelled) setGlow(() => mod.default); })
         .catch(() => {});
     }
     const idle = window.requestIdleCallback
@@ -62,20 +60,21 @@ export default function HeroGlowCursor({ toneRef }) {
       if (window.requestIdleCallback) window.cancelIdleCallback(idle);
       else window.clearTimeout(idle);
     };
-  }, [fits, Glow, toneRef]);
+  }, [fits, Glow]);
 
-  if (!fits || !Glow || !tones) return null;
+  if (!fits || !Glow) return null;
   return (
     <div aria-hidden="true" className="site-hero-glow">
       <Glow
-        theme="light"
-        color={tones.fresh}
-        secondaryColor={tones.cool}
-        intensity={1}
-        trailWidth={6}
+        theme="dark"
+        blendMode="screen"
+        color={FRESH}
+        secondaryColor={COOL}
+        intensity={1.2}
+        trailWidth={5}
         linger={1.4}
-        glow={1.3}
-        hotspot={0.4}
+        glow={1.6}
+        hotspot={0.8}
         followSpeed={0.6}
         quality="medium"
         maxDevicePixelRatio={1.5}
