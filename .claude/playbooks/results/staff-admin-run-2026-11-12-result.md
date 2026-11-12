@@ -24,7 +24,7 @@ Arnel could do the core job: the five playbook accounts were created, two throwa
 
 | Mission | Result | Findings | Notes |
 |---|---|---|---|
-| SA-0 Set up playbook accounts | PASS WITH ISSUES | SA-1 | 4 of 5 created (full, read-only, website, clergy, GKK leader = 5 created); no-access account not created (needs the Supabase dashboard). Temporary passwords saved to `accounts.local.json` only. |
+| SA-0 Set up playbook accounts | PASS WITH ISSUES | SA-1 | Created full, read-only, website, clergy and GKK leader (GKK San Isidro Labrador -Birada Center); no-access account not created (needs the Supabase dashboard). Temporary passwords saved to `accounts.local.json` only. |
 | SA-1 Twenty GKK leaders in one sitting | PASS WITH ISSUES | SA-1, SA-2 | Row errors are shown per row and nothing is silently skipped. Counted 4 "to create" before validation. B failed with a 401 mid-batch. |
 | SA-2 Find, filter, sort | PASS | SA-6 | Chips, GKK-name search and last sign-in sort work; filter state is in the URL. CSV not downloaded (playbook says ask first): SKIPPED. |
 | SA-3 Forgot password | PASS | | Reset dialog names the person and says the old password stops working. Old password refused; temp password leads to "Set a new password". Did not check whether the Staff page mentions "Forgot password?". |
