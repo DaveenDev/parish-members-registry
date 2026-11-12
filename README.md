@@ -28,7 +28,7 @@ This registry was built for Our Lady of Guadalupe Quasi-Parish, Mua-an, and is g
 
 **On one condition:** keep the credit **"Built For Free by DaveenDev"** where it appears in the app, linked to the developer page (`/developer`) or to [daveendev.vercel.app](https://daveendev.vercel.app/), and keep the [`LICENSE`](LICENSE) file. The credit shows in the public website's footer, on the registration and census pages, on the staff sign-in page and in the admin panel's sidebar; you may restyle it to match your site, but not remove or reword it. That's the whole price.
 
-The admin panel shows the occasional note about PRO modules, which staff can hide. The free licence doesn't require keeping them; only the credit above is required.
+When switched on (`VITE_PRO_PROMO`, off by default), the admin panel shows the occasional note about PRO modules, which staff can hide. The free licence doesn't require keeping them; only the credit above is required.
 
 **What it costs to run:** nothing, on the free plans of [Supabase](https://supabase.com) (the database and staff logins), [Vercel](https://vercel.com) (the website) and [Cloudflare R2](https://www.cloudflare.com/developer-platform/products/r2/) (photos), for a parish of a few thousand households. A domain name of your own is optional. See [Staying on the free tier](#staying-on-the-free-tier-keep-alive-and-backups).
 
@@ -209,6 +209,10 @@ cd ..
 Demo account behind **Login to Demo Site** ([deploy/02-demo.md](deploy/02-demo.md)).
 The button never shows on the live site, even if they're set there.
 
+`VITE_PRO_PROMO=on` shows the admin panel's PRO notes (tip cards, the monthly
+showcase and Settings → PRO modules). It is off when not set, which is how a
+parish's site stays until PRO is ready; set it on the demo site to try them.
+
 ### 4. Run the app
 
 ```bash
@@ -332,7 +336,7 @@ to your parish.
 
 ## Deploying
 
-Setting up the live site and the demo site from scratch (Supabase, Vercel, Cloudflare R2, email, backups), and setting the site up for another parish: see [`deploy/`](deploy/README.md). In short: import the repo into Vercel with **Root Directory set to `client`**, add `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` as Vercel env vars (and, on the demo site only, `VITE_DEMO_EMAIL`/`VITE_DEMO_PASSWORD` for **Login to Demo Site**), and deploy — `client/vercel.json` handles the SPA routing rewrite and the `/media` photo proxy (one bucket for the demo site's address, another for the live site).
+Setting up the live site and the demo site from scratch (Supabase, Vercel, Cloudflare R2, email, backups), and setting the site up for another parish: see [`deploy/`](deploy/README.md). In short: import the repo into Vercel with **Root Directory set to `client`**, add `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` as Vercel env vars (and, on the demo site only, `VITE_DEMO_EMAIL`/`VITE_DEMO_PASSWORD` for **Login to Demo Site**, and `VITE_PRO_PROMO=on` to show the PRO notes), and deploy — `client/vercel.json` handles the SPA routing rewrite and the `/media` photo proxy (one bucket for the demo site's address, another for the live site).
 
 ## Testing
 

@@ -55,7 +55,9 @@ What each site needs and where it goes. **Never** put the Supabase
 |---|---|---|
 | `VITE_SUPABASE_URL` | `https://<project-ref>.supabase.co` | Supabase → Project Settings → API |
 | `VITE_SUPABASE_ANON_KEY` | the anon / publishable key | Same page. Safe in the browser: the database's row level security decides what it can do |
-Make both the **Config** type (plain, visible), not Secret: they're built into
+| `VITE_PRO_PROMO` | `on` | Optional. Shows the PRO tip cards, the monthly showcase and Settings → PRO modules. **Leave it out** on a parish's site until PRO is ready; set it on the demo site to try the notes. Any other value, or none, keeps them off |
+
+Make the Supabase ones the **Config** type (plain, visible), not Secret: they're built into
 the page every visitor downloads, so they aren't secret. Changing either takes
 effect only after a **redeploy**.
 

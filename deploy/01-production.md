@@ -132,6 +132,8 @@ Every other account is made in the admin panel (Settings → Staff), not here.
    | `VITE_SUPABASE_ANON_KEY` | Supabase → Project Settings → API → anon / publishable key |
 
    Type **Config**, not Secret (they're in every visitor's page anyway).
+   Don't add `VITE_PRO_PROMO` here yet: without it the admin panel shows no
+   PRO notes. It's for the demo site until PRO is ready ([deploy/README.md](README.md)).
 4. **Deploy**.
 5. Project → **Settings → Domains**: the free address is
    `<project-name>.vercel.app`; edit it to the name you want (e.g.

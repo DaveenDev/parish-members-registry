@@ -5,13 +5,20 @@ are for staff only and must never be in the way.
 
 - **Sign-in needed:** yes, as Full access, then as the other access levels
 - **Time:** 25 minutes
-- **Prerequisite:** an account at least 21 days old (or the shared Demo login,
+- **Prerequisite:** a site built with `VITE_PRO_PROMO=on` (the demo site; without it nothing below shows, which is itself the first check), an account at least 21 days old (or the shared Demo login,
   which skips the wait), and migration 0124 run. A newer account should see
   nothing at all.
 
 Cards wait about 4 seconds after a page opens. The showcase waits about 2.
 
 ---
+
+### PROMO-B0 — Off means off
+**Steps**
+1. On a site built *without* `VITE_PRO_PROMO` (or with it set to `off`), sign in as Full access and open the Dashboard, Requests and Settings.
+
+**Expected**
+- No tip card, no showcase and no **PRO modules** in Settings. Opening `/admin/pro` goes back to the Dashboard.
 
 ### PROMO-B1 — A drawer opens while a card is showing
 **Steps**
