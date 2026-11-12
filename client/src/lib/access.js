@@ -49,6 +49,8 @@ const RULES = {
   manageLists: ['full'],
   settings: ['full'],
   trash: ['full'],
+  // The in-app PRO page and its sidebar item (lib/proPromo.js decides the same for the tip cards).
+  pro: ['full', 'clergy', 'website'],
 };
 
 /** A GKK leader's GKK, whose records are all they see; null for everyone else. */

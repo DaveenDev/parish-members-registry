@@ -22,6 +22,7 @@ const PATHS = {
   '/admin/settings/organizations': <><path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.4 1.4 0 0 1 0 2l-6.7 6.7a1.4 1.4 0 0 1-2 0z" /><circle cx="8" cy="8" r="1.4" /></>,
   '/admin/settings/staff': <><path d="M12 3l7.5 3v5.5c0 4.6-3.2 8.2-7.5 9.5-4.3-1.3-7.5-4.9-7.5-9.5V6z" /><path d="M9 12l2 2 4-4" /></>,
   '/admin/settings/activity': <><circle cx="12" cy="12" r="8.5" /><path d="M12 7.5V12l3 2" /></>,
+  '/admin/pro': <><path d="M12 3.5l2.6 5.3 5.9.9-4.2 4.1 1 5.8-5.3-2.8-5.3 2.8 1-5.8-4.2-4.1 5.9-.9z" /></>,
   '/admin/settings/trash': <><path d="M4 7h16M9.5 7V4.5h5V7" /><path d="M6 7l1 13h10l1-13M10 11v6M14 11v6" /></>,
 };
 

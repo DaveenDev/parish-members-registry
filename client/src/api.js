@@ -697,6 +697,21 @@ export const api = {
     return null;
   },
 
+  /** What this account hid (PRO tips, the showcase), as { key: hidden-until in ms } (0124). */
+  async listDismissals() {
+    const { data, error } = await supabase.from('staff_dismissals').select('key, hidden_until');
+    if (error) throw mapError(error);
+    return Object.fromEntries((data || []).map((r) => [r.key, Date.parse(r.hidden_until)]));
+  },
+
+  async saveDismissal(key, untilMs) {
+    const { data: { session } } = await supabase.auth.getSession();
+    const { error } = await supabase.from('staff_dismissals')
+      .upsert({ user_id: session?.user?.id, key, hidden_until: new Date(untilMs).toISOString(), updated_at: new Date().toISOString() }, { onConflict: 'user_id,key' });
+    if (error) throw mapError(error);
+    return null;
+  },
+
   /** Calls `onNew(row)` for each new notification this account may see. Returns the unsubscribe. */
   subscribeNotifications(onNew) {
     const channel = supabase.channel(`staff-notifications-${Math.random().toString(36).slice(2)}`)
