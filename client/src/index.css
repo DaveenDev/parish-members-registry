@@ -403,12 +403,75 @@
   .site-lift:hover, .site-lift-group:hover > a { box-shadow: 0 18px 38px -22px rgba(23, 38, 63, .45); }
 }
 
+/* Home's register button (StarBorder.jsx, after React Bits' Star Border):
+   two gold lights drift along its top and bottom edges, on a thin rim of the
+   deep blue. The track clips the lights so the button's shadow and focus
+   ring are left alone. */
+.site-star-border {
+  position: relative;
+  display: block;
+  padding: 2px 0;
+  background: var(--p-blue-deep);
+}
+@media (min-width: 1024px) {
+  .site-star-border { display: inline-block; }
+}
+.site-star-border > :not(.site-star-border__track) { position: relative; z-index: 1; }
+.site-star-border__track {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+}
+.site-star-border__star {
+  position: absolute;
+  width: 300%;
+  height: 50%;
+  border-radius: 50%;
+  background: radial-gradient(circle, color-mix(in srgb, var(--p-gold-light) 70%, white), transparent 14%);
+  animation: var(--star-speed, 6s) linear infinite alternate;
+}
+.site-star-border__star--bottom { bottom: -12px; right: -250%; animation-name: site-star-bottom; }
+.site-star-border__star--top { top: -12px; left: -250%; animation-name: site-star-top; }
+@keyframes site-star-bottom {
+  from { transform: translate(0, 0); opacity: 1; }
+  to { transform: translate(-100%, 0); opacity: 0; }
+}
+@keyframes site-star-top {
+  from { transform: translate(0, 0); opacity: 1; }
+  to { transform: translate(100%, 0); opacity: 0; }
+}
+
+/* A card's spotlight (reactBits.js, after React Bits' Spotlight Card): soft
+   gold light inside the card where the mouse is, on computers. It sits over
+   the card's photo and text (isolated, so it never covers a share button)
+   and never takes a click. */
+.site-spotlight { position: relative; isolation: isolate; }
+.site-spotlight::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .35s ease;
+  background: radial-gradient(circle 280px at var(--spot-x, 50%) var(--spot-y, 50%), color-mix(in srgb, var(--p-gold-light) 28%, transparent), transparent 100%);
+}
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .site-spotlight:hover::after { opacity: 1; }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .site-star-border__track { display: none; }
+  .site-spotlight::after { display: none; }
   .site-reveal { opacity: 1; transform: none; }
   .site-reveal.site-reveal-in, .site-stagger > *, .site-hero-photo { animation: none; }
   .site-lift:hover, .site-lift-group:hover { transform: none; }
 }
 @media print {
+  .site-star-border__track, .site-spotlight::after { display: none; }
   .site-reveal { opacity: 1 !important; transform: none !important; animation: none !important; }
 }
 

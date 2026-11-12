@@ -6,6 +6,7 @@ import { AnnouncementCard, ArticleChip, CardShare, EventCard } from '../../compo
 import CreditFooter from '../../components/CreditFooter.jsx';
 import VerseOfDay from '../../components/site/VerseOfDay.jsx';
 import PrayerTicker from '../../components/site/PrayerTicker.jsx';
+import StarBorder from '../../components/site/StarBorder.jsx';
 import HeroGlory from '../../components/site/HeroGlory.jsx';
 import HeroGlowCursor from '../../components/site/glowCursor/HeroGlowCursor.jsx';
 import { HERO_SYMBOL_OFF, heroPositionOf, heroSymbolOf } from '../../lib/heroSymbols.js';
@@ -102,13 +103,16 @@ export default function Home() {
               Welcome to {parish.full}! Irehistro ang inyong pamilya sa parokya aron kita magpabiling magkasinabot, magkauban sa pagsaulog sa mga sakramento, ug mag-alagaray sa usag usa diha sa pagtuo.
             </p>
             <div className="lg:flex lg:flex-wrap lg:gap-3 lg:items-center">
-              <Link
-                to="/register"
-                className="w-full min-h-[56px] flex items-center justify-center font-bold text-[17px] text-white bg-parish-blue rounded-[14px] hover:bg-parish-blueDeep lg:w-auto lg:min-h-[58px] lg:px-[34px] lg:text-[18px]"
-                style={{ boxShadow: '0 14px 30px -12px color-mix(in srgb, var(--p-blue) 65%, transparent)' }}
-              >
-                Irehistro ang Inyong Pamilya
-              </Link>
+              {/* Gold light drifting along its edges (StarBorder): the one thing the hero asks of a visitor. */}
+              <StarBorder>
+                <Link
+                  to="/register"
+                  className="w-full min-h-[56px] flex items-center justify-center font-bold text-[17px] text-white bg-parish-blue rounded-[14px] hover:bg-parish-blueDeep lg:w-auto lg:min-h-[58px] lg:px-[34px] lg:text-[18px]"
+                  style={{ boxShadow: '0 14px 30px -12px color-mix(in srgb, var(--p-blue) 65%, transparent)' }}
+                >
+                  Irehistro ang Inyong Pamilya
+                </Link>
+              </StarBorder>
               {/* The census notice below has the same button, so this one only shows without it. */}
               {portal?.open && !census.loading && !censusOpen && (
                 <Link to="/census" className="w-full min-h-[50px] mt-2.5 flex items-center justify-center font-semibold text-[15.5px] text-parish-blueDeep bg-parish-card border-[1.5px] border-[var(--p-blue-border)] rounded-[14px] lg:w-auto lg:mt-0 lg:min-h-[58px] lg:px-[22px] lg:text-[16px]">
