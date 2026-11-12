@@ -6,6 +6,9 @@
  * and members with and without ministry assignments — so the dashboard charts
  * and every filter have something to show.
  *
+ * Two members are OFWs abroad now (Cora Reyes, Noel Bautista) and two are
+ * former OFWs back home (Elena Santos, Ricardo Mendoza).
+ *
  * Names and addresses are fictional.
  */
 
@@ -98,6 +101,7 @@ export const DEMO_HOUSEHOLDS = [
         relationship: 'Daughter', sex: 'Female', dob: '2000-07-19',
         placeOfBirth: 'Kidapawan City', civilStatus: 'Single',
         email: 'cora.reyes@example.com', occupation: 'Nurse', bloodType: 'B+',
+        occupationGroup: 'Health worker', ofwStatus: 'Abroad', ofwSince: 2023,
         hasBaptism: true, baptismDate: '2000-09-24', baptismChurch: 'Our Lady of Guadalupe',
         hasCommunion: true, communionDate: '2009-05-10', communionChurch: 'Our Lady of Guadalupe',
         hasConfirmation: true, confDate: '2014-11-23', confChurch: 'Our Lady of Guadalupe',
@@ -144,6 +148,7 @@ export const DEMO_HOUSEHOLDS = [
         relationship: 'Spouse', sex: 'Female', dob: '1960-02-14',
         placeOfBirth: 'Iloilo City', civilStatus: 'Married',
         occupation: 'Retired midwife', bloodType: 'A-',
+        occupationGroup: 'Health worker', ofwStatus: 'Returned',
         hasBaptism: true, baptismDate: '1960-04-03', baptismChurch: 'Jaro Cathedral',
         hasCommunion: true, communionDate: '1968-05-05', communionChurch: 'Jaro Cathedral',
         hasConfirmation: true, confDate: '1973-09-09', confChurch: 'Jaro Cathedral',
@@ -173,6 +178,7 @@ export const DEMO_HOUSEHOLDS = [
         relationship: 'Head of Household', sex: 'Male', dob: '1990-01-09',
         placeOfBirth: 'General Santos City', civilStatus: 'Separated',
         contact: '0947 555 0211', occupation: 'Tricycle driver', bloodType: 'O+',
+        occupationGroup: 'Driver or transport', ofwStatus: 'Returned',
         hasBaptism: true, baptismDate: '1990-03-25', baptismChurch: 'Sto. Niño Parish',
         hasCommunion: true, communionDate: '1999-05-16', communionChurch: 'Sto. Niño Parish',
       },
@@ -271,6 +277,7 @@ export const DEMO_HOUSEHOLDS = [
         relationship: 'Son', sex: 'Male', dob: '1996-03-30',
         placeOfBirth: 'Kidapawan City', civilStatus: 'Single',
         occupation: 'Carpenter', bloodType: 'A+',
+        occupationGroup: 'Construction or skilled trade', ofwStatus: 'Abroad', ofwSince: 2021,
         hasBaptism: true, baptismDate: '1996-06-02', baptismChurch: 'Our Lady of Guadalupe',
         hasCommunion: true, communionDate: '2005-05-08', communionChurch: 'Our Lady of Guadalupe',
         ministries: ['Sacristan / Money Counters'],
