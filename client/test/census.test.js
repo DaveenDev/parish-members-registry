@@ -5,7 +5,7 @@ import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, censusInItsYear, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
-  normalizeAccessCode, formatAccessCode, portalPayload, portalNewMember, diffSubmission,
+  normalizeAccessCode, formatAccessCode, portalPayload, portalNewMember, diffSubmission, PORTAL_NEW_MEMBER_FIELDS,
   DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, vsLastYearTable, familiesTable, statusTable, censusBaselineMode, censusVsLastYearFrom, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
@@ -232,8 +232,20 @@ describe('portal new members (0090)', () => {
     assert.equal(p.status, 'Active');
     assert.deepEqual(p.participation, { mass: 'Aktibo' });
     assert.equal(p.notes, 'newly married');
-    assert.equal('bloodType' in p || 'blood_type' in p, false, 'blood types are not asked online');
+    assert.equal(p.blood_type, null, 'no blood type given');
+    assert.equal('bloodType' in p, false);
     assert.equal('firstName' in p, false);
+  });
+
+  test('a new member\'s blood type is sent under its stored name, and comes back on a saved update (0120)', () => {
+    const p = send(adult({ bloodType: 'O+' }));
+    assert.equal(p.blood_type, 'O+');
+    const back = portalNewMember({ fields: { first_name: 'Maria', last_name: 'Cruz', blood_type: 'O+' } });
+    assert.equal(back.bloodType, 'O+');
+  });
+
+  test('the reviewer sees a new member\'s blood type labelled', () => {
+    assert.deepEqual(PORTAL_NEW_MEMBER_FIELDS.find(([k]) => k === 'blood_type'), ['blood_type', 'Blood type']);
   });
 
   test('a civil wedding is kept but is not the sacrament', () => {

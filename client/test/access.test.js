@@ -35,9 +35,15 @@ describe('can', () => {
     assert.ok(!can({ access: 'website' }, 'editRegistry'));
   });
 
-  test('GKK leaders never see blood types; everyone else who sees the registry does', () => {
-    assert.ok(!can({ access: 'gkk_leader' }, 'bloodTypes'));
-    for (const access of ['full', 'read_only', 'website']) assert.ok(can({ access }, 'bloodTypes'), access);
+  test('GKK leaders see their GKK\'s blood types (0120), as everyone else who sees the registry does, except clergy', () => {
+    for (const access of ['full', 'read_only', 'gkk_leader', 'website']) assert.ok(can({ access }, 'bloodTypes'), access);
+    assert.ok(!can({ access: 'clergy' }, 'bloodTypes'));
+  });
+
+  test('the access notes say leaders see blood types and OFW details', () => {
+    const note = ACCESS_LEVELS.find((a) => a.key === 'gkk_leader').note;
+    assert.match(note, /blood types and OFW details/);
+    assert.doesNotMatch(note, /not their blood types/);
   });
 
   test('GKK leaders get and renew census codes; read-only and website staff do not', () => {

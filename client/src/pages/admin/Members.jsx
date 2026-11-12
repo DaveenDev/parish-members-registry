@@ -73,7 +73,7 @@ export default function Members() {
   const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
   const { q: search, sort: sortKey, dir: sortDir, page, size: pageSize } = url;
   const filters = Object.fromEntries(Object.keys(DEFAULT_FILTERS).map((k) => [k, url[k]]));
-  // GKK leaders don't see blood types, nor filter by them (even from a link).
+  // Clergy don't see blood types, nor filter by them (even from a link). GKK leaders do (0120).
   const showBlood = can(user, 'bloodTypes');
   if (!showBlood) filters.blood = 'All';
   const filterKey = JSON.stringify(filters);

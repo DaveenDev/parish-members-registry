@@ -558,7 +558,7 @@ export const MISSING_FIELDS = [
   { key: 'blood_type', label: 'Blood type', test: (m) => blank(m.blood_type), blood: true },
 ];
 
-/** Labels of what `m` is missing. `blood: false` leaves blood type out (GKK leaders can't see it). */
+/** Labels of what `m` is missing. `blood: false` leaves blood type out (for clergy, who can't see it). */
 export function missingDetails(m, { blood = true } = {}) {
   return MISSING_FIELDS.filter((f) => (blood || !f.blood) && f.test(m)).map((f) => f.label);
 }

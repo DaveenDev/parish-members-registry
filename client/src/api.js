@@ -86,7 +86,8 @@ const isMissingTable = (error) => ['42P01', 'PGRST205'].includes(error?.code);
 
 /**
  * Blood types (member_blood_types, 0062) onto rows read from the members
- * table, which no longer has them. A GKK leader reads none. Before 0062 the
+ * table, which no longer has them. Clergy read none; a GKK leader their
+ * GKK's (0120). Before 0062 the
  * rows still carry their own.
  */
 async function attachBloodTypes(members) {
@@ -539,7 +540,8 @@ export const api = {
     const { blood_type: blood, ...fields } = patch;
     let bloodSaved = false;
     if ('blood_type' in patch) {
-      // Blood types have their own table (0062) that GKK leaders can't reach;
+      // Blood types have their own table (0062), which GKK leaders write for
+      // their GKK's members since 0120;
       // before that migration they're still a member column.
       bloodSaved = await saveMemberBloodType(id, blood);
       if (!bloodSaved) fields.blood_type = blood;

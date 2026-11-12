@@ -32,7 +32,7 @@ export default function HouseholdViewDrawer({ household: row, readOnly = false, 
   const [busy, setBusy] = useState(false);
   const [openMemberId, setOpenMemberId] = useState(null);
   const canEdit = !readOnly && can(user, 'editRegistry');
-  const showBlood = can(user, 'bloodTypes'); // GKK leaders don't see blood types (0050)
+  const showBlood = can(user, 'bloodTypes'); // not clergy (0087); GKK leaders see their GKK's (0120)
 
   function load() {
     setError('');

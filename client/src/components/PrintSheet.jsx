@@ -162,7 +162,7 @@ export default function PrintSheet({ data, parish: given }) {
 
 function HouseholdRecord({ data, parish }) {
   const { household: h, members = [], code } = data;
-  // GKK leaders don't see blood types (0050).
+  // Clergy don't see blood types (0087); GKK leaders see their GKK's (0120).
   const showBlood = can(useAuth().user, 'bloodTypes');
   const address = [h.street, h.barangay, h.city, h.province, h.zip].filter(Boolean).join(', ');
   return (

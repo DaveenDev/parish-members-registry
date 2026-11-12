@@ -455,7 +455,7 @@ export default function CensusPortal() {
             <Checkbox checked={form.consent} onChange={(e) => setForm((f) => ({ ...f, consent: e.target.checked }))} className="mt-1 flex-none" />
             <span className="text-[14.5px] leading-relaxed text-parish-text2">
               Nagtugot ako nga gamiton sa parokya kini nga impormasyon para sa rehistro sa mga miyembro, subay sa Data Privacy Act of 2012.
-              Makita lamang kini sa awtorisadong kawani sa parokya.
+              Makita lamang kini sa awtorisadong kawani sa parokya. Lakip niini ang tipo sa dugo sa bag-ong miyembro.
             </span>
           </label>
         </Card>
@@ -715,7 +715,7 @@ function NewMemberCard({ member: m, index, others, families, orgOptions, parishR
       <>
         <MemberNameFields mv={mv} onField={field} />
         <div className="mt-4">
-          <MemberFieldsGrid mv={mv} onField={field} bloodType={false}>
+          <MemberFieldsGrid mv={mv} onField={field}>
             {families && (
               <Field label="Pamilya">
                 <Select value={String(familyNoOf(m))} onChange={(e) => onField('familyNo', Number(e.target.value))}>

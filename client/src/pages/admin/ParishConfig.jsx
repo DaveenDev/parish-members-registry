@@ -1152,7 +1152,10 @@ function PrivacyCard() {
       <div className="font-serif text-[22px] font-semibold text-parish-navy mb-3.5">Data &amp; privacy</div>
       <div className="flex gap-2.5 items-start text-[13.5px] text-parish-text2 leading-relaxed">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--p-blue)" strokeWidth="1.7" className="flex-none mt-px"><rect x="4" y="10" width="16" height="10" rx="2" /><path d="M8 10V7a4 4 0 0 1 8 0v3" /></svg>
-        <span>Member information is confidential and accessible only to authorized parish staff. All exports and printed sheets should be handled in accordance with the Data Privacy Act of 2012.</span>
+        <span>
+          Member information is confidential and accessible only to authorized parish staff. All exports and printed sheets should be handled in accordance with the Data Privacy Act of 2012.
+          {' '}Blood types are asked on the registration form and, for new members, on the census portal; they are seen by Full access, Read only, Website &amp; requests and each GKK&apos;s leader for their GKK (not clergy).
+        </span>
       </div>
     </Panel>
   );

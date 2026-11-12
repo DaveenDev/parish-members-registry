@@ -495,7 +495,7 @@ function MemberNameFields({ mv, onField }) {
 /** Personal details for one member. `head` hides Relationship (the head's is fixed). */
 function MemberFieldsGrid({ mv, onField, head = false }) {
   const set = (field) => (e) => onField(mv.mi, field, e.target.value);
-  // GKK leaders don't record blood types (0050).
+  // Everyone who may see blood types records them here; GKK leaders too (0120).
   const { user } = useAuth();
   const showBlood = can(user, 'bloodTypes');
   return (

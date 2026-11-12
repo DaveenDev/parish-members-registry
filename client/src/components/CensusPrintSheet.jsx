@@ -173,11 +173,12 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
                 <th style={head}>Natawo</th>
                 <th style={head}>Civil status</th>
                 <th style={head}>Nabunyagan?</th>
+                <th style={head}>Tipo sa dugo</th>
               </tr>
             </thead>
             <tbody>
               {[0, 1, 2].map((i) => (
-                <tr key={i}>{[0, 1, 2, 3, 4, 5].map((c) => <td key={c} style={{ ...cell, height: 20 }} />)}</tr>
+                <tr key={i}>{[0, 1, 2, 3, 4, 5, 6].map((c) => <td key={c} style={{ ...cell, height: 20 }} />)}</tr>
               ))}
             </tbody>
           </table>

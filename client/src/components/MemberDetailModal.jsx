@@ -147,7 +147,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
         relationship: member.relationship, family_no: member.family_no, sex: member.sex, dob: member.dob, place_of_birth: member.place_of_birth, tribe: member.tribe,
         civil_status: member.civil_status, contact: member.contact, email: member.email, occupation: member.occupation,
         gkk_role: member.gkk_role, parish_role: member.parish_role,
-        // GKK leaders can't read or change blood types (0062), so they never send one.
+        // Clergy can't read blood types (0087), so they never send one. GKK leaders do (0120).
         ...(can(user, 'bloodTypes') ? { blood_type: member.blood_type } : {}),
         has_baptism: member.has_baptism, baptism_date: member.baptism_date, baptism_church: member.baptism_church,
         has_communion: member.has_communion, communion_date: member.communion_date, communion_church: member.communion_church,
@@ -253,7 +253,7 @@ export default function MemberDetailModal({ memberId, onClose, onChanged }) {
               <Field label="Contact"><TextInput value={member.contact || ''} onChange={(e) => set('contact', e.target.value)} /></Field>
               <Field label="Email"><TextInput value={member.email || ''} onChange={(e) => set('email', e.target.value)} /></Field>
               <Field label="Occupation"><TextInput value={member.occupation || ''} onChange={(e) => set('occupation', e.target.value)} /></Field>
-              {/* Not for GKK leaders, who can't read blood types at all (0062). */}
+              {/* Not for clergy, who can't read blood types (0087). */}
               {can(user, 'bloodTypes') && (
                 <Field label="Blood type">
                   <Select value={member.blood_type || ''} onChange={(e) => set('blood_type', e.target.value)}>

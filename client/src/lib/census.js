@@ -683,10 +683,12 @@ export const PORTAL_MEMBER_FIELDS = [
   ['contact', 'Contact no.'],
 ];
 
-// What a new member also brings in (0090), asked as at registration. Blood
-// types aren't asked online: GKK leaders review these updates (0050).
+// What a new member also brings in (0090), asked as at registration. The
+// blood type since 0120 (only for new members: existing members' blood types
+// aren't shown or changed online).
 export const PORTAL_NEW_MEMBER_FIELDS = [
   ['place_of_birth', 'Place of birth'], ['tribe', 'Tribe'], ['email', 'Email'], ['occupation', 'Occupation'], ['religion', 'Religion'],
+  ['blood_type', 'Blood type'],
 ];
 // Each sacrament: whether it was received, its label, then its details.
 export const PORTAL_SACRAMENTS = [

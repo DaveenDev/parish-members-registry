@@ -1,9 +1,10 @@
 # Improvement plan: OFW and occupation
 
-> **Status:** proposed 2026-11-12, not started. Dave answered the open
-> questions the same day (folded into the decisions below). One of them
-> also changes existing behavior: **GKK leaders will see blood types**
-> (Step 0, its own migration).
+> **Status:** built 2026-11-12 on branch `claude/elegant-gauss-xzcg8i`
+> (one PR for Step 0 and all four phases), waiting for Dave to try it on the
+> demo site. Dave answered the open questions the same day (folded into the
+> decisions below). One of them also changes existing behavior: **GKK
+> leaders see blood types** (Step 0, its own migration).
 > **Goal:** a parish that wants it can record which members are **OFWs**
 > (Overseas Filipino Workers), where and since when, and each member's
 > **occupation** in a form that can be counted. A household with a member
@@ -11,12 +12,10 @@
 > leaders can list, filter and report on them (pastoral visits to families
 > left behind, the census, the parish's picture of its people).
 > **Every parish:** always available, no Parish Config setting (decided).
-> **Migrations:** `0120_member_ofw.sql` (OFW and occupation) and
-> `0121_leader_blood_types.sql` (Step 0). 0118 is still the latest on
-> `origin/main` (checked 2026-11-12) and the audit log plan has reserved
-> 0119; take the next free numbers at build time (check `origin/main`
-> first, other sessions add migrations). Step 0 doesn't depend on the OFW
-> work and can ship first, under the lower number.
+> **Migrations:** `0120_leader_blood_types.sql` (Step 0, built first so it
+> took the lower number) and `0121_member_ofw.sql` (OFW and occupation),
+> run in that order. 0118 was still the latest on `origin/main` when they
+> were built (2026-11-12) and the audit log plan keeps 0119.
 > **Edge Functions:** none changed, nothing to redeploy.
 
 ## What already exists
@@ -208,7 +207,7 @@ children with a parent away. It must never leave the registry.
 - The census asks the OFW question again each year, because it changes
   (people leave and come home). The answer updates `ofw_updated_at`.
 
-## Step 0: GKK leaders see blood types (migration 0121)
+## Step 0: GKK leaders see blood types (migration 0120)
 
 Dave's answer: "blood types should not be hidden to GKK leaders". That
 changes what leaders see today, so it is its own small step and its own
@@ -243,7 +242,7 @@ lower free number).
 
 **What un-hiding involves:**
 
-- Migration `0121_leader_blood_types.sql` (guard: refuses to run before
+- Migration `0120_leader_blood_types.sql` (guard: refuses to run before
   0118):
   - `member_blood_types_select`: also `gkk_leader`, for members the leader
     may see: `or ((select staff_access()) = 'gkk_leader' and exists (select
@@ -257,18 +256,24 @@ lower free number).
     field to them editable; `api.updateMember` already writes it through
     `saveMemberBloodType`. Each change is logged as today (the
     `member_blood_types` trigger, 0062), with the leader's name.
+  - **Found while building:** staff New Household's `create_household_base`
+    (0062) also dropped a blood type typed by a leader (`staff_access() is
+    distinct from 'gkk_leader'`); 0120 recreates it without that test.
   - **The census portal asks blood types for new members (decided: yes).**
     `portal_new_member_details` gets `'blood_type'`, accepted only when it
     is one of `BLOOD_TYPES` (else dropped, as the other portal fields fall
     back); `census_approve_submission` (and the auto-approve path, 0083)
     writes it to `member_blood_types` for the new member, as the
-    registration functions do (0062). Only for **new** members: existing
+    registration functions do (0062). (The auto-approve path of 0083 never
+    adds a member: an update with a new member always waits for review, so
+    `census_approve_submission` is the only place it's saved.) Only for **new** members: existing
     members' blood types aren't shown or changed online (the portal doesn't
     show a family their stored details beyond the core fields, and a blood
     type typed by mistake would overwrite a verified one).
     These are the same 0090 functions Phase 1 rewrites for the OFW fields:
     whichever migration runs second starts from the other's text.
-  - `admin_report_stats()`: recreate from its 0062 text without the two
+  - `admin_report_stats()`: recreate from its latest text (0070, not 0062
+    as first written here: 0070 added the sacrament ages) without the two
     `gkk_leader` cases, so a leader's Report Stats get their GKK's blood
     types (the function already counts only what the caller can read).
     **Re-apply `alter function public.admin_report_stats() set
@@ -306,9 +311,9 @@ lower free number).
   payload and the review label.
 - No Edge Function changes.
 
-## Phase 1: the database (migration 0120)
+## Phase 1: the database (migration 0121)
 
-`0120_member_ofw.sql`, safe to re-run, refuses to run before 0118 (the
+`0121_member_ofw.sql`, safe to re-run, refuses to run before 0120 (the
 `do $$ … raise exception` guard every recent migration has):
 
 - `alter table members add column if not exists` the six new columns, the
@@ -333,7 +338,7 @@ lower free number).
 - **Trash and restore:** check `trash_snapshot` / `restore_deleted` (0062)
   restore every column from the snapshot (they work from `to_jsonb(row)`;
   confirm no column list needs the new ones).
-- **Reports' numbers:** `admin_report_stats()` (body last written in 0062;
+- **Reports' numbers:** `admin_report_stats()` (body last written in 0120, from 0070;
   0093 adds its `application_name` setting, which must be re-applied after
   `create or replace`) adds `ofw` = `{ households_abroad, members_abroad,
   members_returned, by_gkk: [{ gkk, households, members }], by_country:
@@ -513,10 +518,9 @@ Two minor releases, or one if both are ready together, each with a note on
 the releases page (`npm run releases:new`). No Edge Function changes, so
 nothing to redeploy. Migrations in order, demo first:
 
-1. `0121_leader_blood_types.sql` (Step 0; it takes the lower free number
-   if it ships first). Note: "Census Coordinators (GKK leaders) now see
+1. `0120_leader_blood_types.sql` (Step 0). Note: "Census Coordinators (GKK leaders) now see
    their GKK's blood types."
-2. `0120_member_ofw.sql`. Note: "Every parish can now record OFW members
+2. `0121_member_ofw.sql`. Note: "Every parish can now record OFW members
    (abroad now or back home), see OFW households in the lists and reports,
    and group occupations for reports."
 
