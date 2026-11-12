@@ -4,7 +4,7 @@
 |---|---|
 | Access level | `full` with `is_admin = true` |
 | Signs in at | `/admin/login` |
-| Account | `staff-admin` in `accounts.local.json`, or the user signs in for you |
+| Account | Always the `staff-admin` entry in `accounts.local.json` (`fullstaff@gmail.com`, Full access, staff admin). Read the password from that file only; never copy it into this playbook, a result file or chat. If the sign-in fails, ask the user. |
 | Device | office desktop (1440 × 900) |
 | Time budget | about 50 minutes (SA-0 alone: 10–15) |
 | Run tag | `PB<MMDD>SA` · findings `SA-1`, `SA-2` … |
