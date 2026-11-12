@@ -6,8 +6,10 @@
 // (optional). No country is asked. An OFW household has a current member
 // abroad now (households_with_count.ofw_abroad_count).
 
-import { OCCUPATION_GROUPS, OCCUPATION_GROUP_HINTS, OFW_STATUSES, SEA_BASED_GROUP } from '../constants.js';
-import { OCCUPATION_GROUP_LABELS } from './bisaya.js';
+import {
+  OCCUPATION_GROUPS, OCCUPATION_GROUP_HINTS, OFW_STATUSES, SEA_BASED_GROUP, OFW_OCCUPATION_GROUPS, LOCAL_OCCUPATION_GROUPS,
+} from '../constants.js';
+import { OCCUPATION_GROUP_LABELS, OFW_GROUP_LABELS, LOCAL_GROUP_LABELS } from './bisaya.js';
 
 export const FIRST_OFW_YEAR = 1950;
 /** The latest year a form takes: next year (a contract about to start). */
@@ -20,6 +22,16 @@ export const occupationGroupLabel = (g) => OCCUPATION_GROUP_HINTS[g] || g || '';
 /** …and as the public forms do, in Bisaya. */
 export const occupationGroupBis = (g) => OCCUPATION_GROUP_LABELS[g] || g || '';
 export const isOccupationGroup = (g) => OCCUPATION_GROUPS.includes(g);
+
+/**
+ * The Category list the public forms offer for an OFW answer (0123): the
+ * kinds of work OFWs do for someone abroad now or a former OFW, the common
+ * kinds of work at home for anyone else ("Dili", or not asked).
+ */
+export const occupationGroupsFor = (status) => (OFW_STATUSES.includes(status) ? OFW_OCCUPATION_GROUPS : LOCAL_OCCUPATION_GROUPS);
+/** A group as that list names it, in Bisaya. */
+export const occupationGroupBisFor = (g, status) =>
+  (OFW_STATUSES.includes(status) ? OFW_GROUP_LABELS : LOCAL_GROUP_LABELS)[g] || occupationGroupBis(g);
 
 /** Sea-based (seafarers) or land-based (everyone else). */
 export const ofwBase = (group) => (group === SEA_BASED_GROUP ? 'Sea-based' : 'Land-based');
@@ -88,6 +100,7 @@ export function ofwPatch(m) {
 const KEYWORDS = [
   ['Seafarer', /\b(seaman|seafarer|seamen|marino|sea ?based|ship|barko|cruise)\b/],
   ['Household service or caregiver', /\b(caregiver|care ?giver|kasambahay|katabang|helper|housemaid|maid|yaya|nanny|domestic|dh)\b/],
+  ['Hotel, restaurant or cleaning', /\b(hotel|resort|restaurant|restawran|waiter|waitress|cook|chef|kusinero|kusinera|cleaner|housekeeping|housekeeper|room ?attendant|barista|bartender|dishwasher)\b/],
   ['Farming or fishing', /\b(farm\w*|uma|mag-?uuma|nag-?uma|panguma|pagpanguma|mangingisda|mananagat|fisher\w*|pangisda\w*|agri\w*|harvester)\b/],
   ['Teacher', /\b(teacher|magtutudlo|maestr[ao]|instructor|professor|tutor)\b/],
   ['Health worker', /\b(nurse|midwife|caregiver|bhw|health|medtech|pharmac\w*|therapist|hospital)\b/],
