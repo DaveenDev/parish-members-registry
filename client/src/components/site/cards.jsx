@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Icon } from './Icons.jsx';
 import { Chip, TONES, useShare } from './kit.jsx';
 import { api } from '../../api.js';
+import { spotlightMove } from './reactBits.js';
 import { fmtFileSize } from '../../lib/gkkDocuments.js';
 import { EVENT_TONES, todayIso } from '../../lib/website.js';
 import {
@@ -48,7 +49,8 @@ export function AnnouncementCard({ a, full = false, fill = false }) {
   return (
     <Link
       to={`/pahibalo/${a.id}`}
-      className={`w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm lg:rounded-[18px] site-lift hover:border-[var(--p-blue-border)] ${cover ? 'overflow-hidden flex flex-col' : 'p-3.5 lg:p-[18px]'} ${a.urgent ? 'border-l-[5px]' : ''} ${fill ? 'flex flex-col flex-1' : cover ? '' : 'block'}`}
+      onPointerMove={spotlightMove}
+      className={`site-spotlight w-full text-left bg-parish-card border border-parish-border rounded-2xl shadow-cardSm lg:rounded-[18px] site-lift hover:border-[var(--p-blue-border)] ${cover ? 'overflow-hidden flex flex-col' : 'p-3.5 lg:p-[18px]'} ${a.urgent ? 'border-l-[5px]' : ''} ${fill ? 'flex flex-col flex-1' : cover ? '' : 'block'}`}
       style={a.urgent ? { borderLeftColor: TONES.red.color } : undefined}
     >
       {cover && (
@@ -248,7 +250,7 @@ export function EventCard({ e, showDate = false, fill = false, spotlight = false
     return (
       <div data-reveal className={`relative site-lift-group ${fill ? 'h-full' : ''}`}>
         <CardShare title={e.title} path={path} />
-        <Link to={path} className={`w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'flex flex-col h-full' : 'block'}`}>
+        <Link to={path} onPointerMove={spotlightMove} className={`site-spotlight w-full text-left bg-parish-card border border-parish-border rounded-[14px] overflow-hidden shadow-cardSm transition-colors hover:border-[var(--p-blue-border)] ${fill ? 'flex flex-col h-full' : 'block'}`}>
           {/* The whole cover (posters keep their text) over a blurred copy that
               fills the sides. With `fill` it grows to take the card's spare height;
               in the spotlight it's the event page's size (Photo h 260, hLg 560). */}
@@ -272,7 +274,7 @@ export function EventCard({ e, showDate = false, fill = false, spotlight = false
   return (
     <div data-reveal className={`relative site-lift-group ${fill ? 'h-full' : ''}`}>
       <CardShare title={e.title} path={path} />
-      <Link to={path} className={`w-full text-left flex gap-3 bg-parish-card border border-parish-border rounded-[14px] p-3 pr-14 shadow-cardSm ${fill ? 'h-full' : ''}`}>
+      <Link to={path} onPointerMove={spotlightMove} className={`site-spotlight w-full text-left flex gap-3 bg-parish-card border border-parish-border rounded-[14px] p-3 pr-14 shadow-cardSm ${fill ? 'h-full' : ''}`}>
         <div className="w-10 h-10 flex-none rounded-xl flex items-center justify-center" style={{ background: tone.background, color: tone.color }}>
           <Icon name={EVENT_ICONS[e.type] || 'cal'} size={21} />
         </div>
