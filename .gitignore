@@ -26,3 +26,9 @@ releases/_site/
 # Private: PRO plans and pricing, and the parish tracker (payments, parish details)
 PRO-PLANS/
 docs/parish-tracker.xlsx
+
+# Ruflo local secrets and runtime data
+.env.*.local
+.claude-flow/data/
+.claude-flow/logs/
+.claude-flow/sessions/

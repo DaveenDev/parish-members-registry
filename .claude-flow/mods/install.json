@@ -1,0 +1,16 @@
+{
+  "version": 2,
+  "installedAt": "2026-11-12T07:50:36.346Z",
+  "files": {
+    "E:\\DEVELOPER (WEB)\\PARISH-MEMBERS-REGISTRY\\.claude\\settings.json": {
+      "plugins": [
+        "ruflo-mods@ruflo",
+        "ruflo-swarm@ruflo",
+        "ruflo-console@ruflo"
+      ],
+      "marketplace": true,
+      "env": true,
+      "claudeInstalled": []
+    }
+  }
+}
