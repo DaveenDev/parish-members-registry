@@ -32,3 +32,6 @@ docs/parish-tracker.xlsx
 .claude-flow/data/
 .claude-flow/logs/
 .claude-flow/sessions/
+
+# Role playbook test accounts (passwords for the demo site)
+.claude/playbooks/accounts.local.json

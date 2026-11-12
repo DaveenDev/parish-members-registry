@@ -1,0 +1,11 @@
+{
+  "_comment": "Copy to accounts.local.json (gitignored) and fill in. Accounts on the DEMO Supabase project (qyoyuukpdjrwfhovtrwd) only, never the live one. staff-admin.md mission SA-0 creates the missing ones. Update a password here as soon as you change it.",
+  "staff-admin": { "email": "", "password": "", "access": "full", "is_admin": true },
+  "full-access": { "email": "pb.full@example.test", "password": "", "access": "full" },
+  "read-only": { "email": "pb.readonly@example.test", "password": "", "access": "read_only" },
+  "gkk-leader": { "email": "pb.leader@example.test", "password": "", "access": "gkk_leader", "gkk": "" },
+  "website-staff": { "email": "pb.website@example.test", "password": "", "access": "website" },
+  "clergy": { "email": "pb.clergy@example.test", "password": "", "access": "clergy" },
+  "no-access": { "email": "pb.noaccess@example.test", "password": "", "access": "none" },
+  "census-family": { "reference_no": "", "access_code": "", "_comment": "A demo household tagged PB…; staff-admin SA-0 or full-access gets its census code." }
+}
