@@ -2,7 +2,7 @@
 
 > **Status:** built 2026-11-12 on branch `claude/elegant-gauss-xzcg8i`
 > (one PR for Step 0 and all four phases), waiting for Dave to try it on the
-> demo site. Dave answered the open questions the same day (folded into the
+> demo site. What changed from this plan while building: "Built" near the end. Dave answered the open questions the same day (folded into the
 > decisions below). One of them also changes existing behavior: **GKK
 > leaders see blood types** (Step 0, its own migration).
 > **Goal:** a parish that wants it can record which members are **OFWs**
@@ -557,6 +557,46 @@ covers them.
 - Dave checks the Bisaya labels before release.
 - GKK leaders can also set and change their GKK's blood types (Step 0).
 - The census portal asks blood types for new members (Step 0).
+
+## Built (2026-11-12): what turned out differently
+
+- **Migration numbers:** Step 0 went first, so it is `0120_leader_blood_types.sql`
+  and the OFW work `0121_member_ofw.sql` (run in that order).
+- **`admin_report_stats()`** was last written in 0070 (sacrament ages), not
+  0062: 0120 starts from 0070's text, 0121 from 0120's. Both put 0093's
+  `application_name` setting back.
+- **Step 0 also rewrites `create_household_base`** (0062 dropped a blood type
+  a leader typed in New Household). 0121 starts from 0120's text.
+- **A trigger keeps the OFW answer whole** (`members_ofw_tidy`, 0121): no
+  answer clears the country and years, abroad clears the year home, a year
+  after next year or a year home before the contract is refused, and a
+  changed answer sets `ofw_updated_at`, whichever form saves it. The forms
+  do the same first (`clearOfwForAnswer`, `ofwPatch`). The census portal
+  sends `ofw_asked` with each member; an answer confirmed unchanged is dated
+  too (only for members with an OFW answer, so the log isn't filled with
+  "Dili" confirmations).
+- **The census:** `census_summary` (0007) now gives a current member abroad
+  with no answer the status "Abroad" (a column in Results by GKK only when
+  there are some; counted as accounted for). `census_keep_results` (0082)
+  works out the OFW numbers itself when a census closes (new column
+  `census_results.ofw`), so the Census page sends nothing new.
+- **The paper census form** has a "Trabaho ug OFW" table (what's on record,
+  then a blank for the occupation and the OFW tick boxes, 18 and over) and
+  occupation and OFW columns for new members.
+- **Bisaya drafts beyond the plan's wording** (for Dave to check):
+  "Propesyonal (doktor, inhenyero, abogado…)" for Professional, "Sa dagat
+  (seaman)" for At sea, "Uban pa…" / "Isulat ang nasud" for another country,
+  "Kanhi OFW (Qatar, 2015–2022)" and "OFW · Qatar sukad 2019" for the
+  lines, "Dili OFW" on the portal card, the year message "Isulat ang tuig,
+  1950 hangtod 2027", and the privacy sentences on the registration form,
+  the portal and the paper form.
+- **The activity log** shows a member's insert as "Added the member" (it
+  never lists fields), so on demo the OFW fields show on update entries.
+- **Release order matters:** run the migrations before the app goes live.
+  The member window, printed census forms and reports fall back without
+  0121's columns, but the Members list search (occupation, OFW country)
+  and the OFW filters need them, and a GKK leader can't save a blood type
+  before 0120.
 
 ## Open questions
 

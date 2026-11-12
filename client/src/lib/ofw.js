@@ -163,7 +163,7 @@ export function unsortedOccupations(members) {
     if (!byKey.has(key)) byKey.set(key, { key, ids: [], spellings: new Map() });
     const g = byKey.get(key);
     g.ids.push(m.id);
-    const s = text(m.occupation);
+    const s = text(m.occupation).replace(/[.\s]+$/, '');
     g.spellings.set(s, (g.spellings.get(s) || 0) + 1);
   }
   return [...byKey.values()]

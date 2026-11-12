@@ -159,7 +159,10 @@ export function nextCensusDue(lastStartsOn, intervalMonths) {
  * parish-wide total row. Households without a GKK are grouped as "No GKK".
  */
 export function summarizeCensus(rows) {
-  const columns = [...MEMBERSHIP_STATUSES, 'Not confirmed'];
+  // 'Abroad' (0121): a member abroad with no answer, who can't take part
+  // here; accounted for, not "Not confirmed". A column only when there are some.
+  const abroad = (rows || []).some((r) => r.status === 'Abroad' && r.members > 0);
+  const columns = [...MEMBERSHIP_STATUSES, ...(abroad ? ['Abroad'] : []), 'Not confirmed'];
   const blank = () => Object.fromEntries(columns.map((c) => [c, 0]));
   const byGkk = new Map();
   for (const r of rows || []) {
