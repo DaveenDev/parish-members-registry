@@ -35,3 +35,7 @@ docs/parish-tracker.xlsx
 
 # Role playbook test accounts (passwords for the demo site)
 .claude/playbooks/accounts.local.json
+
+# Generated local tooling output
+.playwright-mcp/
+supabase/.branches/
