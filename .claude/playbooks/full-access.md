@@ -10,7 +10,8 @@
 | Run tag | `PB<MMDD>FA` · findings `FA-1`, `FA-2` … |
 | Result file | `results/full-access-run-YYYY-MM-DD-result.md` |
 
-Read [`_shared.md`](_shared.md) first.
+Read [`_shared.md`](_shared.md) first. If the browser tool or dev
+database are not set up yet, do §0 there (`npm run db:dev:up && npm run db:dev:seed`).
 
 ## Persona
 

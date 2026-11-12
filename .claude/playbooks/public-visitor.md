@@ -9,7 +9,8 @@
 | Run tag | `PB<MMDD>PV` · findings `PV-1`, `PV-2` … |
 | Result file | `results/public-visitor-run-YYYY-MM-DD-result.md` |
 
-Read [`_shared.md`](_shared.md) first. Make sure you are **signed out** (open
+Read [`_shared.md`](_shared.md) first. If the browser tool or dev
+database are not set up yet, do §0 there (`npm run db:dev:up && npm run db:dev:seed`). Make sure you are **signed out** (open
 `/admin/login`; if it goes straight into the admin panel, sign out first).
 
 ## Persona

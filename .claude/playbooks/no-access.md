@@ -10,7 +10,8 @@
 | Run tag | `PB<MMDD>NA` · findings `NA-1`, `NA-2` … |
 | Result file | `results/no-access-run-YYYY-MM-DD-result.md` |
 
-Read [`_shared.md`](_shared.md) first. If there's no no-access account,
+Read [`_shared.md`](_shared.md) first. If the browser tool or dev
+database are not set up yet, do §0 there (`npm run db:dev:up && npm run db:dev:seed`). If there's no no-access account,
 mark the run `BLOCKED (no account)`.
 
 ## Persona

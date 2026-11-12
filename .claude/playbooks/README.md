@@ -10,6 +10,18 @@ These are different from `docs/beta-testing/`, which are step-by-step scripts
 for human testers, one per screen. These are organised by **person and job**,
 and they look at the whole journey and where it breaks.
 
+## Set up first (once)
+
+```bash
+npm run install:all
+npm run db:dev:up      # local dev Postgres in Docker, all migrations applied
+npm run db:dev:seed    # sample households + role accounts, app pointed at it
+```
+
+The browser tool is the built-in browser, or the Playwright MCP server that
+`.mcp.json` declares (approve it when asked). Details in
+[`_shared.md`](_shared.md) §0.
+
 ## How to run one
 
 Ask Claude, for example:
@@ -18,7 +30,7 @@ Ask Claude, for example:
 
 Claude reads [`_shared.md`](_shared.md) (setup, safety, how to drive, how to
 report), then the role file, runs the missions on the local app against the
-**demo** database, and writes:
+**dev** database (or the shared demo one), and writes:
 
 ```
 .claude/playbooks/results/<role>-run-YYYY-MM-DD-result.md
@@ -27,7 +39,8 @@ report), then the role file, runs the missions on the local app against the
 (`-2`, `-3` … for a second run on the same day). The layout is in
 [`_result-template.md`](_result-template.md).
 
-**Before the first staff-role run:** copy `accounts.example.json` to
+**Before the first staff-role run:** `npm run db:dev:seed` already creates the
+role accounts and fills `accounts.local.json`. On the shared demo site instead, copy `accounts.example.json` to
 `accounts.local.json` (gitignored) and fill it in, or run the staff-admin
 playbook's mission SA-0, which creates the role accounts on the demo site.
 
@@ -58,8 +71,9 @@ read-only → demo-visitor → no-access.
 
 ## Safety in one paragraph
 
-Local app, demo database only (the purple **Demo site** banner must show).
-The demo database is shared with other parishes, so no wipes: tag everything
+Local app, dev or demo database only, never live (the purple **Demo site**
+banner must show). The dev database is yours to reset; the demo one is shared
+with other parishes, so no wipes there: tag everything
 you create with the run tag (`PB<MMDD><code>`) and clean it up. Fictional
 people and `0917 555 01xx` numbers only, never send a real message, never
 write a password anywhere. Details in `_shared.md` §2–§4.

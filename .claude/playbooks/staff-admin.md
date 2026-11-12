@@ -10,7 +10,8 @@
 | Run tag | `PB<MMDD>SA` · findings `SA-1`, `SA-2` … |
 | Result file | `results/staff-admin-run-YYYY-MM-DD-result.md` |
 
-Read [`_shared.md`](_shared.md) first. Everything a full-access account can
+Read [`_shared.md`](_shared.md) first. If the browser tool or dev
+database are not set up yet, do §0 there (`npm run db:dev:up && npm run db:dev:seed`). Everything a full-access account can
 do, this account can too; this playbook covers only what is **extra** (the
 full-access playbook covers the rest).
 

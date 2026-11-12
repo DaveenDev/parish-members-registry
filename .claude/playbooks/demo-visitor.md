@@ -10,7 +10,8 @@
 | Run tag | `PB<MMDD>DV` · findings `DV-1`, `DV-2` … |
 | Result file | `results/demo-visitor-run-YYYY-MM-DD-result.md` |
 
-Read [`_shared.md`](_shared.md) first. If the **Login to Demo Site** button
+Read [`_shared.md`](_shared.md) first. If the browser tool or dev
+database are not set up yet, do §0 there (`npm run db:dev:up && npm run db:dev:seed`). This role needs the Demo access rule, which only applies on the real demo project, so run it against the shared demo site, not the dev database. If the **Login to Demo Site** button
 isn't on `/admin/login`, the local app has no demo login configured: mark
 the run `BLOCKED (no demo login in client/.env.local)` and ask the user,
 or test the same page on the demo site's own address if the user names it.

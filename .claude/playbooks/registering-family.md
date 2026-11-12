@@ -9,7 +9,8 @@
 | Run tag | `PB<MMDD>RF` · findings `RF-1`, `RF-2` … |
 | Result file | `results/registering-family-run-YYYY-MM-DD-result.md` |
 
-Read [`_shared.md`](_shared.md) first. Be **signed out**.
+Read [`_shared.md`](_shared.md) first. If the browser tool or dev
+database are not set up yet, do §0 there (`npm run db:dev:up && npm run db:dev:seed`). Be **signed out**.
 
 ## Persona
 

@@ -8,8 +8,8 @@
 | Persona | <name, one line> |
 | Account | <email only, never the password> / not signed in |
 | App | http://localhost:<port> (local dev server) |
-| Database | demo (`qyoyuukpdjrwfhovtrwd`), Demo banner seen: yes / no |
-| Browser / widths | built-in browser; 390 × 844 and 1440 × 900 |
+| Database | dev (local, 127.0.0.1:54321) / demo (`qyoyuukpdjrwfhovtrwd`), Demo banner seen: yes / no |
+| Browser / widths | built-in browser / Playwright MCP; 390 × 844 and 1440 × 900 |
 | App version | <from the admin sidebar, or client/package.json> |
 | Run tag | PB<MMDD><code> |
 | Started / finished | HH:MM / HH:MM (Asia/Manila) |

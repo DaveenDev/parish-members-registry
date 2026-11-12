@@ -9,7 +9,8 @@
 | Run tag | `PB<MMDD>CF` · findings `CF-1`, `CF-2` … |
 | Result file | `results/census-family-run-YYYY-MM-DD-result.md` |
 
-Read [`_shared.md`](_shared.md) first. Be **signed out** of the admin.
+Read [`_shared.md`](_shared.md) first. If the browser tool or dev
+database are not set up yet, do §0 there (`npm run db:dev:up && npm run db:dev:seed`). Be **signed out** of the admin.
 
 ## Persona
 

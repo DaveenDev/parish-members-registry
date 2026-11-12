@@ -7,6 +7,44 @@ write the result.
 
 ---
 
+## 0. Set up once per machine (browser tool + dev database)
+
+Do this before the first run. Both steps are repeatable.
+
+**Browser tool.** The playbooks drive a real browser. The built-in browser
+(`mcp__Claude_Browser__*`) needs nothing installed. Otherwise use the
+Playwright MCP server, which `.mcp.json` at the repo root already declares
+(`npx -y @playwright/mcp@latest`): approve the `playwright` server when
+Claude Code asks, or run `claude mcp add playwright -- npx -y @playwright/mcp@latest`.
+Check it with `/mcp`. Tool names differ, the steps do not:
+
+| This file says | Playwright MCP |
+|---|---|
+| `screenshot` | `browser_take_screenshot` |
+| `read_page`, `get_page_text` | `browser_snapshot` |
+| `computer` click / type, `form_input` | `browser_click`, `browser_type`, `browser_fill_form` |
+| `read_console_messages` | `browser_console_messages` |
+| `read_network_requests` | `browser_network_requests` |
+| `resize_window` | `browser_resize` |
+| `preview_start` | start `npm run dev` in the background, then `browser_navigate` |
+
+**Dev database.** A local, disposable Postgres (the Supabase stack in Docker,
+with every migration applied), so a run never touches the shared demo site:
+
+```bash
+npm run install:all     # once
+npm run db:dev:up       # start Postgres + auth + API on 127.0.0.1:54321/54322
+npm run db:dev:seed     # sample households, role accounts, point the app at it
+```
+
+`db:dev:seed` writes the role accounts' sign-in details to
+`accounts.local.json` and `client/.env.development.local` (both gitignored),
+so SA-0 is not needed on this database. `npm run db:dev:reset` rebuilds it
+from scratch at any time, `db:dev:down` stops it. It needs Docker. If Docker
+is not available, fall back to the shared demo database (§2).
+
+---
+
 ## 1. The idea: be the person, not the tester
 
 You are not checking boxes. You are a real person with a real job to get done,
@@ -41,30 +79,36 @@ that person stuck, confused, slow, wrong, or exposed.
 
 ---
 
-## 2. Where to run: the local app on the demo database. Never the live site.
+## 2. Where to run: the local app on the dev database. Never the live site.
 
 The app has no server of its own; the browser talks straight to a Supabase
-project. In this checkout `client/.env.local` points the local app at the
-**demo** project (`qyoyuukpdjrwfhovtrwd`). The live parish project is
-`rmlkowkbonbrtaqocsvo` and runs `guadalupe-muaan.vercel.app`.
+project. **Default: the local dev database from §0** (`http://127.0.0.1:54321`),
+which `client/.env.development.local` points the local app at. It is yours
+alone, so you may wipe and reseed it (`npm run db:dev:reset`). **Fallback:**
+the shared **demo** project (`qyoyuukpdjrwfhovtrwd`, set in `client/.env.local`)
+when Docker is unavailable. The live parish project is `rmlkowkbonbrtaqocsvo`
+and runs `guadalupe-muaan.vercel.app`.
 
-**Before any step that changes data, prove you are on the demo database:**
+**Before any step that changes data, prove you are not on the live site:**
 
 1. Start the app with the built-in browser: `preview_start` with
    `{ "name": "app" }` (from `.claude/launch.json`; it picks a free port if
-   5173 is taken). Never start the dev server through Bash.
+   5173 is taken). Never start the dev server through Bash with the built-in
+   browser; with Playwright MCP, run `npm run dev` in the background.
 2. On the first admin or public page, the purple banner **"Demo site: sample
    data only. Nothing here changes a real parish registry."** must be on
-   screen (`client/src/components/DemoBanner.jsx`). For public-only roles,
-   also check with `read_network_requests` that requests go to
-   `qyoyuukpdjrwfhovtrwd.supabase.co`.
-3. **If there is no Demo banner, or requests go to `rmlkowkbonbrtaqocsvo`,
+   screen (`client/src/components/DemoBanner.jsx`; it shows for any database
+   but the live one, local included). For public-only roles, also check with
+   `read_network_requests` that requests go to `127.0.0.1:54321` (dev
+   database) or `qyoyuukpdjrwfhovtrwd.supabase.co` (demo).
+3. **If there is no banner, or requests go to `rmlkowkbonbrtaqocsvo`,
    stop.** Write `BLOCKED: pointed at the live project` in the result file
    and tell the user. Never run a playbook against the live site, and never
    open `guadalupe-muaan.vercel.app` to "just look" as a staff role.
 
-**The demo database is shared.** Other parishes try the app there and the
-parish trains staff on it. So:
+**On the dev database** you may reset freely. **On the shared demo
+database** (other parishes try the app there and the parish trains staff on
+it):
 
 - **Do not wipe it.** Don't run `npm run db:wipe-test`, `db:reset` or any
   truncate. (The older `staff-journey-playbook.md` wipes; these playbooks
@@ -75,8 +119,8 @@ parish trains staff on it. So:
 - **Clean up at the end** (§7).
 
 Use the built-in browser (`mcp__Claude_Browser__*`) unless the user asks for
-another. If it is unavailable, Claude in Chrome or Playwright MCP work too:
-the steps are the same, only the tool names differ.
+another. If it is unavailable, use the Playwright MCP server from §0 (or
+Claude in Chrome): the steps are the same, only the tool names differ.
 
 ---
 
@@ -122,7 +166,8 @@ Staff roles sign in at `/admin/login`. Their test accounts are listed in
 `accounts.example.json`). Each entry is one account on the **demo** project
 with the right access level.
 
-- **Missing accounts:** run the account set-up mission in `staff-admin.md`
+- **Missing accounts:** on the dev database run `npm run db:dev:seed`; on
+  the demo database run the account set-up mission in `staff-admin.md`
   (mission SA-0) first, or ask the user to create them in Settings → Staff on
   the demo site and fill in the file.
 - **Never write a password into a result file, a commit, a screenshot

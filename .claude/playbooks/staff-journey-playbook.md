@@ -5,6 +5,8 @@
 **Recurrence:** on demand (re-execute this file any time)
 **Driver:** Playwright MCP (interactive — AI drives a real browser via accessibility snapshots). **Read §A "How to drive the browser" before starting** — it is the concrete how-to; everything below it is the what-to-do.
 **App URL:** `http://localhost:<PORT>` — **pick any free port** at run start (see §1 step 0). **Do NOT use port 5173** — that's Vite's default and the user's own manual-test server; never bind or navigate to it. Everything else is fair game; the only goal is to get the app up on *some* free port and browser-test it.
+
+> **Browser + database setup:** the Playwright MCP server is declared in `.mcp.json` (approve it when asked). Its disposable test database is now the local dev database: `npm run db:dev:up && npm run db:dev:seed` (see `_shared.md` §0). It is yours to wipe, so this playbook's wipe step belongs there, never on the shared demo site.
 **Data isolation:** a dedicated **test** Supabase project, wiped to **EMPTY** registry data (no demo households) every run. **Never the live parish project.**
 
 > **Port convention — read once, applies everywhere below.** This file writes

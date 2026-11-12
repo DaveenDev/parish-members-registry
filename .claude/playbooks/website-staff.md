@@ -10,7 +10,8 @@
 | Run tag | `PB<MMDD>WR` · findings `WR-1`, `WR-2` … |
 | Result file | `results/website-staff-run-YYYY-MM-DD-result.md` |
 
-Read [`_shared.md`](_shared.md) first.
+Read [`_shared.md`](_shared.md) first. If the browser tool or dev
+database are not set up yet, do §0 there (`npm run db:dev:up && npm run db:dev:seed`).
 
 ## Persona
 
