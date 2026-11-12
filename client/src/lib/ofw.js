@@ -2,14 +2,12 @@
 // (0121_member_ofw.sql). Pure helpers shared by the forms, lists and reports.
 //
 // A member's OFW answer is ofw_status ('Abroad' now, 'Returned' back home,
-// null = not an OFW), the country, the year the current (or last) contract
-// started and, back home, the year they came home. An OFW household has a
-// current member abroad now (households_with_count.ofw_abroad_count).
+// null = not an OFW) and, abroad now, the year their contract started
+// (optional). No country is asked. An OFW household has a current member
+// abroad now (households_with_count.ofw_abroad_count).
 
-import {
-  OCCUPATION_GROUPS, OCCUPATION_GROUP_HINTS, OFW_STATUSES, OFW_COUNTRIES, OFW_OTHER_COUNTRY, SEA_BASED_GROUP,
-} from '../constants.js';
-import { OCCUPATION_GROUP_LABELS, OFW_COUNTRY_LABELS } from './bisaya.js';
+import { OCCUPATION_GROUPS, OCCUPATION_GROUP_HINTS, OFW_STATUSES, SEA_BASED_GROUP } from '../constants.js';
+import { OCCUPATION_GROUP_LABELS } from './bisaya.js';
 
 export const FIRST_OFW_YEAR = 1950;
 /** The latest year a form takes: next year (a contract about to start). */
@@ -26,93 +24,60 @@ export const isOccupationGroup = (g) => OCCUPATION_GROUPS.includes(g);
 /** Sea-based (seafarers) or land-based (everyone else). */
 export const ofwBase = (group) => (group === SEA_BASED_GROUP ? 'Sea-based' : 'Land-based');
 
-/** The country's pick on the form: one of OFW_COUNTRIES, "Other" for a typed name, '' for none. */
-export function countryChoice(country) {
-  const c = text(country);
-  if (!c) return '';
-  return OFW_COUNTRIES.includes(c) ? c : OFW_OTHER_COUNTRY;
-}
-export const countryBis = (c) => OFW_COUNTRY_LABELS[c] || c;
-
 /**
- * The OFW answer of a stored member row (snake_case), tidied: { status,
- * country, since, returned } with numbers for the years, or null when they
- * aren't an OFW.
+ * The OFW answer of a stored member row (snake_case): { status, since } with
+ * the contract year as a number (abroad now only), or null when they aren't
+ * an OFW.
  */
 export function ofwOf(m) {
   const status = OFW_STATUSES.includes(m?.ofw_status) ? m.ofw_status : null;
   if (!status) return null;
-  const year = (v) => (v === null || v === undefined || v === '' ? null : Number(v));
-  return {
-    status,
-    country: text(m.ofw_country) || null,
-    since: year(m.ofw_since),
-    returned: status === 'Returned' ? year(m.ofw_returned) : null,
-  };
+  const since = status === 'Abroad' && text(m.ofw_since) ? Number(m.ofw_since) : null;
+  return { status, since };
 }
 
-/** "OFW · Saudi Arabia since 2019", "Former OFW (Qatar, 2015–2022)", or '' (staff pages). */
+/** "OFW", "OFW · since 2019", "Former OFW", or '' (staff pages). */
 export function ofwLine(m) {
   const o = ofwOf(m);
   if (!o) return '';
-  if (o.status === 'Abroad') {
-    return ['OFW', [o.country, o.since && `since ${o.since}`].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
-  }
-  const years = o.since && o.returned ? `${o.since}–${o.returned}` : o.returned ? `back ${o.returned}` : o.since ? `from ${o.since}` : '';
-  const inside = [o.country, years].filter(Boolean).join(', ');
-  return inside ? `Former OFW (${inside})` : 'Former OFW';
+  if (o.status === 'Returned') return 'Former OFW';
+  return o.since ? `OFW · since ${o.since}` : 'OFW';
 }
 
-/** The same in Bisaya, for the public forms: "OFW · Qatar sukad 2019", "Kanhi OFW (Qatar, 2015–2022)". */
+/** The same in Bisaya, for the public forms: "OFW · sukad 2019", "Kanhi OFW". */
 export function ofwLineBis(m) {
   const o = ofwOf(m);
   if (!o) return '';
-  const country = o.country && countryBis(o.country);
-  if (o.status === 'Abroad') return ['OFW', [country, o.since && `sukad ${o.since}`].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
-  const years = o.since && o.returned ? `${o.since}–${o.returned}` : o.returned ? `nakauli ${o.returned}` : o.since ? `sukad ${o.since}` : '';
-  const inside = [country, years].filter(Boolean).join(', ');
-  return inside ? `Kanhi OFW (${inside})` : 'Kanhi OFW';
+  if (o.status === 'Returned') return 'Kanhi OFW';
+  return o.since ? `OFW · sukad ${o.since}` : 'OFW';
 }
 
 /** A form's member (blankMember() keys) as a stored row's OFW columns, for ofwLine(). */
-export const ofwFromForm = (m) => ({
-  ofw_status: m.ofwStatus, ofw_country: m.ofwCountry, ofw_since: m.ofwSince, ofw_returned: m.ofwReturned,
-});
+export const ofwFromForm = (m) => ({ ofw_status: m.ofwStatus, ofw_since: m.ofwSince });
 
 /**
- * What's wrong with the years of an OFW answer, by field ({ since, returned }),
- * in English or Bisaya. Empty when there's nothing to fix.
+ * What's wrong with the contract year of an OFW answer ({ since }), in
+ * English or Bisaya. Only asked of someone abroad now; empty when there's
+ * nothing to fix (blank is fine: the year is optional).
  */
-export function ofwYearErrors({ status, since, returned }, { lang = 'en', today = new Date() } = {}) {
-  const out = {};
-  if (!status) return out;
+export function ofwYearErrors({ status, since }, { lang = 'en', today = new Date() } = {}) {
+  if (status !== 'Abroad' || !text(since)) return {};
   const last = lastOfwYear(today);
-  const bad = (v) => text(v) && !(/^\d{4}$/.test(text(v)) && Number(v) >= FIRST_OFW_YEAR && Number(v) <= last);
-  const msg = lang === 'bis'
-    ? { year: `Isulat ang tuig, ${FIRST_OFW_YEAR} hangtod ${last}`, order: 'Dili mahimong una sa pagsugod sa kontrata' }
-    : { year: `Enter a year from ${FIRST_OFW_YEAR} to ${last}`, order: "Can't be before the contract started" };
-  if (bad(since)) out.since = msg.year;
-  if (status === 'Returned') {
-    if (bad(returned)) out.returned = msg.year;
-    else if (text(returned) && text(since) && !out.since && Number(returned) < Number(since)) out.returned = msg.order;
-  }
-  return out;
+  if (/^\d{4}$/.test(text(since)) && Number(since) >= FIRST_OFW_YEAR && Number(since) <= last) return {};
+  return { since: lang === 'bis' ? `Isulat ang tuig, ${FIRST_OFW_YEAR} hangtod ${last}` : `Enter a year from ${FIRST_OFW_YEAR} to ${last}` };
 }
 
 /**
- * A stored member's OFW columns as the member window saves them: "not an
- * OFW" clears the rest, abroad now clears the year home, years as numbers.
- * (members_ofw_tidy() does the same in the database.)
+ * A stored member's occupation group and OFW columns as the member window
+ * saves them: a contract year only abroad now, as a number. (members_ofw_tidy()
+ * does the same in the database.)
  */
 export function ofwPatch(m) {
   const status = OFW_STATUSES.includes(m.ofw_status) ? m.ofw_status : null;
-  const year = (v) => (text(v) ? Number(text(v)) : null);
   return {
     occupation_group: isOccupationGroup(m.occupation_group) ? m.occupation_group : null,
     ofw_status: status,
-    ofw_country: status ? text(m.ofw_country).slice(0, 60) || null : null,
-    ofw_since: status ? year(m.ofw_since) : null,
-    ofw_returned: status === 'Returned' ? year(m.ofw_returned) : null,
+    ofw_since: status === 'Abroad' && text(m.ofw_since) ? Number(text(m.ofw_since)) : null,
   };
 }
 

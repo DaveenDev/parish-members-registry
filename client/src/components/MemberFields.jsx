@@ -1,14 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { toNameCase, toSuffixCase } from '../lib/util.js';
 import { askedForAge } from '../lib/household.js';
 import {
   bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, RELIGION_LABELS, WEDDING_TYPE_LABELS, OFW_NO_LABEL, OFW_STATUS_BIS_LABELS,
 } from '../lib/bisaya.js';
 import {
-  HEADS, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES, OCCUPATION_GROUPS, OFW_STATUSES, OFW_STATUS_LABELS,
-  OFW_COUNTRIES, OFW_OTHER_COUNTRY, ageFromDob,
+  HEADS, RELATIONSHIPS, CIVIL_STATUSES, RELIGIONS, BLOOD_TYPES, WEDDING_TYPES, OCCUPATION_GROUPS, OFW_STATUSES, OFW_STATUS_LABELS, ageFromDob,
 } from '../constants.js';
-import { countryBis, countryChoice, lastOfwYear, occupationGroupBis, occupationGroupLabel, ofwYearErrors, FIRST_OFW_YEAR } from '../lib/ofw.js';
+import { lastOfwYear, occupationGroupBis, occupationGroupLabel, ofwYearErrors, FIRST_OFW_YEAR } from '../lib/ofw.js';
 import { Field, TextInput, Select, Checkbox, TribeSelect } from './ui.jsx';
 
 // A member's questions as the public registration wizard asks them (Bisaya),
@@ -40,8 +39,7 @@ export function MemberNameFields({ mv, onField }) {
  * Personal details for one member. `head` hides Relationship (the head's is
  * fixed); `bloodType={false}` leaves out the blood type (the census portal
  * asks it for new members since 0120). `children` come first in the grid.
- * The occupation group and the OFW question (0121) follow occupation and the
- * blood type.
+ * The work questions (WorkFields, 0121) come last, together.
  */
 export function MemberFieldsGrid({ mv, onField, head = false, bloodType = true, children }) {
   const set = (field) => (e) => onField(mv.mi, field, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
@@ -73,8 +71,6 @@ export function MemberFieldsGrid({ mv, onField, head = false, bloodType = true, 
       </Field>
       <Field label="Numero sa kontak"><TextInput type="tel" placeholder="0917…" value={mv.contact} onChange={set('contact')} /></Field>
       <Field label="Email" error={mv.err.email}><TextInput type="email" placeholder="opsyonal" value={mv.email} onChange={set('email')} /></Field>
-      <Field label="Trabaho"><TextInput placeholder="opsyonal" value={mv.occupation} onChange={set('occupation')} /></Field>
-      <OccupationGroupField dob={mv.dob} value={mv.occupationGroup} onChange={(v) => onField(mv.mi, 'occupationGroup', v)} />
       <Field label="Relihiyon">
         <Select value={mv.religion} onChange={set('religion')}>
           {RELIGIONS.map((r) => <option key={r} value={r}>{bis(RELIGION_LABELS, r)}</option>)}
@@ -91,116 +87,104 @@ export function MemberFieldsGrid({ mv, onField, head = false, bloodType = true, 
           <div className="text-[12.5px] text-parish-muted mt-1">Makatabang kini sa parokya sa pagpangita og mohatag og dugo kung adunay emerhensya.</div>
         </div>
       )}
-      <OfwFields dob={mv.dob} value={formOfw(mv)} onChange={(k, v) => onField(mv.mi, OFW_FORM_KEYS[k], v)} />
+      <WorkFields dob={mv.dob} value={formWork(mv)} onChange={(k, v) => onField(mv.mi, WORK_FORM_KEYS[k], v)} />
     </div>
   );
 }
 
-// ---- occupation group and OFW (0121) -------------------------------------------------
-// One question for all four forms (registration, the census portal, New
-// Household, the member window), in Bisaya (`lang="bis"`, the public forms)
-// or English (`lang="en"`, the staff pages). `value` is { group, status,
-// country, since, returned }; `onChange(key, value)` changes one. Neither is
-// asked of members too young for it (askedForAge: the group from 15, OFW
-// from 18; a member with no birthday yet is asked).
+// ---- work: OFW, occupation group and occupation (0121) -------------------------------
+// One group of questions for all four forms (registration, the census
+// portal, New Household, the member window), in Bisaya (`lang="bis"`, the
+// public forms) or English (`lang="en"`, the staff pages), in this order:
+// works abroad (OFW)? (from 18) and, abroad now, the year the contract
+// started (optional); the occupation group (from 15); the occupation.
+// `value` is { occupation, group, status, since }; `onChange(key, value)`
+// changes one. A member with no birthday yet is asked everything.
 
-/** The OFW keys as the registration forms keep them (blankMember()). */
-export const OFW_FORM_KEYS = { status: 'ofwStatus', country: 'ofwCountry', since: 'ofwSince', returned: 'ofwReturned' };
-export const formOfw = (m) => ({ status: m.ofwStatus || '', country: m.ofwCountry || '', since: m.ofwSince || '', returned: m.ofwReturned || '' });
+/** The work keys as the registration forms keep them (blankMember()). */
+export const WORK_FORM_KEYS = { occupation: 'occupation', group: 'occupationGroup', status: 'ofwStatus', since: 'ofwSince' };
+/** …and as the members table stores them. */
+export const WORK_COLUMNS = { occupation: 'occupation', group: 'occupation_group', status: 'ofw_status', since: 'ofw_since' };
+const workOf = (keys) => (m) => Object.fromEntries(Object.entries(keys).map(([k, c]) => [k, m[c] == null ? '' : String(m[c])]));
+export const formWork = workOf(WORK_FORM_KEYS);
+export const storedWork = workOf(WORK_COLUMNS);
 
-const OFW_TEXT = {
+// Two to a row on wider screens, one on phones.
+const WORK_ROW = { gridTemplateColumns: 'repeat(auto-fit,minmax(min(260px,100%),1fr))' };
+
+const WORK_TEXT = {
   bis: {
-    group: 'Klase sa trabaho', groupNone: 'Pili… (opsyonal)',
-    question: 'Nagtrabaho ba siya sa gawas sa nasud (OFW)?',
-    no: OFW_NO_LABEL, status: (s) => OFW_STATUS_BIS_LABELS[s],
-    countryNow: 'Asa nga nasud?', countryLast: 'Asa nga nasud ang katapusan?', countryOther: 'Isulat ang nasud', pick: 'Pili…',
-    sinceNow: 'Kanus-a nagsugod ang karon nga kontrata? (tuig)', sinceLast: 'Kanus-a nagsugod ang katapusan nga kontrata? (tuig)',
-    returned: 'Kanus-a nakauli? (tuig)',
+    title: 'Trabaho',
+    question: 'Nagtrabaho ba siya sa gawas sa nasud (OFW)?', no: OFW_NO_LABEL, status: (s) => OFW_STATUS_BIS_LABELS[s],
+    since: 'Kanus-a nagsugod ang kontrata? (tuig)', optional: 'opsyonal',
+    group: 'Klase sa trabaho (Category)', groupNone: 'Pili… (opsyonal)', groupLabel: occupationGroupBis,
+    occupation: 'Trabaho (Occupation)',
     note: 'Ang OFW nga naa sa gawas sa nasud kabahin gihapon sa pamilya.',
-    groupLabel: occupationGroupBis, country: countryBis,
   },
   en: {
-    group: 'Occupation group', groupNone: 'Not sorted',
-    question: 'Works abroad (OFW)?',
-    no: 'No', status: (s) => OFW_STATUS_LABELS[s],
-    countryNow: 'Country', countryLast: 'Country (last)', countryOther: 'Type the country', pick: 'Select…',
-    sinceNow: 'Current contract since (year)', sinceLast: 'Last contract from (year)',
-    returned: 'Came home (year)',
+    title: 'Work',
+    question: 'Works abroad (OFW)?', no: 'No', status: (s) => OFW_STATUS_LABELS[s],
+    since: 'Contract started (year)', optional: 'optional',
+    group: 'Occupation group (Category)', groupNone: 'Not sorted', groupLabel: occupationGroupLabel,
+    occupation: 'Occupation',
     note: 'An OFW abroad is still a current member of the household: don’t mark them “Moved away”.',
-    groupLabel: occupationGroupLabel, country: (c) => c,
   },
 };
 
-/** "Klase sa trabaho": the occupation group, beside the occupation text box. */
-export function OccupationGroupField({ dob, value, onChange, lang = 'bis' }) {
-  const t = OFW_TEXT[lang];
-  if (!askedForAge(dob).occupationGroup) return null;
-  return (
-    <Field label={t.group}>
-      <Select value={value || ''} onChange={(e) => onChange(e.target.value)}>
-        <option value="">{t.groupNone}</option>
-        {OCCUPATION_GROUPS.map((g) => <option key={g} value={g}>{t.groupLabel(g)}</option>)}
-      </Select>
-    </Field>
-  );
-}
-
 /**
- * The OFW question, a whole row of the grid. "Dili" (the default) asks
- * nothing more, so it adds one line to a member that isn't an OFW. Choosing
- * "Dili" clears the rest.
+ * The work questions, a whole row of the grid in a box of their own
+ * (`boxed={false}` for a plain grid). "Dili" (the default) asks no year;
+ * any answer but "abroad now" clears it.
  */
-export function OfwFields({ dob, value, onChange, lang = 'bis' }) {
-  const t = OFW_TEXT[lang];
+export function WorkFields({ dob, value, onChange, lang = 'bis', boxed = true }) {
+  const t = WORK_TEXT[lang];
   const v = value || {};
-  // "Other" stays chosen while its country is being typed.
-  const [otherCountry, setOtherCountry] = useState(countryChoice(v.country) === OFW_OTHER_COUNTRY);
-  if (!askedForAge(dob).ofw) return null;
-  const abroad = v.status === 'Abroad';
+  const asked = askedForAge(dob);
+  const abroad = asked.ofw && v.status === 'Abroad';
   const err = ofwYearErrors(v, { lang });
   function chooseStatus(status) {
     onChange('status', status);
-    if (!status) { onChange('country', ''); onChange('since', ''); onChange('returned', ''); setOtherCountry(false); }
-    if (status === 'Abroad') onChange('returned', '');
+    if (status !== 'Abroad') onChange('since', '');
   }
-  function chooseCountry(choice) {
-    const other = choice === OFW_OTHER_COUNTRY;
-    setOtherCountry(other);
-    onChange('country', other ? '' : choice);
-  }
-  const choice = otherCountry ? OFW_OTHER_COUNTRY : countryChoice(v.country);
-  const year = (key, label) => (
-    <Field label={label} error={err[key]}>
-      <TextInput type="number" inputMode="numeric" min={FIRST_OFW_YEAR} max={lastOfwYear()} step={1} placeholder="2020"
-        value={v[key] || ''} onChange={(e) => onChange(key, e.target.value.replace(/\D/g, '').slice(0, 4))} />
-    </Field>
-  );
-  return (
-    <div style={{ gridColumn: '1 / -1' }}>
-      <div className="grid gap-4" style={GRID}>
-        <Field label={t.question}>
-          <Select value={v.status || ''} onChange={(e) => chooseStatus(e.target.value)}>
-            <option value="">{t.no}</option>
-            {OFW_STATUSES.map((s) => <option key={s} value={s}>{t.status(s)}</option>)}
-          </Select>
-        </Field>
-        {v.status && (
-          <>
-            <Field label={abroad ? t.countryNow : t.countryLast}>
-              <Select value={choice} onChange={(e) => chooseCountry(e.target.value)}>
-                <option value="">{t.pick}</option>
-                {OFW_COUNTRIES.map((c) => <option key={c} value={c}>{t.country(c)}</option>)}
-              </Select>
+  // Two rows: the OFW question with its year, then the kind of work and the occupation.
+  const fields = (
+    <div className="flex flex-col gap-4">
+      {asked.ofw && (
+        <div className="grid gap-4" style={WORK_ROW}>
+          <Field label={t.question}>
+            <Select value={v.status || ''} onChange={(e) => chooseStatus(e.target.value)}>
+              <option value="">{t.no}</option>
+              {OFW_STATUSES.map((s) => <option key={s} value={s}>{t.status(s)}</option>)}
+            </Select>
+          </Field>
+          {abroad && (
+            <Field label={t.since} error={err.since}>
+              <TextInput type="number" inputMode="numeric" min={FIRST_OFW_YEAR} max={lastOfwYear()} step={1} placeholder={t.optional}
+                value={v.since || ''} onChange={(e) => onChange('since', e.target.value.replace(/\D/g, '').slice(0, 4))} />
             </Field>
-            {choice === OFW_OTHER_COUNTRY && (
-              <Field label={t.countryOther}><TextInput maxLength={60} value={v.country || ''} onChange={(e) => onChange('country', e.target.value)} /></Field>
-            )}
-            {year('since', abroad ? t.sinceNow : t.sinceLast)}
-            {!abroad && year('returned', t.returned)}
-          </>
+          )}
+        </div>
+      )}
+      <div className="grid gap-4" style={WORK_ROW}>
+        {asked.occupationGroup && (
+          <Field label={t.group}>
+            <Select value={v.group || ''} onChange={(e) => onChange('group', e.target.value)}>
+              <option value="">{t.groupNone}</option>
+              {OCCUPATION_GROUPS.map((g) => <option key={g} value={g}>{t.groupLabel(g)}</option>)}
+            </Select>
+          </Field>
         )}
+        <Field label={t.occupation}><TextInput placeholder={t.optional} value={v.occupation || ''} onChange={(e) => onChange('occupation', e.target.value)} /></Field>
       </div>
-      {abroad && <div className="text-[12.5px] text-parish-muted mt-1">{t.note}</div>}
+    </div>
+  );
+  const note = abroad && <div className="text-[12.5px] text-parish-muted mt-2">{t.note}</div>;
+  if (!boxed) return <div style={{ gridColumn: '1 / -1' }}>{fields}{note}</div>;
+  return (
+    <div style={{ gridColumn: '1 / -1' }} className="border border-parish-edge rounded-xl px-4 pt-3 pb-4 bg-parish-field">
+      <div className="font-semibold text-[15px] text-parish-navy mb-2.5">{t.title}</div>
+      {fields}
+      {note}
     </div>
   );
 }

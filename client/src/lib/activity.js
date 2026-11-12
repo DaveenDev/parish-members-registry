@@ -15,7 +15,7 @@ const FIELD_LABELS = {
   has_communion: 'First Communion', communion_date: 'First Communion date', communion_church: 'First Communion church',
   has_confirmation: 'Confirmed', conf_date: 'Confirmation date', conf_church: 'Confirmation church', conf_name: 'Confirmation name', conf_sponsor: 'Confirmation sponsor',
   has_matrimony: 'Married in Church', mat_date: 'Wedding date', mat_church: 'Wedding church', mat_type: 'Wedding type',
-  occupation_group: 'Occupation group', ofw_status: 'OFW', ofw_country: 'OFW country', ofw_since: 'OFW since', ofw_returned: 'OFW returned',
+  occupation_group: 'Occupation group', ofw_status: 'OFW', ofw_since: 'OFW contract since',
   ofw_updated_at: 'OFW answer given',
 };
 // Household and member values shown as words, not as stored (0121).

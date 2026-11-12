@@ -263,19 +263,17 @@ export function clearForAge(m, today = new Date()) {
   if (!asked.matrimony) Object.assign(out, { hasMatrimony: false, matDate: '', matChurch: '', matType: '' });
   if (!asked.roles) Object.assign(out, { gkkRole: '', parishRole: '' });
   if (!asked.occupationGroup) out.occupationGroup = '';
-  if (!asked.ofw) Object.assign(out, { ofwStatus: '', ofwCountry: '', ofwSince: '', ofwReturned: '' });
+  if (!asked.ofw) Object.assign(out, { ofwStatus: '', ofwSince: '' });
   return clearOfwForAnswer(out);
 }
 
 /**
- * The OFW fields as the answer allows (0121): "Dili" ('') clears them all,
- * abroad now clears the year home. Keys as the forms keep them (blankMember()).
+ * The OFW fields as the answer allows (0121): only someone abroad now keeps
+ * the year their contract started. Keys as the forms keep them (blankMember()).
  */
 export function clearOfwForAnswer(m) {
   if (!('ofwStatus' in m)) return m;
-  if (!m.ofwStatus) return { ...m, ofwStatus: '', ofwCountry: '', ofwSince: '', ofwReturned: '' };
-  if (m.ofwStatus === 'Abroad') return { ...m, ofwReturned: '' };
-  return m;
+  return m.ofwStatus === 'Abroad' ? m : { ...m, ofwSince: '' };
 }
 
 // ---- weddings and spouses --------------------------------------------------

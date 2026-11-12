@@ -185,14 +185,13 @@ describe('portalPayload', () => {
 
   test('a member on record sends occupation, its group and the OFW answer (0121)', () => {
     const payload = portalPayload({ members: [{
-      id: 3, first_name: 'Ana', occupation: ' Nurse ', occupation_group: 'Health worker',
-      ofw_status: 'Returned', ofw_country: 'Qatar', ofw_since: '2019', ofw_returned: '2025',
+      id: 3, first_name: 'Ana', occupation: ' Nurse ', occupation_group: 'Health worker', ofw_status: 'Abroad', ofw_since: '2019',
     }] });
     const m = payload.members[0];
-    assert.deepEqual([m.occupation, m.occupation_group, m.ofw_status, m.ofw_country, m.ofw_since, m.ofw_returned],
-      ['Nurse', 'Health worker', 'Returned', 'Qatar', '2019', '2025']);
+    assert.deepEqual([m.occupation, m.occupation_group, m.ofw_status, m.ofw_since], ['Nurse', 'Health worker', 'Abroad', '2019']);
+    assert.ok(!('ofw_country' in m) && !('ofw_returned' in m), 'no country and no year home');
     // "Dili" is sent as a blank answer, which the server reads as "not an OFW".
-    const dili = portalPayload({ members: [{ id: 4, ofw_status: '', ofw_country: '' }] }).members[0];
+    const dili = portalPayload({ members: [{ id: 4, ofw_status: '' }] }).members[0];
     assert.equal(dili.ofw_status, null);
     assert.ok('ofw_status' in dili, 'the key is sent, so the server knows it was asked');
   });
@@ -259,11 +258,12 @@ describe('portal new members (0090)', () => {
   });
 
   test('a new member\'s occupation group and OFW answer, none they are too young for (0121)', () => {
-    const p = send(adult({ occupation: 'Seaman', occupationGroup: 'Seafarer', ofwStatus: 'Abroad', ofwCountry: 'At sea (seafarer)', ofwSince: '2024', ofwReturned: '2020' }));
-    assert.deepEqual([p.occupation, p.occupation_group, p.ofw_status, p.ofw_country, p.ofw_since, p.ofw_returned],
-      ['Seaman', 'Seafarer', 'Abroad', 'At sea (seafarer)', '2024', null]);
-    const kid = send(adult({ dob: `${new Date().getFullYear() - 12}-01-01`, civilStatus: 'Single', occupationGroup: 'Student', ofwStatus: 'Abroad', ofwCountry: 'Japan' }));
-    assert.deepEqual([kid.occupation_group, kid.ofw_status, kid.ofw_country], [null, null, null]);
+    const p = send(adult({ occupation: 'Seaman', occupationGroup: 'Seafarer', ofwStatus: 'Abroad', ofwSince: '2024' }));
+    assert.deepEqual([p.occupation, p.occupation_group, p.ofw_status, p.ofw_since], ['Seaman', 'Seafarer', 'Abroad', '2024']);
+    const home = send(adult({ ofwStatus: 'Returned', ofwSince: '2015' }));
+    assert.deepEqual([home.ofw_status, home.ofw_since], ['Returned', null], 'a contract year only abroad now');
+    const kid = send(adult({ dob: `${new Date().getFullYear() - 12}-01-01`, civilStatus: 'Single', occupationGroup: 'Student', ofwStatus: 'Abroad', ofwSince: '2024' }));
+    assert.deepEqual([kid.occupation_group, kid.ofw_status, kid.ofw_since], [null, null, null]);
   });
 
   test('the reviewer sees a new member\'s blood type labelled', () => {
@@ -363,15 +363,15 @@ describe('diffSubmission', () => {
 
   test('shows a change of occupation and OFW answer as old → new (0121)', () => {
     const d = diffSubmission({
-      before: { ...before, members: { 1: { ...before.members[1], occupation: 'Nurse', ofw_status: 'Abroad', ofw_country: 'Qatar', ofw_since: 2019, ofw_returned: null } } },
+      before: { ...before, members: { 1: { ...before.members[1], occupation: 'Nurse', ofw_status: 'Abroad', ofw_since: 2019 } } },
       proposed: {
         household: before.household,
-        members: [{ id: 1, fields: { ...before.members[1], occupation: 'Nurse', occupation_group: 'Health worker', ofw_status: 'Returned', ofw_country: 'Qatar', ofw_since: 2019, ofw_returned: 2026 } }],
+        members: [{ id: 1, fields: { ...before.members[1], occupation: 'Nurse', occupation_group: 'Health worker', ofw_status: 'Returned', ofw_since: null } }],
         newMembers: [],
       },
     });
     assert.deepEqual(d.members[0].changes.map((c) => [c.label, c.from, c.to]), [
-      ['Occupation group', null, 'Health worker'], ['OFW', 'Abroad', 'Returned'], ['OFW returned', null, '2026'],
+      ['Occupation group', null, 'Health worker'], ['OFW', 'Abroad', 'Returned'], ['OFW contract since', '2019', null],
     ]);
   });
 

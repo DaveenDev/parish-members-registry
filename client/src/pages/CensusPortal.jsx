@@ -5,7 +5,7 @@ import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GhostButton, S
 import CreditFooter from '../components/CreditFooter.jsx';
 import { useParishTitle } from './site/data.js';
 import MemberCensusCards from '../components/MemberCensusCards.jsx';
-import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationChecks, OccupationGroupField, OfwFields } from '../components/MemberFields.jsx';
+import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationChecks, WorkFields, WORK_COLUMNS, storedWork } from '../components/MemberFields.jsx';
 import { ofwLineBis, ofwYearErrors, occupationGroupBis } from '../lib/ofw.js';
 import { HEADS, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, PARTNERED_STATUSES, GKK_ROLES, fmtDate } from '../constants.js';
 import { familiesOf, familyHeadName, familyNoOf, samePerson, autoFill, askedForAge, toPayloadMember } from '../lib/household.js';
@@ -86,7 +86,7 @@ function formFrom(data) {
     members: data.members.map((m) => childDefaults({
       ...m,
       ...text(m, ['first_name', 'middle_name', 'last_name', 'suffix', 'relationship', 'sex', 'dob', 'civil_status', 'contact', 'notes',
-        'occupation', 'occupation_group', 'ofw_status', 'ofw_country', 'ofw_since', 'ofw_returned']),
+        'occupation', 'occupation_group', 'ofw_status', 'ofw_since']),
       status: m.status || '',
       participation: m.participation || {},
       statusPicked: !!m.status,
@@ -213,8 +213,8 @@ export default function CensusPortal() {
       setTimeout(() => document.querySelector('[data-census-status][aria-invalid=true]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
       return;
     }
-    // The OFW years (0121) of the members already on record.
-    const badOfw = form.members.find((m) => Object.keys(ofwYearErrors(portalOfw(m), { lang: 'bis' })).length);
+    // The OFW contract year (0121) of the members already on record.
+    const badOfw = form.members.find((m) => Object.keys(ofwYearErrors(storedWork(m), { lang: 'bis' })).length);
     if (badOfw) {
       setError(`Susiha ang tuig sa OFW ni ${[badOfw.first_name, badOfw.last_name].filter(Boolean).join(' ')}.`);
       return;
@@ -464,7 +464,7 @@ export default function CensusPortal() {
             <span className="text-[14.5px] leading-relaxed text-parish-text2">
               Nagtugot ako nga gamiton sa parokya kini nga impormasyon para sa rehistro sa mga miyembro, subay sa Data Privacy Act of 2012.
               Makita lamang kini sa awtorisadong kawani sa parokya. Lakip niini ang tipo sa dugo sa bag-ong miyembro, ug kon
-              adunay nagtrabaho sa gawas sa nasud (OFW): ang nasud ug sukad kanus-a.
+              adunay nagtrabaho sa gawas sa nasud (OFW): sukad kanus-a ang kontrata.
             </span>
           </label>
         </Card>
@@ -613,10 +613,6 @@ function MemberCard({ member: m, showStatusError = false, onChange }) {
   );
 }
 
-// A member on record's OFW answer as OfwFields takes it, and back (0121).
-const PORTAL_OFW_KEYS = { status: 'ofw_status', country: 'ofw_country', since: 'ofw_since', returned: 'ofw_returned' };
-const portalOfw = (m) => ({ status: m.ofw_status || '', country: m.ofw_country || '', since: m.ofw_since || '', returned: m.ofw_returned || '' });
-
 /**
  * A member on record's occupation and OFW answer (0121): shown as it is, so
  * the family confirms it each census, with "Usba" to change it (people
@@ -626,9 +622,9 @@ function WorkAndOfw({ m, onChange }) {
   const [open, setOpen] = useState(false);
   const asked = askedForAge(m.dob);
   const summary = [
-    m.occupation ? `Trabaho: ${m.occupation}` : 'Trabaho: wala pa narekord',
-    asked.occupationGroup && m.occupation_group && occupationGroupBis(m.occupation_group),
     asked.ofw && (ofwLineBis(m) || 'Dili OFW'),
+    asked.occupationGroup && m.occupation_group && occupationGroupBis(m.occupation_group),
+    m.occupation ? `Trabaho: ${m.occupation}` : 'Trabaho: wala pa narekord',
   ].filter(Boolean).join(' · ');
   return (
     <div className="mt-3 text-[13.5px] text-parish-text2">
@@ -640,10 +636,8 @@ function WorkAndOfw({ m, onChange }) {
         </button>
       </div>
       {open && (
-        <div className="grid gap-3 mt-3" style={GRID}>
-          <Field label="Trabaho"><TextInput placeholder="opsyonal" value={m.occupation} onChange={(e) => onChange({ occupation: e.target.value })} /></Field>
-          <OccupationGroupField dob={m.dob} value={m.occupation_group} onChange={(v) => onChange({ occupation_group: v })} />
-          <OfwFields dob={m.dob} value={portalOfw(m)} onChange={(k, v) => onChange({ [PORTAL_OFW_KEYS[k]]: v })} />
+        <div className="mt-3">
+          <WorkFields boxed={false} dob={m.dob} value={storedWork(m)} onChange={(k, v) => onChange({ [WORK_COLUMNS[k]]: v })} />
         </div>
       )}
     </div>

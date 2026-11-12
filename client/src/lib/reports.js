@@ -706,8 +706,8 @@ export function statsSections(stats, { blood = true, progress = null } = {}) {
     sections.push(
       t('OFW households', `${o.householdsAbroad} household(s) with a member abroad · ${o.membersAbroad} member(s) abroad · ${o.membersReturned} back home`,
         ['GKK', 'OFW households', 'Members abroad'], o.byGkk.map((g) => [g.gkk, g.households, g.members])),
-      t('OFWs by country', `${o.membersAbroad} abroad now, ${o.membersReturned} back home`,
-        ['Country', 'Abroad now', 'Back home'], o.byCountry.map((c) => [c.country, c.abroad, c.returned])),
+      t('OFWs by kind of work', `${o.membersAbroad} abroad now, by their occupation group`,
+        ['Kind of work', 'Members abroad'], o.byWork.map((w) => [w.label, w.members])),
     );
   }
   if (stats.occupations) {
@@ -773,20 +773,6 @@ export function ofwHouseholdsByGkkRows(households) {
   return { rows: [...byGkk.keys()].sort(byGkkLabel).map((k) => finish(byGkk.get(k))), total: finish(total) };
 }
 
-/** Countries of OFWs: members abroad now, then back home, most abroad first; "Not given" last. */
-export function ofwByCountryRows(members) {
-  const byCountry = new Map();
-  for (const m of members) {
-    if (!m.ofw_status) continue;
-    const key = blank(m.ofw_country) ? '' : String(m.ofw_country).trim();
-    if (!byCountry.has(key)) byCountry.set(key, { country: key || 'Not given', abroad: 0, returned: 0, none: !key });
-    byCountry.get(key)[isAbroad(m) ? 'abroad' : 'returned'] += 1;
-  }
-  return [...byCountry.values()]
-    .sort((a, b) => a.none - b.none || b.abroad - a.abroad || b.returned - a.returned || a.country.localeCompare(b.country))
-    .map(({ none, ...r }) => r);
-}
-
 /** OFWs abroad now by kind of work (their occupation group), with land- or sea-based. */
 export function ofwByWorkRows(members) {
   const abroad = members.filter(isAbroad);
@@ -823,20 +809,19 @@ export function familiesWithParentAbroad(members) {
   }
   return [...families.values()]
     .filter((f) => f.parents.length && f.children)
-    .map(({ rank, ...f }) => ({ ...f, abroad: f.parents.map((p) => `${personName(p)}${p.ofw_country ? ` (${p.ofw_country})` : ''}`).join('; ') }))
+    .map(({ rank, ...f }) => ({ ...f, abroad: f.parents.map((p) => `${personName(p)}${p.ofw_since ? ` (since ${p.ofw_since})` : ''}`).join('; ') }))
     .sort((a, b) => byGkkLabel(a.gkk, b.gkk) || String(a.household).localeCompare(String(b.household)));
 }
 
-/** Former OFWs back home, the latest home first. */
+/** Former OFWs back home, by GKK and name. */
 export function returnedOfwRows(members) {
   return members.filter((m) => m.ofw_status === 'Returned')
-    .sort((a, b) => (Number(b.ofw_returned) || 0) - (Number(a.ofw_returned) || 0) || personName(a).localeCompare(personName(b)));
+    .sort((a, b) => byGkkLabel(gkkOf(a), gkkOf(b)) || personName(a).localeCompare(personName(b)));
 }
 
 /**
- * OFW answers worth checking: abroad with no country, or a contract that
- * started over 15 years ago with no answer in the last 2 years (likely back
- * home). [{ m, issue }].
+ * OFW answers worth checking: abroad, with no answer in the last 2 years
+ * (likely back home by now); longest abroad first. [{ m, issue, line }].
  */
 export function ofwToCheck(members, today = new Date()) {
   const year = today.getFullYear();
@@ -844,13 +829,14 @@ export function ofwToCheck(members, today = new Date()) {
   const out = [];
   for (const m of members) {
     if (!isAbroad(m)) continue;
-    const issues = [];
-    if (blank(m.ofw_country)) issues.push('No country');
     const answered = m.ofw_updated_at ? new Date(`${String(m.ofw_updated_at).slice(0, 10)}T00:00`) : null;
-    if (m.ofw_since && year - Number(m.ofw_since) > 15 && (!answered || answered < twoYearsAgo)) issues.push('Abroad over 15 years, not confirmed in 2 years');
-    if (issues.length) out.push({ m, issue: issues.join('; '), line: ofwLine(m) });
+    if (answered && answered >= twoYearsAgo) continue;
+    const years = m.ofw_since ? year - Number(m.ofw_since) : null;
+    const issue = `Not confirmed in 2 years${years !== null && years > 15 ? `; abroad ${years} years` : ''}`;
+    out.push({ m, issue, line: ofwLine(m) });
   }
-  return out.sort((a, b) => byGkkLabel(gkkOf(a.m), gkkOf(b.m)) || personName(a.m).localeCompare(personName(b.m)));
+  return out.sort((a, b) => (Number(a.m.ofw_since) || 9999) - (Number(b.m.ofw_since) || 9999)
+    || byGkkLabel(gkkOf(a.m), gkkOf(b.m)) || personName(a.m).localeCompare(personName(b.m)));
 }
 
 /** Several tables in one CSV file: each section's title, its header and rows, then a blank line. */

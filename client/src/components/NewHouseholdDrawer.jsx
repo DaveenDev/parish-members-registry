@@ -22,7 +22,7 @@ import { useToast } from '../ToastContext.jsx';
 import { useConfirm } from './ConfirmDialog.jsx';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
-import { OccupationGroupField, OfwFields, OFW_FORM_KEYS, formOfw } from './MemberFields.jsx';
+import { WorkFields, WORK_FORM_KEYS, formWork } from './MemberFields.jsx';
 import { ofwFromForm, ofwLine, occupationGroupLabel, ofwYearErrors } from '../lib/ofw.js';
 
 // The same five steps as the public registration wizard, in English.
@@ -57,10 +57,9 @@ function memberErrors(m, { head = false } = {}) {
   if (!head) req.push(['relationship', 'Select the relationship to the head']);
   req.forEach(([k, msg]) => { if (!String(m[k] || '').trim()) fe[k] = msg; });
   if (m.email && !/.+@.+\..+/.test(m.email)) fe.email = 'Enter a valid email';
-  // The OFW years (0121); OfwFields shows the message under the field.
-  const ofwErr = ofwYearErrors({ status: m.ofwStatus, since: m.ofwSince, returned: m.ofwReturned });
+  // The OFW contract year (0121); WorkFields shows the message under the field.
+  const ofwErr = ofwYearErrors({ status: m.ofwStatus, since: m.ofwSince });
   if (ofwErr.since) fe.ofwSince = ofwErr.since;
-  if (ofwErr.returned) fe.ofwReturned = ofwErr.returned;
   return fe;
 }
 
@@ -531,8 +530,6 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
       </Field>
       <Field label="Contact number"><TextInput type="tel" placeholder="0917…" value={mv.contact} onChange={set('contact')} /></Field>
       <Field label="Email" error={mv.err.email}><TextInput type="email" placeholder="optional" value={mv.email} onChange={set('email')} /></Field>
-      <Field label="Occupation"><TextInput placeholder="optional" value={mv.occupation} onChange={set('occupation')} /></Field>
-      <OccupationGroupField lang="en" dob={mv.dob} value={mv.occupationGroup} onChange={(v) => onField(mv.mi, 'occupationGroup', v)} />
       <Field label="Religion">
         <Select value={mv.religion} onChange={set('religion')}>
           {RELIGIONS.map((r) => <option key={r} value={r}>{bis(RELIGION_LABELS, r)}</option>)}
@@ -546,7 +543,7 @@ function MemberFieldsGrid({ mv, onField, head = false }) {
           </Select>
         </Field>
       )}
-      <OfwFields lang="en" dob={mv.dob} value={formOfw(mv)} onChange={(k, v) => onField(mv.mi, OFW_FORM_KEYS[k], v)} />
+      <WorkFields lang="en" dob={mv.dob} value={formWork(mv)} onChange={(k, v) => onField(mv.mi, WORK_FORM_KEYS[k], v)} />
     </div>
   );
 }
@@ -978,8 +975,8 @@ function StepReview({ household, memberViews, status, volunteer, notifyOptin, co
               {[bis(RELATIONSHIP_LABELS, m.relationship), bis(SEX_LABELS, m.sex), bis(CIVIL_STATUS_LABELS, m.civilStatus), m.dob && `born ${fmtDate(m.dob)}`,
                 m.tribe && `Tribe: ${m.tribe}`, m.religion && m.religion !== 'Roman Catholic' && `Religion: ${bis(RELIGION_LABELS, m.religion)}`,
                 m.bloodType && `Blood: ${m.bloodType}`, askedForAge(m.dob).roles && m.gkkRole && `GKK: ${m.gkkRole}`, askedForAge(m.dob).roles && m.parishRole && `Parish: ${m.parishRole}`,
-                m.occupation && `Occupation: ${m.occupation}`, toPayloadMember(m).occupationGroup && occupationGroupLabel(m.occupationGroup),
-                ofwLine(ofwFromForm(toPayloadMember(m)))].filter(Boolean).join('  ·  ') || '—'}
+                ofwLine(ofwFromForm(toPayloadMember(m))), toPayloadMember(m).occupationGroup && occupationGroupLabel(m.occupationGroup),
+                m.occupation && `Occupation: ${m.occupation}`].filter(Boolean).join('  ·  ') || '—'}
             </div>
             {!!(m.organizations || []).length && (
               <div className="text-[13px] mb-1.5"><span className="text-parish-blue font-semibold">Organizations</span> <span className="text-parish-text2">{m.organizations.join(' · ')}</span></div>

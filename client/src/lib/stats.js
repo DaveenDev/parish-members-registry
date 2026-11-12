@@ -180,7 +180,8 @@ export function shapeOfw(o) {
     membersAbroad: num(o.members_abroad),
     membersReturned: num(o.members_returned),
     byGkk: (o.by_gkk || []).map((g) => ({ gkk: g.gkk || 'No GKK', households: num(g.households), members: num(g.members) })),
-    byCountry: (o.by_country || []).map((c) => ({ country: c.country, abroad: num(c.abroad), returned: num(c.returned) })),
+    // Members abroad now by kind of work (their occupation group).
+    byWork: (o.by_work || []).map((w) => ({ group: w.group || null, label: w.group ? occupationGroupLabel(w.group) : 'Not sorted or not given', members: num(w.members) })),
   };
 }
 
