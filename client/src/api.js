@@ -3,7 +3,7 @@
 // the admin pages and the public registration wizard already call, so this
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
-import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, parseAgeRange } from './constants.js';
+import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, OCCUPATION_GROUPS, OFW_STATUS_LABELS, parseAgeRange } from './constants.js';
 import { familiesOf, familyHeadName, familyTitle, familyBadges } from './lib/household.js';
 import { memberFullName, inDateRange, plainLetters } from './lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
@@ -2964,6 +2964,9 @@ function applyMemberFilters(q, params = {}) {
     parishRole = 'All',
     // A Practicing Catholic level (0017), e.g. 'Aktibo'.
     practice = 'All',
+    // 0121: 'Abroad', 'Returned' or 'Household' (in an OFW household); an
+    // occupation group, or 'Not sorted' (an occupation typed, no group yet).
+    ofw = 'All', occupation = 'All',
   } = params;
   const SACRAMENT_COLUMNS = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' };
 
@@ -2996,6 +2999,10 @@ function applyMemberFilters(q, params = {}) {
   }
 
   if (practice !== 'All') q = q.eq('practice_level', practice);
+  if (ofw === 'Abroad' || ofw === 'Returned') q = q.eq('ofw_status', ofw);
+  else if (ofw === 'Household') q = q.eq('household_ofw', true);
+  if (occupation === 'Not sorted') q = q.is('occupation_group', null).not('occupation', 'is', null).neq('occupation', '');
+  else if (OCCUPATION_GROUPS.includes(occupation)) q = q.eq('occupation_group', occupation);
   if (parishRole === 'Any') q = q.not('parish_role', 'is', null);
   else if (parishRole !== 'All') q = q.eq('parish_role', parishRole);
 
@@ -3014,7 +3021,8 @@ function applyMemberFilters(q, params = {}) {
 
   if (search && search.trim()) {
     const s = `%${search.trim()}%`;
-    q = q.or(`full_name.ilike.${s},household_name.ilike.${s},contact.ilike.${s}`);
+    // Also the occupation and the OFW country (0121).
+    q = q.or(`full_name.ilike.${s},household_name.ilike.${s},contact.ilike.${s},occupation.ilike.${s},ofw_country.ilike.${s}`);
   }
   return q;
 }
@@ -3123,6 +3131,11 @@ const MEMBER_CSV_COLUMNS = [
   { label: 'Contact', value: 'contact' },
   { label: 'Email', value: 'email' },
   { label: 'Occupation', value: 'occupation' },
+  { label: 'Occupation Group', value: 'occupation_group' },
+  { label: 'OFW', value: (r) => (r.ofw_status ? OFW_STATUS_LABELS[r.ofw_status] : '') },
+  { label: 'OFW Country', value: 'ofw_country' },
+  { label: 'OFW Since', value: (r) => r.ofw_since ?? '' },
+  { label: 'OFW Returned', value: (r) => r.ofw_returned ?? '' },
   { label: 'Blood Type', value: 'blood_type' },
   { label: 'GKK', value: 'household_gkk' },
   { label: 'Baptism', value: (r) => (r.has_baptism ? 'Yes' : 'No') },
@@ -3153,6 +3166,7 @@ const HOUSEHOLD_CSV_COLUMNS = [
   { label: 'Email', value: 'email' },
   { label: 'Members', value: 'member_count' },
   { label: 'Families', value: (r) => r.family_count ?? 1 },
+  { label: 'OFW Members Abroad', value: (r) => r.ofw_abroad_count ?? '' },
   { label: 'Status', value: 'status' },
   { label: 'Reference No.', value: 'ref_no' },
   ...PARTICIPATION_ITEMS.map(([key, label]) => ({ label, value: (r) => (r.participation || {})[key] || '' })),
@@ -3228,8 +3242,12 @@ const quotedList = (names) => `(${names.map((n) => `"${String(n).replace(/["\\]/
 // page can show the rows in groups; the chosen sort applies within a group.
 // Without it (the verification queue) the rows are in the chosen order alone.
 // family_grouping orders FG 1, FG 2 … FG 10 (family_grouping_no, 0057).
-function householdQuery(q, { status = 'All', gkk = 'All', gkkNames, search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir, groupBy } = {}) {
+function householdQuery(q, { status = 'All', gkk = 'All', gkkNames, search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir, groupBy, ofw = 'All' } = {}) {
   if (status !== 'All') q = q.eq('status', status);
+  // OFW households (0121): a current member abroad now; former OFW: none abroad, one back home.
+  if (ofw === 'abroad') q = q.gt('ofw_abroad_count', 0);
+  else if (ofw === 'returned') q = q.eq('ofw_abroad_count', 0).gt('ofw_returned_count', 0);
+  else if (ofw === 'none') q = q.eq('ofw_abroad_count', 0).eq('ofw_returned_count', 0);
   if (gkk !== 'All' && gkk !== NO_GKK) q = q.eq('gkk', gkk);
   if (ids) q = q.in('id', ids);
   // Either condition is an "or" of its own; with both, they go in one "and".

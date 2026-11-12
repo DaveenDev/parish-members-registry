@@ -14,6 +14,8 @@ import { HELP_WAYS, fmtDate, fmtDateTime, ageFromDob } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, VOLUNTEER_LABELS } from '../lib/bisaya.js';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
+import OfwBadge from './OfwBadge.jsx';
+import { ofwLine, occupationGroupLabel } from '../lib/ofw.js';
 
 const fullName = (m) => [m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ');
 
@@ -105,6 +107,8 @@ export default function HouseholdViewDrawer({ household: row, readOnly = false, 
             <p className="text-[13px] text-parish-muted m-0 flex items-center gap-2 flex-wrap">
               {h.status && <StatusPill status={h.status} />}
               {h.ref_no && <span>{h.ref_no}</span>}
+              {/* An OFW household (0121): a current member abroad now. */}
+              <OfwBadge count={(members || []).filter((m) => m.ofw_status === 'Abroad' && !['Moved away', 'Deceased'].includes(m.membership_status)).length} />
             </p>
             <p className="text-[12px] text-parish-muted m-0 mt-1">
               {[h.created_at && `Registered ${fmtDateTime(h.created_at, { time: false })}`,
@@ -211,7 +215,9 @@ function MemberCard({ member: m, census, householdParticipation, showBlood, onOp
   const more = [
     m.religion && m.religion !== 'Roman Catholic' && m.religion,
     m.tribe && `Tribe: ${m.tribe}`,
-    m.occupation,
+    // "Nurse (Health worker)": the occupation and its group (0121).
+    [m.occupation, m.occupation_group && (m.occupation ? `(${occupationGroupLabel(m.occupation_group)})` : occupationGroupLabel(m.occupation_group))]
+      .filter(Boolean).join(' '),
     showBlood && m.blood_type && `Blood: ${m.blood_type}`,
     m.contact, m.email,
   ].filter(Boolean).join(' · ');
@@ -230,6 +236,7 @@ function MemberCard({ member: m, census, householdParticipation, showBlood, onOp
       </div>
       {facts && <div className="text-[12.5px] text-parish-text2 mt-0.5">{facts}</div>}
       {more && <div className="text-[12.5px] text-parish-muted mt-0.5">{more}</div>}
+      {ofwLine(m) && <div className="text-[12.5px] text-parish-blue font-semibold mt-0.5">{ofwLine(m)}</div>}
       <dl className="m-0 mt-2 grid gap-x-3 gap-y-1 text-[12.5px]" style={{ gridTemplateColumns: 'minmax(96px,max-content) 1fr' }}>
         {sacramentLines(m).map(([label, detail]) => (
           <React.Fragment key={label}>
