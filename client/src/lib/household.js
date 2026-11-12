@@ -1,6 +1,6 @@
 import {
   PARTNERED_STATUSES, WEDDING_TYPES, HEAD, FAMILY_HEAD, ageFromDob,
-  COMMUNION_MIN_AGE, CONFIRMATION_MIN_AGE, MATRIMONY_MIN_AGE, ROLE_MIN_AGE,
+  COMMUNION_MIN_AGE, CONFIRMATION_MIN_AGE, MATRIMONY_MIN_AGE, ROLE_MIN_AGE, OCCUPATION_GROUP_MIN_AGE, OFW_MIN_AGE,
 } from '../constants.js';
 import { toNameCase, toSuffixCase } from './util.js';
 
@@ -249,6 +249,8 @@ export function askedForAge(dob, today = new Date()) {
     confirmation: from(CONFIRMATION_MIN_AGE),
     matrimony: from(MATRIMONY_MIN_AGE),
     roles: from(ROLE_MIN_AGE),
+    occupationGroup: from(OCCUPATION_GROUP_MIN_AGE),
+    ofw: from(OFW_MIN_AGE),
   };
 }
 
@@ -260,7 +262,20 @@ export function clearForAge(m, today = new Date()) {
   if (!asked.confirmation) Object.assign(out, { hasConfirmation: false, confDate: '', confChurch: '', confName: '', confSponsor: '' });
   if (!asked.matrimony) Object.assign(out, { hasMatrimony: false, matDate: '', matChurch: '', matType: '' });
   if (!asked.roles) Object.assign(out, { gkkRole: '', parishRole: '' });
-  return out;
+  if (!asked.occupationGroup) out.occupationGroup = '';
+  if (!asked.ofw) Object.assign(out, { ofwStatus: '', ofwCountry: '', ofwSince: '', ofwReturned: '' });
+  return clearOfwForAnswer(out);
+}
+
+/**
+ * The OFW fields as the answer allows (0121): "Dili" ('') clears them all,
+ * abroad now clears the year home. Keys as the forms keep them (blankMember()).
+ */
+export function clearOfwForAnswer(m) {
+  if (!('ofwStatus' in m)) return m;
+  if (!m.ofwStatus) return { ...m, ofwStatus: '', ofwCountry: '', ofwSince: '', ofwReturned: '' };
+  if (m.ofwStatus === 'Abroad') return { ...m, ofwReturned: '' };
+  return m;
 }
 
 // ---- weddings and spouses --------------------------------------------------

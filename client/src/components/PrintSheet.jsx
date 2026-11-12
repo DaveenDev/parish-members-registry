@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { verifiedText } from './VerifiedLine.jsx';
 import { formatAccessCode } from '../lib/census.js';
 import { CensusLinkBox } from './CensusPrintSheet.jsx';
+import { occupationGroupLabel, ofwLine } from '../lib/ofw.js';
 import { fmtDate, ageFromDob, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, HELP_WAYS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from '../lib/bisaya.js';
 import { familiesOf } from '../lib/household.js';
@@ -162,7 +163,7 @@ export default function PrintSheet({ data, parish: given }) {
 
 function HouseholdRecord({ data, parish }) {
   const { household: h, members = [], code } = data;
-  // GKK leaders don't see blood types (0050).
+  // Clergy don't see blood types (0087); GKK leaders see their GKK's (0120).
   const showBlood = can(useAuth().user, 'bloodTypes');
   const address = [h.street, h.barangay, h.city, h.province, h.zip].filter(Boolean).join(', ');
   return (
@@ -238,6 +239,9 @@ function HouseholdRecord({ data, parish }) {
               m.parish_role && `Parish: ${m.parish_role}`,
               showBlood && m.blood_type && `Blood: ${m.blood_type}`,
               m.contact,
+              // 0121: occupation (and its group) and the OFW answer, printed with the member.
+              [m.occupation, m.occupation_group && `(${occupationGroupLabel(m.occupation_group)})`].filter(Boolean).join(' '),
+              ofwLine(m),
             ].filter(Boolean).join('  ·  ')}
           </div>
           <table style={{ width: '100%', fontSize: 11, borderCollapse: 'collapse' }}>

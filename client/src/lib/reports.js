@@ -1,6 +1,9 @@
 // Summaries behind Reports → Generate Report's newer report types. Pure,
 // so they can be unit tested; api.generateReport fetches the rows.
-import { SACRAMENTS, HEAD, HEADS, COMMUNION_MIN_AGE, CONFIRMATION_MIN_AGE, GKK_ROLES, PARTICIPATION_ITEMS, LEGACY_MAT_TYPES } from '../constants.js';
+import {
+  SACRAMENTS, HEAD, HEADS, COMMUNION_MIN_AGE, CONFIRMATION_MIN_AGE, GKK_ROLES, PARTICIPATION_ITEMS, LEGACY_MAT_TYPES, OCCUPATION_GROUP_MIN_AGE,
+} from '../constants.js';
+import { occupationGroupLabel, ofwBase, ofwLine } from './ofw.js';
 import { inDateRange } from './util.js';
 import { CERT_OPEN } from './requests.js';
 import { toCsv } from './csv.js';
@@ -556,9 +559,12 @@ export const MISSING_FIELDS = [
   // The household's head is who the parish calls.
   { key: 'contact', label: 'Contact (household head)', test: (m) => blank(m.contact) && m.relationship === HEAD },
   { key: 'blood_type', label: 'Blood type', test: (m) => blank(m.blood_type), blood: true },
+  // 0121: members 15 and over (or with no birth date) with no occupation group;
+  // "Sort occupations" gives a group to the ones with an occupation typed.
+  { key: 'occupation_group', label: 'Occupation group', test: (m) => 'occupation_group' in m && blank(m.occupation_group) && !(m.age < OCCUPATION_GROUP_MIN_AGE) },
 ];
 
-/** Labels of what `m` is missing. `blood: false` leaves blood type out (GKK leaders can't see it). */
+/** Labels of what `m` is missing. `blood: false` leaves blood type out (for clergy, who can't see it). */
 export function missingDetails(m, { blood = true } = {}) {
   return MISSING_FIELDS.filter((f) => (blood || !f.blood) && f.test(m)).map((f) => f.label);
 }
@@ -694,7 +700,157 @@ export function statsSections(stats, { blood = true, progress = null } = {}) {
     sections.push(t('Blood types', `${stats.unknownBlood} member(s) have no blood type on file`,
       ['Blood type', 'Members'], stats.bloodCounts.map((b) => [b.label, b.n])));
   }
+  // 0121: none before that migration.
+  if (stats.ofw) {
+    const o = stats.ofw;
+    sections.push(
+      t('OFW households', `${o.householdsAbroad} household(s) with a member abroad · ${o.membersAbroad} member(s) abroad · ${o.membersReturned} back home`,
+        ['GKK', 'OFW households', 'Members abroad'], o.byGkk.map((g) => [g.gkk, g.households, g.members])),
+      t('OFWs by country', `${o.membersAbroad} abroad now, ${o.membersReturned} back home`,
+        ['Country', 'Abroad now', 'Back home'], o.byCountry.map((c) => [c.country, c.abroad, c.returned])),
+    );
+  }
+  if (stats.occupations) {
+    const oc = stats.occupations;
+    sections.push(t('Occupation groups', `Current members 15 and over · ${oc.notSorted} not sorted yet · ${oc.notGiven} not given`,
+      ['Occupation group', 'Members', 'Share'], oc.rows.map((r) => [r.label, r.members, r.share])));
+  }
   return sections;
+}
+
+// ---- OFW and occupation (0121) ------------------------------------------------------
+
+const isAbroad = (m) => m.ofw_status === 'Abroad';
+const PARENT_ROLES = ['Head of Household', 'Head of Family', 'Spouse', 'Father', 'Mother'];
+const isChild = (m) => m.age !== null && m.age !== undefined && m.age < 18;
+
+/**
+ * Members 15 and over (or with no birth date) by occupation group, split by
+ * sex, most first; then "Not sorted yet" (an occupation typed, no group) and
+ * "Not given". { rows: [{ label, male, female, total, share, kind }], total }.
+ */
+export function occupationRows(members) {
+  const groups = new Map();
+  let total = 0;
+  for (const m of members) {
+    if (m.age !== null && m.age !== undefined && m.age < OCCUPATION_GROUP_MIN_AGE) continue;
+    const kind = !blank(m.occupation_group) ? 'group' : !blank(m.occupation) ? 'unsorted' : 'none';
+    const key = kind === 'group' ? m.occupation_group : kind;
+    if (!groups.has(key)) {
+      groups.set(key, { label: kind === 'group' ? occupationGroupLabel(key) : kind === 'unsorted' ? 'Not sorted yet' : 'Not given', male: 0, female: 0, total: 0, kind });
+    }
+    const g = groups.get(key);
+    if (m.sex === 'Male') g.male += 1;
+    if (m.sex === 'Female') g.female += 1;
+    g.total += 1;
+    total += 1;
+  }
+  const order = { group: 0, unsorted: 1, none: 2 };
+  const rows = [...groups.values()].sort((a, b) => order[a.kind] - order[b.kind] || b.total - a.total || a.label.localeCompare(b.label));
+  return { rows: rows.map((r) => ({ ...r, share: share(r.total, total) })), total };
+}
+
+/**
+ * Per GKK: households, OFW households (a current member abroad now), their
+ * share, and the members abroad; then the total. From households_with_count
+ * rows ({ gkk, ofw_abroad_count }).
+ */
+export function ofwHouseholdsByGkkRows(households) {
+  const make = (label) => ({ label, households: 0, ofwHouseholds: 0, membersAbroad: 0 });
+  const byGkk = new Map();
+  const total = make('All GKKs');
+  for (const h of households) {
+    const key = h.gkk || NO_GKK;
+    if (!byGkk.has(key)) byGkk.set(key, make(key));
+    const n = Number(h.ofw_abroad_count) || 0;
+    for (const g of [byGkk.get(key), total]) {
+      g.households += 1;
+      if (n) g.ofwHouseholds += 1;
+      g.membersAbroad += n;
+    }
+  }
+  const finish = (g) => ({ ...g, share: share(g.ofwHouseholds, g.households) });
+  return { rows: [...byGkk.keys()].sort(byGkkLabel).map((k) => finish(byGkk.get(k))), total: finish(total) };
+}
+
+/** Countries of OFWs: members abroad now, then back home, most abroad first; "Not given" last. */
+export function ofwByCountryRows(members) {
+  const byCountry = new Map();
+  for (const m of members) {
+    if (!m.ofw_status) continue;
+    const key = blank(m.ofw_country) ? '' : String(m.ofw_country).trim();
+    if (!byCountry.has(key)) byCountry.set(key, { country: key || 'Not given', abroad: 0, returned: 0, none: !key });
+    byCountry.get(key)[isAbroad(m) ? 'abroad' : 'returned'] += 1;
+  }
+  return [...byCountry.values()]
+    .sort((a, b) => a.none - b.none || b.abroad - a.abroad || b.returned - a.returned || a.country.localeCompare(b.country))
+    .map(({ none, ...r }) => r);
+}
+
+/** OFWs abroad now by kind of work (their occupation group), with land- or sea-based. */
+export function ofwByWorkRows(members) {
+  const abroad = members.filter(isAbroad);
+  const byGroup = new Map();
+  for (const m of abroad) {
+    const key = blank(m.occupation_group) ? '' : m.occupation_group;
+    if (!byGroup.has(key)) {
+      byGroup.set(key, { label: key ? occupationGroupLabel(key) : blank(m.occupation) ? 'Not given' : 'Not sorted yet', base: key ? ofwBase(key) : '—', members: 0, none: !key });
+    }
+    byGroup.get(key).members += 1;
+  }
+  const rows = [...byGroup.values()]
+    .sort((a, b) => a.none - b.none || b.members - a.members || a.label.localeCompare(b.label))
+    .map(({ none, ...r }) => ({ ...r, share: share(r.members, abroad.length) }));
+  return { rows, total: abroad.length, seaBased: abroad.filter((m) => ofwBase(m.occupation_group) === 'Sea-based').length };
+}
+
+/**
+ * Families with a parent abroad: per family (household and family number),
+ * the Head, Spouse, Father or Mother abroad now, and the children under 18
+ * in that family. Only families with children. By GKK, then household.
+ */
+export function familiesWithParentAbroad(members) {
+  const families = new Map();
+  for (const m of members) {
+    const key = `${m.household_id}:${m.family_no || 1}`;
+    if (!families.has(key)) families.set(key, { household: m.household_name, gkk: m.household_gkk || NO_GKK, parents: [], children: 0, contact: '', rank: 9 });
+    const f = families.get(key);
+    if (isAbroad(m) && PARENT_ROLES.includes(m.relationship)) f.parents.push(m);
+    if (isChild(m)) f.children += 1;
+    // Who to call at home: the family head, else the spouse, else another adult there.
+    const rank = HEADS.includes(m.relationship) ? 0 : m.relationship === 'Spouse' ? 1 : isChild(m) ? 9 : 2;
+    if (!isAbroad(m) && !blank(m.contact) && rank < f.rank) Object.assign(f, { contact: m.contact, rank });
+  }
+  return [...families.values()]
+    .filter((f) => f.parents.length && f.children)
+    .map(({ rank, ...f }) => ({ ...f, abroad: f.parents.map((p) => `${personName(p)}${p.ofw_country ? ` (${p.ofw_country})` : ''}`).join('; ') }))
+    .sort((a, b) => byGkkLabel(a.gkk, b.gkk) || String(a.household).localeCompare(String(b.household)));
+}
+
+/** Former OFWs back home, the latest home first. */
+export function returnedOfwRows(members) {
+  return members.filter((m) => m.ofw_status === 'Returned')
+    .sort((a, b) => (Number(b.ofw_returned) || 0) - (Number(a.ofw_returned) || 0) || personName(a).localeCompare(personName(b)));
+}
+
+/**
+ * OFW answers worth checking: abroad with no country, or a contract that
+ * started over 15 years ago with no answer in the last 2 years (likely back
+ * home). [{ m, issue }].
+ */
+export function ofwToCheck(members, today = new Date()) {
+  const year = today.getFullYear();
+  const twoYearsAgo = new Date(today.getTime() - 2 * 365.25 * DAY);
+  const out = [];
+  for (const m of members) {
+    if (!isAbroad(m)) continue;
+    const issues = [];
+    if (blank(m.ofw_country)) issues.push('No country');
+    const answered = m.ofw_updated_at ? new Date(`${String(m.ofw_updated_at).slice(0, 10)}T00:00`) : null;
+    if (m.ofw_since && year - Number(m.ofw_since) > 15 && (!answered || answered < twoYearsAgo)) issues.push('Abroad over 15 years, not confirmed in 2 years');
+    if (issues.length) out.push({ m, issue: issues.join('; '), line: ofwLine(m) });
+  }
+  return out.sort((a, b) => byGkkLabel(gkkOf(a.m), gkkOf(b.m)) || personName(a.m).localeCompare(personName(b.m)));
 }
 
 /** Several tables in one CSV file: each section's title, its header and rows, then a blank line. */

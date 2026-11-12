@@ -14,6 +14,7 @@ import { statsSections, sectionsCsv, registrationProgress, AGE_GROUPS, MISSING_F
 import { vsLastYearBaseline } from '../../lib/census.js';
 import { SACRAMENTS } from '../../constants.js';
 import { FamilyHeading } from '../../components/FamilyGroups.jsx';
+import SortOccupations from '../../components/SortOccupations.jsx';
 
 function Bar({ label, right, w, color }) {
   return (
@@ -136,6 +137,8 @@ const REPORTS = {
       'By civil status': R(['gkk']),
       'By tribe': R(['gkk']),
       'By religion': R(['gkk']),
+      // 0121: members 15 and over by occupation group.
+      'By occupation': R(['gkk']),
       Deceased: R(['gkk', 'dates'], { date: 'Status recorded' }),
       'Moved away or left the Church': R(['gkk', 'dates'], { date: 'Status recorded' }),
     },
@@ -152,6 +155,17 @@ const REPORTS = {
     },
   },
   Families: { types: { 'By GKK': R(['gkk']), 'Households with more than one family': R(['gkk']) } },
+  // 0121: OFW households and members, for everyone with Reports (a GKK leader: their GKK).
+  OFW: {
+    types: {
+      'OFW households by GKK': R(['gkk']),
+      'OFW members by country': R(['gkk']),
+      'OFWs by kind of work': R(['gkk']),
+      'Families with a parent abroad': R(['gkk']),
+      'Returned OFWs': R(['gkk']),
+      'OFW details to check': R(['gkk']),
+    },
+  },
   Sacraments: {
     types: {
       'Verification progress by GKK': R(['gkk']),
@@ -287,6 +301,14 @@ export default function Reports() {
   const has = (c) => !!spec?.controls.includes(c);
   const sources = Object.keys(REPORTS).filter((k) => !REPORTS[k].need || can(user, REPORTS[k].need));
   const missingOptions = MISSING_FIELDS.filter((f) => !f.blood || can(user, 'bloodTypes'));
+  // Reports → Sort occupations (0121): whoever edits the registry (Full access; a GKK leader for their GKK).
+  const [sorting, setSorting] = useState(false);
+  const canSort = can(user, 'editRegistry');
+  const sortButton = canSort && (
+    <button type="button" onClick={() => setSorting(true)} className="appearance-none border-none cursor-pointer px-3.5 py-2 font-semibold text-[12.5px] text-parish-blue bg-[var(--p-blue-tint)] rounded-lg">
+      Sort occupations
+    </button>
+  );
 
   return (
     <>
@@ -384,6 +406,59 @@ export default function Reports() {
                   {stats.participation.map((p) => <Bar key={p.label} label={p.label} right={p.n} w={p.w} color={p.color} />)}
                 </div>
               </Panel>
+
+              {stats.ofw && (
+                <Panel className="px-4 py-[18px] sm:px-6 sm:py-[22px]">
+                  <div className="flex items-baseline justify-between gap-x-3 gap-y-0.5 mb-1 flex-wrap">
+                    <div className="font-serif text-[21px] font-semibold text-parish-navy">OFW Households</div>
+                    <div className="text-[13px] text-parish-muted">
+                      {stats.ofw.householdsAbroad} household(s) with a member abroad · {stats.ofw.membersAbroad} member(s) abroad · {stats.ofw.membersReturned} back home
+                    </div>
+                  </div>
+                  <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>
+                    Households with a current member working abroad now (OFW), per GKK, and the countries where they work. {stats.ofw.householdsReturned} more household(s) have only former OFWs back home. Never shown on the website.
+                  </p>
+                  {stats.ofw.membersAbroad || stats.ofw.membersReturned ? (
+                    <TwoColumns>
+                      {(() => {
+                        const most = Math.max(1, ...stats.ofw.byGkk.map((g) => g.households));
+                        return stats.ofw.byGkk.map((g) => (
+                          <Bar key={g.gkk} label={g.gkk} right={`${g.households} household(s) · ${g.members} abroad`} w={`${Math.round((g.households / most) * 100)}%`}
+                            color="linear-gradient(90deg,var(--p-blue),var(--p-blue-light))" />
+                        ));
+                      })()}
+                    </TwoColumns>
+                  ) : <div className="text-[13.5px] text-parish-muted">No OFW recorded yet. Families answer the OFW question on the registration form and the census; staff in the member window.</div>}
+                  {stats.ofw.byCountry.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-4">
+                      {stats.ofw.byCountry.slice(0, 5).map((c) => (
+                        <span key={c.country} className="font-semibold text-[12.5px] bg-[var(--p-blue-tint)] text-parish-blue px-3.5 py-1.5 rounded-full">
+                          {c.country} · {c.abroad}{c.returned ? ` (+${c.returned} back home)` : ''}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </Panel>
+              )}
+
+              {stats.occupations && (
+                <Panel className="px-4 py-[18px] sm:px-6 sm:py-[22px]">
+                  <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
+                    <div className="font-serif text-[21px] font-semibold text-parish-navy">Occupation Groups</div>
+                    {sortButton}
+                  </div>
+                  <p className="text-[13px] text-parish-muted mb-[18px]" style={{ marginBottom: '18px' }}>
+                    Current members 15 and over by the group of their work. {stats.occupations.notSorted} have an occupation typed but no group yet
+                    {canSort ? ' (Sort occupations gives them one)' : ''}; {stats.occupations.notGiven} gave none.
+                  </p>
+                  <TwoColumns>
+                    {stats.occupations.rows.map((r) => (
+                      <Bar key={r.label} label={r.label} right={`${r.members} · ${r.share}`} w={r.w}
+                        color={r.group ? 'linear-gradient(90deg,#2f7a52,#5fae84)' : 'rgb(var(--c-chip))'} />
+                    ))}
+                  </TwoColumns>
+                </Panel>
+              )}
 
               {can(user, 'bloodTypes') && <Panel className="px-4 py-[18px] sm:px-6 sm:py-[22px]">
                 <div className="flex items-center justify-between gap-3 flex-wrap mb-1">
@@ -518,7 +593,10 @@ export default function Reports() {
                   </div>
                 )}
 
-                <PrimaryButton onClick={generate} disabled={!spec || generating || (has('group') && !scope.group)} className="px-[22px] py-2.5 text-[14px]">{generating ? 'Generating…' : 'Generate Report'}</PrimaryButton>
+                <div className="flex items-center gap-3 flex-wrap">
+                  <PrimaryButton onClick={generate} disabled={!spec || generating || (has('group') && !scope.group)} className="px-[22px] py-2.5 text-[14px]">{generating ? 'Generating…' : 'Generate Report'}</PrimaryButton>
+                  {((genSource === 'Data quality' && genType === 'Members with missing details') || (genSource === 'Members' && genType === 'By occupation')) && sortButton}
+                </div>
               </Panel>
 
               {report && (
@@ -569,6 +647,7 @@ export default function Reports() {
             </div>
           )}
         </div>
+        {sorting && <SortOccupations gkk={leaderGkk(user) || 'All'} onClose={() => setSorting(false)} onSorted={reloadStats} />}
       </PageBody>
       {tab === 'gen' && <ReportPrintSheet report={report} parish={layout?.parish} />}
       {tab === 'stats' && <ReportPrintSheet report={statsReport} parish={layout?.parish} />}

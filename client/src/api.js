@@ -3,7 +3,7 @@
 // the admin pages and the public registration wizard already call, so this
 // file is the only thing that changed for the Supabase migration.
 import { supabase } from './lib/supabaseClient.js';
-import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, parseAgeRange } from './constants.js';
+import { PARTICIPATION_ITEMS, HELP_WAYS, SACRAMENTS, BLOOD_TYPES, OCCUPATION_GROUPS, OFW_STATUS_LABELS, parseAgeRange } from './constants.js';
 import { familiesOf, familyHeadName, familyTitle, familyBadges } from './lib/household.js';
 import { memberFullName, inDateRange, plainLetters } from './lib/util.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS, WEDDING_TYPE_LABELS } from './lib/bisaya.js';
@@ -16,7 +16,9 @@ import {
   candidatesByGkk, churchWeddingCandidates, unbaptizedChildren, sacramentsByYear, AGE_GROUPS, inAgeGroup, ageSexRows, breakdownRows, celebrationsInMonth, statusChanges,
   waitingForVerification, helpWayLabel, volunteerPool, verificationsByStaff, groupMakeupRows, busyMembers, gkkOfficerRows, parishRoleRows,
   requestOutcomeRows, feesByMonth, byGkk, peso, missingDetails, dataQualityByGkk, householdProblems, censusComparisonRows,
+  occupationRows, ofwHouseholdsByGkkRows, ofwByCountryRows, ofwByWorkRows, familiesWithParentAbroad, returnedOfwRows, ofwToCheck,
 } from './lib/reports.js';
+import { occupationGroupLabel } from './lib/ofw.js';
 import { certTypeLabel, sacramentRequestLabel, SACRAMENT_REQUEST_OPEN, BLOOD_OPEN } from './lib/requests.js';
 import { addDays, ANNOUNCEMENT_DAYS, todayIso } from './lib/website.js';
 import { MEN_ONLY_FALLBACK, menOnlyBlocked, menOnlyMessage } from './lib/ministries.js';
@@ -86,7 +88,8 @@ const isMissingTable = (error) => ['42P01', 'PGRST205'].includes(error?.code);
 
 /**
  * Blood types (member_blood_types, 0062) onto rows read from the members
- * table, which no longer has them. A GKK leader reads none. Before 0062 the
+ * table, which no longer has them. Clergy read none; a GKK leader their
+ * GKK's (0120). Before 0062 the
  * rows still carry their own.
  */
 async function attachBloodTypes(members) {
@@ -539,7 +542,8 @@ export const api = {
     const { blood_type: blood, ...fields } = patch;
     let bloodSaved = false;
     if ('blood_type' in patch) {
-      // Blood types have their own table (0062) that GKK leaders can't reach;
+      // Blood types have their own table (0062), which GKK leaders write for
+      // their GKK's members since 0120;
       // before that migration they're still a member column.
       bloodSaved = await saveMemberBloodType(id, blood);
       if (!bloodSaved) fields.blood_type = blood;
@@ -2116,6 +2120,53 @@ export const api = {
     if (row) return row.summary || [];
     return api.liveCensusSummary(cycleId);
   },
+  /**
+   * OFW households and members abroad per GKK for a census (0121): what was
+   * kept when it closed (census_results.ofw), else today's from the
+   * registry. { byGkk: Map(gkk → { households, members }), total } with
+   * null values for a census closed before 0121; null before the migration.
+   */
+  async censusOfw(cycleId) {
+    try {
+      const { data: kept, error } = await supabase.from('census_results').select('gkk, ofw').eq('cycle_id', cycleId);
+      if (!error && kept?.length) {
+        const total = kept.find((r) => r.gkk == null) || (kept.length === 1 ? kept[0] : null);
+        return { byGkk: new Map(kept.filter((r) => r.gkk != null).map((r) => [r.gkk, r.ofw || null])), total: total?.ofw || null };
+      }
+      const list = await fetchAll(() => supabase.from('households_with_count').select('id, gkk, ofw_abroad_count').order('id'));
+      const { rows, total } = ofwHouseholdsByGkkRows(list);
+      const shape = (r) => ({ households: r.ofwHouseholds, members: r.membersAbroad });
+      return { byGkk: new Map(rows.map((r) => [r.label, shape(r)])), total: shape(total) };
+    } catch {
+      return null;
+    }
+  },
+  /**
+   * Reports → Sort occupations (0121): current members with an occupation
+   * typed and no occupation group yet, in one GKK unless `gkk` is 'All'.
+   */
+  async unsortedOccupationMembers({ gkk = 'All' } = {}) {
+    return fetchAll(() => {
+      let q = supabase.from('members_with_household').select('id, occupation, occupation_group, household_gkk')
+        .eq('is_current', true).is('occupation_group', null).not('occupation', 'is', null).neq('occupation', '');
+      if (gkk && gkk !== 'All') q = q.eq('household_gkk', gkk);
+      return q.order('id');
+    });
+  },
+  /** Give these members an occupation group (each change is logged, as any member edit). Returns how many changed. */
+  async setOccupationGroup(memberIds, group) {
+    if (!OCCUPATION_GROUPS.includes(group)) throw new Error('Choose an occupation group from the list');
+    if (!memberIds?.length) return 0;
+    let changed = 0;
+    // A few hundred ids at a time, to keep the request short.
+    for (let i = 0; i < memberIds.length; i += 200) {
+      const { data, error } = await supabase.from('members').update({ occupation_group: group })
+        .in('id', memberIds.slice(i, i + 200)).is('occupation_group', null).select('id');
+      if (error) throw mapError(error);
+      changed += data.length;
+    }
+    return changed;
+  },
   /** census_summary() rows worked out from the registry now, kept results or not. */
   async liveCensusSummary(cycleId) {
     const { data, error } = await supabase.rpc('census_summary', { p_cycle_id: cycleId });
@@ -2266,13 +2317,17 @@ export const api = {
   async censusPrintData({ gkk, householdIds, withCodes = true }) {
     const memberCols = 'id, household_id, family_no, first_name, middle_name, last_name, suffix, relationship, dob, civil_status, '
       + 'has_baptism, has_communion, has_confirmation, has_matrimony';
+    // 0121: occupation and the OFW answer, printed for the family to check.
+    const ofwCols = ', occupation, occupation_group, ofw_status, ofw_country, ofw_since, ofw_returned';
     const scope = (q, idCol, gkkCol) => {
       if (householdIds) return q.in(idCol, householdIds);
       return gkk === 'None' ? q.is(gkkCol, null) : q.eq(gkkCol, gkk);
     };
+    const membersQuery = (cols) => fetchAll(() => scope(supabase.from('members_with_household').select(cols).eq('is_current', true), 'household_id', 'household_gkk').order('id'));
     const [households, members] = await Promise.all([
       fetchAll(() => scope(supabase.from('households').select('*'), 'id', 'gkk').order('household_name').order('id')),
-      fetchAll(() => scope(supabase.from('members_with_household').select(memberCols).eq('is_current', true), 'household_id', 'household_gkk').order('id')),
+      // Before 0121 the view has no OFW columns: print without them.
+      membersQuery(memberCols + ofwCols).catch((e) => (/ofw_|occupation_group/.test(e?.message || '') ? membersQuery(memberCols) : Promise.reject(e))),
     ]);
     // Online access codes (0008), unless the caller leaves them out. Without that
     // migration the forms print without them.
@@ -2456,22 +2511,38 @@ export const api = {
         return table(`${cycle?.label || 'Census'}: not yet registered`, meta, list.columns, list.rows);
       }
       if (type === 'Results by GKK') {
-        const sum = summarizeCensus(await api.censusSummary(cycleId));
-        const row = (r) => [r.label, ...sum.columns.map((c) => r.counts[c]), r.total, `${r.pct}%`];
+        const [summaryRows, ofw] = await Promise.all([api.censusSummary(cycleId), api.censusOfw(cycleId)]);
+        const sum = summarizeCensus(summaryRows);
+        // OFW households (0121): kept with a closed census, today's for an open one.
+        const ofwOf = (label) => ofw?.byGkk.get(label)?.households;
+        const ofwTotal = ofw && sum.rows.every((r) => ofwOf(r.label) != null) ? sum.rows.reduce((n, r) => n + ofwOf(r.label), 0) : ofw?.total?.households;
+        const row = (r, isTotal) => [r.label, ...sum.columns.map((c) => r.counts[c]), r.total, `${r.pct}%`,
+          ...(ofw ? [(isTotal ? ofwTotal : ofwOf(r.label)) ?? '—'] : [])];
         return table(`${cycle?.label || 'Census'} — results by GKK`, `${sum.total.total} member(s)`,
-          ['GKK', ...sum.columns, 'Total', 'Confirmed %'], sum.rows.length ? [...sum.rows.map(row), row(sum.total)] : []);
+          ['GKK', ...sum.columns, 'Total', 'Confirmed %', ...(ofw ? ['OFW households'] : [])], sum.rows.length ? [...sum.rows.map((r) => row(r)), row(sum.total, true)] : []);
       }
       if (type === 'Compared with the census before') {
         const before = cycle && previousCensus(cycles, cycle);
         if (!before) return table(`${cycle?.label || 'Census'} — compared with the census before`, 'There is no earlier census to compare with', [], []);
         const scoped = (rows) => (gkk === 'All' ? rows : rows.filter((r) => r.gkk === gkk));
-        const [prev, cur] = await Promise.all([api.censusSummary(before.id), api.censusSummary(cycleId)]);
+        const [prev, cur, prevOfw, curOfw] = await Promise.all([
+          api.censusSummary(before.id), api.censusSummary(cycleId), api.censusOfw(before.id), api.censusOfw(cycleId)]);
         const { rows, total } = censusComparisonRows(summarizeCensus(scoped(prev)), summarizeCensus(scoped(cur)));
-        const line = (r) => [r.label, r.before, r.now, r.change > 0 ? `+${r.change}` : r.change, r.deceased, r.movedAway, r.left, r.notConfirmed];
+        // The change in OFW households (0121), where both censuses have the number.
+        const ofwChange = (label, isTotal) => {
+          const pick = (o) => (isTotal && gkk === 'All' ? o?.total : o?.byGkk.get(isTotal ? gkk : label))?.households;
+          const a = pick(prevOfw);
+          const b = pick(curOfw);
+          return a == null || b == null ? '—' : `${a} → ${b} (${b - a > 0 ? '+' : ''}${b - a})`;
+        };
+        const withOfw = !!(prevOfw && curOfw);
+        const line = (r, isTotal) => [r.label, r.before, r.now, r.change > 0 ? `+${r.change}` : r.change, r.deceased, r.movedAway, r.left, r.notConfirmed,
+          ...(withOfw ? [ofwChange(r.label, isTotal)] : [])];
         return table(`${cycle.label} — compared with ${before.label}`,
           `Members counted (confirmed and still in the parish): ${total.before} in ${before.label}, ${total.now} in ${cycle.label}${where}`,
-          ['GKK', `Counted in ${before.label}`, `Counted in ${cycle.label}`, 'Change', 'Deceased', 'Moved away', 'Left the Church', 'Not confirmed yet'],
-          rows.length ? [...rows.map(line), ...(rows.length > 1 ? [line(total)] : [])] : []);
+          ['GKK', `Counted in ${before.label}`, `Counted in ${cycle.label}`, 'Change', 'Deceased', 'Moved away', 'Left the Church', 'Not confirmed yet',
+            ...(withOfw ? ['OFW households'] : [])],
+          rows.length ? [...rows.map((r) => line(r)), ...(rows.length > 1 ? [line(total, true)] : [])] : []);
       }
       // Members not confirmed in the chosen census (not always the latest one).
       const [list, confirmed] = await Promise.all([
@@ -2598,6 +2669,48 @@ export const api = {
         rows.map(({ m, missing: miss }) => [personName(m), m.household_name, m.household_gkk || '—', bis(RELATIONSHIP_LABELS, m.relationship) || '—', m.age ?? '—', miss.join(', ')]));
     }
 
+    // ---- OFW (0121): households with a member abroad, and the members ----
+    if (source === 'OFW') {
+      if (type === 'OFW households by GKK') {
+        const list = await fetchAll(() => householdQuery(supabase.from('households_with_count').select('id, gkk, ofw_abroad_count'), { gkk, sortKey: 'name', sortDir: 'asc' }));
+        const { rows, total } = ofwHouseholdsByGkkRows(list);
+        const line = (r) => [r.label, r.households, r.ofwHouseholds, r.share, r.membersAbroad];
+        return table('OFW households by GKK', `${total.ofwHouseholds} of ${total.households} household(s) have a member abroad now${where}`,
+          ['GKK', 'Households', 'OFW households', 'Share', 'Members abroad'], rows.length ? [...rows.map(line), ...(rows.length > 1 ? [line(total)] : [])] : []);
+      }
+      const list = await members();
+      const ofwCells = (m) => [personName(m), m.household_name, m.household_gkk || '—', m.age ?? '—'];
+      if (type === 'OFW members by country') {
+        const rows = ofwByCountryRows(list);
+        const abroad = rows.reduce((n, r) => n + r.abroad, 0);
+        return table('OFW members by country', `${abroad} abroad now, ${rows.reduce((n, r) => n + r.returned, 0)} back home${where}`,
+          ['Country', 'Abroad now', 'Back home'], rows.map((r) => [r.country, r.abroad, r.returned]));
+      }
+      if (type === 'OFWs by kind of work') {
+        const { rows, total, seaBased } = ofwByWorkRows(list);
+        return table('OFWs by kind of work', `${total} abroad now: ${seaBased} sea-based, ${total - seaBased} land-based${where}`,
+          ['Kind of work', 'Land / sea', 'Members abroad', 'Share'], rows.map((r) => [r.label, r.base, r.members, r.share]));
+      }
+      if (type === 'Families with a parent abroad') {
+        const rows = familiesWithParentAbroad(list);
+        return table('Families with a parent abroad', `${rows.length} famil${rows.length === 1 ? 'y' : 'ies'} with children under 18 and a parent abroad now${where}`,
+          ['Household', 'GKK', 'Abroad', 'Children under 18', 'Contact at home'], rows.map((f) => [f.household, f.gkk, f.abroad, f.children, f.contact || '—']));
+      }
+      if (type === 'Returned OFWs') {
+        const rows = returnedOfwRows(list);
+        return table('Former OFWs back home', `${rows.length} member(s)${where}`,
+          ['Name', 'Household', 'GKK', 'Age', 'Last country', 'Last contract', 'Came home', 'Occupation', 'Contact'],
+          rows.map((m) => [...ofwCells(m), m.ofw_country || '—', m.ofw_since || '—', m.ofw_returned || '—',
+            [m.occupation, m.occupation_group && `(${occupationGroupLabel(m.occupation_group)})`].filter(Boolean).join(' ') || '—', m.contact || '—']));
+      }
+      if (type === 'OFW details to check') {
+        const rows = ofwToCheck(list);
+        return table('OFW details to check', `${rows.length} member(s) abroad whose answer may be out of date${where}`,
+          ['Name', 'Household', 'GKK', 'Age', 'Recorded', 'Answered on', 'To check'],
+          rows.map(({ m, issue, line }) => [...ofwCells(m), line, m.ofw_updated_at ? date(m.ofw_updated_at) : '—', issue]));
+      }
+    }
+
     if (source === 'Members') {
       if (type === 'Deceased' || type === 'Moved away or left the Church') {
         const statuses = type === 'Deceased' ? ['Deceased'] : ['Moved away', 'Left the Church'];
@@ -2613,6 +2726,11 @@ export const api = {
         const line = (r) => [r.label, r.male, r.female, r.other, r.total, r.share];
         return table('Members by age and sex', `${total.total} current member(s)${where}`,
           ['Age', 'Male', 'Female', 'Sex not recorded', 'Total', 'Share'], total.total ? [...rows.map(line), line(total)] : []);
+      }
+      if (type === 'By occupation') {
+        const { rows, total } = occupationRows(list);
+        return table('Members by occupation', `Current members 15 and over (or with no birth date): ${total}${where}`,
+          ['Occupation group', 'Male', 'Female', 'Total', 'Share'], rows.map((r) => [r.label, r.male, r.female, r.total, r.share]));
       }
       const BREAKDOWNS = {
         'By civil status': ['civil_status', 'Civil status', { adultsOnly: true, label: (v) => bis(CIVIL_STATUS_LABELS, v) }, 'Members 18 and up (or with no birth date)'],
@@ -2958,6 +3076,9 @@ function applyMemberFilters(q, params = {}) {
     parishRole = 'All',
     // A Practicing Catholic level (0017), e.g. 'Aktibo'.
     practice = 'All',
+    // 0121: 'Abroad', 'Returned' or 'Household' (in an OFW household); an
+    // occupation group, or 'Not sorted' (an occupation typed, no group yet).
+    ofw = 'All', occupation = 'All',
   } = params;
   const SACRAMENT_COLUMNS = { Baptism: 'has_baptism', Communion: 'has_communion', Confirmation: 'has_confirmation', Matrimony: 'has_matrimony' };
 
@@ -2990,6 +3111,10 @@ function applyMemberFilters(q, params = {}) {
   }
 
   if (practice !== 'All') q = q.eq('practice_level', practice);
+  if (ofw === 'Abroad' || ofw === 'Returned') q = q.eq('ofw_status', ofw);
+  else if (ofw === 'Household') q = q.eq('household_ofw', true);
+  if (occupation === 'Not sorted') q = q.is('occupation_group', null).not('occupation', 'is', null).neq('occupation', '');
+  else if (OCCUPATION_GROUPS.includes(occupation)) q = q.eq('occupation_group', occupation);
   if (parishRole === 'Any') q = q.not('parish_role', 'is', null);
   else if (parishRole !== 'All') q = q.eq('parish_role', parishRole);
 
@@ -3008,7 +3133,8 @@ function applyMemberFilters(q, params = {}) {
 
   if (search && search.trim()) {
     const s = `%${search.trim()}%`;
-    q = q.or(`full_name.ilike.${s},household_name.ilike.${s},contact.ilike.${s}`);
+    // Also the occupation and the OFW country (0121).
+    q = q.or(`full_name.ilike.${s},household_name.ilike.${s},contact.ilike.${s},occupation.ilike.${s},ofw_country.ilike.${s}`);
   }
   return q;
 }
@@ -3117,6 +3243,11 @@ const MEMBER_CSV_COLUMNS = [
   { label: 'Contact', value: 'contact' },
   { label: 'Email', value: 'email' },
   { label: 'Occupation', value: 'occupation' },
+  { label: 'Occupation Group', value: 'occupation_group' },
+  { label: 'OFW', value: (r) => (r.ofw_status ? OFW_STATUS_LABELS[r.ofw_status] : '') },
+  { label: 'OFW Country', value: 'ofw_country' },
+  { label: 'OFW Since', value: (r) => r.ofw_since ?? '' },
+  { label: 'OFW Returned', value: (r) => r.ofw_returned ?? '' },
   { label: 'Blood Type', value: 'blood_type' },
   { label: 'GKK', value: 'household_gkk' },
   { label: 'Baptism', value: (r) => (r.has_baptism ? 'Yes' : 'No') },
@@ -3147,6 +3278,7 @@ const HOUSEHOLD_CSV_COLUMNS = [
   { label: 'Email', value: 'email' },
   { label: 'Members', value: 'member_count' },
   { label: 'Families', value: (r) => r.family_count ?? 1 },
+  { label: 'OFW Members Abroad', value: (r) => r.ofw_abroad_count ?? '' },
   { label: 'Status', value: 'status' },
   { label: 'Reference No.', value: 'ref_no' },
   ...PARTICIPATION_ITEMS.map(([key, label]) => ({ label, value: (r) => (r.participation || {})[key] || '' })),
@@ -3222,8 +3354,12 @@ const quotedList = (names) => `(${names.map((n) => `"${String(n).replace(/["\\]/
 // page can show the rows in groups; the chosen sort applies within a group.
 // Without it (the verification queue) the rows are in the chosen order alone.
 // family_grouping orders FG 1, FG 2 … FG 10 (family_grouping_no, 0057).
-function householdQuery(q, { status = 'All', gkk = 'All', gkkNames, search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir, groupBy } = {}) {
+function householdQuery(q, { status = 'All', gkk = 'All', gkkNames, search = '', ids, memberHouseholdIds, sortKey = 'registered', sortDir, groupBy, ofw = 'All' } = {}) {
   if (status !== 'All') q = q.eq('status', status);
+  // OFW households (0121): a current member abroad now; former OFW: none abroad, one back home.
+  if (ofw === 'abroad') q = q.gt('ofw_abroad_count', 0);
+  else if (ofw === 'returned') q = q.eq('ofw_abroad_count', 0).gt('ofw_returned_count', 0);
+  else if (ofw === 'none') q = q.eq('ofw_abroad_count', 0).eq('ofw_returned_count', 0);
   if (gkk !== 'All' && gkk !== NO_GKK) q = q.eq('gkk', gkk);
   if (ids) q = q.in('id', ids);
   // Either condition is an "or" of its own; with both, they go in one "and".
@@ -3254,20 +3390,27 @@ const SMALL_GROUP = 5;
 
 // The member columns the reports read (not select('*'), which works out
 // every member's Practicing Catholic score).
+// Occupation and the OFW answer (0121), left out again before that migration.
+const REPORT_OFW_COLUMNS = ', occupation, occupation_group, ofw_status, ofw_country, ofw_since, ofw_returned, ofw_updated_at';
 const REPORT_MEMBER_COLUMNS = 'id, household_id, family_no, first_name, last_name, suffix, relationship, sex, dob, age, civil_status, contact, religion, tribe, '
   + 'blood_type, has_baptism, baptism_date, has_communion, communion_date, has_confirmation, conf_date, has_matrimony, mat_date, mat_type, '
-  + 'ministries, organizations, gkk_role, parish_role, membership_status, status_updated_at, is_current, household_name, household_gkk';
+  + 'ministries, organizations, gkk_role, parish_role, membership_status, status_updated_at, is_current, household_name, household_gkk'
+  + REPORT_OFW_COLUMNS;
 
 /**
  * Every member for a report: current members only (not Moved away or
  * Deceased) unless `current` is false, in one GKK unless `gkk` is 'All'.
  */
 async function reportMembers({ gkk = 'All', columns = REPORT_MEMBER_COLUMNS, current = true } = {}) {
-  return fetchAll(() => {
-    let q = supabase.from('members_with_household').select(columns);
+  const run = (cols) => fetchAll(() => {
+    let q = supabase.from('members_with_household').select(cols);
     if (current) q = q.eq('is_current', true);
     if (gkk && gkk !== 'All') q = q.eq('household_gkk', gkk);
     return q.order('household_name').order('id');
+  });
+  return run(columns).catch((e) => {
+    if (columns.includes(REPORT_OFW_COLUMNS) && /ofw_|occupation_group/.test(e?.message || '')) return run(columns.replace(REPORT_OFW_COLUMNS, ''));
+    throw e;
   });
 }
 

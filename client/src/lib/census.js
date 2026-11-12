@@ -159,7 +159,10 @@ export function nextCensusDue(lastStartsOn, intervalMonths) {
  * parish-wide total row. Households without a GKK are grouped as "No GKK".
  */
 export function summarizeCensus(rows) {
-  const columns = [...MEMBERSHIP_STATUSES, 'Not confirmed'];
+  // 'Abroad' (0121): a member abroad with no answer, who can't take part
+  // here; accounted for, not "Not confirmed". A column only when there are some.
+  const abroad = (rows || []).some((r) => r.status === 'Abroad' && r.members > 0);
+  const columns = [...MEMBERSHIP_STATUSES, ...(abroad ? ['Abroad'] : []), 'Not confirmed'];
   const blank = () => Object.fromEntries(columns.map((c) => [c, 0]));
   const byGkk = new Map();
   for (const r of rows || []) {
@@ -681,12 +684,18 @@ export const PORTAL_MEMBER_FIELDS = [
   ['first_name', 'First name'], ['middle_name', 'Middle name'], ['last_name', 'Last name'], ['suffix', 'Suffix'],
   ['relationship', 'Relationship'], ['sex', 'Sex'], ['dob', 'Date of birth'], ['civil_status', 'Civil status'],
   ['contact', 'Contact no.'],
+  // 0121: occupation (before, only a new member's), its group and the OFW answer.
+  ['occupation', 'Occupation'], ['occupation_group', 'Occupation group'],
+  ['ofw_status', 'OFW'], ['ofw_country', 'OFW country'], ['ofw_since', 'OFW since'], ['ofw_returned', 'OFW returned'],
 ];
 
-// What a new member also brings in (0090), asked as at registration. Blood
-// types aren't asked online: GKK leaders review these updates (0050).
+// What a new member also brings in (0090), asked as at registration. The
+// blood type since 0120 (only for new members: existing members' blood types
+// aren't shown or changed online).
+// (Occupation and the OFW answer are in PORTAL_MEMBER_FIELDS since 0121.)
 export const PORTAL_NEW_MEMBER_FIELDS = [
-  ['place_of_birth', 'Place of birth'], ['tribe', 'Tribe'], ['email', 'Email'], ['occupation', 'Occupation'], ['religion', 'Religion'],
+  ['place_of_birth', 'Place of birth'], ['tribe', 'Tribe'], ['email', 'Email'], ['religion', 'Religion'],
+  ['blood_type', 'Blood type'],
 ];
 // Each sacrament: whether it was received, its label, then its details.
 export const PORTAL_SACRAMENTS = [

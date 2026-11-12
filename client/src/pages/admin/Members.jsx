@@ -4,7 +4,8 @@ import { useOutletContext } from 'react-router-dom';
 import { PageHeader, PageBody, FilterSelect, SearchInput, DataTable, Pagination, EmptyState, ErrorState, LoadingState, Tabs, rowActivationProps } from '../../components/admin.jsx';
 import MemberDuplicates from '../../components/MemberDuplicates.jsx';
 import { StatusPill, Badge, Checkbox } from '../../components/ui.jsx';
-import { ageFromDob, CIVIL_STATUSES, AGE_OPTS, DASHBOARD_AGE_OPTS } from '../../constants.js';
+import { ageFromDob, CIVIL_STATUSES, AGE_OPTS, DASHBOARD_AGE_OPTS, OCCUPATION_GROUPS } from '../../constants.js';
+import { occupationGroupLabel, ofwLine } from '../../lib/ofw.js';
 import MemberDetailModal from '../../components/MemberDetailModal.jsx';
 import { useDebounced, useUrlState } from '../../hooks.js';
 import { groupByGkk, familyNoOf } from '../../lib/household.js';
@@ -20,7 +21,13 @@ const SACRAMENT_OPTS = [['All', 'Any sacrament'], ['Baptism', 'Baptized'], ['Com
 const MEMBERSHIP_OPTS = [['Current', 'Current members'], ['All', 'Everyone (incl. moved / deceased)'], ...MEMBERSHIP_STATUSES.map((s) => [s, s]), ['Not assessed', 'Not yet assessed']];
 const CENSUS_OPTS = [['All', 'Any census'], ['Confirmed', 'Confirmed in census'], ['Not confirmed', 'Not confirmed in census']];
 const PRACTICE_OPTS = [['All', 'Any practice status'], ...PRACTICE_LEVELS.map((l) => [l, `${l} — ${PRACTICE_LEVEL_HELP[l].toLowerCase()}`])];
-const DEFAULT_FILTERS = { status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All', membership: 'Current', census: 'All', practice: 'All' };
+// OFW and occupation group (0121).
+const OFW_OPTS = [['All', 'OFW: Any'], ['Abroad', 'Abroad now'], ['Returned', 'Former OFW'], ['Household', 'In an OFW household']];
+const OCCUPATION_OPTS = [['All', 'Any occupation'], ...OCCUPATION_GROUPS.map((g) => [g, occupationGroupLabel(g)]), ['Not sorted', 'Not sorted yet']];
+const DEFAULT_FILTERS = {
+  status: 'All', civil: 'All', sacrament: 'All', ministry: 'All', age: 'All', blood: 'All', gkk: 'All', membership: 'Current', census: 'All', practice: 'All',
+  ofw: 'All', occupation: 'All',
+};
 // Shown up front; the rest sit under "More filters".
 const MAIN_FILTERS = ['gkk', 'status', 'membership', 'practice', 'sacrament'];
 // Rows are grouped under GKK headings; inside each GKK the default order is
@@ -36,6 +43,8 @@ const URL_ALLOWED = {
   membership: MEMBERSHIP_OPTS.map(([v]) => v),
   census: CENSUS_OPTS.map(([v]) => v),
   practice: PRACTICE_OPTS.map(([v]) => v),
+  ofw: OFW_OPTS.map(([v]) => v),
+  occupation: OCCUPATION_OPTS.map(([v]) => v),
   sort: ['name', 'household', 'age', 'status', 'practice'],
   dir: ['asc', 'desc'],
   size: [10, 20, 50],
@@ -73,7 +82,7 @@ export default function Members() {
   const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
   const { q: search, sort: sortKey, dir: sortDir, page, size: pageSize } = url;
   const filters = Object.fromEntries(Object.keys(DEFAULT_FILTERS).map((k) => [k, url[k]]));
-  // GKK leaders don't see blood types, nor filter by them (even from a link).
+  // Clergy don't see blood types, nor filter by them (even from a link). GKK leaders do (0120).
   const showBlood = can(user, 'bloodTypes');
   if (!showBlood) filters.blood = 'All';
   const filterKey = JSON.stringify(filters);
@@ -145,6 +154,8 @@ export default function Members() {
     blood: { label: 'Blood type', options: BLOOD_OPTS.map((b) => [b, b === 'All' ? 'All blood types' : b === 'Unknown' ? BLOOD_UNKNOWN_LABEL : b]) },
     census: { label: 'Census', options: CENSUS_OPTS },
     practice: { label: 'Practicing Catholic', options: PRACTICE_OPTS },
+    ofw: { label: 'OFW', options: OFW_OPTS },
+    occupation: { label: 'Occupation', options: OCCUPATION_OPTS },
   };
   const select = (key) => (
     <FilterSelect key={key} aria-label={FILTERS[key].label} value={filters[key]} onChange={(e) => setFilter(key, e.target.value)}>
@@ -292,6 +303,7 @@ export default function Members() {
                             {[m.household_name, bis(RELATIONSHIP_LABELS, m.relationship), ageFromDob(m.dob) != null && `${ageFromDob(m.dob)} yrs`].filter(Boolean).join(' · ')}
                           </div>
                           {familyBadgeOf(m) && <div className="mt-1"><Badge tone={familyBadgeOf(m).tone}>{familyBadgeOf(m).label}</Badge></div>}
+                          {ofwLine(m) && <div className="text-[12px] text-parish-blue font-semibold mt-0.5 truncate">{ofwLine(m)}</div>}
                         </div>
                         <div className="flex flex-col items-end gap-1">
                           {m.membership_status && <Badge tone={STATUS_TONES[m.membership_status]}>{m.membership_status}</Badge>}
@@ -325,6 +337,7 @@ export default function Members() {
                         </div>
                         <span className="font-semibold text-[14.5px] text-parish-navy whitespace-nowrap">{m.first_name} {m.last_name}</span>
                         {m.membership_status && <Badge tone={STATUS_TONES[m.membership_status]} title={m.last_census_label ? `From the ${m.last_census_label}` : undefined}>{m.membership_status}</Badge>}
+                        {m.ofw_status && <Badge tone={m.ofw_status === 'Abroad' ? 'blue' : 'gray'} title={ofwLine(m)}>{m.ofw_status === 'Abroad' ? 'OFW' : 'Former OFW'}</Badge>}
                       </div>
                     </td>
                     <td className="px-4 py-3 text-[14px] text-parish-text3 whitespace-nowrap">

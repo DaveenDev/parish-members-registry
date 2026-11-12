@@ -5,7 +5,7 @@ import {
   MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, STATUS_TONES,
   cleanParticipation, suggestStatus, asksParticipation, isYoungChild, censusResponsesPayload, defaultCensusLabel, censusInItsYear, nextCensusDue, summarizeCensus, registryVsLastYear, matchListToRegistry, nameWords, nameSuffix, listStatus, otherGkkMatches,
   parseLastYearLines, parseLastYearCsv, countLastYearList, dropRepeatedNames,
-  normalizeAccessCode, formatAccessCode, portalPayload, portalNewMember, diffSubmission,
+  normalizeAccessCode, formatAccessCode, portalPayload, portalNewMember, diffSubmission, PORTAL_NEW_MEMBER_FIELDS,
   DEFAULT_SITE_URL, normalizeSiteUrl, publicSiteUrl, censusLink, codeFromHash, previousCensus, householdsVsPreviousCensus, familiesVsCount, familiesVsPreviousCensus, vsLastYearTable, familiesTable, statusTable, censusBaselineMode, censusVsLastYearFrom, vsLastYearBaseline, unnamedNotYet, registrationAnswers, censusCardPatch,
 } from '../src/lib/census.js';
 import { parseCsv } from '../src/lib/csv.js';
@@ -182,6 +182,20 @@ describe('portalPayload', () => {
     const payload = portalPayload({ members: [{ id: 2, status: 'Maybe' }] });
     assert.equal(payload.members[0].status, null);
   });
+
+  test('a member on record sends occupation, its group and the OFW answer (0121)', () => {
+    const payload = portalPayload({ members: [{
+      id: 3, first_name: 'Ana', occupation: ' Nurse ', occupation_group: 'Health worker',
+      ofw_status: 'Returned', ofw_country: 'Qatar', ofw_since: '2019', ofw_returned: '2025',
+    }] });
+    const m = payload.members[0];
+    assert.deepEqual([m.occupation, m.occupation_group, m.ofw_status, m.ofw_country, m.ofw_since, m.ofw_returned],
+      ['Nurse', 'Health worker', 'Returned', 'Qatar', '2019', '2025']);
+    // "Dili" is sent as a blank answer, which the server reads as "not an OFW".
+    const dili = portalPayload({ members: [{ id: 4, ofw_status: '', ofw_country: '' }] }).members[0];
+    assert.equal(dili.ofw_status, null);
+    assert.ok('ofw_status' in dili, 'the key is sent, so the server knows it was asked');
+  });
 });
 
 describe('portal new members (0090)', () => {
@@ -232,8 +246,28 @@ describe('portal new members (0090)', () => {
     assert.equal(p.status, 'Active');
     assert.deepEqual(p.participation, { mass: 'Aktibo' });
     assert.equal(p.notes, 'newly married');
-    assert.equal('bloodType' in p || 'blood_type' in p, false, 'blood types are not asked online');
+    assert.equal(p.blood_type, null, 'no blood type given');
+    assert.equal('bloodType' in p, false);
     assert.equal('firstName' in p, false);
+  });
+
+  test('a new member\'s blood type is sent under its stored name, and comes back on a saved update (0120)', () => {
+    const p = send(adult({ bloodType: 'O+' }));
+    assert.equal(p.blood_type, 'O+');
+    const back = portalNewMember({ fields: { first_name: 'Maria', last_name: 'Cruz', blood_type: 'O+' } });
+    assert.equal(back.bloodType, 'O+');
+  });
+
+  test('a new member\'s occupation group and OFW answer, none they are too young for (0121)', () => {
+    const p = send(adult({ occupation: 'Seaman', occupationGroup: 'Seafarer', ofwStatus: 'Abroad', ofwCountry: 'At sea (seafarer)', ofwSince: '2024', ofwReturned: '2020' }));
+    assert.deepEqual([p.occupation, p.occupation_group, p.ofw_status, p.ofw_country, p.ofw_since, p.ofw_returned],
+      ['Seaman', 'Seafarer', 'Abroad', 'At sea (seafarer)', '2024', null]);
+    const kid = send(adult({ dob: `${new Date().getFullYear() - 12}-01-01`, civilStatus: 'Single', occupationGroup: 'Student', ofwStatus: 'Abroad', ofwCountry: 'Japan' }));
+    assert.deepEqual([kid.occupation_group, kid.ofw_status, kid.ofw_country], [null, null, null]);
+  });
+
+  test('the reviewer sees a new member\'s blood type labelled', () => {
+    assert.deepEqual(PORTAL_NEW_MEMBER_FIELDS.find(([k]) => k === 'blood_type'), ['blood_type', 'Blood type']);
   });
 
   test('a civil wedding is kept but is not the sacrament', () => {
@@ -325,6 +359,20 @@ describe('diffSubmission', () => {
     assert.equal(d.members[0].status, 'Inactive');
     assert.equal(d.newMembers[0].name, 'Baby Dela Cruz');
     assert.equal(d.changeCount, 3);
+  });
+
+  test('shows a change of occupation and OFW answer as old → new (0121)', () => {
+    const d = diffSubmission({
+      before: { ...before, members: { 1: { ...before.members[1], occupation: 'Nurse', ofw_status: 'Abroad', ofw_country: 'Qatar', ofw_since: 2019, ofw_returned: null } } },
+      proposed: {
+        household: before.household,
+        members: [{ id: 1, fields: { ...before.members[1], occupation: 'Nurse', occupation_group: 'Health worker', ofw_status: 'Returned', ofw_country: 'Qatar', ofw_since: 2019, ofw_returned: 2026 } }],
+        newMembers: [],
+      },
+    });
+    assert.deepEqual(d.members[0].changes.map((c) => [c.label, c.from, c.to]), [
+      ['Occupation group', null, 'Health worker'], ['OFW', 'Abroad', 'Returned'], ['OFW returned', null, '2026'],
+    ]);
   });
 
   test('no changes', () => {

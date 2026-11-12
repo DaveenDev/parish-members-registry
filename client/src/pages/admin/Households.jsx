@@ -14,6 +14,7 @@ import CensusCodesDialog from '../../components/CensusCodesDialog.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import { useConfirm } from '../../components/ConfirmDialog.jsx';
 import { useDebounced, useLiveRefresh, useUrlState } from '../../hooks.js';
+import OfwBadge from '../../components/OfwBadge.jsx';
 import { VerifiedLine } from '../../components/VerifiedLine.jsx';
 import { useAuth } from '../../AuthContext.jsx';
 import { can, leaderGkk } from '../../lib/access.js';
@@ -29,8 +30,12 @@ const SORTS = [['registered', 'Registered'], ['name', 'Household'], ['gkk', 'GKK
 // on the Duplicates page.
 const STATUS_TABS = [['Pending', 'On Queue for Verification'], ['Verified', 'Verified Households'], ['All', 'All Households'], ['Duplicates', 'Possible Duplicates']];
 
-const URL_DEFAULTS = { status: 'Pending', gkk: 'All', q: '', sort: 'registered', dir: '', page: 1, size: 10 };
-const URL_ALLOWED = { status: ['All', 'Verified', 'Pending', 'Duplicates'], sort: SORTS.map(([k]) => k), dir: ['', 'asc', 'desc'], size: [10, 20, 50] };
+const URL_DEFAULTS = { status: 'Pending', gkk: 'All', ofw: 'All', q: '', sort: 'registered', dir: '', page: 1, size: 10 };
+// OFW households (0121): see householdQuery in api.js.
+const OFW_FILTERS = [['All', 'OFW: Any'], ['abroad', 'Has a member abroad'], ['returned', 'Former OFW'], ['none', 'No OFW']];
+const URL_ALLOWED = {
+  status: ['All', 'Verified', 'Pending', 'Duplicates'], ofw: OFW_FILTERS.map(([k]) => k), sort: SORTS.map(([k]) => k), dir: ['', 'asc', 'desc'], size: [10, 20, 50],
+};
 // Dates sort newest first by default, everything else A→Z (see householdQuery in api.js).
 const defaultDir = (key) => (key === 'registered' || key === 'updated' ? 'desc' : 'asc');
 const MAX_BULK_PRINT = 50;
@@ -51,7 +56,7 @@ export default function Households() {
   // Filters, search, sort and page live in the address bar (see useUrlState),
   // so dashboard links like ?status=Pending land on the filtered list.
   const [url, setUrl] = useUrlState(URL_DEFAULTS, URL_ALLOWED);
-  const { status, gkk, q: search, sort, page, size: pageSize } = url;
+  const { status, gkk, ofw, q: search, sort, page, size: pageSize } = url;
   const dir = url.dir || defaultDir(sort);
   const debouncedSearch = useDebounced(search);
   const [gkkOptions, setGkkOptions] = useState([]);
@@ -68,7 +73,7 @@ export default function Households() {
   const [bulkBusy, setBulkBusy] = useState('');
   const [exporting, setExporting] = useState(false);
 
-  const filters = { status, gkk, search: debouncedSearch };
+  const filters = { status, gkk, ofw, search: debouncedSearch };
   // The verification queue is one list in the chosen order, newest registration
   // first by default, so the latest families are seen first. The other tabs
   // open grouped by GKK, or by Family Grouping when the list covers one GKK
@@ -91,7 +96,7 @@ export default function Households() {
   const countSeq = useRef(0);
   function loadCounts() {
     const seq = ++countSeq.current;
-    api.householdStatusCounts({ gkk, search: debouncedSearch })
+    api.householdStatusCounts({ gkk, ofw, search: debouncedSearch })
       // A household is either Pending or Verified, so All is the two together.
       .then((c) => {
         if (seq !== countSeq.current) return;
@@ -103,7 +108,7 @@ export default function Households() {
       })
       .catch(() => { if (seq === countSeq.current) setCounts({}); setTabChosen(true); });
   }
-  useEffect(() => { loadCounts(); }, [gkk, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadCounts(); }, [gkk, ofw, debouncedSearch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Only the latest load may fill the list: with quick filter or page
   // changes, an earlier, slower answer would otherwise land last.
@@ -137,13 +142,13 @@ export default function Households() {
 
   // An empty table means something different when no filters are applied:
   // the register itself is empty, not the search.
-  const isFiltered = gkk !== 'All' || !!debouncedSearch;
+  const isFiltered = gkk !== 'All' || ofw !== 'All' || !!debouncedSearch;
 
   // The Possible Duplicates tab has no list to load.
   const duplicatesTab = status === 'Duplicates';
-  useEffect(() => { if (tabChosen && !duplicatesTab) reload(); }, [tabChosen, status, gkk, debouncedSearch, sort, dir, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (tabChosen && !duplicatesTab) reload(); }, [tabChosen, status, gkk, ofw, debouncedSearch, sort, dir, page, pageSize]); // eslint-disable-line react-hooks/exhaustive-deps
   // A selection only ever covers the rows on screen.
-  useEffect(() => { setSelected(new Set()); }, [status, gkk, debouncedSearch, sort, dir, page, pageSize]);
+  useEffect(() => { setSelected(new Set()); }, [status, gkk, ofw, debouncedSearch, sort, dir, page, pageSize]);
   useEffect(() => { api.listGkks().then((res) => setGkkOptions(res.rows.map((r) => r.name))).catch(() => {}); }, []);
 
   // Every sort staff choose is written with its direction, so choosing
@@ -400,9 +405,12 @@ export default function Households() {
             {/* For a GKK leader, the households they could take in (0093). */}
             <option value={NO_GKK}>No assigned GKK</option>
           </FilterSelect>
+          <FilterSelect value={ofw} onChange={(e) => setUrl({ ofw: e.target.value })} aria-label="Filter by OFW">
+            {OFW_FILTERS.map(([k, label]) => <option key={k} value={k}>{label}</option>)}
+          </FilterSelect>
           <SearchInput placeholder="Search household, member, address, ref no…" aria-label="Search households or members" value={search} onChange={(e) => setUrl({ q: e.target.value })} />
           <div className="text-[13px] text-parish-muted">{total} household(s)</div>
-          {isFiltered && <button onClick={() => setUrl({ gkk: 'All', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">Clear</button>}
+          {isFiltered && <button onClick={() => setUrl({ gkk: 'All', ofw: 'All', q: '' })} className="appearance-none border-none bg-transparent cursor-pointer font-semibold text-[13px] text-parish-blue px-1 py-1">Clear</button>}
           {/* Phones and tablets have no column headers to click (nor small laptops a Registered one), so sorting gets its own control. */}
           {/* Grouped is a choice of its own, so "Sort: Registered" can be picked from it. */}
           <FilterSelect
@@ -476,7 +484,7 @@ export default function Households() {
                             >
                               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgb(var(--c-icon))" strokeWidth="2.6" className="flex-none transition-transform" style={{ transform: expanded[h.id] ? 'rotate(90deg)' : 'none' }} aria-hidden><path d="M9 6l6 6-6 6" /></svg>
                               <span>
-                                <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}</span>
+                                <span className="block font-serif text-[19px] font-semibold text-parish-navy leading-tight">{h.household_name}{h.ofw_abroad_count > 0 && <>{' '}<OfwBadge count={h.ofw_abroad_count} /></>}</span>
                                 {h.head_name && <span className="block text-[12.5px] text-parish-text2 mt-0.5">Head: {h.head_name}</span>}
                                 <MatchedMembers household={h} search={debouncedSearch} />
                                 <span className="block text-[12px] text-parish-muted mt-0.5">{[h.street, h.barangay, h.city].filter(Boolean).join(', ')}</span>
@@ -545,6 +553,7 @@ export default function Households() {
                         <span className="block text-[12.5px] text-parish-text2 mt-0.5">
                           {notMine(h) && <><Badge tone="red">No GKK</Badge>{' '}</>}
                           {h.family_count > 1 && <><Badge tone="gold">{h.family_count} families</Badge>{' '}</>}
+                          {h.ofw_abroad_count > 0 && <><OfwBadge count={h.ofw_abroad_count} />{' '}</>}
                           {[h.head_name && `Head: ${h.head_name}`, `${h.member_count} member(s)`].filter(Boolean).join(' · ')}
                         </span>
                         <MatchedMembers household={h} search={debouncedSearch} />

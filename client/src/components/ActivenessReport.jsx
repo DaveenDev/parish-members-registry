@@ -221,12 +221,12 @@ export default function ActivenessReport({ parish, initialGkk = '', initialCycle
             <div className="text-[12.5px] text-parish-muted mt-2.5">
               {censusLabel ? (
                 <>
-                  Not rated: {a.summary.unassessed} with no participation answers in the {censusLabel} · {a.summary.children} aged {YOUNG_CHILD_MAX_AGE} and under · {a.summary.otherReligion} of another religion.
+                  Not rated: {a.summary.unassessed} with no participation answers in the {censusLabel} · {a.summary.children} aged {YOUNG_CHILD_MAX_AGE} and under · {a.summary.otherReligion} of another religion{a.summary.abroad ? ` · ${a.summary.abroad} abroad (OFW)` : ''}.
                   {' '}Each score uses the member's answers in the {censusLabel} alone; their sacraments, ministries and roles are as they are now.
                 </>
               ) : (
                 <>
-                  Not rated: {a.summary.unassessed} with no participation answers yet · {a.summary.children} aged {YOUNG_CHILD_MAX_AGE} and under · {a.summary.otherReligion} of another religion.
+                  Not rated: {a.summary.unassessed} with no participation answers yet · {a.summary.children} aged {YOUNG_CHILD_MAX_AGE} and under · {a.summary.otherReligion} of another religion{a.summary.abroad ? ` · ${a.summary.abroad} abroad (OFW)` : ''}.
                   {' '}{a.summary.ownAnswers} score(s) use the member's own census answers; {a.summary.estimated} are household estimates.
                 </>
               )}

@@ -4,6 +4,8 @@
 // Member figures leave out members who moved away or died (the census rule);
 // the database applies it.
 
+import { occupationGroupLabel } from './ofw.js';
+
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const BLOOD_ORDER = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'];
 const GROUP_COLORS = ['#34589c', '#c39b4e', '#2f7a52', '#a13d29', '#7a6a3e', '#8a5fb0'];
@@ -163,5 +165,36 @@ export function shapeReport(raw = {}) {
     bloodCounts: BLOOD_ORDER.filter((t) => num(blood[t]) > 0).map((label) => ({ label, n: num(blood[label]) })),
     unknownBlood: num(raw.blood_unknown),
     gkkNames: regByGkk.map((g) => g.label),
+    // 0121: null before that migration.
+    ofw: shapeOfw(raw.ofw),
+    occupations: shapeOccupations(raw),
   };
+}
+
+/** Report Stats' OFW numbers (admin_report_stats 'ofw', 0121), or null before that migration. */
+export function shapeOfw(o) {
+  if (!o || typeof o !== 'object') return null;
+  return {
+    householdsAbroad: num(o.households_abroad),
+    householdsReturned: num(o.households_returned),
+    membersAbroad: num(o.members_abroad),
+    membersReturned: num(o.members_returned),
+    byGkk: (o.by_gkk || []).map((g) => ({ gkk: g.gkk || 'No GKK', households: num(g.households), members: num(g.members) })),
+    byCountry: (o.by_country || []).map((c) => ({ country: c.country, abroad: num(c.abroad), returned: num(c.returned) })),
+  };
+}
+
+/** Members 15 and over by occupation group (0121), or null before that migration. */
+export function shapeOccupations(raw) {
+  if (!Array.isArray(raw.occupation_groups)) return null;
+  const notSorted = num(raw.occupation_not_sorted);
+  const notGiven = num(raw.occupation_not_given);
+  const groups = raw.occupation_groups.map((g) => ({ group: g.group, members: num(g.members) }));
+  const total = groups.reduce((n, g) => n + g.members, 0) + notSorted + notGiven;
+  const rows = [
+    ...groups.map((g) => ({ label: occupationGroupLabel(g.group), group: g.group, members: g.members })),
+    ...(notSorted ? [{ label: 'Not sorted yet', group: null, members: notSorted }] : []),
+    ...(notGiven ? [{ label: 'Not given', group: null, members: notGiven }] : []),
+  ].map((r) => ({ ...r, share: total ? `${Math.round((100 * r.members) / total)}%` : '—', w: pct(r.members, total) }));
+  return { rows, total, notSorted, notGiven, sorted: total - notSorted - notGiven };
 }

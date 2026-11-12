@@ -2,6 +2,8 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { fmtDate, PARTICIPATION_ITEMS } from '../constants.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
+import { askedForAge } from '../lib/household.js';
+import { ofwLineBis, occupationGroupBis } from '../lib/ofw.js';
 import { MEMBERSHIP_STATUSES, MEMBERSHIP_STATUS_LABELS, YOUNG_CHILD_MAX_AGE, formatAccessCode, publicSiteUrl, censusLink, isYoungChild } from '../lib/census.js';
 import QrCode from './QrCode.jsx';
 import { parishTitle } from '../lib/parishName.js';
@@ -22,6 +24,8 @@ const cell = { border: '1px solid #bbb', padding: '4px 5px', verticalAlign: 'top
 // Plain on purpose: white paper, no theme colours, so it photocopies and prints the same anywhere.
 const head = { ...cell, background: '#fff', color: '#000', fontWeight: 700, fontSize: 9.5, textAlign: 'left', borderBottom: '1.5px solid #000' };
 const blankLine = { borderBottom: '1px solid #999', display: 'inline-block', minWidth: 160, height: 14 };
+const shortBlank = { ...blankLine, minWidth: 70 };
+const tick = { display: 'inline-block', width: 9, height: 9, border: '1px solid #000', marginRight: 3, verticalAlign: '-1px' };
 
 function fullName(m) {
   return [m.first_name, m.middle_name, m.last_name, m.suffix].filter(Boolean).join(' ');
@@ -134,6 +138,39 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
             </tbody>
           </table>
 
+          {/* 0121: occupation and the OFW answer. The occupation group isn't asked
+              on paper (too long as tick boxes): staff sort the occupation later. */}
+          <h3 style={{ fontSize: 12, margin: '0 0 4px', color: '#000' }}>Trabaho ug OFW (nagtrabaho sa gawas sa nasud)</h3>
+          <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
+            <thead>
+              <tr>
+                <th style={{ ...head, width: '20%' }}>Ngalan</th>
+                <th style={{ ...head, width: '24%' }}>Sa rekord karon</th>
+                <th style={head}>Usba (kung sayop o nausab)</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m) => (
+                <tr key={m.id}>
+                  <td style={{ ...cell, fontWeight: 600 }}>{[m.first_name, m.last_name].join(' ')}</td>
+                  <td style={{ ...cell, fontSize: 9.5 }}>
+                    {[m.occupation, m.occupation_group && occupationGroupBis(m.occupation_group)].filter(Boolean).join(' · ') || '—'}
+                    {ofwLineBis(m) && <div>{ofwLineBis(m)}</div>}
+                  </td>
+                  <td style={{ ...cell, fontSize: 9.5, lineHeight: 1.7 }}>
+                    <div>Trabaho: <span style={blankLine} /></div>
+                    {askedForAge(m.dob).ofw && (
+                      <div>
+                        OFW? <span style={tick} />Dili <span style={tick} />Naa sa gawas karon <span style={tick} />Nakauli na
+                        {' · '}Nasud: <span style={shortBlank} /> · Kontrata sukad: <span style={{ ...shortBlank, minWidth: 40 }} /> · Nakauli: <span style={{ ...shortBlank, minWidth: 40 }} />
+                      </div>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+
           <h3 style={{ fontSize: 12, margin: '0 0 4px', color: '#000' }}>2. Pag-apil sa Parokya / GKK ug Kahimtang</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 10 }}>
             <thead>
@@ -173,11 +210,14 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
                 <th style={head}>Natawo</th>
                 <th style={head}>Civil status</th>
                 <th style={head}>Nabunyagan?</th>
+                <th style={head}>Tipo sa dugo</th>
+                <th style={head}>Trabaho</th>
+                <th style={head}>OFW? Asa nga nasud?</th>
               </tr>
             </thead>
             <tbody>
               {[0, 1, 2].map((i) => (
-                <tr key={i}>{[0, 1, 2, 3, 4, 5].map((c) => <td key={c} style={{ ...cell, height: 20 }} />)}</tr>
+                <tr key={i}>{[0, 1, 2, 3, 4, 5, 6, 7, 8].map((c) => <td key={c} style={{ ...cell, height: 20 }} />)}</tr>
               ))}
             </tbody>
           </table>
@@ -190,6 +230,7 @@ export default function CensusPrintSheet({ forms, cycle, parish }) {
 
           <footer style={{ marginTop: 12, paddingTop: 6, borderTop: '1px solid #ddd', fontSize: 9, color: '#555' }}>
             Confidential — for the family and authorized parish staff only. Handle in accordance with the Data Privacy Act of 2012.
+            {' '}Lakip niini ang tipo sa dugo sa bag-ong miyembro ug, kon adunay OFW, ang nasud ug sukad kanus-a. Personal data: keep this form safe.
           </footer>
         </section>
       ))}
