@@ -15,7 +15,10 @@ import { Field, TextInput, Select, Checkbox, TribeSelect } from './ui.jsx';
 // wizard keeps it (blankMember()) with `mi`, its position, and `err`, its
 // field errors; `onField(mi, field, value)` changes one field.
 
-const GRID = { gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))' };
+// Two to a row on wider screens, one on phones (as the work box's rows);
+// a field alone in its row keeps half the width.
+const PAIR = { gridTemplateColumns: 'repeat(auto-fill,minmax(min(260px,100%),1fr))' };
+const WIDE_ON_PHONE = 'col-span-2 sm:col-span-1';
 const MEMBER_RELATIONSHIPS = RELATIONSHIPS.filter((r) => !HEADS.includes(r));
 
 export function MemberNameFields({ mv, onField }) {
@@ -25,8 +28,9 @@ export function MemberNameFields({ mv, onField }) {
     const formatted = format(e.target.value);
     if (formatted !== e.target.value) onField(mv.mi, field, formatted);
   };
+  // One row on wider screens with a narrow Suffix; two by two on phones.
   return (
-    <div className="grid gap-4" style={GRID}>
+    <div className="grid gap-4 grid-cols-2 sm:grid-cols-[1fr_1fr_1fr_120px]">
       <Field label="Apelyido" required error={mv.err.lastName}><TextInput value={mv.lastName} onChange={set('lastName')} onBlur={tidy('lastName')} autoCapitalize="words" /></Field>
       <Field label="Ngalan" required error={mv.err.firstName}><TextInput value={mv.firstName} onChange={set('firstName')} onBlur={tidy('firstName')} autoCapitalize="words" /></Field>
       <Field label="Tunga nga ngalan"><TextInput placeholder="apelyido sa inahan" value={mv.middleName} onChange={set('middleName')} onBlur={tidy('middleName')} autoCapitalize="words" /></Field>
@@ -43,50 +47,66 @@ export function MemberNameFields({ mv, onField }) {
  */
 export function MemberFieldsGrid({ mv, onField, head = false, bloodType = true, children }) {
   const set = (field) => (e) => onField(mv.mi, field, e.target.type === 'checkbox' ? e.target.checked : e.target.value);
+  // Rows of related questions rather than one grid that wraps anywhere:
+  // who they are, where they come from, faith and health, how to reach them,
+  // then their work. The pairs line up with the work box's two columns.
   return (
-    <div className="grid gap-4" style={GRID}>
-      {children}
-      {!head && (
-        <Field label="Relasyon sa ulo sa pamilya" required error={mv.err.relationship}>
-          <Select value={mv.relationship} onChange={set('relationship')}>
+    <div className="flex flex-col gap-4">
+      {/* Phones: the long-labelled questions full width, sex and birthday side by side. */}
+      <div className="grid gap-4 grid-cols-2 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+        {children && <div className={WIDE_ON_PHONE}>{children}</div>}
+        {!head && (
+          <div className={WIDE_ON_PHONE}>
+            <Field label="Relasyon sa ulo sa pamilya" required error={mv.err.relationship}>
+              <Select value={mv.relationship} onChange={set('relationship')}>
+                <option value="">Pili…</option>
+                {MEMBER_RELATIONSHIPS.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
+              </Select>
+            </Field>
+          </div>
+        )}
+        <Field label="Kasarian" required error={mv.err.sex}>
+          <Select value={mv.sex} onChange={set('sex')}>
             <option value="">Pili…</option>
-            {MEMBER_RELATIONSHIPS.map((r) => <option key={r} value={r}>{bis(RELATIONSHIP_LABELS, r)}</option>)}
+            {Object.entries(SEX_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
           </Select>
         </Field>
-      )}
-      <Field label="Kasarian" required error={mv.err.sex}>
-        <Select value={mv.sex} onChange={set('sex')}>
-          <option value="">Pili…</option>
-          {Object.entries(SEX_LABELS).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-        </Select>
-      </Field>
-      <Field label="Birthday" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
-      <Field label="Lugar sa pagkatawo"><TextInput placeholder="Asa gipanganak" value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
-      <Field label="Tribu"><TribeSelect placeholder="Pili…" value={mv.tribe} onChange={(v) => onField(mv.mi, 'tribe', v)} /></Field>
-      <Field label="Kahimtang sibil (Civil status)" required error={mv.err.civilStatus}>
-        <Select value={mv.civilStatus} onChange={set('civilStatus')}>
-          <option value="">Pili…</option>
-          {CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
-        </Select>
-      </Field>
-      <Field label="Numero sa kontak"><TextInput type="tel" placeholder="0917…" value={mv.contact} onChange={set('contact')} /></Field>
-      <Field label="Email" error={mv.err.email}><TextInput type="email" placeholder="opsyonal" value={mv.email} onChange={set('email')} /></Field>
-      <Field label="Relihiyon">
-        <Select value={mv.religion} onChange={set('religion')}>
-          {RELIGIONS.map((r) => <option key={r} value={r}>{bis(RELIGION_LABELS, r)}</option>)}
-        </Select>
-      </Field>
-      {bloodType && (
-        <div>
-          <Field label="Tipo sa dugo (Blood type)">
-            <Select value={mv.bloodType} onChange={set('bloodType')}>
-              <option value="">Wala mahibal-i / dili gustong isulti</option>
-              {BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
+        <Field label="Birthday" required error={mv.err.dob}><TextInput type="date" value={mv.dob} onChange={set('dob')} /></Field>
+        <div className={WIDE_ON_PHONE}>
+          <Field label="Kahimtang sibil (Civil status)" required error={mv.err.civilStatus}>
+            <Select value={mv.civilStatus} onChange={set('civilStatus')}>
+              <option value="">Pili…</option>
+              {CIVIL_STATUSES.map((c) => <option key={c} value={c}>{bis(CIVIL_STATUS_LABELS, c)}</option>)}
             </Select>
           </Field>
-          <div className="text-[12.5px] text-parish-muted mt-1">Makatabang kini sa parokya sa pagpangita og mohatag og dugo kung adunay emerhensya.</div>
         </div>
-      )}
+      </div>
+      <div className="grid gap-4" style={PAIR}>
+        <Field label="Lugar sa pagkatawo"><TextInput placeholder="Asa gipanganak" value={mv.placeOfBirth} onChange={set('placeOfBirth')} /></Field>
+        <Field label="Tribu"><TribeSelect placeholder="Pili…" value={mv.tribe} onChange={(v) => onField(mv.mi, 'tribe', v)} /></Field>
+      </div>
+      <div className="grid gap-4" style={PAIR}>
+        <Field label="Relihiyon">
+          <Select value={mv.religion} onChange={set('religion')}>
+            {RELIGIONS.map((r) => <option key={r} value={r}>{bis(RELIGION_LABELS, r)}</option>)}
+          </Select>
+        </Field>
+        {bloodType && (
+          <div>
+            <Field label="Tipo sa dugo (Blood type)">
+              <Select value={mv.bloodType} onChange={set('bloodType')}>
+                <option value="">Wala mahibal-i / dili gustong isulti</option>
+                {BLOOD_TYPES.map((b) => <option key={b} value={b}>{b}</option>)}
+              </Select>
+            </Field>
+            <div className="text-[12.5px] text-parish-muted mt-1">Makatabang kini sa parokya sa pagpangita og mohatag og dugo kung adunay emerhensya.</div>
+          </div>
+        )}
+      </div>
+      <div className="grid gap-4" style={PAIR}>
+        <Field label="Numero sa kontak"><TextInput type="tel" placeholder="0917…" value={mv.contact} onChange={set('contact')} /></Field>
+        <Field label="Email" error={mv.err.email}><TextInput type="email" placeholder="opsyonal" value={mv.email} onChange={set('email')} /></Field>
+      </div>
       <WorkFields dob={mv.dob} value={formWork(mv)} onChange={(k, v) => onField(mv.mi, WORK_FORM_KEYS[k], v)} />
     </div>
   );
@@ -109,8 +129,9 @@ const workOf = (keys) => (m) => Object.fromEntries(Object.entries(keys).map(([k,
 export const formWork = workOf(WORK_FORM_KEYS);
 export const storedWork = workOf(WORK_COLUMNS);
 
-// Two to a row on wider screens, one on phones.
-const WORK_ROW = { gridTemplateColumns: 'repeat(auto-fit,minmax(min(260px,100%),1fr))' };
+// Two to a row on wider screens, one on phones; the OFW question alone (no
+// year asked) keeps half the width instead of stretching across.
+const WORK_ROW = { gridTemplateColumns: 'repeat(auto-fill,minmax(min(260px,100%),1fr))' };
 
 const WORK_TEXT = {
   bis: {
