@@ -4,7 +4,7 @@
 |---|---|
 | Access level | `full` with `is_admin = true` |
 | Signs in at | `/admin/login` |
-| Account | Always the `staff-admin` entry in `accounts.local.json` (`fullstaff@gmail.com`, Full access, staff admin). Read the password from that file only; never copy it into this playbook, a result file or chat. If the sign-in fails, ask the user. |
+| Account | Always the `staff-admin` entry in `accounts.local.json` (`fullstaff@gmail.com`; checked 2026-11-12: Full access but **not** a staff admin, so the Staff page refuses it and the missions are BLOCKED until a real staff admin is put in that entry). Read the password from that file only; never copy it into this playbook, a result file or chat. If the sign-in fails, ask the user. |
 | Device | office desktop (1440 × 900) |
 | Time budget | about 50 minutes (SA-0 alone: 10–15) |
 | Run tag | `PB<MMDD>SA` · findings `SA-1`, `SA-2` … |
