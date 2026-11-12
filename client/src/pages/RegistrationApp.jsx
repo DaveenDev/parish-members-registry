@@ -644,10 +644,22 @@ function Confirmation({ refNo, accessCode, householdName, joined = false, onRest
               </div>
             </>
           )}
-          <div className="text-[13.5px] text-parish-text2 mt-3 font-semibold">
-            {isTouch
-              ? `Palihug tipigi ${code ? 'kini sila' : 'kini'}: i-screenshot kini nga screen, o i-copy ug i-paste sa inyong notes.`
-              : `Palihug tipigi ${code ? 'kini sila' : 'kini'} isip inyong rekord: i-print, isulat, o i-screenshot.`}
+          {/* Hard to miss: families who lose these can't update their record later. */}
+          <div role="note" className="mt-5 flex items-start gap-3 text-left rounded-xl border-2 border-[#e0a526] bg-[#fff4d6] px-4 py-3.5 shadow-[0_4px_14px_-6px_rgba(224,165,38,.55)]">
+            <div className="flex-none w-9 h-9 rounded-full bg-[#e0a526] text-white flex items-center justify-center" aria-hidden>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round"><path d="M12 9v4M12 17h.01" /><path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z" /></svg>
+            </div>
+            <div className="min-w-0">
+              <div className="font-bold text-[16.5px] leading-snug text-[#6b4300]">
+                {code ? 'Save your Reference Number and Code now!' : 'Save your Reference Number now!'}
+              </div>
+              <div className="text-[14px] leading-snug text-[#7a5410] mt-1 font-medium">
+                {isTouch
+                  ? 'Take a screenshot of this screen, or copy and paste it into your notes.'
+                  : 'Print it, write it down, or take a screenshot.'}
+                {code && ' You will need both to update your family’s record.'}
+              </div>
+            </div>
           </div>
           {isTouch && (
             <button

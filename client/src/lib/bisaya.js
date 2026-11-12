@@ -110,8 +110,8 @@ export const LOCAL_GROUP_LABELS = {
   Other: 'Uban pa',
 };
 
-// The OFW question's answers (OFW_STATUSES; '' is "Dili"). Also a first draft.
-export const OFW_NO_LABEL = 'Dili';
+// The OFW question's answers (OFW_STATUSES; '' is "Wala"). Also a first draft.
+export const OFW_NO_LABEL = 'Wala';
 export const OFW_STATUS_BIS_LABELS = {
   Abroad: 'Oo, naa pa sa gawas sa nasud karon',
   Returned: 'Kaniadto, nakauli na',

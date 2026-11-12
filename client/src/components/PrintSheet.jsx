@@ -81,7 +81,7 @@ export function ConfirmationPrintSheet({ refNo, accessCode, householdName, paris
             </div>
           </>
         )}
-        <div style={{ fontSize: 11, color: '#8a836f', marginTop: 8 }}>Palihug tipigi {accessCode ? 'kini sila' : 'kini'} isip inyong rekord.</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: '#6b4300', marginTop: 8 }}>Keep this as your record.</div>
       </div>
 
       <div style={{ marginTop: 32, fontSize: 10, color: '#8a836f' }}>Gi-print {new Date().toLocaleDateString()}</div>
