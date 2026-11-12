@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 import { HIDE_DAYS, PRO_DEMO_URL, SHOWCASE_KEY, accountAgeDays, pickShowcase } from '../../lib/proPromo.js';
-import { ownedModules } from '../../lib/proModules.js';
+import { PROMO_ON, ownedModules } from '../../lib/proModules.js';
 import { hideFor, markShowcaseShown, readShown, useDismissals } from '../../lib/proStore.js';
 import { busyNow } from './busy.js';
 import ModuleShot from './ModuleShot.jsx';
@@ -32,7 +32,7 @@ export default function ProShowcaseDialog() {
       if (busyNow()) return;
       const three = pickShowcase({
         pathname, access: user.access, isDemo: user.isDemo, accountAgeDays: accountAgeDays(user.createdAt, Date.now()),
-        owned: ownedModules, dismissals: hidden.current, now: Date.now(), shownThisSession: readShown(user).showcaseShown,
+        enabled: PROMO_ON, owned: ownedModules, dismissals: hidden.current, now: Date.now(), shownThisSession: readShown(user).showcaseShown,
       });
       if (!three) return;
       markShowcaseShown(user);

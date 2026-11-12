@@ -93,6 +93,7 @@ A **second** Vercel project from the same repository:
    |---|---|
    | `VITE_SUPABASE_URL` | `https://<demo-ref>.supabase.co` |
    | `VITE_SUPABASE_ANON_KEY` | the **demo** project's anon key |
+   | `VITE_PRO_PROMO` | `on`, to show the PRO tip cards, showcase and PRO modules page here. Leave it out on every parish's site until PRO is ready. |
 
 3. Deploy. Settings → Domains: rename to e.g. `parish-registry-demo`. The
    name matters: `client/vercel.json` sends `/media` to the testing bucket

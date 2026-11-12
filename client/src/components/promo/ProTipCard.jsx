@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 import { HIDE_DAYS, accountAgeDays, moduleById, pageKey, pickTip, tipKey } from '../../lib/proPromo.js';
-import { ownedModules } from '../../lib/proModules.js';
+import { PROMO_ON, ownedModules } from '../../lib/proModules.js';
 import { hideFor, markPageSkipped, markTipShown, readShown, useDismissals } from '../../lib/proStore.js';
 import { busyNow, somethingOpen } from './busy.js';
 
@@ -32,7 +32,7 @@ export default function ProTipCard() {
       const shown = readShown(user);
       return pickTip({
         pathname, tab, access: user.access, isDemo: user.isDemo, accountAgeDays: accountAgeDays(user.createdAt, Date.now()),
-        owned: ownedModules, dismissals: hidden.current, now: Date.now(), ...shown,
+        enabled: PROMO_ON, owned: ownedModules, dismissals: hidden.current, now: Date.now(), ...shown,
       });
     };
     if (!pick()) return undefined;

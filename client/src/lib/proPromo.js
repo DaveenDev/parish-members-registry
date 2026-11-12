@@ -13,6 +13,16 @@ export const PRO_URL = 'https://daveendev.vercel.app/pro';
 export const PRO_DEMO_URL = 'https://daveendev.vercel.app/pro#demo';
 export const PRO_CONTACT_EMAIL = 'daveendev07@gmail.com';
 
+/**
+ * The gate: the PRO notes show only where VITE_PRO_PROMO is "on" (a Vercel
+ * environment variable, read when the site is built). Off or unset, an
+ * existing parish sees nothing: no cards, no showcase, no PRO modules page.
+ * Turn it on for the demo site first, then for a parish once PRO is ready.
+ * Changing it needs a redeploy, and it is not a secret: it is built into
+ * the page like the other VITE_ settings.
+ */
+export const promoEnabled = (value) => /^(on|true|1|yes)$/i.test(String(value ?? '').trim());
+
 export const DAY_MS = 86400000;
 export const QUIET_DAYS = 21; // nothing for a new account's first 21 days
 export const HIDE_DAYS = 30; // "Not now", ✕ and the showcase's buttons
@@ -101,6 +111,7 @@ export const missingModules = (owned = []) => MODULES.filter((m) => !owned.inclu
  * for modules they don't have.
  */
 export function pickTip(ctx) {
+  if (ctx.enabled === false) return null;
   const who = audienceFor(ctx.access);
   if (!who.tips || tooNew(ctx)) return null;
   if (isHidden(ctx.dismissals, ALL_TIPS_KEY, ctx.now)) return null;
@@ -134,6 +145,7 @@ export function pickTip(ctx) {
  * accounts; not within 30 days of hiding it, nor twice in a session.
  */
 export function pickShowcase(ctx) {
+  if (ctx.enabled === false) return null;
   if (trimPath(ctx.pathname) !== '/admin') return null;
   if (!audienceFor(ctx.access).showcase || tooNew(ctx)) return null;
   if (ctx.owned?.length) return null;

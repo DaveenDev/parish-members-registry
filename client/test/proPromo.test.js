@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import {
   ALL_TIPS_KEY, DAY_MS, SHOWCASE_KEY, TIPS, accountAgeDays, askMailto, audienceFor, hiddenUntil, isHidden,
-  pageKey, pickShowcase, pickTip, seesPro, tipKey,
+  pageKey, pickShowcase, promoEnabled, pickTip, seesPro, tipKey,
 } from '../src/lib/proPromo.js';
 
 const NOW = Date.parse('2026-12-01T09:00:00Z');
@@ -130,4 +130,12 @@ test('0124 keeps each account\'s dismissals to itself', () => {
   assert.match(sql, /enable row level security/);
   assert.match(sql, /using \(user_id = auth\.uid\(\)\) with check \(user_id = auth\.uid\(\)\)/);
   assert.match(sql, /revoke all on staff_dismissals from anon/);
+});
+
+test('the gate: off unless VITE_PRO_PROMO says on, and then nothing is shown', () => {
+  for (const v of ['on', 'ON', 'true', '1', ' yes ']) assert.equal(promoEnabled(v), true, v);
+  for (const v of [undefined, '', 'off', 'false', '0', 'no']) assert.equal(promoEnabled(v), false, String(v));
+  assert.equal(tip({ enabled: false }), null);
+  assert.equal(showcase({ enabled: false }), null);
+  assert.ok(tip({ enabled: true }) && showcase({ enabled: true }));
 });

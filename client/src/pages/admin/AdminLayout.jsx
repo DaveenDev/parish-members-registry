@@ -16,6 +16,7 @@ import { APP_VERSION, PRO_VERSION } from '../../lib/appVersion.js';
 import ChurchEmblem from '../../components/ChurchEmblem.jsx';
 import NavIcon from '../../components/NavIcon.jsx';
 import { SetupChecklistPopup } from '../../components/SetupChecklist.jsx';
+import { PRO_PAGE_ON } from '../../lib/proModules.js';
 import ProTipCard from '../../components/promo/ProTipCard.jsx';
 import ProShowcaseDialog from '../../components/promo/ProShowcaseDialog.jsx';
 
@@ -240,7 +241,7 @@ export default function AdminLayout() {
   // The nav this account sees, for the sidebar and the icon rail.
   const visibleGroups = NAV_GROUPS.map((g) => ({
     ...g,
-    items: g.items.filter((n) => navAllowed(n, user) && (!n.whileCensusOpen || showCensusMenu)).map((n) => ({ ...n, label: navLabel(n, user) })),
+    items: g.items.filter((n) => navAllowed(n, user) && (!n.whileCensusOpen || showCensusMenu) && (PRO_PAGE_ON || n.to !== '/admin/pro')).map((n) => ({ ...n, label: navLabel(n, user) })),
   })).filter((g) => g.items.length);
   const groupOpen = (g) => !navCollapsible(g, user) || (openGroups[g.label] ?? g.items.some((n) => n === current || n.to === current?.to));
   const toggleGroup = (g) => setOpenGroups((o) => ({ ...o, [g.label]: !groupOpen(g) }));

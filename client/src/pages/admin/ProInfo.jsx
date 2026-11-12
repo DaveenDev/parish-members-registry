@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useOutletContext } from 'react-router-dom';
+import { Navigate, useLocation, useOutletContext } from 'react-router-dom';
 import { useAuth } from '../../AuthContext.jsx';
 import { useToast } from '../../ToastContext.jsx';
 import { PageHeader, PageBody, Panel } from '../../components/admin.jsx';
 import { Checkbox } from '../../components/ui.jsx';
 import ModuleShot from '../../components/promo/ModuleShot.jsx';
 import { ALL_TIPS_KEY, HIDE_ALL_DAYS, MODULES, PRO_DEMO_URL, PRO_URL, askMailto, isHidden, missingModules } from '../../lib/proPromo.js';
-import { PRO_UPDATES_UNTIL, ownedModules } from '../../lib/proModules.js';
+import { PRO_PAGE_ON, PRO_UPDATES_UNTIL, ownedModules } from '../../lib/proModules.js';
 import { PRO_VERSION } from '../../lib/appVersion.js';
 import { hideFor, useDismissals } from '../../lib/proStore.js';
 
@@ -41,6 +41,9 @@ export default function ProInfo() {
     hideFor(user, ALL_TIPS_KEY, HIDE_ALL_DAYS);
     toast.success('PRO tips are off for your account for 90 days.');
   };
+
+  // Not switched on for this site (VITE_PRO_PROMO): the page isn't there.
+  if (!PRO_PAGE_ON) return <Navigate to="/admin" replace />;
 
   return (
     <>
