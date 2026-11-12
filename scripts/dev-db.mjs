@@ -71,7 +71,7 @@ function stackEnv() {
 function up() {
   requireDocker();
   console.log('Starting the local Supabase stack (first run pulls images; a few minutes)...');
-  spawnSync('npx', ['supabase', 'start'], { cwd: ROOT, stdio: 'inherit' });
+  spawnSync('npx', ['supabase', 'start', '-x', 'mailpit,studio,vector,imgproxy'], { cwd: ROOT, stdio: 'inherit' });
   status();
 }
 

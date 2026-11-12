@@ -36,7 +36,6 @@ export async function insertDemoHouseholds(supabase, DEMO_HOUSEHOLDS) {
       contact: m.contact || null,
       email: m.email || null,
       occupation: m.occupation || null,
-      blood_type: m.bloodType || null,
       occupation_group: m.occupationGroup || null,
       ofw_status: m.ofwStatus || null,
       ofw_since: m.ofwSince || null,
