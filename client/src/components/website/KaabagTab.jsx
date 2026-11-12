@@ -15,7 +15,7 @@ import {
 } from '../../lib/kaabag.js';
 import { parseIso } from '../../lib/site.js';
 import { HolderAvatar } from '../orgchart/NodePanel.jsx';
-import { FilePick, Panel, RowButton, SectionLabel, TabIntro } from './shared.jsx';
+import { Panel, RowButton, SectionLabel, TabIntro } from './shared.jsx';
 
 const place = (s) => [s.location, s.language].filter(Boolean).join(' · ');
 const dayLabel = (iso) => `${DAY_NAMES[parseIso(iso).getDay()].slice(0, 3)}, ${fmtDate(iso)}`;
@@ -323,6 +323,7 @@ function People({ data, onChanged }) {
   const confirm = useConfirm();
   const viewOnly = useViewOnly();
   const [name, setName] = useState('');
+  const [search, setSearch] = useState('');
   const [busy, setBusy] = useState(false);
   const { roster } = data;
   const drawn = roster.filter((r) => r.on_rotation).length;
@@ -356,43 +357,73 @@ function People({ data, onChanged }) {
     act(async () => { await api.addKaabagName(name); setName(''); }, 'Could not add this name');
   }
 
+  const q = search.trim().toLowerCase();
+  const shownRows = q ? roster.filter((r) => r.name.toLowerCase().includes(q)) : roster;
+  // Columns: name, in the draw, on the website, actions. One line per person on wider screens.
+  const COLS = 'sm:grid sm:grid-cols-[minmax(0,1fr)_64px_72px_auto] sm:items-center';
+
   return (
     <Panel>
       <div className="px-5 pt-4 pb-3">
-        <PanelTitle>The list</PanelTitle>
-        <p className="m-0 mt-1 text-[13.5px] text-parish-muted max-w-[640px]">
-          Members in the Kaabag ministry come in by themselves from <Link to="/admin/ministries" className="text-parish-blue font-semibold no-underline hover:underline">Ministry rosters</Link>. With nobody registered yet, type the names here and they go into the draw the same way.
-        </p>
-        <p className="m-0 mt-2 text-[13.5px] text-parish-text2 max-w-[640px]">
-          <strong className="text-parish-navy">Names stay off the website until the person agrees</strong> (Data Privacy Act). Until then the website only counts them. Tick “Show on the website” once they have; the day is noted. The photo goes with the name, in the directory on the Kaabag page.
-        </p>
-        <p className="m-0 mt-2 text-[12.5px] text-parish-muted">{roster.length} on the list · {drawn} in the draw · {named} shown by name on the website</p>
-        {!viewOnly && (
-          <form onSubmit={add} className="flex gap-2 flex-wrap mt-3">
-            <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Type a name" maxLength={120} aria-label="Name to add to the list" className="!w-[280px] max-w-full" />
-            <PrimaryButton type="submit" disabled={busy || !name.trim()} className="px-[18px] py-2.5 text-[14px]">Add name</PrimaryButton>
-          </form>
+        <div className="flex items-center gap-x-3 gap-y-2 flex-wrap">
+          <PanelTitle>The list</PanelTitle>
+          <span className="text-[12.5px] text-parish-muted">{roster.length} on the list · {drawn} in the draw · {named} shown by name</span>
+          {!viewOnly && (
+            <form onSubmit={add} className="flex gap-2 ml-auto max-w-full">
+              <TextInput value={name} onChange={(e) => setName(e.target.value)} placeholder="Type a name" maxLength={120} aria-label="Name to add to the list" className="!w-[200px] max-w-full !py-1.5 !text-[14px]" />
+              <PrimaryButton type="submit" disabled={busy || !name.trim()} className="px-4 py-1.5 text-[13.5px] whitespace-nowrap">Add name</PrimaryButton>
+            </form>
+          )}
+        </div>
+        <details className="mt-2 text-[13px] text-parish-muted">
+          <summary className="cursor-pointer font-semibold text-parish-blue select-none">How the list works</summary>
+          <div className="max-w-[640px]">
+            <p className="m-0 mt-1.5">
+              Members in the Kaabag ministry come in by themselves from <Link to="/admin/ministries" className="text-parish-blue font-semibold no-underline hover:underline">Ministry rosters</Link>. With nobody registered yet, type the names here and they go into the draw the same way.
+            </p>
+            <p className="m-0 mt-1.5 text-parish-text2">
+              <strong className="text-parish-navy">Names stay off the website until the person agrees</strong> (Data Privacy Act). Until then the website only counts them. Tick “Website” once they have; the day is noted. The photo goes with the name, in the directory on the Kaabag page.
+            </p>
+          </div>
+        </details>
+        {roster.length > 8 && (
+          <TextInput
+            type="search" value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${roster.length} names`} aria-label="Search the list"
+            className="mt-3 !w-[260px] max-w-full !py-1.5 !text-[14px]"
+          />
         )}
       </div>
-      {!roster.length ? <EmptyState title="Nobody on the list yet" subtitle="Add members to the Kaabag ministry, or type names above." /> : roster.map((r) => (
-        <div key={r.id} className="flex items-center gap-x-4 gap-y-1.5 px-5 py-2.5 flex-wrap border-t border-parish-line">
-          <div className="flex-1 min-w-[190px] flex items-center gap-2 flex-wrap">
-            <HolderAvatar photo={r.photo_url} name={r.name} size={36} />
-            <span className="font-semibold text-[14.5px] text-parish-navy">{r.name}</span>
-            <Badge tone={r.member_id ? 'blue' : 'gray'}>{r.member_id ? 'Registered' : 'Typed name'}</Badge>
+      {!roster.length ? <EmptyState title="Nobody on the list yet" subtitle="Add members to the Kaabag ministry, or type names above." /> : (
+        <>
+          <div className={`hidden ${COLS} gap-x-3 px-5 py-1.5 border-t border-parish-line bg-parish-sunk text-[11px] font-bold tracking-[.08em] uppercase text-parish-muted`}>
+            <span>Name</span><span className="text-center" title="Included when the schedule is drawn">Draw</span><span className="text-center" title="Shown by name on the website">Website</span><span className="text-right">Photo</span>
           </div>
-          <label className="flex items-center gap-2 text-[13px] text-parish-text2 cursor-pointer">
-            <Checkbox checked={r.on_rotation} disabled={viewOnly || busy} onChange={(e) => act(() => api.saveKaabagPerson(r.id, { on_rotation: e.target.checked }))} className="w-4 h-4" />
-            In the draw
-          </label>
-          <label className="flex items-center gap-2 text-[13px] text-parish-text2 cursor-pointer" title={r.consent_on ? `Agreed ${fmtDate(r.consent_on)}` : undefined}>
-            <Checkbox checked={r.show_publicly} disabled={viewOnly || busy} onChange={(e) => act(() => api.saveKaabagPerson(r.id, { show_publicly: e.target.checked }))} className="w-4 h-4" />
-            Show on the website
-          </label>
-          <PhotoButtons person={r} busy={busy} onChanged={onChanged} />
-          {!r.member_id && <RowButton tone="red" disabled={busy} onClick={() => remove(r)}>Remove</RowButton>}
-        </div>
-      ))}
+          <div className="max-h-[460px] overflow-y-auto">
+            {!shownRows.length && <div className="px-5 py-4 text-[13.5px] text-parish-muted border-t border-parish-line">No names match “{search.trim()}”.</div>}
+            {shownRows.map((r) => (
+              <div key={r.id} className={`flex flex-wrap items-center gap-x-3 gap-y-1 ${COLS} px-5 py-1.5 border-t border-parish-line hover:bg-parish-sunk/60`}>
+                <div className="basis-full sm:basis-auto min-w-0 flex items-center gap-2">
+                  <HolderAvatar photo={r.photo_url} name={r.name} size={28} />
+                  <span className="font-semibold text-[14px] text-parish-navy truncate">{r.name}</span>
+                  {!r.member_id && <span className="flex-none text-[10.5px] font-semibold uppercase tracking-wide text-parish-muted border border-parish-line rounded px-1 py-px" title="Typed in by hand, not a registered member">Typed</span>}
+                </div>
+                <label className="flex items-center justify-center gap-1.5 text-[12.5px] text-parish-text2 cursor-pointer" title="Included when the schedule is drawn">
+                  <Checkbox checked={r.on_rotation} disabled={viewOnly || busy} onChange={(e) => act(() => api.saveKaabagPerson(r.id, { on_rotation: e.target.checked }))} className="w-4 h-4" aria-label={`${r.name}: in the draw`} />
+                  <span className="sm:hidden">Draw</span>
+                </label>
+                <label className="flex items-center justify-center gap-1.5 text-[12.5px] text-parish-text2 cursor-pointer" title={r.consent_on ? `Agreed ${fmtDate(r.consent_on)}` : 'Shown by name on the website'}>
+                  <Checkbox checked={r.show_publicly} disabled={viewOnly || busy} onChange={(e) => act(() => api.saveKaabagPerson(r.id, { show_publicly: e.target.checked }))} className="w-4 h-4" aria-label={`${r.name}: show on the website`} />
+                  <span className="sm:hidden">Website</span>
+                </label>
+                <span className="flex items-center justify-end gap-1.5 ml-auto sm:ml-0">
+                  <PhotoButtons person={r} busy={busy} onChanged={onChanged} />
+                  {!r.member_id && <RowButton tone="red" disabled={busy} onClick={() => remove(r)}>Remove</RowButton>}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </Panel>
   );
 }
@@ -428,9 +459,17 @@ function PhotoButtons({ person, busy, onChanged }) {
     }
   }
 
+  const off = busy || working;
   return (
-    <span className="flex items-center gap-2">
-      <FilePick label={person.photo_url ? 'Change photo' : 'Add photo'} onFiles={([f]) => change(f)} busy={working} disabled={busy} />
+    <span className="flex items-center gap-1.5">
+      <label aria-busy={working || undefined} className={`cursor-pointer px-2.5 py-1 rounded-lg text-[12.5px] font-semibold bg-[var(--p-blue-tint)] text-parish-blue inline-flex items-center gap-1.5 ${off ? 'pointer-events-none opacity-60' : ''}`}>
+        {working && <Spinner />}
+        {working ? 'Uploading…' : person.photo_url ? 'Change' : 'Add photo'}
+        <input
+          type="file" accept="image/*" className="hidden" disabled={off}
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; if (f) change(f); }}
+        />
+      </label>
       {person.photo_url && !working && <RowButton tone="gray" disabled={busy} onClick={() => change(null)}>Remove photo</RowButton>}
     </span>
   );
