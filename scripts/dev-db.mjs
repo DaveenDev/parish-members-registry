@@ -26,7 +26,7 @@ import { insertDemoHouseholds } from './supabase-seed-lib.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const ACCOUNTS_FILE = join(ROOT, '.claude/playbooks/accounts.local.json');
-const CLIENT_ENV = join(ROOT, 'client/.env.development.local');
+const CLIENT_ENV = join(ROOT, 'client/.env.local');
 
 // The accounts every staff playbook signs in as (see accounts.example.json).
 const ACCOUNTS = [
@@ -130,9 +130,17 @@ async function seed() {
   writeFileSync(ACCOUNTS_FILE, JSON.stringify(file, null, 2) + '\n');
   console.log(`Staff accounts ready; sign-in details are in ${ACCOUNTS_FILE.replace(ROOT + '/', '')} (gitignored).`);
 
-  // 4. Point the local app at this database (gitignored; beats .env.local).
-  writeFileSync(CLIENT_ENV, `# Written by npm run db:dev:seed: the local dev database. Delete to go back to client/.env.local.\nVITE_SUPABASE_URL=${s.url}\nVITE_SUPABASE_ANON_KEY=${s.anon}\n`);
-  console.log('Wrote client/.env.development.local (the local app now uses the dev database).');
+  // 4. Point the local app at this database: client/.env.local, keeping any
+  //    other lines (VITE_DEMO_*). The previous URL/key are kept as comments.
+  const keys = ['VITE_SUPABASE_URL', 'VITE_SUPABASE_ANON_KEY'];
+  const old = existsSync(CLIENT_ENV) ? readFileSync(CLIENT_ENV, 'utf8').split('\n') : [];
+  const kept = old.filter((l) => l.trim() && !keys.some((k) => l.startsWith(k + '=')));
+  const saved = old.filter((l) => keys.some((k) => l.startsWith(k + '='))).map((l) => '# before db:dev:seed: ' + l);
+  const already = old.some((l) => l.startsWith('VITE_SUPABASE_URL=' + s.url));
+  if (!already) {
+    writeFileSync(CLIENT_ENV, [...kept.filter((l) => !l.startsWith('# before db:dev:seed')), ...saved, `VITE_SUPABASE_URL=${s.url}`, `VITE_SUPABASE_ANON_KEY=${s.anon}`].join('\n') + '\n');
+  }
+  console.log('client/.env.local now points the local app at the dev database.');
 }
 
 function reset() {

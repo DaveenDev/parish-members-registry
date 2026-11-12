@@ -38,7 +38,7 @@ npm run db:dev:seed     # sample households, role accounts, point the app at it
 ```
 
 `db:dev:seed` writes the role accounts' sign-in details to
-`accounts.local.json` and `client/.env.development.local` (both gitignored),
+`accounts.local.json` and `client/.env.local` (both gitignored),
 so SA-0 is not needed on this database. `npm run db:dev:reset` rebuilds it
 from scratch at any time, `db:dev:down` stops it. It needs Docker. If Docker
 is not available, fall back to the shared demo database (§2).
@@ -83,7 +83,7 @@ that person stuck, confused, slow, wrong, or exposed.
 
 The app has no server of its own; the browser talks straight to a Supabase
 project. **Default: the local dev database from §0** (`http://127.0.0.1:54321`),
-which `client/.env.development.local` points the local app at. It is yours
+which `client/.env.local` points the local app at. It is yours
 alone, so you may wipe and reseed it (`npm run db:dev:reset`). **Fallback:**
 the shared **demo** project (`qyoyuukpdjrwfhovtrwd`, set in `client/.env.local`)
 when Docker is unavailable. The live parish project is `rmlkowkbonbrtaqocsvo`
