@@ -27,6 +27,8 @@ async function loadProfile(session, { recheck = false } = {}) {
   return {
     id: session.user.id,
     email: session.user.email,
+    // When the account was made: the PRO notes keep quiet for its first 21 days (lib/proPromo.js).
+    createdAt: session.user.created_at || null,
     name: data?.name || session.user.email,
     role: data?.role || '',
     isAdmin: !!data?.is_admin,

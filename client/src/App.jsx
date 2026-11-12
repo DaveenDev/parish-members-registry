@@ -40,6 +40,7 @@ const ActivityLog = React.lazy(() => import('./pages/admin/ActivityLog.jsx'));
 const Trash = React.lazy(() => import('./pages/admin/Trash.jsx'));
 const Notifications = React.lazy(() => import('./pages/admin/Notifications.jsx'));
 // The org chart editor brings React Flow.
+const ProInfo = React.lazy(() => import('./pages/admin/ProInfo.jsx'));
 const OrgStructure = React.lazy(() => import('./pages/admin/OrgStructure.jsx'));
 
 /** A page loaded on demand, outside the admin layout: the plain background while it loads. */
@@ -169,6 +170,7 @@ export default function App() {
           <Route path="settings/activity" element={<ActivityLog />} />
           <Route path="settings/trash" element={<Trash />} />
           <Route path="settings/notifications" element={<Notifications />} />
+          <Route path="pro" element={<ProInfo />} />
           {/* A mistyped admin URL stays inside the admin, not on the public home page. */}
           <Route path="*" element={<AdminNotFound />} />
         </Route>

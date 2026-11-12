@@ -54,6 +54,7 @@ export const NAV_GROUPS = [
       { to: '/admin/settings/staff', label: 'Staff', adminOnly: true },
       { to: '/admin/settings/activity', label: 'Activity log', need: 'activity' },
       { to: '/admin/settings/trash', label: 'Trash', need: 'trash' },
+      { to: '/admin/pro', label: 'PRO modules', need: 'pro' },
     ],
   },
 ];

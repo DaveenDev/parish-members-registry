@@ -28,6 +28,8 @@ This registry was built for Our Lady of Guadalupe Quasi-Parish, Mua-an, and is g
 
 **On one condition:** keep the credit **"Built For Free by DaveenDev"** where it appears in the app, linked to the developer page (`/developer`) or to [daveendev.vercel.app](https://daveendev.vercel.app/), and keep the [`LICENSE`](LICENSE) file. The credit shows in the public website's footer, on the registration and census pages, on the staff sign-in page and in the admin panel's sidebar; you may restyle it to match your site, but not remove or reword it. That's the whole price.
 
+The admin panel shows the occasional note about PRO modules, which staff can hide. The free licence doesn't require keeping them; only the credit above is required.
+
 **What it costs to run:** nothing, on the free plans of [Supabase](https://supabase.com) (the database and staff logins), [Vercel](https://vercel.com) (the website) and [Cloudflare R2](https://www.cloudflare.com/developer-platform/products/r2/) (photos), for a parish of a few thousand households. A domain name of your own is optional. See [Staying on the free tier](#staying-on-the-free-tier-keep-alive-and-backups).
 
 ### Setting it up yourself

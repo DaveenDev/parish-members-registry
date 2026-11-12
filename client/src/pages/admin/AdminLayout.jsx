@@ -16,6 +16,8 @@ import { APP_VERSION, PRO_VERSION } from '../../lib/appVersion.js';
 import ChurchEmblem from '../../components/ChurchEmblem.jsx';
 import NavIcon from '../../components/NavIcon.jsx';
 import { SetupChecklistPopup } from '../../components/SetupChecklist.jsx';
+import ProTipCard from '../../components/promo/ProTipCard.jsx';
+import ProShowcaseDialog from '../../components/promo/ProShowcaseDialog.jsx';
 
 // Lets a phone add the admin panel to its Home Screen (needed on iPhone for
 // notifications). Only on admin pages, so the public website isn't offered
@@ -390,6 +392,8 @@ export default function AdminLayout() {
             </Suspense>
             {/* Once a day while the parish settings aren't all set up (lib/setup.js). */}
             {parish && <SetupChecklistPopup settings={parish} />}
+            {/* PRO notes (lib/proPromo.js): one tip card, and the monthly showcase on the Dashboard. */}
+            <ProTipCard />
           </>
         ) : user?.access === 'none' ? (
           <WaitingForAccess email={user.email} onSignOut={onLogout} />
@@ -402,6 +406,7 @@ export default function AdminLayout() {
           </>
         )}
       </main>
+      <ProShowcaseDialog />
       {searchOpen && <CommandPalette onClose={() => setSearchOpen(false)} />}
       <IdleSignOut onSignOut={onIdle} />
     </div>
