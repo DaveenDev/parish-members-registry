@@ -42,6 +42,37 @@ export const COMMUNION_MIN_AGE = 7;
 export const CONFIRMATION_MIN_AGE = 7;
 export const MATRIMONY_MIN_AGE = 12;
 export const ROLE_MIN_AGE = 12;
+// The occupation group from 15 (the occupation report counts members 15 and
+// over), the OFW question from 18 (0121).
+export const OCCUPATION_GROUP_MIN_AGE = 15;
+export const OFW_MIN_AGE = 18;
+
+// Occupation groups (members.occupation_group, 0121), so occupations can be
+// counted: short, in words a family uses, adapted from the PSA's groups but
+// not a census code. Keep in step with occupation_groups() in
+// 0121_member_ofw.sql. Bisaya labels: OCCUPATION_GROUP_LABELS in lib/bisaya.js.
+export const OCCUPATION_GROUPS = [
+  'Farming or fishing', 'Business or vendor', 'Driver or transport', 'Construction or skilled trade',
+  'Factory or labourer', 'Office or sales staff', 'Teacher', 'Health worker', 'Government, police or military',
+  'Seafarer', 'Household service or caregiver', 'Professional', 'Student', 'Homemaker', 'Retired',
+  'Looking for work', 'Other',
+];
+// The one sea-based group; every other OFW is land-based.
+export const SEA_BASED_GROUP = 'Seafarer';
+// How the staff pages name a group, where the stored name needs a hint.
+export const OCCUPATION_GROUP_HINTS = { Professional: 'Professional (doctor, engineer, lawyer…)' };
+
+// members.ofw_status (0121): 'Abroad' = abroad now, 'Returned' = a former OFW
+// back home; null = not an OFW (or not asked).
+export const OFW_STATUSES = ['Abroad', 'Returned'];
+export const OFW_STATUS_LABELS = { Abroad: 'Abroad now', Returned: 'Former OFW (back home)' };
+// The usual destinations, then "Other" (a typed name). "At sea" is for seafarers.
+export const OFW_OTHER_COUNTRY = 'Other';
+export const OFW_COUNTRIES = [
+  'Saudi Arabia', 'United Arab Emirates', 'Qatar', 'Kuwait', 'Hong Kong', 'Singapore', 'Taiwan', 'Japan',
+  'South Korea', 'Malaysia', 'United States', 'Canada', 'Italy', 'United Kingdom', 'Australia', 'At sea (seafarer)',
+  OFW_OTHER_COUNTRY,
+];
 
 // Sacraments and the member columns that hold each claim. `key` is what
 // sacrament_verifications.sacrament stores (0005 migration).
@@ -103,6 +134,7 @@ export function blankMember() {
   return {
     familyNo: 1, firstName: '', middleName: '', lastName: '', suffix: '', relationship: '', sex: '', dob: '', placeOfBirth: '', tribe: '',
     civilStatus: '', contact: '', email: '', occupation: '', religion: 'Roman Catholic', bloodType: '', gkkRole: '', parishRole: '',
+    occupationGroup: '', ofwStatus: '', ofwCountry: '', ofwSince: '', ofwReturned: '',
     hasBaptism: false, baptismDate: '', baptismChurch: '',
     hasCommunion: false, communionDate: '', communionChurch: '',
     hasConfirmation: false, confDate: '', confChurch: '', confName: '', confSponsor: '',

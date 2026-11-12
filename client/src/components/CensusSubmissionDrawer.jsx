@@ -1,7 +1,8 @@
 import React, { useEffect, useId, useState } from 'react';
 import { api } from '../api.js';
 import { PrimaryButton, GhostButton, Badge } from './ui.jsx';
-import { fmtDate, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS } from '../constants.js';
+import { fmtDate, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, OFW_STATUS_LABELS } from '../constants.js';
+import { occupationGroupLabel, ofwLine } from '../lib/ofw.js';
 import { bis, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
 import { STATUS_TONES, diffSubmission, suggestStatus, PORTAL_NEW_MEMBER_FIELDS, PORTAL_SACRAMENTS } from '../lib/census.js';
 import { useToast } from '../ToastContext.jsx';
@@ -9,11 +10,12 @@ import { useConfirm } from './ConfirmDialog.jsx';
 import { useAuth } from '../AuthContext.jsx';
 import { can } from '../lib/access.js';
 
-const LABEL_MAPS = { relationship: RELATIONSHIP_LABELS, sex: SEX_LABELS, civil_status: CIVIL_STATUS_LABELS };
+const LABEL_MAPS = { relationship: RELATIONSHIP_LABELS, sex: SEX_LABELS, civil_status: CIVIL_STATUS_LABELS, ofw_status: OFW_STATUS_LABELS };
 
 function show(key, value) {
   if (value === null || value === undefined || value === '') return '—';
   if (key === 'dob') return fmtDate(value);
+  if (key === 'occupation_group') return occupationGroupLabel(value);
   return LABEL_MAPS[key] ? bis(LABEL_MAPS[key], value) : value;
 }
 
@@ -100,6 +102,9 @@ function NewMemberDetails({ fields: f }) {
   });
   const rows = [
     ...PORTAL_NEW_MEMBER_FIELDS.filter(([k]) => f[k]).map(([k, label]) => [label, f[k]]),
+    f.occupation && ['Occupation', f.occupation],
+    f.occupation_group && ['Occupation group', occupationGroupLabel(f.occupation_group)],
+    ofwLine(f) && ['OFW', ofwLine(f)],
     ['Sacraments', sacraments.join(' · ') || 'None ticked'],
     f.mat_type && !f.has_matrimony && ['Wedding', f.mat_type],
     f.organizations?.length > 0 && ['Organizations', f.organizations.join(' · ')],

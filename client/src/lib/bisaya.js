@@ -50,6 +50,36 @@ export const WEDDING_TYPE_LABELS = {
   Convalidation: 'Gi-convalidate nga Kasal',
 };
 
+// Occupation groups (OCCUPATION_GROUPS, 0121). A first draft: Dave checks
+// the wording before release.
+export const OCCUPATION_GROUP_LABELS = {
+  'Farming or fishing': 'Pagpanguma o pagpangisda',
+  'Business or vendor': 'Negosyo o tindera',
+  'Driver or transport': 'Drayber o transportasyon',
+  'Construction or skilled trade': 'Konstruksyon o skilled trade',
+  'Factory or labourer': 'Pabrika o trabahante',
+  'Office or sales staff': 'Opisina o sales',
+  Teacher: 'Magtutudlo',
+  'Health worker': 'Health worker',
+  'Government, police or military': 'Gobyerno, pulis o militar',
+  Seafarer: 'Seaman',
+  'Household service or caregiver': 'Katabang sa balay o caregiver',
+  Professional: 'Propesyonal (doktor, inhenyero, abogado…)',
+  Student: 'Estudyante',
+  Homemaker: 'Naa sa balay',
+  Retired: 'Retirado',
+  'Looking for work': 'Nangita og trabaho',
+  Other: 'Uban pa',
+};
+
+// The OFW question's answers (OFW_STATUSES; '' is "Dili"). Also a first draft.
+export const OFW_NO_LABEL = 'Dili';
+export const OFW_STATUS_BIS_LABELS = {
+  Abroad: 'Oo, naa pa sa gawas sa nasud karon',
+  Returned: 'Kaniadto, nakauli na',
+};
+export const OFW_COUNTRY_LABELS = { 'At sea (seafarer)': 'Sa dagat (seaman)', Other: 'Uban pa…' };
+
 // Dropdown choices with no stored value of their own: "no blood type on file"
 // and the Tribe list's free-text option.
 export const BLOOD_UNKNOWN_LABEL = 'Wala mahibal-i';

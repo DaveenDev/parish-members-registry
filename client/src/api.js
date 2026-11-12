@@ -2268,13 +2268,17 @@ export const api = {
   async censusPrintData({ gkk, householdIds, withCodes = true }) {
     const memberCols = 'id, household_id, family_no, first_name, middle_name, last_name, suffix, relationship, dob, civil_status, '
       + 'has_baptism, has_communion, has_confirmation, has_matrimony';
+    // 0121: occupation and the OFW answer, printed for the family to check.
+    const ofwCols = ', occupation, occupation_group, ofw_status, ofw_country, ofw_since, ofw_returned';
     const scope = (q, idCol, gkkCol) => {
       if (householdIds) return q.in(idCol, householdIds);
       return gkk === 'None' ? q.is(gkkCol, null) : q.eq(gkkCol, gkk);
     };
+    const membersQuery = (cols) => fetchAll(() => scope(supabase.from('members_with_household').select(cols).eq('is_current', true), 'household_id', 'household_gkk').order('id'));
     const [households, members] = await Promise.all([
       fetchAll(() => scope(supabase.from('households').select('*'), 'id', 'gkk').order('household_name').order('id')),
-      fetchAll(() => scope(supabase.from('members_with_household').select(memberCols).eq('is_current', true), 'household_id', 'household_gkk').order('id')),
+      // Before 0121 the view has no OFW columns: print without them.
+      membersQuery(memberCols + ofwCols).catch((e) => (/ofw_|occupation_group/.test(e?.message || '') ? membersQuery(memberCols) : Promise.reject(e))),
     ]);
     // Online access codes (0008), unless the caller leaves them out. Without that
     // migration the forms print without them.

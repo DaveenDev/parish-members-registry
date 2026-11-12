@@ -5,7 +5,8 @@ import { Field, TextInput, Select, Checkbox, Card, PrimaryButton, GhostButton, S
 import CreditFooter from '../components/CreditFooter.jsx';
 import { useParishTitle } from './site/data.js';
 import MemberCensusCards from '../components/MemberCensusCards.jsx';
-import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationChecks } from '../components/MemberFields.jsx';
+import { MemberNameFields, MemberFieldsGrid, MemberSacraments, OrganizationChecks, OccupationGroupField, OfwFields } from '../components/MemberFields.jsx';
+import { ofwLineBis, ofwYearErrors, occupationGroupBis } from '../lib/ofw.js';
 import { HEADS, RELATIONSHIPS, CIVIL_STATUSES, PARTICIPATION_ITEMS, PARTICIPATION_LEVELS, PARTNERED_STATUSES, GKK_ROLES, fmtDate } from '../constants.js';
 import { familiesOf, familyHeadName, familyNoOf, samePerson, autoFill, askedForAge, toPayloadMember } from '../lib/household.js';
 import { bis, portalErrorInBisaya, RELATIONSHIP_LABELS, SEX_LABELS, CIVIL_STATUS_LABELS } from '../lib/bisaya.js';
@@ -84,7 +85,8 @@ function formFrom(data) {
     household: text(data.household, ['street', 'barangay', 'city', 'province', 'zip', 'contact', 'email']),
     members: data.members.map((m) => childDefaults({
       ...m,
-      ...text(m, ['first_name', 'middle_name', 'last_name', 'suffix', 'relationship', 'sex', 'dob', 'civil_status', 'contact', 'notes']),
+      ...text(m, ['first_name', 'middle_name', 'last_name', 'suffix', 'relationship', 'sex', 'dob', 'civil_status', 'contact', 'notes',
+        'occupation', 'occupation_group', 'ofw_status', 'ofw_country', 'ofw_since', 'ofw_returned']),
       status: m.status || '',
       participation: m.participation || {},
       statusPicked: !!m.status,
@@ -209,6 +211,12 @@ export default function CensusPortal() {
       setError(`Pilia ang kahimtang karon sa matag miyembro (${unmarked.length} pa ang kulang).`);
       // After the cards re-render with their errors, bring the first one into view.
       setTimeout(() => document.querySelector('[data-census-status][aria-invalid=true]')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 50);
+      return;
+    }
+    // The OFW years (0121) of the members already on record.
+    const badOfw = form.members.find((m) => Object.keys(ofwYearErrors(portalOfw(m), { lang: 'bis' })).length);
+    if (badOfw) {
+      setError(`Susiha ang tuig sa OFW ni ${[badOfw.first_name, badOfw.last_name].filter(Boolean).join(' ')}.`);
       return;
     }
     // Each new member, step by step: the first with something missing opens at that step.
@@ -455,7 +463,8 @@ export default function CensusPortal() {
             <Checkbox checked={form.consent} onChange={(e) => setForm((f) => ({ ...f, consent: e.target.checked }))} className="mt-1 flex-none" />
             <span className="text-[14.5px] leading-relaxed text-parish-text2">
               Nagtugot ako nga gamiton sa parokya kini nga impormasyon para sa rehistro sa mga miyembro, subay sa Data Privacy Act of 2012.
-              Makita lamang kini sa awtorisadong kawani sa parokya. Lakip niini ang tipo sa dugo sa bag-ong miyembro.
+              Makita lamang kini sa awtorisadong kawani sa parokya. Lakip niini ang tipo sa dugo sa bag-ong miyembro, ug kon
+              adunay nagtrabaho sa gawas sa nasud (OFW): ang nasud ug sukad kanus-a.
             </span>
           </label>
         </Card>
@@ -570,6 +579,8 @@ function MemberCard({ member: m, showStatusError = false, onChange }) {
       >
         {editing ? '▾ Itago ang mga detalye' : '▸ Usba ang mga detalye (kung adunay sayop)'}
       </button>
+      <WorkAndOfw m={m} onChange={onChange} />
+
       {editing && (
         <div className="grid gap-3 mt-3" style={GRID}>
           <Field label="Pangalan"><TextInput value={m.first_name} onChange={set('first_name')} onBlur={tidy('first_name')} /></Field>
@@ -596,6 +607,43 @@ function MemberCard({ member: m, showStatusError = false, onChange }) {
             </Select>
           </Field>
           <Field label="Numero sa kontak"><TextInput value={m.contact} onChange={set('contact')} inputMode="tel" /></Field>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// A member on record's OFW answer as OfwFields takes it, and back (0121).
+const PORTAL_OFW_KEYS = { status: 'ofw_status', country: 'ofw_country', since: 'ofw_since', returned: 'ofw_returned' };
+const portalOfw = (m) => ({ status: m.ofw_status || '', country: m.ofw_country || '', since: m.ofw_since || '', returned: m.ofw_returned || '' });
+
+/**
+ * A member on record's occupation and OFW answer (0121): shown as it is, so
+ * the family confirms it each census, with "Usba" to change it (people
+ * leave for work abroad and come home).
+ */
+function WorkAndOfw({ m, onChange }) {
+  const [open, setOpen] = useState(false);
+  const asked = askedForAge(m.dob);
+  const summary = [
+    m.occupation ? `Trabaho: ${m.occupation}` : 'Trabaho: wala pa narekord',
+    asked.occupationGroup && m.occupation_group && occupationGroupBis(m.occupation_group),
+    asked.ofw && (ofwLineBis(m) || 'Dili OFW'),
+  ].filter(Boolean).join(' · ');
+  return (
+    <div className="mt-3 text-[13.5px] text-parish-text2">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span>{summary}</span>
+        <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)}
+          className="appearance-none border-none bg-transparent cursor-pointer p-0 font-semibold text-[13.5px] text-parish-blue">
+          {open ? 'Itago' : 'Usba'}
+        </button>
+      </div>
+      {open && (
+        <div className="grid gap-3 mt-3" style={GRID}>
+          <Field label="Trabaho"><TextInput placeholder="opsyonal" value={m.occupation} onChange={(e) => onChange({ occupation: e.target.value })} /></Field>
+          <OccupationGroupField dob={m.dob} value={m.occupation_group} onChange={(v) => onChange({ occupation_group: v })} />
+          <OfwFields dob={m.dob} value={portalOfw(m)} onChange={(k, v) => onChange({ [PORTAL_OFW_KEYS[k]]: v })} />
         </div>
       )}
     </div>

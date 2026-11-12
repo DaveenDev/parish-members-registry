@@ -1155,6 +1155,7 @@ function PrivacyCard() {
         <span>
           Member information is confidential and accessible only to authorized parish staff. All exports and printed sheets should be handled in accordance with the Data Privacy Act of 2012.
           {' '}Blood types are asked on the registration form and, for new members, on the census portal; they are seen by Full access, Read only, Website &amp; requests and each GKK&apos;s leader for their GKK (not clergy).
+          {' '}If a member works abroad (OFW), the forms and the census also ask the country and since when; that is seen with the member by every account that sees the member, and never shown on the website.
         </span>
       </div>
     </Panel>

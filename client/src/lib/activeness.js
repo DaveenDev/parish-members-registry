@@ -73,6 +73,7 @@ export function analyzeActiveness(members, answersFor = () => ({})) {
     ...levelMix(members),
     children: members.filter((m) => m.practice_level === 'Bata pa').length,
     otherReligion: members.filter((m) => m.practice_level === 'Dili Katoliko').length,
+    abroad: members.filter((m) => m.practice_level === 'Abroad').length,
     estimated: ratedMembers.filter((m) => m.practice_source === 'household').length,
     // Their own answers: in a census, or when the family registered (0055).
     ownAnswers: ratedMembers.filter((m) => m.practice_source === 'census' || m.practice_source === 'registration').length,

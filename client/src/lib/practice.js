@@ -13,7 +13,7 @@ const ANSWER_SHARE = { Aktibo: 1, Panagsa: 0.5, Wala: 0 };
 export const PRACTICE_MAX = { participation: 60, sacraments: 25, involvement: 15 };
 
 /** Levels, best first, then the unrated ones. */
-export const PRACTICE_LEVELS = ['Aktibo', 'Panagsa', 'Dili aktibo', 'Wala pa matino', 'Bata pa', 'Dili Katoliko'];
+export const PRACTICE_LEVELS = ['Aktibo', 'Panagsa', 'Dili aktibo', 'Wala pa matino', 'Bata pa', 'Dili Katoliko', 'Abroad'];
 export const RATED_LEVELS = ['Aktibo', 'Panagsa', 'Dili aktibo'];
 
 export const PRACTICE_TONES = {
@@ -23,6 +23,7 @@ export const PRACTICE_TONES = {
   'Wala pa matino': 'gray',
   'Bata pa': 'blue',
   'Dili Katoliko': 'gray',
+  Abroad: 'blue',
 };
 
 /** What each level means, for tooltips and the filter. */
@@ -33,6 +34,7 @@ export const PRACTICE_LEVEL_HELP = {
   'Wala pa matino': 'No participation answers yet',
   'Bata pa': `${YOUNG_CHILD_MAX_AGE} and under, not rated`,
   'Dili Katoliko': 'Another religion, not rated',
+  Abroad: 'An OFW abroad now, not rated (0121)',
 };
 
 const round1 = (n) => Math.round(n * 10) / 10;
@@ -66,9 +68,11 @@ export function involvementPoints(m) {
 }
 
 /** The level from a score; null for members no longer on the roster. */
-export function practiceLevel({ score, participation, age, religion, isCurrent = true }) {
+export function practiceLevel({ score, participation, age, religion, isCurrent = true, abroad = false }) {
   if (!isCurrent) return null;
   if ((String(religion || '').trim() || 'Roman Catholic') !== 'Roman Catholic') return 'Dili Katoliko';
+  // An OFW abroad now can't take part here (0121, member_practice_from).
+  if (abroad) return 'Abroad';
   // The census's young children (0086: up to 8, before that under 7).
   if (age != null && age <= YOUNG_CHILD_MAX_AGE) return 'Bata pa';
   if (participation == null) return 'Wala pa matino';

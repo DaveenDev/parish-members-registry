@@ -256,13 +256,20 @@ describe('what a member is old enough for', () => {
   const today = new Date('2026-10-05T12:00:00');
 
   test('First Communion and Confirmation from 7, Matrimony and roles from 12', () => {
-    assert.deepEqual(askedForAge('2022-01-01', today), { communion: false, confirmation: false, matrimony: false, roles: false });
-    assert.deepEqual(askedForAge('2019-01-01', today), { communion: true, confirmation: true, matrimony: false, roles: false });
-    assert.deepEqual(askedForAge('2014-01-01', today), { communion: true, confirmation: true, matrimony: true, roles: true });
+    const young = { occupationGroup: false, ofw: false };
+    assert.deepEqual(askedForAge('2022-01-01', today), { communion: false, confirmation: false, matrimony: false, roles: false, ...young });
+    assert.deepEqual(askedForAge('2019-01-01', today), { communion: true, confirmation: true, matrimony: false, roles: false, ...young });
+    assert.deepEqual(askedForAge('2014-01-01', today), { communion: true, confirmation: true, matrimony: true, roles: true, ...young });
+  });
+
+  test('the occupation group from 15 and the OFW question from 18 (0121)', () => {
+    assert.deepEqual([askedForAge('2011-10-06', today).occupationGroup, askedForAge('2011-10-05', today).occupationGroup], [false, true]);
+    assert.deepEqual([askedForAge('2008-10-06', today).ofw, askedForAge('2008-10-05', today).ofw], [false, true]);
+    assert.equal(askedForAge('2010-01-01', today).ofw, false);
   });
 
   test('everything is asked while the birthday is unknown', () => {
-    assert.deepEqual(askedForAge('', today), { communion: true, confirmation: true, matrimony: true, roles: true });
+    assert.deepEqual(askedForAge('', today), { communion: true, confirmation: true, matrimony: true, roles: true, occupationGroup: true, ofw: true });
   });
 
   test('clearForAge drops what a child is too young for', () => {

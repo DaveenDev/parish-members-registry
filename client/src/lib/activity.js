@@ -1,6 +1,6 @@
 // Plain-language lines for activity_log entries (0014 migration). Pure, so
 // it can be unit tested.
-import { SACRAMENTS } from '../constants.js';
+import { SACRAMENTS, OFW_STATUS_LABELS, OCCUPATION_GROUP_HINTS } from '../constants.js';
 import { heroPositionLabel, heroSymbolLabel } from './heroSymbols.js';
 
 const FIELD_LABELS = {
@@ -15,6 +15,13 @@ const FIELD_LABELS = {
   has_communion: 'First Communion', communion_date: 'First Communion date', communion_church: 'First Communion church',
   has_confirmation: 'Confirmed', conf_date: 'Confirmation date', conf_church: 'Confirmation church', conf_name: 'Confirmation name', conf_sponsor: 'Confirmation sponsor',
   has_matrimony: 'Married in Church', mat_date: 'Wedding date', mat_church: 'Wedding church', mat_type: 'Wedding type',
+  occupation_group: 'Occupation group', ofw_status: 'OFW', ofw_country: 'OFW country', ofw_since: 'OFW since', ofw_returned: 'OFW returned',
+  ofw_updated_at: 'OFW answer given',
+};
+// Household and member values shown as words, not as stored (0121).
+const FIELD_FORMAT = {
+  ofw_status: (v) => (v ? OFW_STATUS_LABELS[v] || v : 'Not an OFW'),
+  occupation_group: (v) => (v ? OCCUPATION_GROUP_HINTS[v] || v : '—'),
 };
 // Bookkeeping the trigger records alongside a real change; not worth a line.
 const HIDDEN = new Set(['verified_at', 'verified_by', 'verified_by_name', 'ref_no', 'created_at']);
@@ -198,7 +205,10 @@ export function describeActivity(e) {
 
   const lines = Object.entries(c)
     .filter(([k]) => !HIDDEN.has(k))
-    .map(([k, [from, to]]) => `${FIELD_LABELS[k] || k}: ${formatValue(from)} → ${formatValue(to)}`);
+    .map(([k, [from, to]]) => {
+      const show = FIELD_FORMAT[k] || formatValue;
+      return `${FIELD_LABELS[k] || k}: ${show(from)} → ${show(to)}`;
+    });
   if (c.status && c.status[1] === 'Verified') return { title: 'Verified the household', lines: lines.filter((l) => !l.startsWith('Status:')) };
   return { title: `Updated the ${what(e)}`, lines };
 }
