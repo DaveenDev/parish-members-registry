@@ -235,8 +235,11 @@ lower free number).
   (`Members.jsx`), printed lists (`PrintSheet.jsx`), and the Report Stats
   panel and "missing blood type" option (`Reports.jsx`). The `gkk_leader`
   note in `ACCESS_LEVELS` says "(not their blood types)".
-- **Online census updates** don't ask blood types, partly because leaders
-  review them and couldn't see them (0090's comment). Left as is here.
+- **Online census updates** don't ask blood types, because leaders review
+  them and couldn't see them (0090's comment): the census portal passes
+  `bloodType={false}` to `MemberFieldsGrid` (`CensusPortal.jsx` ~line 718),
+  and `portal_new_member_details` (0090) has no blood type key. The public
+  registration form already asks it.
 
 **What un-hiding involves:**
 
@@ -247,9 +250,24 @@ lower free number).
     1 from members m where m.id = member_blood_types.member_id))`. The
     `members` rules inside the subquery limit it to their GKK (and the
     households with no GKK yet, which they already see, 0093).
-  - `member_blood_types_write`: also `gkk_leader` for those same members, so
-    a leader can record a blood type when they edit a member, as they edit
-    every other field. (Default; see Open questions.)
+  - `member_blood_types_write`: also `gkk_leader` for those same members
+    (in both `using` and `with check`), so a leader can record and change a
+    blood type when they edit a member, as they edit every other field
+    (**decided: yes**). The member window and New Household then show the
+    field to them editable; `api.updateMember` already writes it through
+    `saveMemberBloodType`. Each change is logged as today (the
+    `member_blood_types` trigger, 0062), with the leader's name.
+  - **The census portal asks blood types for new members (decided: yes).**
+    `portal_new_member_details` gets `'blood_type'`, accepted only when it
+    is one of `BLOOD_TYPES` (else dropped, as the other portal fields fall
+    back); `census_approve_submission` (and the auto-approve path, 0083)
+    writes it to `member_blood_types` for the new member, as the
+    registration functions do (0062). Only for **new** members: existing
+    members' blood types aren't shown or changed online (the portal doesn't
+    show a family their stored details beyond the core fields, and a blood
+    type typed by mistake would overwrite a verified one).
+    These are the same 0090 functions Phase 1 rewrites for the OFW fields:
+    whichever migration runs second starts from the other's text.
   - `admin_report_stats()`: recreate from its 0062 text without the two
     `gkk_leader` cases, so a leader's Report Stats get their GKK's blood
     types (the function already counts only what the caller can read).
@@ -261,9 +279,16 @@ lower free number).
   `api.js` `updateMember`). The Blood Types page then lists the leader's
   GKK only (its GKK filter already reads `listCounts('gkks')`, which is the
   leader's GKK alone, 0050).
-- Text: the `gkk_leader` note in `ACCESS_LEVELS`, the README's access
-  table and the Data Privacy note in Parish Config: leaders now see their
-  GKK's blood types.
+- App, census portal: drop `bloodType={false}` in `CensusPortal.jsx` so
+  new members get the same "Tipo sa dugo" question as in registration, add
+  it to the portal payload, and show it in the reviewer's
+  `CensusSubmissionDrawer.jsx` and the census review labels
+  (`lib/census.js` ~line 689). The paper census form
+  (`CensusPrintSheet.jsx`) gets a blood type blank for new members too.
+- Text: the `gkk_leader` note in `ACCESS_LEVELS` (now "sees and updates
+  their GKK's blood types"), the README's access table, and the Data
+  Privacy notes in Parish Config and the census portal (blood type is now
+  collected there for new members).
 - **Clergy are unchanged** (still no blood types, 0087): Dave's answer was
   about GKK leaders.
 - **Audit log plan:** its phase 4 drops `blood_type` from what leaders see
@@ -273,7 +298,12 @@ lower free number).
   `bloodTypes`; update it. On demo, as a leader: their GKK's blood types
   show in the member window, list, household panel, Blood Types page and
   Report Stats; another GKK's don't; a direct select on
-  `member_blood_types` returns only their GKK's rows.
+  `member_blood_types` returns only their GKK's rows; they can set and
+  change one for their GKK's member (logged with their name) but an insert
+  for another GKK's member is refused. Census portal: a new member with a
+  blood type → the reviewer sees it, approval (and auto-approval) stores
+  it; a value not in the list is dropped. `census.test.js` covers the
+  payload and the review label.
 - No Edge Function changes.
 
 ## Phase 1: the database (migration 0120)
@@ -521,12 +551,9 @@ covers them.
 - The occupation group is hidden for members under 15 (Phase 2).
 - OFW details are printable (Privacy).
 - Dave checks the Bisaya labels before release.
+- GKK leaders can also set and change their GKK's blood types (Step 0).
+- The census portal asks blood types for new members (Step 0).
 
 ## Open questions
 
-- **Leaders writing blood types:** Step 0 lets GKK leaders set and change
-  their GKK's blood types too, as they edit every other field (default).
-  Or should they only see them, with changes left to the office?
-- **Blood types in the online census:** now that leaders can see them, ask
-  the blood type in the census portal for new members too (0090 left it
-  out because leaders couldn't see it)? Default: not in this plan.
+None left. New questions found while building go here.
