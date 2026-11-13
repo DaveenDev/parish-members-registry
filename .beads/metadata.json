@@ -1,0 +1,7 @@
+{
+  "database": "dolt",
+  "backend": "dolt",
+  "dolt_mode": "embedded",
+  "dolt_database": "PARISH_MEMBERS_REGISTRY",
+  "project_id": "61a07ef7-c9c1-4179-ab44-182f7b3f6445"
+}

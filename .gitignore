@@ -41,3 +41,10 @@ docs/parish-tracker.xlsx
 supabase/.branches/
 client/worker/supabase.gen.js
 client/.wrangler/
+
+# Beads / Dolt files (added by bd init)
+.dolt/
+*.db
+.beads-credential-key
+.beads/proxieddb/
+*.gate.lock*
