@@ -3,7 +3,7 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   // The Worker's name: the site is https://<name>.<account>.workers.dev
-  "name": "parish-registry",
+  "name": "site",
   "main": "worker/index.js",
   "compatibility_date": "2026-11-01",
   "assets": {
