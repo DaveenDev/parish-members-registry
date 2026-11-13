@@ -1,5 +1,63 @@
 # Notes for Claude
 
+## Persistent Development Workflow
+
+At the beginning of every session:
+- Retrieve relevant project history from Claude-Mem.
+- Review open and blocked Beads tasks.
+- Summarize the previous work and outstanding decisions.
+- Recommend the next task before starting.
+
+During development:
+- Record important architectural decisions.
+- Track new bugs, features, and unfinished tasks in Beads.
+- Distinguish tasks owned by HUMAN and AI.
+- Record blockers and dependencies.
+- Update task status as work progresses.
+- Do not mark a task complete without verification.
+
+At the end of each session:
+- Summarize completed work.
+- Record unresolved issues.
+- Update Beads tasks.
+- Identify the next recommended action.
+- Leave a concise handoff for the next session.
+
+Never assume a previous task was completed without checking.
+Never automatically execute HUMAN-owned tasks.
+
+## Work with Beads hand-in-hand
+Review the current Beads and Claude-Mem setup for this project.
+
+Make sure the project workflow is:
+1. Use Beads for tasks, bugs, dependencies, and project status.
+2. Use Claude-Mem for persistent coding knowledge and discoveries.
+3. At the beginning of a session, check Beads for current work.
+4. Before starting significant work, identify or create the appropriate Beads issue.
+5. Keep Beads issue status updated as work progresses.
+6. Record important architectural decisions and discoveries naturally so Claude-Mem can retain them.
+7. Do not duplicate detailed memory into Beads unless it belongs to the task itself.
+
+
+## Project Task Synchronization
+
+Beads is the authoritative source for project tasks.
+
+At the start of every session:
+1. Run `bd prime`.
+2. Run `bd ready`.
+3. Run `bd list --status open`.
+4. Review newly added ideas and outstanding tasks.
+5. Separate HUMAN and AI responsibilities.
+6. Compare current tasks with relevant Claude-Mem history.
+7. Present a concise project status and recommended next action.
+
+Never rely solely on Claude-Mem for outstanding tasks.
+
+When tasks change, update Beads directly.
+Do not duplicate Beads tasks into another task tracker.
+
+
 ## Edge Functions: always give the deploy command
 
 Whenever a change touches anything under `supabase/functions/`, the summary
@@ -33,7 +91,7 @@ Give these too, for trying a change there first:
 Give the migrations to run in the same summary, in order.
 
 
-<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:1105d646 -->
+<!-- BEGIN BEADS INTEGRATION v:1 profile:minimal hash:46cd31e7 -->
 ## Beads Issue Tracker
 
 This project uses **bd (beads)** for issue tracking. Run `bd prime` to see full workflow context and commands.
@@ -77,6 +135,7 @@ This protocol applies when ending a Beads implementation workflow. It is subordi
 
    # Team-maintainer opt-in only, unless current instructions forbid it:
    git pull --rebase
+   bd dolt push
    git push
    git status
    ```
