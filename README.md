@@ -6,9 +6,9 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 
 **Live Parish Online Census & Website: https://guadalupe-muaan.vercel.app/**
 
-**Demo site, with sample data, to try the app: https://parish-registry-demo.vercel.app/**
+**Demo site, with sample data, to try the app: https://parish-demo.daveen.dev/**
 
-**Demo admin panel: https://parish-registry-demo.vercel.app/admin** (press **Login to Demo Site**)
+**Demo admin panel: https://parish-demo.daveen.dev/admin** (press **Login to Demo Site**)
 
 **Releases and what's new: https://daveendev.github.io/parish-members-registry/** (copied the repository? Watch → Custom → Releases, or subscribe to its feed, to hear of each update)
 
@@ -18,7 +18,7 @@ Built with **React + Tailwind CSS**, talking directly to **Supabase** (Postgres 
 
 This registry was built for Our Lady of Guadalupe Quasi-Parish, Mua-an, and is given freely to any parish, chapel or diocese that wants it.
 
-**Try it first** on the demo site, [parish-registry-demo.vercel.app](https://parish-registry-demo.vercel.app): the parish website, registration and requests, all with sample data. For the staff side, open its [admin panel](https://parish-registry-demo.vercel.app/admin) and press **Login to Demo Site**: it opens the admin panel as the parish office sees it, with nothing to type.
+**Try it first** on the demo site, [parish-demo.daveen.dev](https://parish-demo.daveen.dev): the parish website, registration and requests, all with sample data. For the staff side, open its [admin panel](https://parish-demo.daveen.dev/admin) and press **Login to Demo Site**: it opens the admin panel as the parish office sees it, with nothing to type.
 
 **You may**, at no cost:
 
