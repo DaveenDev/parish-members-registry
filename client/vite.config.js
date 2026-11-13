@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite';
+import fs from 'node:fs';
+import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import { readdirSync } from 'node:fs';
 
@@ -17,8 +18,25 @@ function appVersion() {
   }
 }
 
-export default defineConfig({
-  plugins: [react()],
+// Cloudflare: the Worker (worker/index.js) needs the same public Supabase
+// settings the site is built with. Written at build time, so there is
+// nothing to type into Cloudflare. The file is not in git.
+function workerSettings(mode) {
+  return {
+    name: 'worker-supabase-settings',
+    buildStart() {
+      const env = loadEnv(mode, process.cwd(), 'VITE_');
+      const pick = (k) => JSON.stringify(process.env[k] || env[k] || '');
+      fs.writeFileSync(
+        new URL('./worker/supabase.gen.js', import.meta.url),
+        `// Written by vite.config.js at build time. Not in git.\nexport const SUPABASE_URL = ${pick('VITE_SUPABASE_URL')};\nexport const SUPABASE_ANON_KEY = ${pick('VITE_SUPABASE_ANON_KEY')};\n`,
+      );
+    },
+  };
+}
+
+export default defineConfig(({ command, mode }) => ({
+  plugins: [react(), ...(command === 'build' ? [workerSettings(mode)] : [])],
   define: {
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion()),
   },
@@ -40,4 +58,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

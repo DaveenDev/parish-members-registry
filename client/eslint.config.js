@@ -7,7 +7,7 @@ import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
-  { ignores: ['dist/**', 'node_modules/**', 'public/**'] },
+  { ignores: ['dist/**', 'node_modules/**', 'public/**', '.wrangler/**', 'worker/supabase.gen.js'] },
   js.configs.recommended,
   {
     files: ['src/**/*.{js,jsx}'],
@@ -36,7 +36,12 @@ export default [
   },
   {
     // Tests, build config and the Vercel Functions (api/) run under Node.
-    files: ['test/**/*.js', '*.config.js', 'api/**/*.js'],
+    files: ['test/**/*.js', '*.config.js', 'api/**/*.js', 'server/**/*.js'],
     languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: { ...globals.node, ...globals.browser } },
+  },
+  {
+    // The Cloudflare Worker (worker/) runs on Workers, not Node or a browser.
+    files: ['worker/**/*.js'],
+    languageOptions: { ecmaVersion: 'latest', sourceType: 'module', globals: globals.serviceworker },
   },
 ];

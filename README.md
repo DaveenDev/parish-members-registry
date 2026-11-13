@@ -30,7 +30,7 @@ This registry was built for Our Lady of Guadalupe Quasi-Parish, Mua-an, and is g
 
 The admin panel shows the occasional note about PRO modules, which staff can hide. The free licence doesn't require keeping them; only the credit above is required.
 
-**What it costs to run:** nothing, on the free plans of [Supabase](https://supabase.com) (the database and staff logins), [Vercel](https://vercel.com) (the website) and [Cloudflare R2](https://www.cloudflare.com/developer-platform/products/r2/) (photos), for a parish of a few thousand households. A domain name of your own is optional. See [Staying on the free tier](#staying-on-the-free-tier-keep-alive-and-backups).
+**What it costs to run:** nothing, on the free plans of [Supabase](https://supabase.com) (the database and staff logins), [Vercel](https://vercel.com) or [Cloudflare Workers](https://workers.cloudflare.com) (the website) and [Cloudflare R2](https://www.cloudflare.com/developer-platform/products/r2/) (photos), for a parish of a few thousand households. A domain name of your own is optional. See [Staying on the free tier](#staying-on-the-free-tier-keep-alive-and-backups).
 
 ### Setting it up yourself
 
@@ -140,7 +140,7 @@ What it does for a parish, in plain terms. The details are under [Features](#fea
 |----------|------|
 | Frontend | React 18, React Router, Tailwind CSS, Vite |
 | Backend  | Supabase (Postgres, Row Level Security, Auth, Postgres functions, one Edge Function for staff accounts) |
-| Hosting  | Vercel (frontend) + Supabase (database), both free-tier |
+| Hosting  | Vercel or Cloudflare Workers (frontend) + Supabase (database), all free-tier |
 
 ## Project structure
 
@@ -332,7 +332,7 @@ to your parish.
 
 ## Deploying
 
-Setting up the live site and the demo site from scratch (Supabase, Vercel, Cloudflare R2, email, backups), and setting the site up for another parish: see [`deploy/`](deploy/README.md). In short: import the repo into Vercel with **Root Directory set to `client`**, add `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` as Vercel env vars (and, on the demo site only, `VITE_DEMO_EMAIL`/`VITE_DEMO_PASSWORD` for **Login to Demo Site**), and deploy — `client/vercel.json` handles the SPA routing rewrite and the `/media` photo proxy (one bucket for the demo site's address, another for the live site).
+Setting up the live site and the demo site from scratch (Supabase, Vercel, Cloudflare R2, email, backups), and setting the site up for another parish: see [`deploy/`](deploy/README.md). To host on Cloudflare Workers instead of Vercel: [`deploy/05-cloudflare.md`](deploy/05-cloudflare.md). In short: import the repo into Vercel with **Root Directory set to `client`**, add `VITE_SUPABASE_URL`/`VITE_SUPABASE_ANON_KEY` as Vercel env vars (and, on the demo site only, `VITE_DEMO_EMAIL`/`VITE_DEMO_PASSWORD` for **Login to Demo Site**), and deploy — `client/vercel.json` handles the SPA routing rewrite and the `/media` photo proxy (one bucket for the demo site's address, another for the live site).
 
 ## Testing
 

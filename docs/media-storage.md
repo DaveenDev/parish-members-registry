@@ -22,8 +22,16 @@ photos; picking a photo shows "Photo uploads aren't set up yet".
    Philippines among them) block r2.dev outright, so visitors on them see
    broken photos even though the files are in the bucket.
 
-   **No domain of your own (e.g. free Vercel on `*.vercel.app`)?** Keep the
-   r2.dev subdomain enabled and let Vercel pass photos through: the `/media`
+   **No domain of your own (e.g. free Cloudflare Workers on `*.workers.dev`)?**
+   Keep the r2.dev subdomain enabled and let the website pass photos through:
+   the Worker ([`client/worker/app.js`](../client/worker/app.js)) fetches
+   `https://<site>/media/<key>` from the bucket's r2.dev address (`MEDIA_ORIGIN`
+   in [`client/wrangler.jsonc`](../client/wrangler.jsonc)), which providers
+   don't block. Use `https://<your-site>.workers.dev/media` as the Public URL,
+   and add the site's address to the bucket's CORS `AllowedOrigins`
+   ([deploy/05-cloudflare.md](../deploy/05-cloudflare.md)).
+
+   **On Vercel (`*.vercel.app`) instead?** Let Vercel pass photos through: the `/media`
    rewrite in [`client/vercel.json`](../client/vercel.json) fetches
    `https://<site>/media/<key>` from the bucket's r2.dev address on Vercel's
    servers, which providers don't block. Use
@@ -83,7 +91,8 @@ settings in the form, without saving them:
    This checks the Account ID, the keys, the bucket name and write permission.
 2. **Public URL:** it opens that file through the Public URL. This checks that
    the address shows this bucket. With the website's `/media` address, the
-   `/media` rule for that site in `client/vercel.json` must point at this
+   `/media` address of the site (`MEDIA_ORIGIN` in `client/wrangler.jsonc`, or
+   the rule for that site in `client/vercel.json` on Vercel) must point at this
    bucket's r2.dev address.
 3. **Clean up:** it deletes the test file. If it can't, the file is harmless.
 

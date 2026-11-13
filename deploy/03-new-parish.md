@@ -4,7 +4,8 @@ The code is written for Our Lady of Guadalupe Quasi-Parish (OLGQP), Mua-an.
 The parish's name comes from Parish Config, but a few addresses are built
 into the code. For another parish: copy the repository, change those, then
 set up the services with
-[01-production.md](01-production.md) and [02-demo.md](02-demo.md).
+[01-production.md](01-production.md) and [02-demo.md](02-demo.md), then put the
+website online on Cloudflare with [05-cloudflare.md](05-cloudflare.md).
 
 The app is free for any parish, on one condition (see [`LICENSE`](../LICENSE)):
 keep the **"Built For Free by DaveenDev"** credit and the `/developer` page it
@@ -68,7 +69,8 @@ Do this in the new repository before the first deploy. Steps marked
 |---|---|---|
 | Live database (*after 01 step 2*) | [`client/src/lib/database.js`](../client/src/lib/database.js) `LIVE_PROJECT_ID` | the new live project ref. Every other project shows the demo banner. (Leave `DEMO_PROJECT_ID` in `manage-staff/handler.js` alone: it names the shared demo site, the only project where an account may get Demo access, so the Edge Functions are the same for every parish. A parish with a demo site of its own has no Demo access there unless its copy names that demo project and deploys that demo's functions itself) |
 | Live database (*after 01 step 7*) | [`client/.env.production`](../client/.env.production) | the new live `VITE_SUPABASE_URL` and anon key (keep-alive reads them) |
-| Photo buckets (*after 01 step 8 / 02 step 8*) | [`client/vercel.json`](../client/vercel.json), the `/media` rules | the rules with `"has"`: keep one, with the demo site's name in `"pre"` and its testing bucket's r2.dev address (or delete them if there's no demo site); the last rule: the live bucket's r2.dev address |
+| Photo bucket (*after 01 step 8*), on Cloudflare | [`client/wrangler.jsonc`](../client/wrangler.jsonc) `name` and `MEDIA_ORIGIN` | the Worker's name and the live bucket's r2.dev address (see [05-cloudflare.md](05-cloudflare.md)) |
+| Photo buckets (*after 01 step 8 / 02 step 8*), on Vercel | [`client/vercel.json`](../client/vercel.json), the `/media` rules | the rules with `"has"`: keep one, with the demo site's name in `"pre"` and its testing bucket's r2.dev address (or delete them if there's no demo site); the last rule: the live bucket's r2.dev address |
 | Demo site kept out of search | [`client/vercel.json`](../client/vercel.json), the `X-Robots-Tag` rules with `"has"` | keep one, with the demo site's name in `"pre"`, as above (or delete them) |
 | Search engines (*after 01 step 7*) | [`client/public/robots.txt`](../client/public/robots.txt) `Sitemap:` line (sitemap.xml itself is made from the site's address) | the new live `<site>` |
 | New households' town | [`client/src/constants.js`](../client/src/constants.js) `DEFAULT_ADDRESS` | the city or town, province and ZIP most families live in |

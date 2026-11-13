@@ -1,0 +1,22 @@
+// Cloudflare Worker for this parish's site (deploy/05-cloudflare.md).
+// The two lines to change for another parish are marked.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  // The Worker's name: the site is https://<name>.<account>.workers.dev
+  "name": "parish-registry",
+  "main": "worker/index.js",
+  "compatibility_date": "2026-11-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Every address that isn't a file is the site (index.html), for deep links.
+    "not_found_handling": "single-page-application",
+    // The Worker sees every request first (photos, sitemap, previews, headers).
+    "run_worker_first": true
+  },
+  "vars": {
+    // The photo bucket's r2.dev address: what /media/* is fetched from.
+    "MEDIA_ORIGIN": "https://pub-25d83e20c5f14fc0b2f81d3476651579.r2.dev"
+    // "NOINDEX": "1"  // keeps a whole demo or test copy out of search engines
+  }
+}

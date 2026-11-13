@@ -39,3 +39,5 @@ docs/parish-tracker.xlsx
 # Generated local tooling output
 .playwright-mcp/
 supabase/.branches/
+client/worker/supabase.gen.js
+client/.wrangler/
