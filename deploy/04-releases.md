@@ -288,6 +288,79 @@ after its migrations, before pushing its website. The `deploy:demo:*` and
 `deploy:production:*` scripts still work for the demo site and Mua-an with
 this computer's login.
 
+## Carrying the code to a parish's own website
+
+The steps above move each parish's **database and functions**. A parish's
+**website** is a branch of this repository with its own worktree and its own
+GitHub repository (for example `sjmvp` for SJMV Parish, `parish/olgqp` for
+Guadalupe, Mua-an). This section is how a change on `main` reaches them.
+
+**How the branches are laid out**
+
+- `main` is the free, generic code. It deploys to the demo site.
+- Each parish branch is created **from `main`**, so it shares `main`'s
+  history, and holds only that parish's own settings on top: the project ID
+  in `client/src/lib/database.js`, `client/.env.production`,
+  `client/vercel.json`, `client/wrangler.jsonc`, `client/public/robots.txt`,
+  `DEFAULT_SITE_URL` in `client/src/lib/census.js`, `supabase/config.toml`,
+  the deploy scripts in the root `package.json`, and its README, `deploy/`
+  and `docs/`.
+- Each parish has its own **named git remote** for its repository. Push with
+  an explicit refspec to that remote, never to a pasted URL.
+
+**For each parish, after its database and functions are done**
+
+1. In the parish's worktree: `git merge main`. Never cherry-pick, reset or
+   rebuild its history by hand: a branch that stops sharing history with
+   `main` drifts, and it's how a parish ended up 21 migrations behind.
+   Conflicts should only be in the parish-owned files above; keep the
+   parish's version of those.
+2. `npm test` and `npm run build` in the worktree.
+3. **Check the commit author** (next section), then push that branch to that
+   parish's remote, for example `git push <remote> <branch>:main`.
+4. **Check the live site uses that parish's own database:** open it, find the
+   Supabase project in its JavaScript (`https://<ref>.supabase.co`) and
+   confirm it's the parish's `projectRef` from `npm run parish`, not the demo's
+   or another parish's.
+
+Never push `main` itself to a parish's repository, and never track
+`client/.env.local` in git: Vite reads it before `.env.production`, so a
+tracked copy that names the demo project makes a parish's live site use the
+demo database.
+
+**The commit author must be the parish's own GitHub account**
+
+Every commit that goes to a parish repository (including the merge commit
+from `git merge main`, an empty "Trigger deploy" commit and any fix-up) must
+be authored by **that parish's GitHub account, with its GitHub noreply
+address**. On the free Vercel plan a deployment is blocked when the newest
+commit's author isn't the account linked to the Vercel project ("the commit
+email could not be matched to a GitHub account" or "the commit author did not
+have contributing access"). Vercel looks at the newest commit of the push.
+
+- Each parish worktree has its own git identity (`git config --worktree`,
+  with `extensions.worktreeConfig` on), so commits in it get the right author
+  automatically. Check it with `git config user.name && git config user.email`.
+- Before a push, check the newest commit: `git log -1 --format='%an <%ae>'`.
+  If it's wrong, fix the worktree's identity and re-author it
+  (`git commit --amend --reset-author` while it's unpushed, or a new commit
+  on top once it's pushed).
+- Use the GitHub noreply address (`<id>+<username>@users.noreply.github.com`,
+  shown at github.com/settings/emails), not the parish's Gmail: the Gmail only
+  matches once it's added and verified on the account, and a mistyped one
+  never matches.
+- Never push a commit authored by someone else (yours, or another parish's)
+  into a parish repository.
+
+| Folder (worktree) | Branch | Commits as |
+|---|---|---|
+| `PARISH-MEMBERS-REGISTRY` | `main` | Ruben Dave `57737577+DaveenDev@users.noreply.github.com` |
+| `PARISH-REGISTRY-sjmvp` | `sjmvp` | SJMVParish `349221330+SJMVparish@users.noreply.github.com` |
+| `PARISH-REGISTRY-olgqp` | `parish/olgqp` | guadalupe-muaan `350204497+guadalupe-muaan@users.noreply.github.com` |
+
+A new parish gets its own row: create the branch from `main`, add the
+worktree, set its identity, add its remote and its entry in `parishes.json`.
+
 ## Release notes: the releases page
 
 Parishes and developers who copied the repository follow its updates on the
